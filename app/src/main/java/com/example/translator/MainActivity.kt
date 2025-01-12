@@ -43,40 +43,17 @@ import kotlin.system.measureTimeMillis
 
 class MainActivity : ComponentActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+    private fun filesFor(fromLang: String, toLang: String): Triple<String, String, String> {
+        val lang = "$fromLang$toLang"
+        val model = "model.$lang.intgemm.alphas.bin"
+        val vocab = "vocab.$lang.spm"
+        val lex = "lex.50.50.$lang.s2t.bin"
+        return Triple(model, vocab, lex)
+    }
 
-        val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.1"
-        val lang = "esen"
-        val model = "model.esen.intgemm.alphas.bin"
-        val vocab = "vocab.esen.spm"
-        val lex = "lex.50.50.esen.s2t.bin"
-        val files = arrayOf(
-            model, vocab, lex,
-        )
+    private fun configForLang(fromLang: String, toLang: String): String {
         val dataPath = baseContext.getExternalFilesDir("bin")!!
-
-        files.forEach { f ->
-
-            val file = File(dataPath.absolutePath + "/" + f)
-            if (!file.exists()) {
-                val dm = this.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                val request = DownloadManager.Request(Uri.parse("${base}/${lang}/${f}"))
-                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                request.setTitle("Downloading ${f}")
-                val out = Uri.fromFile(file)
-                println("xxDownloading ${f}, ${file} = ${out}")
-
-                request.setDestinationUri(out)
-                val downloadReference = dm.enqueue(request) ?: 0
-
-            } else {
-                println("Not downloading ${f}")
-            }
-        }
-
-        println("listed ${dataPath.listFiles().joinToString()}")
+        val (model, vocab, lex) = filesFor(fromLang, toLang)
         val cfg = """
 models:
   - ${dataPath}/${model}
@@ -100,6 +77,45 @@ quiet-translation: false
 gemm-precision: int8shiftAlphaAll
 alignment: soft
 )"""
+        return cfg
+    }
+
+    private fun ensureLocalFiles(fromLang: String, toLang: String) {
+        val files = filesFor(fromLang, toLang)
+        val lang = "$fromLang$toLang"
+        val dataPath = baseContext.getExternalFilesDir("bin")!!
+        val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.1"
+
+        files.toList().forEach { f ->
+
+            val file = File(dataPath.absolutePath + "/" + f)
+            println("Checking ${f} = ${file}")
+            if (!file.exists()) {
+                val dm = this.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                val request = DownloadManager.Request(Uri.parse("${base}/${lang}/${f}"))
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                request.setTitle("Downloading ${f}")
+                val out = Uri.fromFile(file)
+                println("Downloading ${f}, ${file} = ${out}")
+
+                request.setDestinationUri(out)
+                val downloadReference = dm.enqueue(request) ?: 0
+
+            } else {
+                println("${f} present, not downloading")
+            }
+        }
+        println("listed ${dataPath.listFiles().joinToString()}")
+
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        val fromLang = "es"
+        val toLang = "en"
+        ensureLocalFiles(fromLang, toLang)
+        val cfg = configForLang(fromLang, toLang)
 
         setContent {
             TranslatorTheme {
@@ -116,7 +132,9 @@ alignment: soft
 fun Greeting(cfg: String) {
     var input by remember { mutableStateOf("Continúan los cambios en la Agencia de Recaudación y Control Aduanero (ARCA), ex-AFIP. A través del decreto 13/2025 publicado este martes a la madrugada en el Boletín Oficial, el Gobierno decidió avanzar en la reducción del sueldo del director ejecutivo del organismo y del resto de directores generales, tal y como se había anticipado cuando se renombró al ente recaudador de impuestos, y además que se llevará adelante una “reducción de la estructura inferior”.\n") }
     var output by remember { mutableStateOf("") }
-    var isTranslating by remember { mutableStateOf(false) }
+    val translationState = remember { mutableStateOf(false) }
+    var isTranslating by translationState
+
     val scope = rememberCoroutineScope()
     val nl = NativeLib()
 
@@ -144,15 +162,15 @@ fun Greeting(cfg: String) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Translate Button
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        if (isTranslating) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
             Button(
                 onClick = {
-                    isTranslating = true
+                    translationState.value = true
 
                     scope.launch {
                         try {
@@ -161,25 +179,14 @@ fun Greeting(cfg: String) {
                             }
                             println("Took ${elapsed} to translate")
                         } finally {
-                            isTranslating = false
+                            translationState.value = false
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isTranslating
-
+                enabled = !isTranslating && input.isNotEmpty()
             ) {
-                if (isTranslating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Text("Translate222")
-
-                } else {
-                    Text("Translate")
-
-                }
+                Text("Translate")
             }
         }
 

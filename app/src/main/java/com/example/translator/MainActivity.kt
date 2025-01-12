@@ -44,6 +44,7 @@ import com.example.bergamot.NativeLib
 import com.example.translator.MainActivity.TranslationDirection
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
         GREEK("el", "Greek"),
         SPANISH("es", "Spanish"),
         ESTONIAN("et", "Estonian"),
-        FINNISH("fi", "Finnish"),
+//        FINNISH("fi", "Finnish"),
         FRENCH("fr", "French"),
         CROATIAN("hr", "Croatian"),
         INDONESIAN("id", "Indonesian"),
@@ -127,34 +128,55 @@ alignment: soft
         return cfg
     }
 
-    private fun ensureLocalFiles(fromLang: Language, toLang: Language) {
+    private suspend fun ensureLocalFiles(fromLang: Language, toLang: Language) {
         val files = filesFor(fromLang, toLang)
         val lang = "${fromLang.code}${toLang.code}"
         val dataPath = baseContext.getExternalFilesDir("bin")!!
         val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.1"
 
-        files.toList().forEach { f ->
+        val downloadRequests = mutableListOf<Long>()
+        val dm = this.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
+        files.toList().forEach { f ->
             val file = File(dataPath.absolutePath + "/" + f)
             println("Checking ${f} = ${file}")
             if (!file.exists()) {
-                val dm = this.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                val request = DownloadManager.Request(Uri.parse("${base}/${lang}/${f}"))
+                val url = "${base}/${lang}/${f}"
+                val request = DownloadManager.Request(Uri.parse(url))
                 request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                request.setTitle("Downloading ${f}")
+                request.setTitle("Downloading $f")
                 val out = Uri.fromFile(file)
-                println("Downloading ${f}, ${file} = ${out}")
+                println("Downloading ${f}, from $url to ${file} = ${out}")
 
                 request.setDestinationUri(out)
-                val downloadReference = dm.enqueue(request) ?: 0
+                downloadRequests.add(dm.enqueue(request))
 
             } else {
                 println("${f} present, not downloading")
             }
         }
+
+        downloadRequests.forEach { downloadId ->
+            var downloading = true
+            while (downloading) {
+                val query = DownloadManager.Query().setFilterById(downloadId)
+                val cursor = dm.query(query)
+                if (cursor.moveToFirst()) {
+                    val status =
+                        cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    downloading = status != DownloadManager.STATUS_SUCCESSFUL &&
+                            status != DownloadManager.STATUS_FAILED
+                }
+                cursor.close()
+                if (downloading) {
+                    delay(100) // Don't spam the system
+                }
+            }
+        }
         println("listed ${dataPath.listFiles().joinToString()}")
 
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -202,7 +224,6 @@ fun Greeting(
     var input by remember { mutableStateOf("Continúan los cambios en la Agencia de Recaudación y Control Aduanero (ARCA), ex-AFIP. A través del decreto 13/2025 publicado este martes a la madrugada en el Boletín Oficial, el Gobierno decidió avanzar en la reducción del sueldo del director ejecutivo del organismo y del resto de directores generales, tal y como se había anticipado cuando se renombró al ente recaudador de impuestos, y además que se llevará adelante una “reducción de la estructura inferior”.\n") }
     var output by remember { mutableStateOf("") }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
-    val translationState = remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val nl = NativeLib()

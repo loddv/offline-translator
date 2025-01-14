@@ -157,7 +157,7 @@ fun LanguageManagerScreen() {
     }
 }
 
-private fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Boolean {
+fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Boolean {
     val dataPath = context.getExternalFilesDir("bin")!!
     val (model, vocab, lex) = filesFor(from, to)
 

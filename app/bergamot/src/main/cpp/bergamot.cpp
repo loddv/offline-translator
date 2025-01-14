@@ -13,7 +13,6 @@ std::string func(const char* cfg, const char *input) {
     using namespace marian::bergamot;
     ConfigParser<AsyncService> configParser("Bergamot CLI", //multiOpMode
                                             false);
-    //configParser.parseArgs(argc, argv);
     auto &config = configParser.getConfig();
 
     AsyncService service(config.serviceConfig);
@@ -21,6 +20,7 @@ std::string func(const char* cfg, const char *input) {
     auto validate = true;
     auto pathsDir = "";
     std::string cfg_s(cfg);
+    // This "parseOptionsFromString" throws/aborts
     auto options = parseOptionsFromString(cfg_s, validate, pathsDir);
 
     std::shared_ptr<TranslationModel> model = service.createCompatibleModel(options);
@@ -55,9 +55,13 @@ Java_com_example_bergamot_NativeLib_stringFromJNI(
     const char* c_cfg = env->GetStringUTFChars(cfg, nullptr);
     const char* c_data = env->GetStringUTFChars(data, nullptr);
 
-    std::string s = func(c_cfg, c_data);
-    const char* out = s.c_str();
-
+    const char* out;
+    try {
+        std::string s = func(c_cfg, c_data);
+        out = s.c_str();
+    } catch(const std::exception &e) {
+        out = e.what();
+    }
     env->ReleaseStringUTFChars(cfg, c_cfg);
     env->ReleaseStringUTFChars(data, c_data);
     return env->NewStringUTF(out);

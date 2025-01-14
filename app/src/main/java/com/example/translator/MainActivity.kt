@@ -36,12 +36,14 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.bergamot.NativeLib
@@ -125,56 +127,6 @@ alignment: soft
         return cfg
     }
 
-    private suspend fun ensureLocalFiles(fromLang: Language, toLang: Language) {
-        val files = filesFor(fromLang, toLang)
-        val lang = "${fromLang.code}${toLang.code}"
-        val dataPath = baseContext.getExternalFilesDir("bin")!!
-        val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.1"
-
-        val downloadRequests = mutableListOf<Long>()
-        val dm = this.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-
-        files.toList().forEach { f ->
-            val file = File(dataPath.absolutePath + "/" + f)
-            println("Checking ${f} = ${file}")
-            if (!file.exists()) {
-                val url = "${base}/${lang}/${f}"
-                val request = DownloadManager.Request(Uri.parse(url))
-                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                request.setTitle("Downloading $f")
-                val out = Uri.fromFile(file)
-                println("Downloading ${f}, from $url to ${file} = ${out}")
-
-                request.setDestinationUri(out)
-                downloadRequests.add(dm.enqueue(request))
-
-            } else {
-                println("${f} present, not downloading")
-            }
-        }
-
-        downloadRequests.forEach { downloadId ->
-            var downloading = true
-            while (downloading) {
-                val query = DownloadManager.Query().setFilterById(downloadId)
-                val cursor = dm.query(query)
-                if (cursor.moveToFirst()) {
-                    val status =
-                        cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                    downloading = status != DownloadManager.STATUS_SUCCESSFUL &&
-                            status != DownloadManager.STATUS_FAILED
-                }
-                cursor.close()
-                if (downloading) {
-                    delay(100) // Don't spam the system
-                }
-            }
-        }
-        println("listed ${dataPath.listFiles().joinToString()}")
-
-    }
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -182,15 +134,6 @@ alignment: soft
         setContent {
             TranslatorTheme {
                 MaterialTheme {
-//
-//
-//                    // Ensure files are downloaded when direction changes
-//                    LaunchedEffect(direction.value) {
-//                        ensureLocalFiles(
-//                            direction.value.from,
-//                            direction.value.to
-//                        )
-//                    }
                     TranslatorApp(configForLang = { from, to -> this.configForLang(from, to) })
                 }
             }
@@ -213,6 +156,34 @@ fun Greeting(configForLang: (Language, Language) -> String,
     val scope = rememberCoroutineScope()
     val nl = NativeLib()
 
+    val context = LocalContext.current
+    // Track available language pairs
+    val availableLanguages = remember { mutableStateMapOf<String, Boolean>() }
+
+    // Check which language pairs are downloaded
+    LaunchedEffect(Unit) {
+        availableLanguages[Language.ENGLISH.code] = true
+        withContext(Dispatchers.IO) {
+            Language.values().forEach { fromLang ->
+                val toLang = Language.ENGLISH
+                    if (fromLang != toLang) {
+                        val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
+                        availableLanguages[fromLang.code] = isAvailable
+                    }
+                }
+
+            // Set initial languages if none selected
+                // Try to find first available pair
+                Language.values().forEach { fromLang ->
+                    if (availableLanguages[fromLang.code] == true) {
+                        setFrom(fromLang)
+                        setTo(Language.ENGLISH)
+                        return@withContext
+                    }
+
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -246,7 +217,8 @@ fun Greeting(configForLang: (Language, Language) -> String,
                     expanded = fromExpanded,
                     onDismissRequest = { fromExpanded = false }
                 ) {
-                    MainActivity.Language.values().filterNot { x -> x == to }.filter { x -> x == to }
+                    // Path exists to target
+                    MainActivity.Language.values().filter { x -> x != to && x != from && availableLanguages[x.code] == true }
                         .forEach { language ->
                             DropdownMenuItem(
                                 text = { Text(language.displayName) },
@@ -276,7 +248,7 @@ fun Greeting(configForLang: (Language, Language) -> String,
                     expanded = toExpanded,
                     onDismissRequest = { toExpanded = false }
                 ) {
-                    MainActivity.Language.values().filterNot { x -> x == from }
+                    MainActivity.Language.values().filter { x -> x != from && x != to && availableLanguages[x.code] == true }
                         .forEach { language ->
                             DropdownMenuItem(
                                 text = { Text(language.displayName) },
@@ -385,3 +357,4 @@ fun GreetingPreview() {
         Greeting( {x,y -> ""}, {})
     }
 }
+

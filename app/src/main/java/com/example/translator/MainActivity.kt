@@ -196,7 +196,7 @@ alignment: soft
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> String,
+fun Greeting(configForLang: (Language, Language) -> String,
 ) {
     val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
@@ -234,7 +234,6 @@ fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> St
                     value = from.displayName,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Language") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
                     modifier = Modifier.menuAnchor()
                 )
@@ -242,7 +241,7 @@ fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> St
                     expanded = fromExpanded,
                     onDismissRequest = { fromExpanded = false }
                 ) {
-                    MainActivity.Language.values().filterNot { x -> x == to }
+                    MainActivity.Language.values().filterNot { x -> x == to }.filter { x -> x == to }
                         .forEach { language ->
                             DropdownMenuItem(
                                 text = { Text(language.displayName) },
@@ -264,7 +263,6 @@ fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> St
                     value = to.displayName,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Language") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
                     modifier = Modifier.menuAnchor()
                 )
@@ -286,17 +284,19 @@ fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> St
                 }
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
+
 
         // Input TextField
         OutlinedTextField(
             value = input,
             onValueChange = { input = it },
-            label = { Text("Enter text to translate") },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .height(120.dp),
             textStyle = MaterialTheme.typography.bodyLarge,
+            placeholder = { Text ("Enter text") }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -305,16 +305,16 @@ fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> St
         Button(
             onClick = {
                 setTranslating(true)
+                var pairs = emptyList<Pair<Language, Language>>();
+                if (from != Language.ENGLISH && to != Language.ENGLISH) {
+                    pairs = pairs + Pair(from, Language.ENGLISH)
+                    pairs = pairs + Pair(Language.ENGLISH, to)
+                } else {
+                    pairs = pairs + Pair(from, to)
+                }
                 scope.launch {
                     withContext(Dispatchers.IO) {
                         try {
-                            var pairs = emptyList<Pair<Language, Language>>();
-                            if (from != Language.ENGLISH && to != Language.ENGLISH) {
-                                pairs = pairs + Pair(from, Language.ENGLISH)
-                                pairs = pairs + Pair(Language.ENGLISH, to)
-                            } else {
-                                pairs = pairs + Pair(from, to)
-                            }
                             val elapsed = measureTimeMillis {
                                 var intermediateOut = ""
                                 var intermediateIn = input
@@ -353,7 +353,6 @@ fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> St
             OutlinedTextField(
                 value = output,
                 onValueChange = { }, // Read-only
-                label = { Text("Translation") },
 //                readOnly = true, // can't copy if readonly
                 modifier = Modifier
                     .weight(1f)

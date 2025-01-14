@@ -9,6 +9,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.material.icons.Icons
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
@@ -21,9 +22,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -187,7 +191,7 @@ alignment: soft
 //                            direction.value.to
 //                        )
 //                    }
-                    Greeting({from, to-> this.configForLang(from, to)})
+                    TranslatorApp(configForLang = { from, to -> this.configForLang(from, to) })
                 }
             }
         }
@@ -197,6 +201,7 @@ alignment: soft
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Greeting(configForLang: (Language, Language) -> String,
+             onManageLanguages: () -> Unit,
 ) {
     val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
@@ -283,6 +288,10 @@ fun Greeting(configForLang: (Language, Language) -> String,
                         }
                 }
             }
+            IconButton(onClick = onManageLanguages) {
+                Icon(Icons.Default.Settings, contentDescription = "Manage Languages")
+            }
+
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -366,7 +375,6 @@ fun Greeting(configForLang: (Language, Language) -> String,
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-
     }
 }
 
@@ -374,6 +382,6 @@ fun Greeting(configForLang: (Language, Language) -> String,
 @Composable
 fun GreetingPreview() {
     TranslatorTheme {
-        Greeting( {x,y -> ""})
+        Greeting( {x,y -> ""}, {})
     }
 }

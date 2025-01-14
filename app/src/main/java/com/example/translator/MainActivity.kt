@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.bergamot.NativeLib
-import com.example.translator.MainActivity.TranslationDirection
+import com.example.translator.MainActivity.Language
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -62,7 +62,8 @@ class MainActivity : ComponentActivity() {
         GREEK("el", "Greek"),
         SPANISH("es", "Spanish"),
         ESTONIAN("et", "Estonian"),
-//        FINNISH("fi", "Finnish"),
+
+        //        FINNISH("fi", "Finnish"),
         FRENCH("fr", "French"),
         CROATIAN("hr", "Croatian"),
         INDONESIAN("id", "Indonesian"),
@@ -76,22 +77,14 @@ class MainActivity : ComponentActivity() {
         TURKISH("tr", "Turkish")
     }
 
-    data class TranslationDirection(
-        val fromEnglish: Boolean,
-        val otherLanguage: Language
-    ) {
-        fun getFromLang() = if (fromEnglish) Language.ENGLISH else otherLanguage
-        fun getToLang() = if (fromEnglish) otherLanguage else Language.ENGLISH
-    }
 
     private fun filesFor(fromLang: Language, toLang: Language): Triple<String, String, String> {
         val lang = "${fromLang.code}${toLang.code}"
-        val vocabLang: String
         // vocab lang is always *en
-        if (fromLang == Language.ENGLISH) {
-            vocabLang = "${toLang.code}${fromLang.code}"
+        val vocabLang = if (fromLang == Language.ENGLISH) {
+            "${toLang.code}${fromLang.code}"
         } else {
-            vocabLang = "${fromLang.code}${toLang.code}"
+            "${fromLang.code}${toLang.code}"
         }
         val model = "model.$lang.intgemm.alphas.bin"
         val vocab = "vocab.$vocabLang.spm"
@@ -185,30 +178,16 @@ alignment: soft
         setContent {
             TranslatorTheme {
                 MaterialTheme {
-                    val initialDirection = TranslationDirection(
-                        fromEnglish = false,
-                        otherLanguage = Language.SPANISH
-                    )
-                    val direction = remember { mutableStateOf(initialDirection) }
-
-                    // Create config based on selected direction
-                    val cfg = remember(direction.value) {
-                        configForLang(
-                            direction.value.getFromLang(),
-                            direction.value.getToLang()
-                        )
-                    }
-
-                    // Ensure files are downloaded when direction changes
-                    LaunchedEffect(direction.value) {
-                        ensureLocalFiles(
-                            direction.value.getFromLang(),
-                            direction.value.getToLang()
-                        )
-                    }
-                    Greeting(cfg, direction.value) { newDirection ->
-                        direction.value = newDirection
-                    }
+//
+//
+//                    // Ensure files are downloaded when direction changes
+//                    LaunchedEffect(direction.value) {
+//                        ensureLocalFiles(
+//                            direction.value.from,
+//                            direction.value.to
+//                        )
+//                    }
+                    Greeting({from, to-> this.configForLang(from, to)})
                 }
             }
         }
@@ -217,10 +196,11 @@ alignment: soft
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Greeting(
-    cfg: String, direction: MainActivity.TranslationDirection,
-    onDirectionChange: (MainActivity.TranslationDirection) -> Unit
+fun Greeting(configForLang: (MainActivity.Language, MainActivity.Language) -> String,
 ) {
+    val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
+    val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
+
     var input by remember { mutableStateOf("Continúan los cambios en la Agencia de Recaudación y Control Aduanero (ARCA), ex-AFIP. A través del decreto 13/2025 publicado este martes a la madrugada en el Boletín Oficial, el Gobierno decidió avanzar en la reducción del sueldo del director ejecutivo del organismo y del resto de directores generales, tal y como se había anticipado cuando se renombró al ente recaudador de impuestos, y además que se llevará adelante una “reducción de la estructura inferior”.\n") }
     var output by remember { mutableStateOf("") }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
@@ -242,33 +222,64 @@ fun Greeting(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Language dropdown
-            var expanded by remember { mutableStateOf(false) }
+            var fromExpanded by remember { mutableStateOf(false) }
+            var toExpanded by remember { mutableStateOf(false) }
+
             ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
+                expanded = fromExpanded,
+                onExpandedChange = { fromExpanded = it },
                 modifier = Modifier.weight(1f)
             ) {
                 OutlinedTextField(
-                    value = direction.otherLanguage.displayName,
+                    value = from.displayName,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Language") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
                     modifier = Modifier.menuAnchor()
                 )
-
                 ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    expanded = fromExpanded,
+                    onDismissRequest = { fromExpanded = false }
                 ) {
-                    MainActivity.Language.values()
-                        .filter { language -> language != MainActivity.Language.ENGLISH }
+                    MainActivity.Language.values().filterNot { x -> x == to }
                         .forEach { language ->
                             DropdownMenuItem(
                                 text = { Text(language.displayName) },
                                 onClick = {
-                                    onDirectionChange(direction.copy(otherLanguage = language))
-                                    expanded = false
+                                    setFrom(language)
+                                    fromExpanded = false
+                                }
+                            )
+                        }
+                }
+            }
+            Text("to")
+            ExposedDropdownMenuBox(
+                expanded = toExpanded,
+                onExpandedChange = { toExpanded = it },
+                modifier = Modifier.weight(1f)
+            ) {
+                OutlinedTextField(
+                    value = to.displayName,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Language") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
+                    modifier = Modifier.menuAnchor()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = toExpanded,
+                    onDismissRequest = { toExpanded = false }
+                ) {
+                    MainActivity.Language.values().filterNot { x -> x == from }
+                        .forEach { language ->
+                            DropdownMenuItem(
+                                text = { Text(language.displayName) },
+                                onClick = {
+                                    setTo(language)
+                                    toExpanded = false
                                 }
                             )
                         }
@@ -276,35 +287,6 @@ fun Greeting(
             }
         }
 
-        // Direction radio buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            RadioButton(
-                selected = !direction.fromEnglish,
-                onClick = { onDirectionChange(direction.copy(fromEnglish = false)) }
-            )
-            Text(
-                text = "${direction.otherLanguage.displayName} → English",
-                modifier = Modifier.clickable {
-                    onDirectionChange(direction.copy(fromEnglish = false))
-                }
-            )
-
-            RadioButton(
-                selected = direction.fromEnglish,
-                onClick = { onDirectionChange(direction.copy(fromEnglish = true)) }
-            )
-            Text(
-                text = "English → ${direction.otherLanguage.displayName}",
-                modifier = Modifier.clickable {
-                    onDirectionChange(direction.copy(fromEnglish = true))
-                }
-            )
-        }
         // Input TextField
         OutlinedTextField(
             value = input,
@@ -326,8 +308,23 @@ fun Greeting(
                 scope.launch {
                     withContext(Dispatchers.IO) {
                         try {
+                            var pairs = emptyList<Pair<Language, Language>>();
+                            if (from != Language.ENGLISH && to != Language.ENGLISH) {
+                                pairs = pairs + Pair(from, Language.ENGLISH)
+                                pairs = pairs + Pair(Language.ENGLISH, to)
+                            } else {
+                                pairs = pairs + Pair(from, to)
+                            }
                             val elapsed = measureTimeMillis {
-                                output = nl.stringFromJNI(cfg, input)
+                                var intermediateOut = ""
+                                var intermediateIn = input
+                                pairs.forEach({ pair ->
+                                    val cfg = configForLang(pair.first, pair.second)
+                                    intermediateOut = nl.stringFromJNI(cfg, intermediateIn)
+                                    intermediateIn = intermediateOut
+                                })
+                                output = intermediateOut
+
                             }
                             println("Took $elapsed to translate")
                         } finally {
@@ -357,7 +354,7 @@ fun Greeting(
                 value = output,
                 onValueChange = { }, // Read-only
                 label = { Text("Translation") },
-//                readOnly = true,
+//                readOnly = true, // can't copy if readonly
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -378,9 +375,6 @@ fun Greeting(
 @Composable
 fun GreetingPreview() {
     TranslatorTheme {
-        Greeting("", TranslationDirection(
-            fromEnglish = false,
-            otherLanguage = MainActivity.Language.SPANISH
-        ), {})
+        Greeting( {x,y -> ""})
     }
 }

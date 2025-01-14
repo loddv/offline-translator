@@ -35,8 +35,13 @@ set(COMPILE_TEST OFF CACHE BOOL "" FORCE)
 set(USE_THREADS OFF CACHE BOOL "" FORCE)
 set(CMAKE_BUILD_TYPE Release)
 
+set(INTGEMM_DONT_BUILD_TESTS ON)
 #set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
+# marian does autodetection otherwise
+set(BUILD_ARCH "x86-64-v3")
+# This string is in marian-dev:   set(BUILD_ARCH native CACHE STRING "Compile for this CPU architecture.")
+# does it mean that it ignores me? do I need to force it? patch?
 
 set(USE_DOXYGEN OFF)
 set(USE_MKL OFF)

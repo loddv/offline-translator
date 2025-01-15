@@ -61,6 +61,11 @@ set(SSPLIT_USE_INTERNAL_PCRE2 ON)
 add_subdirectory("bergamot-translator/")
 
 
+include(${CMAKE_SOURCE_DIR}/cmake/cld2.cmake)
+#
+#target_include_directories(cld2 PRIVATE
+#		${CMAKE_SOURCE_DIR}/third_party/cld2/public
+#)
 #add_library(bergamot SHARED IMPORTED)
 # this works, but the .so is 41MB, good, but depends on libm
 # the .a is just 600KiB, so garbage.
@@ -75,5 +80,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         bergamot-translator
         android
         log
+	cld2
        # "/home/david/git/OpenBLAS/libopenblas.so"
 )

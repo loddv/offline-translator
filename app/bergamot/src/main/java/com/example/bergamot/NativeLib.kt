@@ -1,7 +1,5 @@
 package com.example.bergamot
 
-import android.os.Debug
-
 class NativeLib {
 
     /**
@@ -9,7 +7,6 @@ class NativeLib {
      * which is packaged with this application.
      */
     external fun stringFromJNI(cfg: String, data: String): String
-
     companion object {
         // Used to load the 'bergamot' library on application startup.
         init {
@@ -17,4 +14,22 @@ class NativeLib {
             System.loadLibrary("bergamot-sys")
         }
     }
+}
+
+
+data class DetectionResult(
+    val language: String,
+    val isReliable: Boolean,
+    val confidence: Int
+)
+
+class LangDetect {
+    companion object {
+        init {
+            println("Loaded cld2")
+            System.loadLibrary("bergamot-sys")
+        }
+    }
+
+    external fun detectLanguage(text: String): DetectionResult
 }

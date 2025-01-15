@@ -4,9 +4,6 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Add
@@ -210,7 +207,7 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
 }
 
 
-private fun filesFor(from: Language, to: Language): Triple<String, String, String> {
+fun filesFor(from: Language, to: Language): Triple<String, String, String> {
     val lang = "${from.code}${to.code}"
     // vocab lang is always *en
     val vocabLang = if (from == Language.ENGLISH) {

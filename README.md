@@ -25,3 +25,8 @@ If you don't do this, you will just get a `SIGILL` when trying to load the libra
 The very bare app takes some (hardcoded) text in Spanish and translates it to English. Translation takes ~200ms in the emulator, which is not representative of anything
 
 ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/working.jpg)
+
+
+TODO:
+- Fix aarch64 build
+- Autodetect language, Firefox uses [Compact Language Detector](https://github.com/CLD2Owners/cld2) per [MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/i18n/detectLanguage)

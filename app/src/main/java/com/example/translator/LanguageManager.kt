@@ -168,7 +168,8 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
     val files = listOf(model, vocab, lex)
     val lang = "${from.code}${to.code}"
     val dataPath = context.getExternalFilesDir("bin")!!
-    val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.1"
+    // fixme: 0.3.4 is not latest
+    val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.4"
 
     val downloadRequests = mutableListOf<Long>()
     val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -178,10 +179,12 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
         if (!file.exists()) {
             val url = "${base}/${lang}/${fileName}"
             val request = DownloadManager.Request(Uri.parse(url))
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setTitle("Downloading $fileName")
                 .setDestinationUri(Uri.fromFile(file))
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION)
 
+
+            println("Downloading ${url} to ${file}")
             downloadRequests.add(dm.enqueue(request))
         }
     }
@@ -216,7 +219,7 @@ fun filesFor(from: Language, to: Language): Triple<String, String, String> {
         "${from.code}${to.code}"
     }
     val model = "model.$lang.intgemm.alphas.bin"
-    val vocab = "vocab.$vocabLang.spm"
+    val vocab = "vocab.$lang.spm"
     val lex = "lex.50.50.$lang.s2t.bin"
     return Triple(model, vocab, lex)
 }

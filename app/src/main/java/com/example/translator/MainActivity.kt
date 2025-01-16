@@ -1,6 +1,7 @@
 package com.example.translator
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -27,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -162,11 +164,17 @@ fun Greeting(
                 onExpandedChange = { fromExpanded = it },
                 modifier = Modifier.weight(1f)
             ) {
-                OutlinedTextField(value = from.displayName,
+                OutlinedTextField(
+                    value = from.displayName,
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier.menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    )
+
                 )
                 ExposedDropdownMenu(expanded = fromExpanded,
                     onDismissRequest = { fromExpanded = false }) {
@@ -180,6 +188,7 @@ fun Greeting(
                             })
                         }
                 }
+
             }
             Text("to")
             ExposedDropdownMenuBox(
@@ -187,11 +196,16 @@ fun Greeting(
                 onExpandedChange = { toExpanded = it },
                 modifier = Modifier.weight(1f)
             ) {
-                OutlinedTextField(value = to.displayName,
+                OutlinedTextField(
+                    value = to.displayName,
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier.menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    )
                 )
 
                 ExposedDropdownMenu(expanded = toExpanded,
@@ -215,7 +229,8 @@ fun Greeting(
 
 
         // Input TextField
-        OutlinedTextField(value = input,
+        OutlinedTextField(
+            value = input,
             onValueChange = {
                 input = it
                 val ld = LangDetect()
@@ -234,7 +249,18 @@ fun Greeting(
                 .fillMaxWidth()
                 .height(120.dp),
             textStyle = MaterialTheme.typography.bodyLarge,
-            placeholder = { Text("Enter text") })
+            placeholder = { Text("Enter text") },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -250,13 +276,13 @@ fun Greeting(
                         scope.launch {
                             withContext(Dispatchers.IO) {
                                 output = translateInForeground(autoLang, to, context, input)
+                                setTranslating(false)
                             }
                         }
-                        setTranslating(false)
                     },
                     modifier = Modifier.weight(1f),
                     shape = RectangleShape,
-                    ) {
+                ) {
                     Text(
                         "From ${autoLang.displayName} ✨"
                     )
@@ -269,9 +295,10 @@ fun Greeting(
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             output = translateInForeground(from, to, context, input)
+                            setTranslating(false)
+
                         }
                     }
-                    setTranslating(false)
                 },
                 shape = RectangleShape,
                 modifier = Modifier.weight(1f),
@@ -300,16 +327,19 @@ fun Greeting(
                     .weight(1f)
                     .fillMaxWidth(),
                 textStyle = MaterialTheme.typography.bodyLarge,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledBorderColor = MaterialTheme.colorScheme.outline,
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-
-
     }
 }
 
@@ -350,7 +380,10 @@ fun translateInForeground(
 
 }
 
-@Preview(showBackground = true)
+@Preview(
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun GreetingPreview() {
     TranslatorTheme {

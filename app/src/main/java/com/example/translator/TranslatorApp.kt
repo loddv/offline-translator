@@ -8,7 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
 @Composable
-fun TranslatorApp(configForLang: (Language, Language) -> String) {
+fun TranslatorApp(configForLang: (Language, Language) -> String, initialText:String) {
     val navController = rememberNavController()
 
     NavHost(
@@ -18,7 +18,8 @@ fun TranslatorApp(configForLang: (Language, Language) -> String) {
         composable("main") {
             Greeting(
                 configForLang = configForLang,
-                onManageLanguages = { navController.navigate("language_manager") }
+                onManageLanguages = { navController.navigate("language_manager")                },
+                initialText = initialText
             )
         }
         composable("language_manager") {

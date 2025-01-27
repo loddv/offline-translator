@@ -14,7 +14,6 @@ android {
         consumerProguardFiles("consumer-rules.pro")
         externalNativeBuild {
             cmake {
-                arguments("-DCMAKE_VERBOSE_MAKEFILE=ON")
                 cppFlags("-std=c++17")
             }
         }

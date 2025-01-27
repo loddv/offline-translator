@@ -1,6 +1,7 @@
 package com.example.translator
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.DropdownMenuItem
@@ -20,7 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,7 +55,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.system.measureTimeMillis
-
+import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 class MainActivity : ComponentActivity() {
     enum class Language(val code: String, val displayName: String) {
@@ -79,11 +88,11 @@ class MainActivity : ComponentActivity() {
         ),
         SLOVENIAN("sl", "Slovenian"), SWEDISH("sv", "Swedish"), TURKISH("tr", "Turkish")
     }
-
+    private var textToTranslate: String = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+        handleIntent(intent)
         setContent {
             TranslatorTheme {
                 MaterialTheme {
@@ -91,8 +100,35 @@ class MainActivity : ComponentActivity() {
                         configForLang(
                             baseContext, from, to
                         )
-                    })
+                    },
+                        initialText = textToTranslate)
                 }
+            }
+        }
+    }
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        when (intent?.action) {
+            Intent.ACTION_PROCESS_TEXT -> {
+                val text = if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT)) {
+                    intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+                } else {
+                    intent.getStringExtra(Intent.EXTRA_TEXT)
+                }
+                textToTranslate = text ?: ""
+            }
+        }
+    }
+    companion object {
+        fun createProcessTextIntent(context: Context, text: String): Intent {
+            return Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_PROCESS_TEXT
+                putExtra(Intent.EXTRA_PROCESS_TEXT, text)
+                type = "text/plain"
             }
         }
     }
@@ -103,15 +139,26 @@ class MainActivity : ComponentActivity() {
 fun Greeting(
     configForLang: (Language, Language) -> String,
     onManageLanguages: () -> Unit,
+    initialText: String?
 ) {
     val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
 
-    var input by remember { mutableStateOf("Continúan los cambios en la Agencia de Recaudación y Control Aduanero (ARCA), ex-AFIP. A través del decreto 13/2025 publicado este martes a la madrugada en el Boletín Oficial, el Gobierno decidió avanzar en la reducción del sueldo del director ejecutivo del organismo y del resto de directores generales, tal y como se había anticipado cuando se renombró al ente recaudador de impuestos, y además que se llevará adelante una “reducción de la estructura inferior”.\n") }
+    var input by remember { mutableStateOf(initialText ?: "") }
     var output by remember { mutableStateOf("") }
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
 
+    if (initialText !== null && initialText != "") {
+        val ld = LangDetect()
+
+        val detected = ld.detectLanguage(input)
+        detectedInput = if (detected.isReliable) {
+            detected
+        } else {
+            null
+        }
+    }
     val scope = rememberCoroutineScope()
 
     val context = LocalContext.current
@@ -142,204 +189,235 @@ fun Greeting(
             }
         }
     }
+    Scaffold(
+        modifier = Modifier.fillMaxSize()
+    ) { paddingValues ->
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Language dropdown
-            var fromExpanded by remember { mutableStateOf(false) }
-            var toExpanded by remember { mutableStateOf(false) }
-
-            ExposedDropdownMenuBox(
-                expanded = fromExpanded,
-                onExpandedChange = { fromExpanded = it },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = from.displayName,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    )
-
-                )
-                ExposedDropdownMenu(expanded = fromExpanded,
-                    onDismissRequest = { fromExpanded = false }) {
-                    // Path exists to target
-                    MainActivity.Language.values()
-                        .filter { x -> x != to && x != from && availableLanguages[x.code] == true }
-                        .forEach { language ->
-                            DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
-                                setFrom(language)
-                                fromExpanded = false
-                            })
-                        }
-                }
-
-            }
-            Text("to")
-            ExposedDropdownMenuBox(
-                expanded = toExpanded,
-                onExpandedChange = { toExpanded = it },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = to.displayName,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    )
-                )
-
-                ExposedDropdownMenu(expanded = toExpanded,
-                    onDismissRequest = { toExpanded = false }) {
-                    MainActivity.Language.values()
-                        .filter { x -> x != from && x != to && availableLanguages[x.code] == true }
-                        .forEach { language ->
-                            DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
-                                setTo(language)
-                                toExpanded = false
-                            })
-                        }
-                }
-            }
-            IconButton(onClick = onManageLanguages) {
-                Icon(Icons.Default.Add, contentDescription = "Manage Languages")
-            }
-
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-
-
-        // Input TextField
-        OutlinedTextField(
-            value = input,
-            onValueChange = {
-                input = it
-                val ld = LangDetect()
-
-                val detected = ld.detectLanguage(input)
-                println("detected $detected")
-                detectedInput = if (detected.isReliable) {
-                    detected
-                } else {
-                    null
-                }
-                // TODO: auto translate while typing? may be slow
-            },
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .height(120.dp),
-            textStyle = MaterialTheme.typography.bodyLarge,
-            placeholder = { Text("Enter text") },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-
-        Row {
-            val autoLang = Language.values().firstOrNull { l -> l.code == detectedInput?.language }
-
-            if (detectedInput != null && autoLang != null && autoLang != from) {
-                Button(
-                    onClick = {
-                        setFrom(autoLang)
-                        setTranslating(true)
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                output = translateInForeground(autoLang, to, context, input)
-                                setTranslating(false)
-                            }
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RectangleShape,
-                ) {
-                    Text(
-                        "From ${autoLang.displayName} ✨"
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-            Button(
-                onClick = {
-                    setTranslating(true)
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            output = translateInForeground(from, to, context, input)
-                            setTranslating(false)
-
-                        }
-                    }
-                },
-                shape = RectangleShape,
-                modifier = Modifier.weight(1f),
-                enabled = input.isNotEmpty() && !isTranslating
+                .fillMaxSize()
+                .navigationBarsPadding().imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(paddingValues)
+                .padding(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isTranslating) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary
+                // Language dropdown
+                var fromExpanded by remember { mutableStateOf(false) }
+                var toExpanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    expanded = fromExpanded,
+                    onExpandedChange = { fromExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = from.displayName,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
+                        modifier = Modifier.menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,  // Keep text clear even when disabled
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            // Add these to ensure good contrast for the text field background
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+
                     )
-                } else {
-                    Text("Translate")
+                    ExposedDropdownMenu(expanded = fromExpanded,
+                        onDismissRequest = { fromExpanded = false }) {
+                        // Path exists to target
+                        MainActivity.Language.values()
+                            .filter { x -> x != to && x != from && availableLanguages[x.code] == true }
+                            .forEach { language ->
+                                DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
+                                    setFrom(language)
+                                    fromExpanded = false
+                                })
+                            }
+                    }
+
                 }
+                Text("to")
+                ExposedDropdownMenuBox(
+                    expanded = toExpanded,
+                    onExpandedChange = { toExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = to.displayName,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
+                        modifier = Modifier.menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,  // Keep text clear even when disabled
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            // Add these to ensure good contrast for the text field background
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+
+                    ExposedDropdownMenu(expanded = toExpanded,
+                        onDismissRequest = { toExpanded = false }) {
+                        MainActivity.Language.values()
+                            .filter { x -> x != from && x != to && availableLanguages[x.code] == true }
+                            .forEach { language ->
+                                DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
+                                    setTo(language)
+                                    toExpanded = false
+                                })
+                            }
+                    }
+                }
+                IconButton(onClick = onManageLanguages) {
+                    Icon(Icons.Default.Settings, contentDescription = "Manage Languages")
+                }
+
             }
-        }
-
-
-        if (output.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Output TextField (read-only)
+
+            // Input TextField
             OutlinedTextField(
-                value = output,
-                onValueChange = { }, // Read-only
-//                readOnly = true, // can't copy if readonly
+                value = input,
+                onValueChange = {
+                    input = it
+                    val ld = LangDetect()
+
+                    val detected = ld.detectLanguage(input)
+                    println("detected $detected")
+                    detectedInput = if (detected.isReliable) {
+                        detected
+                    } else {
+                        null
+                    }
+                    // TODO: auto translate while typing? may be slow
+                },
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .height(120.dp),
                 textStyle = MaterialTheme.typography.bodyLarge,
+                placeholder = { Text("Enter text") },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,  // Keep text clear even when disabled
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     cursorColor = MaterialTheme.colorScheme.primary,
                     focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    // Add these to ensure good contrast for the text field background
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 ),
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+
+            Row {
+                val autoLang =
+                    Language.values().firstOrNull { l -> l.code == detectedInput?.language }
+
+                if (detectedInput != null && autoLang != null && autoLang != from) {
+                    Button(
+                        onClick = {
+                            setFrom(autoLang)
+                            setTranslating(true)
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    output = translateInForeground(autoLang, to, context, input)
+                                    setTranslating(false)
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RectangleShape,
+                    ) {
+                        Text(
+                            "From ${autoLang.displayName} ✨"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Button(
+                    onClick = {
+                        setTranslating(true)
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                output = translateInForeground(from, to, context, input)
+                                setTranslating(false)
+
+                            }
+                        }
+                    },
+                    shape = RectangleShape,
+                    modifier = Modifier.weight(1f),
+                    enabled = input.isNotEmpty() && !isTranslating
+                ) {
+                    if (isTranslating) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Translate")
+                    }
+                }
+            }
+
+
+            if (output.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Output TextField (read-only)
+                OutlinedTextField(
+                    value = output,
+                    onValueChange = { }, // Read-only
+//                readOnly = true, // can't copy if readonly
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,  // Keep text clear even when disabled
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        // Add these to ensure good contrast for the text field background
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    ),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
         }
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -387,7 +465,7 @@ fun translateInForeground(
 @Composable
 fun GreetingPreview() {
     TranslatorTheme {
-        Greeting({ x, y -> "" }, {})
+        Greeting({ x, y -> "" }, {}, "")
     }
 }
 

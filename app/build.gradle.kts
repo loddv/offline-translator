@@ -60,5 +60,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(project(":app:bergamot"))
-
+    implementation("androidx.compose.material:material-icons-extended-android:1.7.5")
 }

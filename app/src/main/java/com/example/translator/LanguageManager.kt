@@ -2,11 +2,12 @@ package com.example.translator
 
 import android.app.DownloadManager
 import android.content.Context
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Add
+//ibs.androidx.material.icons.extended.android
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.translator.MainActivity.Language
 import java.io.File
 
@@ -28,6 +32,15 @@ data class LanguageStatus(
     var fromEnglishDownloaded: Boolean = false,
     var isDownloading: Boolean = false
 )
+
+@Composable
+@Preview(
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
+fun LanguageManagerPreview() {
+    LanguageManagerScreen()
+}
 
 @Composable
 fun LanguageManagerScreen() {
@@ -76,7 +89,9 @@ fun LanguageManagerScreen() {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(languageStates.values.toList().sortedBy { item -> item.language.displayName }) { status ->
+            items(
+                languageStates.values.toList()
+                    .sortedBy { item -> item.language.displayName }) { status ->
                 val isFullyDownloaded = status.toEnglishDownloaded && status.fromEnglishDownloaded
 
                 ElevatedCard(
@@ -119,14 +134,23 @@ fun LanguageManagerScreen() {
                                 onClick = {
                                     if (!isFullyDownloaded) {
                                         scope.launch {
-                                            languageStates[status.language] = status.copy(isDownloading = true)
+                                            languageStates[status.language] =
+                                                status.copy(isDownloading = true)
 
                                             // Download both directions if needed
                                             if (!status.toEnglishDownloaded) {
-                                                downloadLanguagePair(context, status.language, Language.ENGLISH)
+                                                downloadLanguagePair(
+                                                    context,
+                                                    status.language,
+                                                    Language.ENGLISH
+                                                )
                                             }
                                             if (!status.fromEnglishDownloaded) {
-                                                downloadLanguagePair(context, Language.ENGLISH, status.language)
+                                                downloadLanguagePair(
+                                                    context,
+                                                    Language.ENGLISH,
+                                                    status.language
+                                                )
                                             }
 
                                             languageStates[status.language] = LanguageStatus(
@@ -170,7 +194,7 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
     val dataPath = context.getExternalFilesDir("bin")!!
     // fixme: 0.3.4 is not latest
     val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.4"
-
+//    val base = "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/refs/heads/main/models/prod/"
     val downloadRequests = mutableListOf<Long>()
     val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
@@ -197,8 +221,10 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
                 val query = DownloadManager.Query().setFilterById(downloadId)
                 val cursor = dm.query(query)
                 if (cursor.moveToFirst()) {
-                    val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                    downloading = status != DownloadManager.STATUS_SUCCESSFUL && status != DownloadManager.STATUS_FAILED
+                    val status =
+                        cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    downloading =
+                        status != DownloadManager.STATUS_SUCCESSFUL && status != DownloadManager.STATUS_FAILED
                 }
                 cursor.close()
                 if (downloading) {

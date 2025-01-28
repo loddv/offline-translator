@@ -121,6 +121,9 @@ class MainActivity : ComponentActivity() {
                 }
                 textToTranslate = text ?: ""
             }
+           Intent.ACTION_SEND -> {
+                   textToTranslate = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
+               }
         }
     }
     companion object {
@@ -424,7 +427,7 @@ fun Greeting(
 fun translateInForeground(
     from: Language, to: Language, context: Context, input: String
 ): String {
-    println("Called translate $from -> $to with $input")
+    println("Called translate $from -> $to")
     if (from == to) {
         return input
     }
@@ -453,7 +456,7 @@ fun translateInForeground(
         output = intermediateOut
 
     }
-    println("Took $elapsed to translate")
+    println("Took ${elapsed}ms to translate")
     return output
 
 }

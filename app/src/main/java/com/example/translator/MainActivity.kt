@@ -1,15 +1,11 @@
 package com.example.translator
 
+//import com.example.bergamot.NativeClass
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-//import com.example.bergamot.NativeClass
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.compose.material.icons.Icons
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -19,19 +15,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.bergamot.DetectionResult
@@ -55,15 +58,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.system.measureTimeMillis
-import androidx.compose.material3.Scaffold
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
 class MainActivity : ComponentActivity() {
     enum class Language(val code: String, val displayName: String) {
@@ -88,6 +82,7 @@ class MainActivity : ComponentActivity() {
         ),
         SLOVENIAN("sl", "Slovenian"), SWEDISH("sv", "Swedish"), TURKISH("tr", "Turkish")
     }
+
     private var textToTranslate: String = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,16 +91,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             TranslatorTheme {
                 MaterialTheme {
-                    TranslatorApp(configForLang = { from, to ->
-                        configForLang(
-                            baseContext, from, to
-                        )
-                    },
-                        initialText = textToTranslate)
+                    TranslatorApp(
+                        configForLang = { from, to ->
+                            configForLang(
+                                baseContext, from, to
+                            )
+                        },
+                        initialText = textToTranslate
+                    )
                 }
             }
         }
     }
+
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         handleIntent(intent)
@@ -121,11 +119,13 @@ class MainActivity : ComponentActivity() {
                 }
                 textToTranslate = text ?: ""
             }
-           Intent.ACTION_SEND -> {
-                   textToTranslate = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-               }
+
+            Intent.ACTION_SEND -> {
+                textToTranslate = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
+            }
         }
     }
+
     companion object {
         fun createProcessTextIntent(context: Context, text: String): Intent {
             return Intent(context, MainActivity::class.java).apply {
@@ -199,7 +199,8 @@ fun Greeting(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding().imePadding()
+                .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(8.dp)
@@ -253,7 +254,13 @@ fun Greeting(
                     }
 
                 }
-                Text("to")
+                IconButton(onClick = {
+                    val f = from
+                    setFrom(to)
+                    setTo(f)
+                }) {
+                    Icon(painterResource(id = R.drawable.compare), contentDescription = "Reverse translation direction")
+                }
                 ExposedDropdownMenuBox(
                     expanded = toExpanded,
                     onExpandedChange = { toExpanded = it },
@@ -293,7 +300,7 @@ fun Greeting(
                     }
                 }
                 IconButton(onClick = onManageLanguages) {
-                    Icon(Icons.Default.Settings, contentDescription = "Manage Languages")
+                    Icon(painterResource(id = R.drawable.settings), contentDescription = "Manage Languages")
                 }
 
             }

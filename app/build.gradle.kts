@@ -19,8 +19,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,5 +67,4 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(project(":app:bergamot"))
-    implementation("androidx.compose.material:material-icons-extended-android:1.7.5")
 }

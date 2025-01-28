@@ -20,3 +20,7 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+
+-keep class com.example.bergamot.DetectionResult { *; }
+-keep class com.example.bergamot.LangDetect { *; }
+-keep class com.example.bergamot.NativeLib { *; }

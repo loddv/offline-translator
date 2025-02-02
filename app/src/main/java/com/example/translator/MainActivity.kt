@@ -10,6 +10,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -208,7 +210,7 @@ fun Greeting(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Language dropdown
@@ -225,7 +227,9 @@ fun Greeting(
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
-                        modifier = Modifier.menuAnchor(),
+                        modifier = Modifier.menuAnchor().width(IntrinsicSize.Min),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,  // smaller than default
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused
@@ -272,7 +276,9 @@ fun Greeting(
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
-                        modifier = Modifier.menuAnchor(),
+                        modifier = Modifier.menuAnchor().width(IntrinsicSize.Min),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,  // smaller than default
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused

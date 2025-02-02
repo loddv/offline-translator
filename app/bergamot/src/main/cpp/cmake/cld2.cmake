@@ -32,7 +32,7 @@ set(CLD2_SOURCES
 )
 
 # Create shared library
-add_library(cld2 SHARED ${CLD2_SOURCES})
+add_library(cld2 STATIC ${CLD2_SOURCES})
 
 # Set properties for the library
 set_target_properties(cld2 PROPERTIES

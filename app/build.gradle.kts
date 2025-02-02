@@ -19,11 +19,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            ndk {
-                debugSymbolLevel = "SYMBOL_TABLE"
-            }
-        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -32,6 +27,22 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+
+        flavorDimensions += listOf("architecture")
+        productFlavors {
+            create("x86") {
+                ndk {
+                    abiFilters += listOf("x86_64") // armeabi-v7a arm64-v8a
+                }
+                dimension = "architecture"
+            }
+            create("aarch64") {
+                ndk {
+                    abiFilters += listOf("arm64-v8a")
+                }
+                dimension = "architecture"
+            }
         }
     }
     compileOptions {

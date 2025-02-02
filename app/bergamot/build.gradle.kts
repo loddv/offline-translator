@@ -18,8 +18,8 @@ android {
             }
         }
         ndk {
-//            abiFilters += listOf("x86_64") // armeabi-v7a arm64-v8a
-            abiFilters += listOf("arm64-v8a")
+            abiFilters += listOf("x86_64", "arm64-v8a") // armeabi-v7a arm64-v8a
+//            abiFilters += listOf("arm64-v8a") // armeabi-v7a arm64-v8a
 
         }
     }
@@ -31,6 +31,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            externalNativeBuild {
+                cmake {
+                    arguments += listOf("-DCMAKE_BUILD_TYPE=Release")
+                }
+            }
         }
     }
     externalNativeBuild {

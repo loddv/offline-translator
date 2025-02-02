@@ -22,5 +22,5 @@
 
 
 -keep class com.example.bergamot.DetectionResult { *; }
--keep class com.example.bergamot.LangDetect { *; }
--keep class com.example.bergamot.NativeLib { *; }
+#-keep class com.example.bergamot.LangDetect { *; }
+#-keep class com.example.bergamot.NativeLib { *; }

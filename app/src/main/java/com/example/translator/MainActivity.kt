@@ -57,6 +57,7 @@ import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.system.measureTimeMillis
 
 class MainActivity : ComponentActivity() {
@@ -202,12 +203,12 @@ fun Greeting(
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
-                .padding(8.dp)
+                .padding(top = paddingValues.calculateTopPadding(), bottom =  0.dp)
+                .padding(horizontal =  8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Language dropdown
@@ -438,6 +439,7 @@ fun translateInForeground(
     if (from == to) {
         return input
     }
+
     val nl = NativeLib()
 
     var output: String
@@ -446,7 +448,13 @@ fun translateInForeground(
     if (from != Language.ENGLISH && to != Language.ENGLISH) {
         pairs = pairs + Pair(from, Language.ENGLISH)
         pairs = pairs + Pair(Language.ENGLISH, to)
+        if (!checkLanguagePairFiles(context, from, to)) {
+            return "Language $pairs not installed"
+        }
     } else {
+        if (!checkLanguagePairFiles(context, from, to)) {
+            return "Language not installed"
+        }
         pairs = pairs + Pair(from, to)
     }
 
@@ -456,7 +464,6 @@ fun translateInForeground(
         pairs.forEach({ pair ->
             println("Translating ${pair}")
             val cfg = configForLang(context, pair.first, pair.second)
-
             intermediateOut = nl.stringFromJNI(cfg, intermediateIn)
             intermediateIn = intermediateOut
         })
@@ -480,7 +487,7 @@ fun GreetingPreview() {
 }
 
 fun configForLang(context: Context, fromLang: Language, toLang: Language): String {
-    val dataPath = context.getExternalFilesDir("bin")!!
+    val dataPath = File(context.filesDir, "bin")
     val (model, vocab, lex) = filesFor(fromLang, toLang)
     val cfg = """
 models:

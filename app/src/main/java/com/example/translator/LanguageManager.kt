@@ -4,6 +4,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.content.res.Configuration
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.translator.MainActivity.Language
 import java.io.File
+import java.net.URL
+import java.util.zip.GZIPInputStream
 
 
 data class LanguageStatus(
@@ -187,62 +190,62 @@ fun LanguageManagerScreen() {
 }
 
 fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Boolean {
-    val dataPath = context.getExternalFilesDir("bin")!!
+    val dataPath = File(context.filesDir, "bin")
     val (model, vocab, lex) = filesFor(from, to)
-
-    return File(dataPath, model).exists() &&
+    val hasAll = File(dataPath, model).exists() &&
             File(dataPath, vocab).exists() &&
             File(dataPath, lex).exists()
+    println("checking $from $to = $hasAll")
+    return hasAll
 }
 
 private suspend fun downloadLanguagePair(context: Context, from: Language, to: Language) {
     val (model, vocab, lex) = filesFor(from, to)
     val files = listOf(model, vocab, lex)
     val lang = "${from.code}${to.code}"
-    val dataPath = context.getExternalFilesDir("bin")!!
-    // fixme: 0.3.4 is not latest
-    val base = "https://storage.googleapis.com/bergamot-models-sandbox/0.3.4"
-//    val base = "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/refs/heads/main/models/prod/"
-    val downloadRequests = mutableListOf<Long>()
-    val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    val dataPath = File(context.filesDir, "bin")
+    dataPath.mkdirs()
+    val base =
+        "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/main/models/prod"
 
-    files.forEach { fileName ->
-        val file = File(dataPath, fileName)
-        if (!file.exists()) {
-            val url = "${base}/${lang}/${fileName}"
-            val request = DownloadManager.Request(Uri.parse(url))
-                .setTitle("Downloading $fileName")
-                .setDestinationUri(Uri.fromFile(file))
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION)
-
-
-            println("Downloading ${url} to ${file}")
-            downloadRequests.add(dm.enqueue(request))
-        }
-    }
 
     // Wait for all downloads to complete
     withContext(Dispatchers.IO) {
-        downloadRequests.forEach { downloadId ->
-            var downloading = true
-            while (downloading) {
-                val query = DownloadManager.Query().setFilterById(downloadId)
-                val cursor = dm.query(query)
-                if (cursor.moveToFirst()) {
-                    val status =
-                        cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                    downloading =
-                        status != DownloadManager.STATUS_SUCCESSFUL && status != DownloadManager.STATUS_FAILED
-                }
-                cursor.close()
-                if (downloading) {
-                    kotlinx.coroutines.delay(100)
-                }
+        files.forEach { fileName ->
+            val file = File(dataPath, fileName)
+            if (!file.exists()) {
+                val url = "${base}/${lang}/${fileName}.gz"
+                val success = downloadAndDecompress(url, file)
+                println("Downloading ${url} to ${file} = $success")
+            } else {
+                println("File $file existed, not downloading")
             }
         }
     }
+
+
 }
 
+suspend fun downloadAndDecompress(url: String, outputFile: File) = withContext(Dispatchers.IO) {
+    try {
+        URL(url).openStream().use { input ->
+
+            GZIPInputStream(input).use { gzipInput ->
+                outputFile.outputStream().use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (gzipInput.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                    }
+                }
+            }
+        }
+        true
+    } catch (e: Exception) {
+        Log.e("Decompression", "Error decompressing file", e)
+        false
+    }
+}
 
 fun filesFor(from: Language, to: Language): Triple<String, String, String> {
     val lang = "${from.code}${to.code}"

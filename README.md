@@ -16,7 +16,4 @@ $ANDROID_SDK/emulator/qemu/linux-x86_64/qemu-system-x86_64 -netdelay none -netsp
 
 If you don't do this, you will just get a `SIGILL` when trying to load the library.
 
-
-The very bare app takes some (hardcoded) text in Spanish and translates it to English. Translation takes ~200ms in the emulator, which is not representative of anything
-
 ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png)

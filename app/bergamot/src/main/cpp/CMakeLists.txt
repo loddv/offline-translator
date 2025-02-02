@@ -38,7 +38,6 @@ set(CMAKE_BUILD_TYPE Release)
 set(INTGEMM_DONT_BUILD_TESTS ON)
 
 set(USE_DOXYGEN OFF CACHE BOOL "" FORCE)
-set(USE_MKL OFF)
 set(COMPILE_WITHOUT_EXCEPTIONS ON)
 set(USE_RUY ON CACHE BOOL "" FORCE)
 set(USE_RUY_SGEMM ON CACHE BOOL "" FORCE)
@@ -55,8 +54,10 @@ if(ANDROID_ABI STREQUAL "arm64-v8a")
 endif()
 # marian-dev builds some other targets
 set(COMPILE_LIBRARY_ONLY ON CACHE BOOL "" FORCE)
+set(COMPILE_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(ENABLE_CACHE_STATS OFF CACHE BOOL "" FORCE)
+set(USE_MKL OFF CACHE BOOL "" FORCE)
 
-message(STATUS "Building for arch: ${BUILD_ARCH}")
 add_subdirectory("bergamot-translator/")
 
 

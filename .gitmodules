@@ -1,6 +1,3 @@
-[submodule "app/bergamot/src/main/cpp/bergamot_translator"]
-	path = app/bergamot/src/main/cpp/bergamot_translator
-	url = git@github.com:browsermt/bergamot-translator.git
 [submodule "app/bergamot/src/main/cpp/third_party/cld2"]
 	path = app/bergamot/src/main/cpp/third_party/cld2
 	url = https://github.com/CLD2Owners/cld2.git

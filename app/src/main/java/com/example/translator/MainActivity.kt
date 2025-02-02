@@ -1,6 +1,7 @@
 package com.example.translator
 
-//import com.example.bergamot.NativeClass
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -11,7 +12,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,9 +20,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -35,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +67,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.system.measureTimeMillis
+
 
 class MainActivity : ComponentActivity() {
     enum class Language(val code: String, val displayName: String) {
@@ -140,6 +147,52 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+fun TranslationResult(
+    context: Context,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SelectionContainer {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    val clipboard: ClipboardManager? =
+                        context.getSystemService (Context.CLIPBOARD_SERVICE) as ClipboardManager?
+                    val clip = ClipData.newPlainText("Translated text", text)
+                    clipboard?.setPrimaryClip(clip)
+
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(painterResource(id = R.drawable.copy), contentDescription = "Copy translation",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Greeting(
@@ -205,8 +258,8 @@ fun Greeting(
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(top = paddingValues.calculateTopPadding(), bottom =  0.dp)
-                .padding(horizontal =  8.dp)
+                .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp)
+                .padding(horizontal = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -227,7 +280,9 @@ fun Greeting(
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
-                        modifier = Modifier.menuAnchor().width(IntrinsicSize.Min),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .width(IntrinsicSize.Min),
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium,  // smaller than default
                         colors = OutlinedTextFieldDefaults.colors(
@@ -276,7 +331,9 @@ fun Greeting(
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
-                        modifier = Modifier.menuAnchor().width(IntrinsicSize.Min),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .width(IntrinsicSize.Min),
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium,  // smaller than default
                         colors = OutlinedTextFieldDefaults.colors(
@@ -407,32 +464,13 @@ fun Greeting(
 
             if (output.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-
-                // Output TextField (read-only)
-                OutlinedTextField(
-                    value = output,
-                    onValueChange = { }, // Read-only
-//                readOnly = true, // can't copy if readonly
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when focused
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,  // Clear text when unfocused
-                        disabledTextColor = MaterialTheme.colorScheme.onSurface,  // Keep text clear even when disabled
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        // Add these to ensure good contrast for the text field background
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    ),
+                TranslationResult(
+                    context = context,
+                    text = output,
+                    modifier = Modifier.fillMaxWidth()
                 )
+
             }
-            Spacer(modifier = Modifier.height(8.dp))
 
         }
     }

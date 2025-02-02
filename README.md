@@ -2,14 +2,9 @@ A collection of hacks to get [firefox-translations-models](https://github.com/mo
 
 These models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator), which supports compiling to many targets, but apparently Android is not one.
 
+This app works fine on aarch64, and it "works" on x86-64 -- in quotes because it currently requires `AVX2`, which is not available on the standard emulator, nor in the ABI.
 
-The patches are collected in `mozilla-translate` file.
-
-Right now, I have tested this on `x86-64` and "it works" -- it's not using OpenBLAS, but ONNX, though I think I know how to get OpenBLAS to work.
-
-The bigger issue is that _something_ in the stack is ignoring the requests to **not** require `AVX2`, so the resulting shared library **does** depend on `AVX2`.
-
-This is a problem, because the Android emulator inside Android studio does not support `AVX2` by default. You can be cheeky and run a VM with a good CPU configuration like this
+You can be cheeky and run a VM with a good CPU configuration like this
 
 ```bash
 cd $ANDROID_SDK/emulator
@@ -24,9 +19,4 @@ If you don't do this, you will just get a `SIGILL` when trying to load the libra
 
 The very bare app takes some (hardcoded) text in Spanish and translates it to English. Translation takes ~200ms in the emulator, which is not representative of anything
 
-![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/working.jpg)
-
-
-TODO:
-- Fix aarch64 build
-- Autodetect language, Firefox uses [Compact Language Detector](https://github.com/CLD2Owners/cld2) per [MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/i18n/detectLanguage)
+![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png)

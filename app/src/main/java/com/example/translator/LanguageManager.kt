@@ -108,18 +108,13 @@ fun LanguageManagerScreen() {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(modifier = Modifier.weight(1f),
+                                verticalArrangement = if (status.isDownloading) Arrangement.Center else Arrangement.Center) {
                                 Text(
                                     text = status.language.displayName,
                                     style = MaterialTheme.typography.titleMedium
                                 )
-                                if (!isFullyDownloaded && !status.isDownloading) {
-                                    Text(
-                                        text = "",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                } else if (status.isDownloading) {
+                                 if (status.isDownloading) {
                                     Text(
                                         text = "Downloading...",
                                         style = MaterialTheme.typography.bodySmall,
@@ -128,6 +123,10 @@ fun LanguageManagerScreen() {
                                 }
                             }
 
+                            Box(
+                                modifier = Modifier.size(48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                             if (status.isDownloading) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(24.dp),
@@ -181,6 +180,7 @@ fun LanguageManagerScreen() {
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }

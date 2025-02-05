@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -17,11 +18,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -53,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -154,40 +159,46 @@ fun TranslationResult(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth()
+        .heightIn(max = LocalConfiguration.current.screenHeightDp.dp / 2),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SelectionContainer {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    val clipboard: ClipboardManager? =
-                        context.getSystemService (Context.CLIPBOARD_SERVICE) as ClipboardManager?
-                    val clip = ClipData.newPlainText("Translated text", text)
-                    clipboard?.setPrimaryClip(clip)
-
-                },
-                modifier = Modifier.size(32.dp)
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.Top
             ) {
-                Icon(painterResource(id = R.drawable.copy), contentDescription = "Copy translation",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                SelectionContainer(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.widthIn(max=(LocalConfiguration.current.screenWidthDp - 66).dp)
+                    )
+                }
 
+                IconButton(
+                    onClick = {
+                        val clipboard: ClipboardManager? =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager?
+                        val clip = ClipData.newPlainText("Translated text", text)
+                        clipboard?.setPrimaryClip(clip)
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.copy),
+                        contentDescription = "Copy translation",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
     }
@@ -308,6 +319,12 @@ fun Greeting(
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
                                     setFrom(language)
+                                    scope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            output = translateInForeground(language, to, context, input)
+                                            setTranslating(false)
+                                        }
+                                    }
                                     fromExpanded = false
                                 })
                             }
@@ -315,9 +332,20 @@ fun Greeting(
 
                 }
                 IconButton(onClick = {
-                    val f = from
-                    setFrom(to)
-                    setTo(f)
+                    val oldFrom = from
+                    val oldTo = to
+                    setFrom(oldTo)
+                    setTo(oldFrom)
+
+                    if(!isTranslating) {
+                        setTranslating(true)
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                output = translateInForeground(oldTo, oldFrom, context, input)
+                                setTranslating(false)
+                            }
+                        }
+                    }
                 }) {
                     Icon(painterResource(id = R.drawable.compare), contentDescription = "Reverse translation direction")
                 }
@@ -358,6 +386,16 @@ fun Greeting(
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
                                     setTo(language)
+
+                                    if(!isTranslating) {
+                                        setTranslating(true)
+                                        scope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                output = translateInForeground(from, language, context, input)
+                                                setTranslating(false)
+                                            }
+                                        }
+                                    }
                                     toExpanded = false
                                 })
                             }
@@ -385,7 +423,15 @@ fun Greeting(
                     } else {
                         null
                     }
-                    // TODO: auto translate while typing? may be slow
+                    if(!isTranslating) {
+                        setTranslating(true)
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                output = translateInForeground(from, to, context, input)
+                                setTranslating(false)
+                            }
+                        }
+                    }
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -409,7 +455,6 @@ fun Greeting(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
 
             Row {
                 val autoLang =
@@ -436,29 +481,6 @@ fun Greeting(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Button(
-                    onClick = {
-                        setTranslating(true)
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                output = translateInForeground(from, to, context, input)
-                                setTranslating(false)
-
-                            }
-                        }
-                    },
-                    shape = RectangleShape,
-                    modifier = Modifier.weight(1f),
-                    enabled = input.isNotEmpty() && !isTranslating
-                ) {
-                    if (isTranslating) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Translate")
-                    }
-                }
             }
 
 
@@ -469,7 +491,6 @@ fun Greeting(
                     text = output,
                     modifier = Modifier.fillMaxWidth()
                 )
-
             }
 
         }
@@ -491,8 +512,11 @@ fun translateInForeground(
 
     if (from != Language.ENGLISH && to != Language.ENGLISH) {
         pairs = pairs + Pair(from, Language.ENGLISH)
+        if (!checkLanguagePairFiles(context, from, Language.ENGLISH)) {
+            return "Language $pairs not installed"
+        }
         pairs = pairs + Pair(Language.ENGLISH, to)
-        if (!checkLanguagePairFiles(context, from, to)) {
+        if (!checkLanguagePairFiles(context, Language.ENGLISH, to)) {
             return "Language $pairs not installed"
         }
     } else {
@@ -508,7 +532,7 @@ fun translateInForeground(
         pairs.forEach({ pair ->
             println("Translating ${pair}")
             val cfg = configForLang(context, pair.first, pair.second)
-            intermediateOut = nl.stringFromJNI(cfg, intermediateIn)
+            intermediateOut = nl.stringFromJNI(cfg, intermediateIn, "${pair.first.code}${pair.second.code}")
             intermediateIn = intermediateOut
         })
         output = intermediateOut

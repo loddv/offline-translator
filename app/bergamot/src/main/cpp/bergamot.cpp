@@ -8,22 +8,27 @@
 #include "translator/utils.h"
 #include "third_party/cld2/public/compact_lang_det.h"
 #include <string>
+using namespace marian::bergamot;
 
-std::string func(const char* cfg, const char *input) {
-    using namespace marian::bergamot;
+#include <unordered_map>
+static std::unordered_map<std::string, std::shared_ptr<TranslationModel>> model_cache;
+
+std::string func(const char* cfg, const char *input, const char* key) {
     ConfigParser<AsyncService> configParser("Bergamot CLI", //multiOpMode
                                             false);
     auto &config = configParser.getConfig();
-
+    std::string key_str(key);
     AsyncService service(config.serviceConfig);
 ;
     auto validate = true;
     auto pathsDir = "";
     std::string cfg_s(cfg);
-    // This "parseOptionsFromString" throws/aborts
-    auto options = parseOptionsFromString(cfg_s, validate, pathsDir);
 
-    std::shared_ptr<TranslationModel> model = service.createCompatibleModel(options);
+    // This "parseOptionsFromString" throws/aborts
+    if (model_cache.find(key_str) == model_cache.end()) {
+        auto options = parseOptionsFromString(cfg_s, validate, pathsDir);
+        model_cache[key_str] = service.createCompatibleModel(options);
+    }
 
     ResponseOptions responseOptions;
     std::string input_str(input);
@@ -36,7 +41,7 @@ std::string func(const char* cfg, const char *input) {
         promise.set_value(std::move(response));
     };
 
-    service.translate(model, std::move(input), callback, responseOptions);
+    service.translate(model_cache[key_str], std::move(input), callback, responseOptions);
 
     // Wait until promise sets the response.
     Response response = future.get();
@@ -50,20 +55,24 @@ Java_com_example_bergamot_NativeLib_stringFromJNI(
         JNIEnv* env,
         jobject /* this */,
         jstring cfg,
-        jstring data) {
+        jstring data,
+        jstring key) {
 
     const char* c_cfg = env->GetStringUTFChars(cfg, nullptr);
     const char* c_data = env->GetStringUTFChars(data, nullptr);
+    const char* c_key = env->GetStringUTFChars(key, nullptr);
 
     const char* out;
     try {
-        std::string s = func(c_cfg, c_data);
+        std::string s = func(c_cfg, c_data, c_key);
         out = s.c_str();
     } catch(const std::exception &e) {
         out = e.what();
     }
     env->ReleaseStringUTFChars(cfg, c_cfg);
     env->ReleaseStringUTFChars(data, c_data);
+    env->ReleaseStringUTFChars(key, c_key);
+
     return env->NewStringUTF(out);
 
 }

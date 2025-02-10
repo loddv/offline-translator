@@ -3,4 +3,4 @@
 	url = https://github.com/CLD2Owners/cld2.git
 [submodule "app/bergamot/src/main/cpp/bergamot-translator"]
 	path = app/bergamot/src/main/cpp/bergamot-translator
-	url = https://github.com/browsermt/bergamot-translator
+	url = https://github.com/DavidVentura/bergamot-translator.git

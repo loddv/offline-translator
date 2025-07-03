@@ -70,6 +70,7 @@ import kotlin.system.measureTimeMillis
 
 class MainActivity : ComponentActivity() {
     private var textToTranslate: String = ""
+    private var detectedLanguage: Language? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -83,7 +84,8 @@ class MainActivity : ComponentActivity() {
                                 baseContext, from, to
                             )
                         },
-                        initialText = textToTranslate
+                        initialText = textToTranslate,
+                        detectedLanguage = detectedLanguage
                     )
                 }
             }
@@ -104,10 +106,23 @@ class MainActivity : ComponentActivity() {
                     intent.getStringExtra(Intent.EXTRA_TEXT)
                 }
                 textToTranslate = text ?: ""
+                detectLanguageForSharedText(textToTranslate)
             }
 
             Intent.ACTION_SEND -> {
                 textToTranslate = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
+                detectLanguageForSharedText(textToTranslate)
+            }
+        }
+    }
+
+    private fun detectLanguageForSharedText(text: String) {
+        if (text.isNotEmpty()) {
+            val ld = LangDetect()
+            val detected = ld.detectLanguage(text)
+            if (detected.isReliable) {
+                detectedLanguage = Language.entries.firstOrNull { it.code == detected.language }
+                println("detected ${detectedLanguage}")
             }
         }
     }
@@ -180,9 +195,12 @@ fun TranslationResult(
 fun Greeting(
     configForLang: (Language, Language) -> String,
     onManageLanguages: () -> Unit,
-    initialText: String?
+    initialText: String?,
+    detectedLanguage: Language? = null
 ) {
-    val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
+
+    println("from greeting, detectedLanguage is ${detectedLanguage}")
+    val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
 
     var input by remember { mutableStateOf(initialText ?: "") }
@@ -192,7 +210,6 @@ fun Greeting(
 
     if (initialText !== null && initialText != "") {
         val ld = LangDetect()
-
         val detected = ld.detectLanguage(input)
         detectedInput = if (detected.isReliable) {
             detected
@@ -222,8 +239,23 @@ fun Greeting(
             // Try to find first available pair
             Language.entries.forEach { fromLang ->
                 if (availableLanguages[fromLang.code] == true && fromLang != Language.ENGLISH) {
-                    setFrom(fromLang)
                     setTo(Language.ENGLISH)
+                    if (detectedLanguage != null && availableLanguages[detectedLanguage.code] == true) {
+                        println("autodetected from share")
+                        setFrom(detectedLanguage)
+                        if(!isTranslating) {
+                            setTranslating(true)
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    output = translateInForeground(from, to, context, input)
+                                    setTranslating(false)
+                                }
+                            }
+                        }
+                    } else {
+                        setFrom(fromLang)
+                    }
+
                     return@withContext
                 }
 
@@ -388,7 +420,7 @@ fun Greeting(
                     val ld = LangDetect()
 
                     val detected = ld.detectLanguage(input)
-                    println("detected $detected")
+                    println("onchange detected $detected")
                     detectedInput = if (detected.isReliable) {
                         detected
                     } else {
@@ -435,10 +467,17 @@ fun Greeting(
                     Button(
                         onClick = {
                             setFrom(autoLang)
+                            val actualTo = if (to == autoLang) {
+                                setTo(Language.ENGLISH)
+                                Language.ENGLISH
+                            } else {
+                                to
+                            }
+
                             setTranslating(true)
                             scope.launch {
                                 withContext(Dispatchers.IO) {
-                                    output = translateInForeground(autoLang, to, context, input)
+                                    output = translateInForeground(autoLang, actualTo, context, input)
                                     setTranslating(false)
                                 }
                             }
@@ -521,7 +560,7 @@ fun translateInForeground(
 @Composable
 fun GreetingPreview() {
     TranslatorTheme {
-        Greeting({ x, y -> "" }, {}, "")
+        Greeting({ x, y -> "" }, {}, "", null)
     }
 }
 

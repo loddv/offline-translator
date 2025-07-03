@@ -73,31 +73,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.system.measureTimeMillis
 
-
 class MainActivity : ComponentActivity() {
-    enum class Language(val code: String, val displayName: String) {
-        ENGLISH("en", "English"), BULGARIAN("bg", "Bulgarian"), CATALAN(
-            "ca",
-            "Catalan"
-        ),
-        CZECH("cs", "Czech"), DANISH("da", "Danish"), GERMAN("de", "German"), GREEK(
-            "el",
-            "Greek"
-        ),
-        SPANISH("es", "Spanish"), ESTONIAN("et", "Estonian"),
-
-        //        FINNISH("fi", "Finnish"),
-        FRENCH("fr", "French"), CROATIAN("hr", "Croatian"), INDONESIAN("id", "Indonesian"), ITALIAN(
-            "it",
-            "Italian"
-        ),
-        DUTCH("nl", "Dutch"), POLISH("pl", "Polish"), PORTUGUESE("pt", "Portuguese"), ROMANIAN(
-            "ro",
-            "Romanian"
-        ),
-        SLOVENIAN("sl", "Slovenian"), SWEDISH("sv", "Swedish"), TURKISH("tr", "Turkish")
-    }
-
     private var textToTranslate: String = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -314,7 +290,7 @@ fun Greeting(
                     ExposedDropdownMenu(expanded = fromExpanded,
                         onDismissRequest = { fromExpanded = false }) {
                         // Path exists to target
-                        MainActivity.Language.values()
+                        Language.entries
                             .filter { x -> x != to && x != from && availableLanguages[x.code] == true }
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
@@ -381,7 +357,7 @@ fun Greeting(
 
                     ExposedDropdownMenu(expanded = toExpanded,
                         onDismissRequest = { toExpanded = false }) {
-                        MainActivity.Language.values()
+                        Language.entries
                             .filter { x -> x != from && x != to && availableLanguages[x.code] == true }
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {

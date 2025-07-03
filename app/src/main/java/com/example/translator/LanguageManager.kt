@@ -49,10 +49,9 @@ fun LanguageManagerScreen() {
     // Track status for each language
     val languageStates = remember {
         mutableStateMapOf<Language, LanguageStatus>().apply {
-            Language.values().forEach { lang ->
-                if (lang != Language.ENGLISH) {
-                    put(lang, LanguageStatus(lang))
-                }
+            Language.entries.forEach { lang ->
+                put(lang, LanguageStatus(lang))
+
             }
         }
     }
@@ -205,16 +204,22 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
     val lang = "${from.code}${to.code}"
     val dataPath = File(context.filesDir, "bin")
     dataPath.mkdirs()
+    val ref = "19747effeaf6ec47fa7a7340838491d084fd03dd"
     val base =
-        "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/main/models/prod"
+        "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/${ref}/models"
 
+    val modelQuality = if (from == Language.ENGLISH) {
+        fromEnglish[to]
+    } else {
+        toEnglish[from]
+    }
 
     // Wait for all downloads to complete
     withContext(Dispatchers.IO) {
         files.forEach { fileName ->
             val file = File(dataPath, fileName)
             if (!file.exists()) {
-                val url = "${base}/${lang}/${fileName}.gz"
+                val url = "${base}/${modelQuality.toString()}/${lang}/${fileName}.gz"
                 val success = downloadAndDecompress(url, file)
                 println("Downloading ${url} to ${file} = $success")
             } else {
@@ -248,6 +253,7 @@ suspend fun downloadAndDecompress(url: String, outputFile: File) = withContext(D
 }
 
 fun filesFor(from: Language, to: Language): Triple<String, String, String> {
+
     val lang = "${from.code}${to.code}"
     // vocab lang is *en for es, bg, fr, et, de (models/prod/enes/vocab.esen.spm.gz)
     val vocabLang = if (from == Language.ENGLISH && listOf(

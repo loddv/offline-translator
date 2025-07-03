@@ -23,17 +23,13 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -65,7 +61,6 @@ import androidx.compose.ui.unit.dp
 import com.example.bergamot.DetectionResult
 import com.example.bergamot.LangDetect
 import com.example.bergamot.NativeLib
-import com.example.translator.MainActivity.Language
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -215,7 +210,7 @@ fun Greeting(
     LaunchedEffect(Unit) {
         availableLanguages[Language.ENGLISH.code] = true
         withContext(Dispatchers.IO) {
-            Language.values().forEach { fromLang ->
+            Language.entries.forEach { fromLang ->
                 val toLang = Language.ENGLISH
                 if (fromLang != toLang) {
                     val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
@@ -225,7 +220,7 @@ fun Greeting(
 
             // Set initial languages if none selected
             // Try to find first available pair
-            Language.values().forEach { fromLang ->
+            Language.entries.forEach { fromLang ->
                 if (availableLanguages[fromLang.code] == true && fromLang != Language.ENGLISH) {
                     setFrom(fromLang)
                     setTo(Language.ENGLISH)
@@ -434,7 +429,7 @@ fun Greeting(
 
             Row {
                 val autoLang =
-                    Language.values().firstOrNull { l -> l.code == detectedInput?.language }
+                    Language.entries.firstOrNull { l -> l.code == detectedInput?.language }
 
                 if (detectedInput != null && autoLang != null && autoLang != from) {
                     Button(
@@ -484,7 +479,7 @@ fun translateInForeground(
     val nl = NativeLib()
 
     var output: String
-    var pairs = emptyList<Pair<Language, Language>>();
+    var pairs = emptyList<Pair<Language, Language>>()
 
     if (from != Language.ENGLISH && to != Language.ENGLISH) {
         pairs = pairs + Pair(from, Language.ENGLISH)

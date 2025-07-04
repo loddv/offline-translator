@@ -248,7 +248,6 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
 suspend fun downloadAndDecompress(url: String, outputFile: File) = withContext(Dispatchers.IO) {
     try {
         URL(url).openStream().use { input ->
-
             GZIPInputStream(input).use { gzipInput ->
                 outputFile.outputStream().use { output ->
                     val buffer = ByteArray(8192)

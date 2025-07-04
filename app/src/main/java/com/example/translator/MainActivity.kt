@@ -1,17 +1,20 @@
 package com.example.translator
 
-import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,11 +35,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -78,17 +84,16 @@ import kotlin.io.path.pathString
 import kotlin.system.measureTimeMillis
 
 
-
 suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
     try {
         URL(url).openStream().use { input ->
-                outputFile.outputStream().use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                    }
+            outputFile.outputStream().use { output ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
                 }
+            }
 
         }
         true
@@ -105,6 +110,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
+        val tess = TessBaseAPI()
+
         setContent {
             TranslatorTheme {
                 MaterialTheme {
@@ -115,7 +122,8 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         initialText = textToTranslate,
-                        detectedLanguage = detectedLanguage
+                        detectedLanguage = detectedLanguage,
+                        tess = tess,
                     )
                 }
             }
@@ -227,81 +235,32 @@ fun Greeting(
     configForLang: (Language, Language) -> String,
     onManageLanguages: () -> Unit,
     initialText: String?,
-    detectedLanguage: Language? = null
+    detectedLanguage: Language? = null,
+    tess: TessBaseAPI
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val p = File(context.filesDir, "tesseract").toPath()
+    val tessdata = Path(p.pathString, "tessdata")
+    val dataPath: String = p.absolutePathString()
+    tessdata.createDirectories()
 
-    // Create TessBaseAPI instance (this internally creates the native Tesseract instance)
-    val tess = TessBaseAPI()
+    val lang = "nld"
+    val outputFile =
+        File(Path(tessdata.absolutePathString(), "$lang.traineddata").absolutePathString())
+    if (outputFile.exists()) {
+        println("already exists")
+    } else {
+        scope.launch {
+            download(
+                "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/$lang.traineddata",
+                outputFile
+            )
+        }
 
-
-// NOTE: TessBaseAPI is not thread-safe. If you want to process multiple images in parallel,
-// create separate instance of TessBaseAPI for each thread.
-
-// Given path must contain subdirectory `tessdata` where are `*.traineddata` language files
-// The path must be directly readable by the app
-//    scope.launch {
-//        withContext(Dispatchers.IO) {
-            val p = File(context.filesDir, "tesseract").toPath()
-            val tessdata = Path(p.pathString, "tessdata")
-            val dataPath: String = p.absolutePathString()
-            tessdata.createDirectories()
-
-
-            val outputFile =
-                File(Path(tessdata.absolutePathString(), "eng.traineddata").absolutePathString())
-            if (outputFile.exists()) {
-                println("already exists")
-            } else {
-//                download(
-//                    "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/eng.traineddata",
-//                    outputFile
-//                )
-                println("NOT DOWNLOADING, panic")
-            }
-
-            println("init") // ~400ms to init in debug; 150ms in release
-// Initialize API for specified language
-// (can be called multiple times during Tesseract lifetime)
-            if (!tess.init(dataPath, "eng")) { // could be multiple languages, like "eng+deu+fra"
-                // Error initializing Tesseract (wrong/inaccessible data path or not existing language file(s))
-                // Release the native Tesseract instance
-                tess.recycle()
-                println("recycled")
-                return
-            } else {
-
-                println("inited")
-// Load the image (file path, Bitmap, Pix...)
-// (can be called multiple times during Tesseract lifetime)
-                val decoded = BitmapFactory.decodeResource(context.resources, R.drawable.example) // 200ms in debug; 50ms in release
-                println("decoded")
-                tess.setImage(decoded)
-                println("done") // 80ms in debug; 20ms in release
-                val text = tess.utF8Text
-                println("got text ${text}") //2.5s debug; 800ms in release
-                val level = TessBaseAPI.PageIteratorLevel.RIL_PARA
-                tess.resultIterator?.let { iterator ->
-                    iterator.begin()
-                    do {
-                        val boundingBox = iterator.getBoundingRect(level)
-                        val text = iterator.getUTF8Text(level)
-                        val confidence = iterator.confidence(level)
-                        println("bb ${boundingBox}, text ${text}, confidence ${confidence}")
-                    }while (iterator.next(level))
-                }
-// Start the recognition (if not done for this image yet) and retrieve the result
-// (can be called multiple times during Tesseract lifetime)
-
-                // Release the native Tesseract instance when you don't want to use it anymore
-// After this call, no method can be called on this TessBaseAPI instance
-                tess.recycle()
-            }
-
-
-
+        println("NOT DOWNLOADING, panic")
+    }
 
     println("from greeting, detectedLanguage is ${detectedLanguage}")
     val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
@@ -322,6 +281,44 @@ fun Greeting(
         }
     }
 
+    if (!tess.init(dataPath, "eng")) { // could be multiple languages, like "eng+deu+fra"
+        tess.recycle()
+        println("recycled")
+        return
+    } else {
+        println("inited")
+    }
+
+    val pickMedia =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+            // Callback is invoked after the user selects a media item or closes the
+            // photo picker.
+            if (uri != null) {
+                Log.d("PhotoPicker", "Selected URI: $uri")
+                println("setting image")
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    tess.setImage(bitmap)
+                    val text: String
+                    val elapsed = measureTimeMillis {
+                        text = tess.utF8Text
+                    }
+                    println("got text ${text}") //2.5s debug; 800ms in releas
+                    input = text
+                    setTranslating(true)
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            output = translateInForeground(from, to, context, text)
+                            setTranslating(false)
+                        }
+                    }
+                    println("OCR took ${elapsed}ms")
+                }
+            } else {
+                Log.d("PhotoPicker", "No media selected")
+            }
+        }
     // Track available language pairs
     val availableLanguages = remember { mutableStateMapOf<String, Boolean>() }
 
@@ -365,7 +362,14 @@ fun Greeting(
         }
     }
     Scaffold(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) {
+                Icon(Icons.Filled.Search, "Image")
+            }
+        }
     ) { paddingValues ->
 
         Column(
@@ -617,8 +621,8 @@ fun Greeting(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-
         }
+
     }
 }
 
@@ -675,8 +679,9 @@ fun translateInForeground(
 )
 @Composable
 fun GreetingPreview() {
+    val tess =TessBaseAPI()
     TranslatorTheme {
-        Greeting({ x, y -> "" }, {}, "", null)
+        Greeting({ x, y -> "" }, {}, "", null, tess)
     }
 }
 

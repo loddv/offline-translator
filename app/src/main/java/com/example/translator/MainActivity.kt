@@ -1,11 +1,14 @@
 package com.example.translator
 
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -62,11 +65,38 @@ import com.example.bergamot.DetectionResult
 import com.example.bergamot.LangDetect
 import com.example.bergamot.NativeLib
 import com.example.translator.ui.theme.TranslatorTheme
+import com.googlecode.tesseract.android.TessBaseAPI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URL
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.createDirectories
+import kotlin.io.path.pathString
 import kotlin.system.measureTimeMillis
+
+
+
+suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
+    try {
+        URL(url).openStream().use { input ->
+                outputFile.outputStream().use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                    }
+                }
+
+        }
+        true
+    } catch (e: Exception) {
+        Log.e("Download", "Error downloading file", e)
+        false
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private var textToTranslate: String = ""
@@ -145,8 +175,9 @@ fun TranslationResult(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth()
-        .heightIn(max = LocalConfiguration.current.screenHeightDp.dp / 2),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(max = LocalConfiguration.current.screenHeightDp.dp / 2),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -166,7 +197,7 @@ fun TranslationResult(
                         text = text,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.widthIn(max=(LocalConfiguration.current.screenWidthDp - 66).dp)
+                        modifier = Modifier.widthIn(max = (LocalConfiguration.current.screenWidthDp - 66).dp)
                     )
                 }
 
@@ -198,6 +229,79 @@ fun Greeting(
     initialText: String?,
     detectedLanguage: Language? = null
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+
+    // Create TessBaseAPI instance (this internally creates the native Tesseract instance)
+    val tess = TessBaseAPI()
+
+
+// NOTE: TessBaseAPI is not thread-safe. If you want to process multiple images in parallel,
+// create separate instance of TessBaseAPI for each thread.
+
+// Given path must contain subdirectory `tessdata` where are `*.traineddata` language files
+// The path must be directly readable by the app
+//    scope.launch {
+//        withContext(Dispatchers.IO) {
+            val p = File(context.filesDir, "tesseract").toPath()
+            val tessdata = Path(p.pathString, "tessdata")
+            val dataPath: String = p.absolutePathString()
+            tessdata.createDirectories()
+
+
+            val outputFile =
+                File(Path(tessdata.absolutePathString(), "eng.traineddata").absolutePathString())
+            if (outputFile.exists()) {
+                println("already exists")
+            } else {
+//                download(
+//                    "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/eng.traineddata",
+//                    outputFile
+//                )
+                println("NOT DOWNLOADING, panic")
+            }
+
+            println("init") // ~400ms to init in debug; 150ms in release
+// Initialize API for specified language
+// (can be called multiple times during Tesseract lifetime)
+            if (!tess.init(dataPath, "eng")) { // could be multiple languages, like "eng+deu+fra"
+                // Error initializing Tesseract (wrong/inaccessible data path or not existing language file(s))
+                // Release the native Tesseract instance
+                tess.recycle()
+                println("recycled")
+                return
+            } else {
+
+                println("inited")
+// Load the image (file path, Bitmap, Pix...)
+// (can be called multiple times during Tesseract lifetime)
+                val decoded = BitmapFactory.decodeResource(context.resources, R.drawable.example) // 200ms in debug; 50ms in release
+                println("decoded")
+                tess.setImage(decoded)
+                println("done") // 80ms in debug; 20ms in release
+                val text = tess.utF8Text
+                println("got text ${text}") //2.5s debug; 800ms in release
+                val level = TessBaseAPI.PageIteratorLevel.RIL_PARA
+                tess.resultIterator?.let { iterator ->
+                    iterator.begin()
+                    do {
+                        val boundingBox = iterator.getBoundingRect(level)
+                        val text = iterator.getUTF8Text(level)
+                        val confidence = iterator.confidence(level)
+                        println("bb ${boundingBox}, text ${text}, confidence ${confidence}")
+                    }while (iterator.next(level))
+                }
+// Start the recognition (if not done for this image yet) and retrieve the result
+// (can be called multiple times during Tesseract lifetime)
+
+                // Release the native Tesseract instance when you don't want to use it anymore
+// After this call, no method can be called on this TessBaseAPI instance
+                tess.recycle()
+            }
+
+
+
 
     println("from greeting, detectedLanguage is ${detectedLanguage}")
     val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
@@ -217,9 +321,7 @@ fun Greeting(
             null
         }
     }
-    val scope = rememberCoroutineScope()
 
-    val context = LocalContext.current
     // Track available language pairs
     val availableLanguages = remember { mutableStateMapOf<String, Boolean>() }
 
@@ -243,7 +345,7 @@ fun Greeting(
                     if (detectedLanguage != null && availableLanguages[detectedLanguage.code] == true) {
                         println("autodetected from share")
                         setFrom(detectedLanguage)
-                        if(!isTranslating) {
+                        if (!isTranslating) {
                             setTranslating(true)
                             scope.launch {
                                 withContext(Dispatchers.IO) {
@@ -324,7 +426,8 @@ fun Greeting(
                                     setFrom(language)
                                     scope.launch {
                                         withContext(Dispatchers.IO) {
-                                            output = translateInForeground(language, to, context, input)
+                                            output =
+                                                translateInForeground(language, to, context, input)
                                             setTranslating(false)
                                         }
                                     }
@@ -340,7 +443,7 @@ fun Greeting(
                     setFrom(oldTo)
                     setTo(oldFrom)
 
-                    if(!isTranslating) {
+                    if (!isTranslating) {
                         setTranslating(true)
                         scope.launch {
                             withContext(Dispatchers.IO) {
@@ -350,7 +453,10 @@ fun Greeting(
                         }
                     }
                 }) {
-                    Icon(painterResource(id = R.drawable.compare), contentDescription = "Reverse translation direction")
+                    Icon(
+                        painterResource(id = R.drawable.compare),
+                        contentDescription = "Reverse translation direction"
+                    )
                 }
                 ExposedDropdownMenuBox(
                     expanded = toExpanded,
@@ -390,11 +496,16 @@ fun Greeting(
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
                                     setTo(language)
 
-                                    if(!isTranslating) {
+                                    if (!isTranslating) {
                                         setTranslating(true)
                                         scope.launch {
                                             withContext(Dispatchers.IO) {
-                                                output = translateInForeground(from, language, context, input)
+                                                output = translateInForeground(
+                                                    from,
+                                                    language,
+                                                    context,
+                                                    input
+                                                )
                                                 setTranslating(false)
                                             }
                                         }
@@ -405,7 +516,10 @@ fun Greeting(
                     }
                 }
                 IconButton(onClick = onManageLanguages) {
-                    Icon(painterResource(id = R.drawable.settings), contentDescription = "Manage Languages")
+                    Icon(
+                        painterResource(id = R.drawable.settings),
+                        contentDescription = "Manage Languages"
+                    )
                 }
 
             }
@@ -426,7 +540,7 @@ fun Greeting(
                     } else {
                         null
                     }
-                    if(!isTranslating) {
+                    if (!isTranslating) {
                         setTranslating(true)
                         scope.launch {
                             withContext(Dispatchers.IO) {
@@ -477,7 +591,8 @@ fun Greeting(
                             setTranslating(true)
                             scope.launch {
                                 withContext(Dispatchers.IO) {
-                                    output = translateInForeground(autoLang, actualTo, context, input)
+                                    output =
+                                        translateInForeground(autoLang, actualTo, context, input)
                                     setTranslating(false)
                                 }
                             }
@@ -542,7 +657,8 @@ fun translateInForeground(
         pairs.forEach({ pair ->
             println("Translating ${pair}")
             val cfg = configForLang(context, pair.first, pair.second)
-            intermediateOut = nl.stringFromJNI(cfg, intermediateIn, "${pair.first.code}${pair.second.code}")
+            intermediateOut =
+                nl.stringFromJNI(cfg, intermediateIn, "${pair.first.code}${pair.second.code}")
             intermediateIn = intermediateOut
         })
         output = intermediateOut

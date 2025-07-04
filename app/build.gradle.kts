@@ -79,4 +79,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(project(":app:bergamot"))
+    // OpenMP - Multi-threaded. Provides better performance on multi-core processors when using only single instance of Tesseract.
+    implementation(("cz.adaptech.tesseract4android:tesseract4android-openmp:4.9.0"))
 }

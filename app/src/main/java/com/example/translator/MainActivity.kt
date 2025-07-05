@@ -110,7 +110,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
-        val tess = TessBaseAPI()
+        val tess = TessBaseAPI { progress ->
+            run {
+                println("progress ${progress.percent}%")
+            }
+        }
 
         setContent {
             TranslatorTheme {
@@ -281,7 +285,8 @@ fun Greeting(
         }
     }
 
-    if (!tess.init(dataPath, "eng")) { // could be multiple languages, like "eng+deu+fra"
+
+    if (!tess.init(dataPath, lang)) { // could be multiple languages, like "eng+deu+fra"
         tess.recycle()
         println("recycled")
         return
@@ -300,9 +305,16 @@ fun Greeting(
 
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     tess.setImage(bitmap)
+                    //Automatic orientation + script detection; instead of default "single block of uniform text"
+                    tess.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD);
+
                     val text: String
                     val elapsed = measureTimeMillis {
-                        text = tess.utF8Text
+                        // start streaming translation
+                        tess.getHOCRText(0);
+                        // get text
+//                        text = tess.utF8Text
+                        text = tess.getConfidentText(80, TessBaseAPI.PageIteratorLevel.RIL_WORD)
                     }
                     println("got text ${text}") //2.5s debug; 800ms in releas
                     input = text

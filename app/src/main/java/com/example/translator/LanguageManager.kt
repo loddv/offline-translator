@@ -111,11 +111,15 @@ fun LanguageManagerScreen() {
     val downloadStates by downloadService?.downloadStates?.collectAsState()
         ?: remember { mutableStateOf(emptyMap()) }
 
-    // Refresh local status when downloads complete
+    // Refresh local status when downloads complete or when states change
     LaunchedEffect(downloadStates) {
         downloadStates.values.forEach { downloadState ->
-            if (downloadState.isCompleted) {
-                val language = downloadState.language
+            val language = downloadState.language
+            
+            // Refresh status when download completes or when state is reset (indicating deletion)
+            if (downloadState.isCompleted || 
+                (!downloadState.isDownloading && !downloadState.isCompleted && !downloadState.isCancelled && downloadState.error == null)) {
+                
                 withContext(Dispatchers.IO) {
                     val toEnglishDownloaded =
                         checkLanguagePairFiles(context, language, Language.ENGLISH)
@@ -225,10 +229,9 @@ fun LanguageManagerScreen() {
                                 }
                             }
 
-                            Box(
-                                modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center
-                            ) {
+                            Row {
                                 if (isDownloading) {
+                                    // Cancel button during download
                                     FilledTonalIconButton(
                                         onClick = {
                                             downloadService?.cancelDownload(status.language)
@@ -239,7 +242,20 @@ fun LanguageManagerScreen() {
                                             contentDescription = "Cancel Download",
                                         )
                                     }
+                                } else if (isFullyDownloaded || isCompleted) {
+                                    // Delete button for completed downloads
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            downloadService?.deleteLanguage(status.language)
+                                        },
+                                    ) {
+                                        Icon(
+                                            painterResource(id = R.drawable.delete),
+                                            contentDescription = "Delete Language",
+                                        )
+                                    }
                                 } else {
+                                    // Download/retry button
                                     FilledTonalIconButton(
                                         onClick = {
                                             if (!isFullyDownloaded) {
@@ -250,13 +266,6 @@ fun LanguageManagerScreen() {
                                         }, enabled = !isFullyDownloaded && !isCompleted
                                     ) {
                                         when {
-                                            isFullyDownloaded || downloadState?.isCompleted == true -> {
-                                                Icon(
-                                                    painterResource(id = R.drawable.check),
-                                                    contentDescription = "Downloaded"
-                                                )
-                                            }
-
                                             downloadState?.isCancelled == true -> {
                                                 Icon(
                                                     painterResource(id = R.drawable.refresh),

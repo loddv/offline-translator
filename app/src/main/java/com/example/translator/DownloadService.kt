@@ -54,6 +54,14 @@ class DownloadService : Service() {
             }
             context.startService(intent)
         }
+
+        fun deleteLanguage(context: Context, language: Language) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = "DELETE_LANGUAGE"
+                putExtra("language_code", language.code)
+            }
+            context.startService(intent)
+        }
     }
 
     override fun onCreate() {
@@ -76,6 +84,14 @@ class DownloadService : Service() {
                 val language = Language.entries.find { it.code == languageCode }
                 if (language != null) {
                     cancelLanguageDownload(language)
+                }
+            }
+
+            "DELETE_LANGUAGE" -> {
+                val languageCode = intent.getStringExtra("language_code")
+                val language = Language.entries.find { it.code == languageCode }
+                if (language != null) {
+                    deleteLanguageFiles(language)
                 }
             }
         }
@@ -159,6 +175,69 @@ class DownloadService : Service() {
 
         showNotification("Download Cancelled", "${language.displayName} download was cancelled")
         Log.i("DownloadService", "Cancelled download for ${language.displayName}")
+    }
+
+    private fun deleteLanguageFiles(language: Language) {
+        serviceScope.launch {
+            showNotification("Deleting ${language.displayName}", "Removing language files...")
+
+            var deletedFiles = 0
+
+            withContext(Dispatchers.IO) {
+                // Delete translation files (to and from English)
+                val dataPath = File(this@DownloadService.filesDir, "bin")
+
+                // Delete to English files
+                val (toModel, toVocab, toLex) = filesFor(language, Language.ENGLISH)
+                listOf(toModel, toVocab, toLex).forEach { fileName ->
+                    val file = File(dataPath, fileName)
+                    if (file.exists() && file.delete()) {
+                        deletedFiles++
+                        Log.i("DownloadService", "Deleted: $fileName")
+                    }
+                }
+
+                // Delete from English files
+                val (fromModel, fromVocab, fromLex) = filesFor(Language.ENGLISH, language)
+                listOf(fromModel, fromVocab, fromLex).forEach { fileName ->
+                    val file = File(dataPath, fileName)
+                    if (file.exists() && file.delete()) {
+                        deletedFiles++
+                        Log.i("DownloadService", "Deleted: $fileName")
+                    }
+                }
+
+                // Delete tessdata file
+                val tessDataPath = File(this@DownloadService.filesDir, "tesseract/tessdata")
+                val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
+                if (tessFile.exists() && tessFile.delete()) {
+                    deletedFiles++
+                    Log.i("DownloadService", "Deleted: ${tessFile.name}")
+                }
+            }
+
+            // Clear the download state
+            updateDownloadState(language) {
+                DownloadState(
+                    language = language,
+                    isDownloading = false,
+                    isCompleted = false,
+                    isCancelled = false,
+                    progress = 0f,
+                    error = null
+                )
+            }
+
+            showNotification(
+                "Deletion Complete",
+                "${language.displayName} files removed ($deletedFiles files)"
+            )
+            Log.i(
+                "DownloadService",
+                "Deleted ${language.displayName} - $deletedFiles files removed"
+            )
+
+        }
     }
 
     private fun updateProgress(language: Language, progress: Float, message: String) {
@@ -295,6 +374,10 @@ class DownloadService : Service() {
 
     fun cancelDownload(language: Language) {
         cancelLanguageDownload(language)
+    }
+
+    fun deleteLanguage(language: Language) {
+        deleteLanguageFiles(language)
     }
 
     inner class DownloadBinder : Binder() {

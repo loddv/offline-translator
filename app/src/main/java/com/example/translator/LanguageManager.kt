@@ -1,7 +1,11 @@
 package com.example.translator
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.res.Configuration
+import android.os.IBinder
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,14 +21,19 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -58,7 +67,31 @@ fun LanguageManagerPreview() {
 @Composable
 fun LanguageManagerScreen() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    var downloadService by remember { mutableStateOf<DownloadService?>(null) }
+
+    // Service connection
+    val serviceConnection = remember {
+        object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                val binder = service as DownloadService.DownloadBinder
+                downloadService = binder.getService()
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                downloadService = null
+            }
+        }
+    }
+
+    // Bind to service
+    DisposableEffect(context) {
+        val intent = Intent(context, DownloadService::class.java)
+        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+        onDispose {
+            context.unbindService(serviceConnection)
+        }
+    }
 
     // Track status for each language
     val languageStates = remember {
@@ -73,6 +106,10 @@ fun LanguageManagerScreen() {
             }
         }
     }
+
+    // Get download states from service
+    val downloadStates by downloadService?.downloadStates?.collectAsState()
+        ?: remember { mutableStateOf(emptyMap()) }
 
     // Check which language pairs are already downloaded
     LaunchedEffect(Unit) {
@@ -116,8 +153,10 @@ fun LanguageManagerScreen() {
                 items(
                     languageStates.values.toList()
                         .sortedBy { item -> item.language.displayName }) { status ->
+                    val downloadState = downloadStates[status.language]
                     val isFullyDownloaded =
                         status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
+                    val isDownloading = downloadState?.isDownloading == true
 
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth()
@@ -131,17 +170,23 @@ fun LanguageManagerScreen() {
                         ) {
                             Column(
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = if (status.isDownloading) Arrangement.Center else Arrangement.Center
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
                                     text = status.language.displayName,
                                     style = MaterialTheme.typography.titleMedium
                                 )
-                                if (status.isDownloading) {
+                                if (isDownloading) {
+                                    LinearProgressIndicator(
+                                        progress = { downloadState?.progress ?: 0f },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                downloadState?.error?.let { error ->
                                     Text(
-                                        text = "Downloading...",
+                                        text = "Error: $error",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = MaterialTheme.colorScheme.error
                                     )
                                 }
                             }
@@ -149,52 +194,28 @@ fun LanguageManagerScreen() {
                             Box(
                                 modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center
                             ) {
-                                if (status.isDownloading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp), strokeWidth = 2.dp
-                                    )
+                                if (isDownloading) {
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            // TODO: implement
+                                        },
+                                    ) {
+                                        Icon(
+                                            painterResource(id = R.drawable.cancel),
+                                            contentDescription = "Downloaded",
+                                        )
+                                    }
                                 } else {
                                     FilledTonalIconButton(
                                         onClick = {
                                             if (!isFullyDownloaded) {
-                                                scope.launch {
-                                                    languageStates[status.language] =
-                                                        status.copy(isDownloading = true)
-
-                                                    // Download translation pairs and tessdata
-                                                    if (!status.toEnglishDownloaded) {
-                                                        downloadLanguagePair(
-                                                            context,
-                                                            status.language,
-                                                            Language.ENGLISH
-                                                        )
-                                                    }
-                                                    if (!status.fromEnglishDownloaded) {
-                                                        downloadLanguagePair(
-                                                            context,
-                                                            Language.ENGLISH,
-                                                            status.language
-                                                        )
-                                                    }
-                                                    if (!status.tessDownloaded) {
-                                                        // Ensure english is always downloaded for tess recognition
-                                                        downloadTessData(context, Language.ENGLISH)
-                                                        downloadTessData(context, status.language)
-                                                    }
-
-                                                    languageStates[status.language] =
-                                                        LanguageStatus(
-                                                            language = status.language,
-                                                            toEnglishDownloaded = true,
-                                                            fromEnglishDownloaded = true,
-                                                            tessDownloaded = true,
-                                                            isDownloading = false
-                                                        )
-                                                }
+                                                DownloadService.startDownload(
+                                                    context, status.language
+                                                )
                                             }
                                         }, enabled = !isFullyDownloaded
                                     ) {
-                                        if (isFullyDownloaded) {
+                                        if (isFullyDownloaded || downloadState?.isCompleted == true) {
                                             Icon(
                                                 painterResource(id = R.drawable.check),
                                                 contentDescription = "Downloaded"
@@ -244,101 +265,6 @@ fun getAvailableTessLanguages(context: Context): String {
     return languageString
 }
 
-private suspend fun downloadLanguagePair(context: Context, from: Language, to: Language) {
-    val (model, vocab, lex) = filesFor(from, to)
-    val files = listOf(model, vocab, lex)
-    val lang = "${from.code}${to.code}"
-    val dataPath = File(context.filesDir, "bin")
-    dataPath.mkdirs()
-    val ref = "4886b27f3c9756fff56005e7abe3fbfa34461209"
-    val base =
-        "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/${ref}/models"
-
-    val modelQuality = if (from == Language.ENGLISH) {
-        fromEnglish[to]
-    } else {
-        toEnglish[from]
-    }
-
-    if (modelQuality == null) {
-        println("Could not find model quality for ${from} -> ${to}")
-        return
-    }
-    // Wait for all downloads to complete
-    withContext(Dispatchers.IO) {
-        files.forEach { fileName ->
-            val file = File(dataPath, fileName)
-            if (!file.exists()) {
-                val url = "${base}/${modelQuality.toString()}/${lang}/${fileName}.gz"
-                val success = downloadAndDecompress(url, file)
-                println("Downloading ${url} to ${file} = $success")
-            } else {
-                println("File $file existed, not downloading")
-            }
-        }
-    }
-
-
-}
-
-private suspend fun downloadTessData(context: Context, language: Language) {
-    val tessDataPath = File(context.filesDir, "tesseract/tessdata")
-    if (!tessDataPath.isDirectory) {
-        tessDataPath.mkdirs()
-    }
-    val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-    val url =
-        "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/${language.tessName}.traineddata"
-    if (!tessFile.exists()) {
-        withContext(Dispatchers.IO) {
-            val success = download(url, tessFile)
-            Log.i(
-                "LanguageManager",
-                "Downloaded tessdata for ${language.displayName} = ${url}: $success"
-            )
-        }
-    } else {
-        Log.i("LanguageManager", "Tessdata for ${language.displayName} already exists")
-    }
-}
-
-suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
-    try {
-        URL(url).openStream().use { input ->
-            outputFile.outputStream().use { output ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
-                }
-            }
-        }
-        true
-    } catch (e: Exception) {
-        Log.e("Download", "Error downloading file", e)
-        false
-    }
-}
-
-suspend fun downloadAndDecompress(url: String, outputFile: File) = withContext(Dispatchers.IO) {
-    try {
-        URL(url).openStream().use { input ->
-            GZIPInputStream(input).use { gzipInput ->
-                outputFile.outputStream().use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (gzipInput.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                    }
-                }
-            }
-        }
-        true
-    } catch (e: Exception) {
-        Log.e("Decompression", "Error decompressing file", e)
-        false
-    }
-}
 
 fun filesFor(from: Language, to: Language): Triple<String, String, String> {
 

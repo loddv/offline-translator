@@ -86,8 +86,8 @@ import kotlin.system.measureTimeMillis
 class MainActivity : ComponentActivity() {
     private var textToTranslate: String = ""
     private var detectedLanguage: Language? = null
-    private var ocrProgress by mutableFloatStateOf(0f)
     private lateinit var ocrService: OCRService
+    private var onOcrProgress: (Float) -> Unit = {}
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         
         ocrService = OCRService(this) { progress ->
-            ocrProgress = progress
+            onOcrProgress(progress)
         }
 
         setContent {
@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
                         ocrService = ocrService,
-                        ocrProgress = ocrProgress
+                        onOcrProgress = { callback -> onOcrProgress = callback }
                     )
                 }
             }
@@ -229,11 +229,21 @@ fun Greeting(
     initialText: String?,
     detectedLanguage: Language? = null,
     ocrService: OCRService,
-    ocrProgress: Float,
+    onOcrProgress: ((Float) -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Move progress state to this composable
+    var ocrProgress by remember { mutableFloatStateOf(0f) }
+    
+    // Set up progress callback once
+    LaunchedEffect(Unit) {
+        onOcrProgress { progress ->
+            println(progress)
+            ocrProgress = progress
+        }
+    }
 
     println("from greeting, detectedLanguage is ${detectedLanguage}")
     val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }

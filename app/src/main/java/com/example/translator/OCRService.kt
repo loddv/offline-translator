@@ -42,7 +42,7 @@ class OCRService(
 
             // Initialize TessBaseAPI
             tess = TessBaseAPI { progress ->
-                onProgress(progress.percent / 100f)
+                onProgress(progress.percent / 100f * 1.46f) // tesseract reports up to 66%?
             }
 
             val initialized = tess?.init(dataPath, lang) ?: false

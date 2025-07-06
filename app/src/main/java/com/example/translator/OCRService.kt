@@ -25,34 +25,32 @@ class OCRService(
         if (isInitialized) return@withContext true
         
         try {
-            // Setup Tesseract directories
             val p = File(context.filesDir, "tesseract").toPath()
             val tessdata = Path(p.pathString, "tessdata")
             val dataPath: String = p.absolutePathString()
             tessdata.createDirectories()
 
-            val lang = "nld"
-            val outputFile = File(Path(tessdata.absolutePathString(), "$lang.traineddata").absolutePathString())
-            if (!outputFile.exists()) {
-                Log.w("OCRService", "Language data not found: $outputFile")
+            // Get available language data
+            val availableLanguages = getAvailableTessLanguages(context)
+            if (availableLanguages.isEmpty()) {
+                Log.w("OCRService", "No tessdata language files found")
                 return@withContext false
             }
 
-            // Initialize TessBaseAPI
             tess = TessBaseAPI { progress ->
                 onProgress(progress.percent / 100f * 1.46f) // tesseract reports up to 66%?
             }
 
-            val initialized = tess?.init(dataPath, lang) ?: false
+            val initialized = tess?.init(dataPath, availableLanguages) ?: false
             if (!initialized) {
                 tess?.recycle()
                 tess = null
-                Log.e("OCRService", "Failed to initialize Tesseract")
+                Log.e("OCRService", "Failed to initialize Tesseract with languages: $availableLanguages")
                 return@withContext false
             }
 
             isInitialized = true
-            Log.i("OCRService", "Tesseract initialized successfully")
+            Log.i("OCRService", "Tesseract initialized successfully with languages: $availableLanguages")
             true
         } catch (e: Exception) {
             Log.e("OCRService", "Error initializing Tesseract", e)

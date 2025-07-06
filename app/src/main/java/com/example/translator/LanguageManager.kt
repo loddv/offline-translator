@@ -49,8 +49,7 @@ data class LanguageStatus(
 
 @Composable
 @Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 fun LanguageManagerPreview() {
     LanguageManagerScreen()
@@ -68,7 +67,7 @@ fun LanguageManagerScreen() {
                 // fromEnglish and toEnglish are symmetrical by construction
                 // (generate.py); so filter languages down to whichever has
                 // translations available
-                if (fromEnglish.get(lang) != null) {
+                if (fromEnglish[lang] != null) {
                     put(lang, LanguageStatus(lang))
                 }
             }
@@ -130,13 +129,15 @@ fun LanguageManagerScreen() {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f),
-                                verticalArrangement = if (status.isDownloading) Arrangement.Center else Arrangement.Center) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = if (status.isDownloading) Arrangement.Center else Arrangement.Center
+                            ) {
                                 Text(
                                     text = status.language.displayName,
                                     style = MaterialTheme.typography.titleMedium
                                 )
-                                 if (status.isDownloading) {
+                                if (status.isDownloading) {
                                     Text(
                                         text = "Downloading...",
                                         style = MaterialTheme.typography.bodySmall,
@@ -146,69 +147,67 @@ fun LanguageManagerScreen() {
                             }
 
                             Box(
-                                modifier = Modifier.size(48.dp),
-                                contentAlignment = Alignment.Center
+                                modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center
                             ) {
-                            if (status.isDownloading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        if (!isFullyDownloaded) {
-                                            scope.launch {
-                                                languageStates[status.language] =
-                                                    status.copy(isDownloading = true)
+                                if (status.isDownloading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp), strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            if (!isFullyDownloaded) {
+                                                scope.launch {
+                                                    languageStates[status.language] =
+                                                        status.copy(isDownloading = true)
 
-                                                // Download translation pairs and tessdata
-                                                if (!status.toEnglishDownloaded) {
-                                                    downloadLanguagePair(
-                                                        context,
-                                                        status.language,
-                                                        Language.ENGLISH
-                                                    )
-                                                }
-                                                if (!status.fromEnglishDownloaded) {
-                                                    downloadLanguagePair(
-                                                        context,
-                                                        Language.ENGLISH,
-                                                        status.language
-                                                    )
-                                                }
-                                                if (!status.tessDownloaded) {
-                                                    // Ensure english is always downloaded for tess recognition
-                                                    downloadTessData(context, Language.ENGLISH)
-                                                    downloadTessData(context, status.language)
-                                                }
+                                                    // Download translation pairs and tessdata
+                                                    if (!status.toEnglishDownloaded) {
+                                                        downloadLanguagePair(
+                                                            context,
+                                                            status.language,
+                                                            Language.ENGLISH
+                                                        )
+                                                    }
+                                                    if (!status.fromEnglishDownloaded) {
+                                                        downloadLanguagePair(
+                                                            context,
+                                                            Language.ENGLISH,
+                                                            status.language
+                                                        )
+                                                    }
+                                                    if (!status.tessDownloaded) {
+                                                        // Ensure english is always downloaded for tess recognition
+                                                        downloadTessData(context, Language.ENGLISH)
+                                                        downloadTessData(context, status.language)
+                                                    }
 
-                                                languageStates[status.language] = LanguageStatus(
-                                                    language = status.language,
-                                                    toEnglishDownloaded = true,
-                                                    fromEnglishDownloaded = true,
-                                                    tessDownloaded = true,
-                                                    isDownloading = false
-                                                )
+                                                    languageStates[status.language] =
+                                                        LanguageStatus(
+                                                            language = status.language,
+                                                            toEnglishDownloaded = true,
+                                                            fromEnglishDownloaded = true,
+                                                            tessDownloaded = true,
+                                                            isDownloading = false
+                                                        )
+                                                }
                                             }
+                                        }, enabled = !isFullyDownloaded
+                                    ) {
+                                        if (isFullyDownloaded) {
+                                            Icon(
+                                                painterResource(id = R.drawable.check),
+                                                contentDescription = "Downloaded"
+                                            )
+                                        } else {
+                                            Icon(
+                                                painterResource(id = R.drawable.add),
+                                                contentDescription = "Download"
+                                            )
                                         }
-                                    },
-                                    enabled = !isFullyDownloaded
-                                ) {
-                                    if (isFullyDownloaded) {
-                                        Icon(
-                                            painterResource(id = R.drawable.check),
-                                            contentDescription = "Downloaded"
-                                        )
-                                    } else {
-                                        Icon(
-                                            painterResource(id = R.drawable.add),
-                                            contentDescription = "Download"
-                                        )
                                     }
                                 }
                             }
-                        }
                         }
                     }
                 }
@@ -220,9 +219,9 @@ fun LanguageManagerScreen() {
 fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Boolean {
     val dataPath = File(context.filesDir, "bin")
     val (model, vocab, lex) = filesFor(from, to)
-    val hasAll = File(dataPath, model).exists() &&
-            File(dataPath, vocab).exists() &&
-            File(dataPath, lex).exists()
+    val hasAll = File(dataPath, model).exists() && File(dataPath, vocab).exists() && File(
+        dataPath, lex
+    ).exists()
     println("checking $from $to = $hasAll")
     return hasAll
 }
@@ -239,7 +238,7 @@ fun getAvailableTessLanguages(context: Context): String {
     val availableLanguages = Language.entries.filter { language ->
         checkTessDataFile(context, language)
     }.map { it.tessName }
-    
+
     val languageString = availableLanguages.joinToString("+")
     Log.i("LanguageManager", "Available tess languages: $languageString")
     return languageString
@@ -283,22 +282,23 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
 }
 
 private suspend fun downloadTessData(context: Context, language: Language) {
-    withContext(Dispatchers.IO) {
-        try {
-            val tessDataPath = File(context.filesDir, "tesseract/tessdata")
-            tessDataPath.mkdirs()
-            
-            val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-            if (!tessFile.exists()) {
-                val url = "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/${language.tessName}.traineddata"
-                val success = download(url, tessFile)
-                Log.i("LanguageManager", "Downloaded tessdata for ${language.displayName} = ${url}: $success")
-            } else {
-                Log.i("LanguageManager", "Tessdata for ${language.displayName} already exists")
-            }
-        } catch (e: Exception) {
-            Log.e("LanguageManager", "Error downloading tessdata for ${language.displayName}", e)
+    val tessDataPath = File(context.filesDir, "tesseract/tessdata")
+    if (!tessDataPath.isDirectory) {
+        tessDataPath.mkdirs()
+    }
+    val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
+    val url =
+        "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/${language.tessName}.traineddata"
+    if (!tessFile.exists()) {
+        withContext(Dispatchers.IO) {
+            val success = download(url, tessFile)
+            Log.i(
+                "LanguageManager",
+                "Downloaded tessdata for ${language.displayName} = ${url}: $success"
+            )
         }
+    } else {
+        Log.i("LanguageManager", "Tessdata for ${language.displayName} already exists")
     }
 }
 

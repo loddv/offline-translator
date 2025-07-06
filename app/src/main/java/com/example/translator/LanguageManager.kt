@@ -251,7 +251,7 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
     val lang = "${from.code}${to.code}"
     val dataPath = File(context.filesDir, "bin")
     dataPath.mkdirs()
-    val ref = "19747effeaf6ec47fa7a7340838491d084fd03dd"
+    val ref = "4886b27f3c9756fff56005e7abe3fbfa34461209"
     val base =
         "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/${ref}/models"
 

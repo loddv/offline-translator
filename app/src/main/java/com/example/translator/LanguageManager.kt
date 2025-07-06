@@ -43,6 +43,7 @@ data class LanguageStatus(
     val language: Language,
     var toEnglishDownloaded: Boolean = false,
     var fromEnglishDownloaded: Boolean = false,
+    var tessDownloaded: Boolean = false,
     var isDownloading: Boolean = false
 )
 
@@ -79,10 +80,14 @@ fun LanguageManagerScreen() {
             val fromEnglishDownloaded = withContext(Dispatchers.IO) {
                 checkLanguagePairFiles(context, Language.ENGLISH, language)
             }
+            val tessDownloaded = withContext(Dispatchers.IO) {
+                checkTessDataFile(context, language)
+            }
             languageStates[language] = LanguageStatus(
                 language = language,
                 toEnglishDownloaded = toEnglishDownloaded,
-                fromEnglishDownloaded = fromEnglishDownloaded
+                fromEnglishDownloaded = fromEnglishDownloaded,
+                tessDownloaded = tessDownloaded
             )
         }
     }
@@ -109,7 +114,7 @@ fun LanguageManagerScreen() {
                     languageStates.values.toList()
                         .sortedBy { item -> item.language.displayName }) { status ->
                     val isFullyDownloaded =
-                        status.toEnglishDownloaded && status.fromEnglishDownloaded
+                        status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
 
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth()
@@ -153,7 +158,7 @@ fun LanguageManagerScreen() {
                                                 languageStates[status.language] =
                                                     status.copy(isDownloading = true)
 
-                                                // Download both directions if needed
+                                                // Download translation pairs and tessdata
                                                 if (!status.toEnglishDownloaded) {
                                                     downloadLanguagePair(
                                                         context,
@@ -168,11 +173,15 @@ fun LanguageManagerScreen() {
                                                         status.language
                                                     )
                                                 }
+                                                if (!status.tessDownloaded) {
+                                                    downloadTessData(context, status.language)
+                                                }
 
                                                 languageStates[status.language] = LanguageStatus(
                                                     language = status.language,
                                                     toEnglishDownloaded = true,
                                                     fromEnglishDownloaded = true,
+                                                    tessDownloaded = true,
                                                     isDownloading = false
                                                 )
                                             }
@@ -212,6 +221,14 @@ fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Bool
     return hasAll
 }
 
+fun checkTessDataFile(context: Context, language: Language): Boolean {
+    val tessDataPath = File(context.filesDir, "tesseract/tessdata")
+    val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
+    val exists = tessFile.exists()
+    println("checking tessdata for ${language.displayName} (${language.tessName}) = $exists")
+    return exists
+}
+
 private suspend fun downloadLanguagePair(context: Context, from: Language, to: Language) {
     val (model, vocab, lex) = filesFor(from, to)
     val files = listOf(model, vocab, lex)
@@ -243,6 +260,44 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
     }
 
 
+}
+
+private suspend fun downloadTessData(context: Context, language: Language) {
+    withContext(Dispatchers.IO) {
+        try {
+            val tessDataPath = File(context.filesDir, "tesseract/tessdata")
+            tessDataPath.mkdirs()
+            
+            val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
+            if (!tessFile.exists()) {
+                val url = "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/${language.tessName}.traineddata"
+                val success = download(url, tessFile)
+                Log.i("LanguageManager", "Downloaded tessdata for ${language.displayName} = ${url}: $success")
+            } else {
+                Log.i("LanguageManager", "Tessdata for ${language.displayName} already exists")
+            }
+        } catch (e: Exception) {
+            Log.e("LanguageManager", "Error downloading tessdata for ${language.displayName}", e)
+        }
+    }
+}
+
+suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
+    try {
+        URL(url).openStream().use { input ->
+            outputFile.outputStream().use { output ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
+                }
+            }
+        }
+        true
+    } catch (e: Exception) {
+        Log.e("Download", "Error downloading file", e)
+        false
+    }
 }
 
 suspend fun downloadAndDecompress(url: String, outputFile: File) = withContext(Dispatchers.IO) {

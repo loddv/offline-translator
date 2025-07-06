@@ -31,12 +31,10 @@ class OCRService(
             val dataPath: String = p.absolutePathString()
             tessdata.createDirectories()
 
-            // Download language data if needed
             val lang = "nld"
             val outputFile = File(Path(tessdata.absolutePathString(), "$lang.traineddata").absolutePathString())
             if (!outputFile.exists()) {
                 Log.w("OCRService", "Language data not found: $outputFile")
-                // Could download here if needed
                 return@withContext false
             }
 
@@ -88,27 +86,6 @@ class OCRService(
         }
     }
 
-    suspend fun downloadLanguageData(lang: String = "nld"): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val p = File(context.filesDir, "tesseract").toPath()
-            val tessdata = Path(p.pathString, "tessdata")
-            tessdata.createDirectories()
-            
-            val outputFile = File(Path(tessdata.absolutePathString(), "$lang.traineddata").absolutePathString())
-            if (outputFile.exists()) {
-                Log.i("OCRService", "Language data already exists")
-                return@withContext true
-            }
-
-            val url = "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/$lang.traineddata"
-            val success = download(url, outputFile)
-            Log.i("OCRService", "Downloaded language data: $success")
-            success
-        } catch (e: Exception) {
-            Log.e("OCRService", "Error downloading language data", e)
-            false
-        }
-    }
 
     fun cleanup() {
         tess?.recycle()
@@ -118,20 +95,3 @@ class OCRService(
     }
 }
 
-suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
-    try {
-        URL(url).openStream().use { input ->
-            outputFile.outputStream().use { output ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
-                }
-            }
-        }
-        true
-    } catch (e: Exception) {
-        Log.e("Download", "Error downloading file", e)
-        false
-    }
-}

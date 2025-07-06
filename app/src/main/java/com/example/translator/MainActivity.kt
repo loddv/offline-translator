@@ -240,7 +240,6 @@ fun Greeting(
     // Set up progress callback once
     LaunchedEffect(Unit) {
         onOcrProgress { progress ->
-            println(progress)
             ocrProgress = progress
         }
     }

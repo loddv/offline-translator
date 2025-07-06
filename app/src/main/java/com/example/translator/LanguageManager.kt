@@ -229,6 +229,16 @@ fun checkTessDataFile(context: Context, language: Language): Boolean {
     return exists
 }
 
+fun getAvailableTessLanguages(context: Context): String {
+    val availableLanguages = Language.entries.filter { language ->
+        checkTessDataFile(context, language)
+    }.map { it.tessName }
+    
+    val languageString = availableLanguages.joinToString("+")
+    Log.i("LanguageManager", "Available tess languages: $languageString")
+    return languageString
+}
+
 private suspend fun downloadLanguagePair(context: Context, from: Language, to: Language) {
     val (model, vocab, lex) = filesFor(from, to)
     val files = listOf(model, vocab, lex)

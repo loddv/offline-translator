@@ -87,6 +87,7 @@ import kotlin.system.measureTimeMillis
 class MainActivity : ComponentActivity() {
     private var textToTranslate: String = ""
     private var detectedLanguage: Language? = null
+    private var sharedImageUri: Uri? = null
     private lateinit var ocrService: OCRService
     private var onOcrProgress: (Float) -> Unit = {}
 
@@ -109,6 +110,7 @@ class MainActivity : ComponentActivity() {
                     },
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
+                        sharedImageUri = sharedImageUri,
                         ocrService = ocrService,
                         onOcrProgress = { callback -> onOcrProgress = callback })
                 }
@@ -139,8 +141,17 @@ class MainActivity : ComponentActivity() {
             }
 
             Intent.ACTION_SEND -> {
-                textToTranslate = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-                detectLanguageForSharedText(textToTranslate)
+                // Check if it's text or image
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                val imageUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                
+                if (text != null) {
+                    textToTranslate = text
+                    detectLanguageForSharedText(textToTranslate)
+                } else if (imageUri != null) {
+                    sharedImageUri = imageUri
+                    textToTranslate = "" // Clear any existing text
+                }
             }
         }
     }
@@ -232,6 +243,7 @@ fun Greeting(
     onToChange: (Language) -> Unit,
     ocrService: OCRService,
     onOcrProgress: ((Float) -> Unit) -> Unit,
+    sharedImageUri: Uri? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -239,12 +251,6 @@ fun Greeting(
     // Move progress state to this composable
     var ocrProgress by remember { mutableFloatStateOf(0f) }
 
-    // Set up progress callback once
-    LaunchedEffect(Unit) {
-        onOcrProgress { progress ->
-            ocrProgress = progress
-        }
-    }
 
     println("from greeting, from=$from, to=$to")
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
@@ -253,6 +259,42 @@ fun Greeting(
     var translateImage: Bitmap? by remember { mutableStateOf(null) }
     val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
 
+
+    // Set up progress callback once
+    LaunchedEffect(Unit) {
+        onOcrProgress { progress ->
+            ocrProgress = progress
+        }
+    }
+
+    // Process shared image when component loads
+    LaunchedEffect(sharedImageUri) {
+        if (sharedImageUri != null) {
+            Log.d("SharedImage", "Processing shared image: $sharedImageUri")
+            try {
+                context.contentResolver.openInputStream(sharedImageUri)?.use { inputStream ->
+                    setOcrInProgress(true)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    translateImage = bitmap
+
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            val text = ocrService.extractText(bitmap)
+                            onInputChange(text)
+                            setTranslating(true)
+                            val translatedText = translateInForeground(from, to, context, text)
+                            onOutputChange(translatedText)
+                            setTranslating(false)
+                            setOcrInProgress(false)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SharedImage", "Error processing shared image", e)
+                setOcrInProgress(false)
+            }
+        }
+    }
 
     if (input.isNotEmpty()) {
         val ld = LangDetect()

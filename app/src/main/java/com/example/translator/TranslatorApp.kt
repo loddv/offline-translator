@@ -1,6 +1,6 @@
 package com.example.translator
 
-
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +27,7 @@ fun TranslatorApp(
     configForLang: (Language, Language) -> String,
     initialText: String,
     detectedLanguage: Language? = null,
+    sharedImageUri: Uri? = null,
     ocrService: OCRService,
     onOcrProgress: ((Float) -> Unit) -> Unit
 ) {
@@ -99,6 +100,7 @@ fun TranslatorApp(
                 onToChange = setTo,
                 ocrService = ocrService,
                 onOcrProgress = onOcrProgress,
+                sharedImageUri = sharedImageUri,
             )
         }
         composable("language_manager") {

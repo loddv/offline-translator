@@ -221,8 +221,14 @@ fun TranslationResult(
 fun Greeting(
     configForLang: (Language, Language) -> String,
     onManageLanguages: () -> Unit,
-    initialText: String?,
-    detectedLanguage: Language? = null,
+    input: String,
+    onInputChange: (String) -> Unit,
+    output: String,
+    onOutputChange: (String) -> Unit,
+    from: Language,
+    onFromChange: (Language) -> Unit,
+    to: Language,
+    onToChange: (Language) -> Unit,
     ocrService: OCRService,
     onOcrProgress: ((Float) -> Unit) -> Unit,
 ) {
@@ -239,12 +245,7 @@ fun Greeting(
         }
     }
 
-    println("from greeting, detectedLanguage is ${detectedLanguage}")
-    val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
-    val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
-
-    var input by remember { mutableStateOf(initialText ?: "") }
-    var output by remember { mutableStateOf("") }
+    println("from greeting, from=$from, to=$to")
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
 
@@ -252,7 +253,7 @@ fun Greeting(
     val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
 
 
-    if (initialText !== null && initialText != "") {
+    if (input.isNotEmpty()) {
         val ld = LangDetect()
         val detected = ld.detectLanguage(input)
         detectedInput = if (detected.isReliable) {
@@ -278,9 +279,10 @@ fun Greeting(
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             val text = ocrService.extractText(bitmap)
-                            input = text
+                            onInputChange(text)
                             setTranslating(true)
-                            output = translateInForeground(from, to, context, text)
+                            val translatedText = translateInForeground(from, to, context, text)
+                            onOutputChange(translatedText)
                             setTranslating(false)
                             setOcrInProgress(false)
                         }
@@ -305,30 +307,15 @@ fun Greeting(
                 }
             }
 
-            // Set initial languages if none selected
-            // Try to find first available pair
-            Language.entries.forEach { fromLang ->
-                if (availableLanguages[fromLang.code] == true && fromLang != Language.ENGLISH) {
-                    setTo(Language.ENGLISH)
-                    if (detectedLanguage != null && availableLanguages[detectedLanguage.code] == true) {
-                        println("autodetected from share")
-                        setFrom(detectedLanguage)
-                        if (!isTranslating) {
-                            setTranslating(true)
-                            scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    output = translateInForeground(from, to, context, input)
-                                    setTranslating(false)
-                                }
-                            }
-                        }
-                    } else {
-                        setFrom(fromLang)
+            // Set initial languages if none selected - only if current languages aren't available
+            if (availableLanguages[from.code] != true) {
+                Language.entries.forEach { fromLang ->
+                    if (availableLanguages[fromLang.code] == true && fromLang != Language.ENGLISH) {
+                        onToChange(Language.ENGLISH)
+                        onFromChange(fromLang)
+                        return@withContext
                     }
-
-                    return@withContext
                 }
-
             }
         }
     }
@@ -394,11 +381,11 @@ fun Greeting(
                         Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
-                                    setFrom(language)
+                                    onFromChange(language)
                                     scope.launch {
                                         withContext(Dispatchers.IO) {
-                                            output =
-                                                translateInForeground(language, to, context, input)
+                                            val translatedText = translateInForeground(language, to, context, input)
+                                            onOutputChange(translatedText)
                                             setTranslating(false)
                                         }
                                     }
@@ -411,14 +398,15 @@ fun Greeting(
                 IconButton(onClick = {
                     val oldFrom = from
                     val oldTo = to
-                    setFrom(oldTo)
-                    setTo(oldFrom)
+                    onFromChange(oldTo)
+                    onToChange(oldFrom)
 
                     if (!isTranslating) {
                         setTranslating(true)
                         scope.launch {
                             withContext(Dispatchers.IO) {
-                                output = translateInForeground(oldTo, oldFrom, context, input)
+                                val translatedText = translateInForeground(oldTo, oldFrom, context, input)
+                                onOutputChange(translatedText)
                                 setTranslating(false)
                             }
                         }
@@ -464,15 +452,16 @@ fun Greeting(
                         Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
-                                    setTo(language)
+                                    onToChange(language)
 
                                     if (!isTranslating) {
                                         setTranslating(true)
                                         scope.launch {
                                             withContext(Dispatchers.IO) {
-                                                output = translateInForeground(
+                                                val translatedText = translateInForeground(
                                                     from, language, context, input
                                                 )
+                                                onOutputChange(translatedText)
                                                 setTranslating(false)
                                             }
                                         }
@@ -506,11 +495,11 @@ fun Greeting(
             // Input TextField
             OutlinedTextField(
                 value = input,
-                onValueChange = {
-                    input = it
+                onValueChange = { newInput ->
+                    onInputChange(newInput)
                     val ld = LangDetect()
 
-                    val detected = ld.detectLanguage(input)
+                    val detected = ld.detectLanguage(newInput)
                     println("onchange detected $detected")
                     detectedInput = if (detected.isReliable) {
                         detected
@@ -521,7 +510,8 @@ fun Greeting(
                         setTranslating(true)
                         scope.launch {
                             withContext(Dispatchers.IO) {
-                                output = translateInForeground(from, to, context, input)
+                                val translatedText = translateInForeground(from, to, context, newInput)
+                                onOutputChange(translatedText)
                                 setTranslating(false)
                             }
                         }
@@ -557,9 +547,9 @@ fun Greeting(
                 if (detectedInput != null && autoLang != null && autoLang != from) {
                     Button(
                         onClick = {
-                            setFrom(autoLang)
+                            onFromChange(autoLang)
                             val actualTo = if (to == autoLang) {
-                                setTo(Language.ENGLISH)
+                                onToChange(Language.ENGLISH)
                                 Language.ENGLISH
                             } else {
                                 to
@@ -568,8 +558,8 @@ fun Greeting(
                             setTranslating(true)
                             scope.launch {
                                 withContext(Dispatchers.IO) {
-                                    output =
-                                        translateInForeground(autoLang, actualTo, context, input)
+                                    val translatedText = translateInForeground(autoLang, actualTo, context, input)
+                                    onOutputChange(translatedText)
                                     setTranslating(false)
                                 }
                             }

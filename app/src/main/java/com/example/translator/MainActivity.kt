@@ -76,51 +76,26 @@ import com.example.bergamot.DetectionResult
 import com.example.bergamot.LangDetect
 import com.example.bergamot.NativeLib
 import com.example.translator.ui.theme.TranslatorTheme
-import com.googlecode.tesseract.android.TessBaseAPI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.URL
-import kotlin.io.path.Path
-import kotlin.io.path.absolutePathString
-import kotlin.io.path.createDirectories
-import kotlin.io.path.pathString
 import kotlin.system.measureTimeMillis
 
-
-suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
-    try {
-        URL(url).openStream().use { input ->
-            outputFile.outputStream().use { output ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
-                }
-            }
-
-        }
-        true
-    } catch (e: Exception) {
-        Log.e("Download", "Error downloading file", e)
-        false
-    }
-}
 
 class MainActivity : ComponentActivity() {
     private var textToTranslate: String = ""
     private var detectedLanguage: Language? = null
+    private var ocrProgress by mutableFloatStateOf(0f)
+    private lateinit var ocrService: OCRService
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
-        var ocrProgress by mutableFloatStateOf(0f)
-        val tess = TessBaseAPI { progress ->
-            run {
-                println("progress ${progress.percent}%")
-                ocrProgress = progress.percent / 100f
-            }
+        
+        ocrService = OCRService(this) { progress ->
+            ocrProgress = progress
         }
 
         setContent {
@@ -134,12 +109,17 @@ class MainActivity : ComponentActivity() {
                         },
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
-                        tess = tess,
+                        ocrService = ocrService,
                         ocrProgress = ocrProgress
                     )
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ocrService.cleanup()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -248,33 +228,12 @@ fun Greeting(
     onManageLanguages: () -> Unit,
     initialText: String?,
     detectedLanguage: Language? = null,
-    tess: TessBaseAPI,
+    ocrService: OCRService,
     ocrProgress: Float,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val p = File(context.filesDir, "tesseract").toPath()
-    val tessdata = Path(p.pathString, "tessdata")
-    val dataPath: String = p.absolutePathString()
-    tessdata.createDirectories()
-
-    val lang = "nld"
-    val outputFile =
-        File(Path(tessdata.absolutePathString(), "$lang.traineddata").absolutePathString())
-    if (outputFile.exists()) {
-        println("already exists")
-    } else {
-//        scope.launch {
-//            download(
-//                "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/$lang.traineddata",
-//                outputFile
-//            )
-//            println("downloaded")
-//        }
-
-        println("NOT DOWNLOADING, panic")
-    }
 
     println("from greeting, detectedLanguage is ${detectedLanguage}")
     val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
@@ -300,13 +259,6 @@ fun Greeting(
     }
 
 
-    if (!tess.init(dataPath, lang)) { // could be multiple languages, like "eng+deu+fra"
-        tess.recycle()
-        println("recycled")
-        return
-    } else {
-        println("inited")
-    }
 
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
@@ -319,20 +271,10 @@ fun Greeting(
                     setOcrInProgress(true)
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     translateImage = bitmap
-                    tess.setImage(bitmap)
-                    //Automatic orientation + script detection; instead of default "single block of uniform text"
-                    tess.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD);
 
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            val text: String
-                            val elapsed = measureTimeMillis {
-                                // start streaming translation
-                                tess.getHOCRText(0);
-                                // get text
-                                text = tess.getConfidentText(80, TessBaseAPI.PageIteratorLevel.RIL_WORD)
-                            }
-                            println("OCR took ${elapsed}ms")
+                            val text = ocrService.extractText(bitmap)
                             input = text
                             setTranslating(true)
                             output = translateInForeground(from, to, context, text)
@@ -713,9 +655,10 @@ fun translateInForeground(
 )
 @Composable
 fun GreetingPreview() {
-    val tess =TessBaseAPI()
+    // Preview can't use real OCR service, create a mock
     TranslatorTheme {
-        Greeting({ x, y -> "" }, {}, "", null, tess, 0f)
+        // Preview disabled - requires OCR service
+        Text("Preview requires OCR service")
     }
 }
 

@@ -252,6 +252,10 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
             # Other language to English
             to_english[src_code] = best_model_type
 
+    # Ensure 2 way translation
+    from_english = {k: v for k, v in from_english.items() if k in to_english}
+    to_english = {k: v for k, v in to_english.items() if k in from_english}
+
     # Generate fromEnglish map entries
     from_english_entries = []
     for lang_code in sorted(from_english.keys()):

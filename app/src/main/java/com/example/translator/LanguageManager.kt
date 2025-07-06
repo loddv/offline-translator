@@ -65,8 +65,12 @@ fun LanguageManagerScreen() {
     val languageStates = remember {
         mutableStateMapOf<Language, LanguageStatus>().apply {
             Language.entries.forEach { lang ->
-                put(lang, LanguageStatus(lang))
-
+                // fromEnglish and toEnglish are symmetrical by construction
+                // (generate.py); so filter languages down to whichever has
+                // translations available
+                if (fromEnglish.get(lang) != null) {
+                    put(lang, LanguageStatus(lang))
+                }
             }
         }
     }
@@ -174,6 +178,8 @@ fun LanguageManagerScreen() {
                                                     )
                                                 }
                                                 if (!status.tessDownloaded) {
+                                                    // Ensure english is always downloaded for tess recognition
+                                                    downloadTessData(context, Language.ENGLISH)
                                                     downloadTessData(context, status.language)
                                                 }
 
@@ -255,6 +261,10 @@ private suspend fun downloadLanguagePair(context: Context, from: Language, to: L
         toEnglish[from]
     }
 
+    if (modelQuality == null) {
+        println("Could not find model quality for ${from} -> ${to}")
+        return
+    }
     // Wait for all downloads to complete
     withContext(Dispatchers.IO) {
         files.forEach { fileName ->

@@ -88,12 +88,12 @@ class MainActivity : ComponentActivity() {
     private var detectedLanguage: Language? = null
     private lateinit var ocrService: OCRService
     private var onOcrProgress: (Float) -> Unit = {}
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
-        
+
         ocrService = OCRService(this) { progress ->
             onOcrProgress(progress)
         }
@@ -101,17 +101,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             TranslatorTheme {
                 MaterialTheme {
-                    TranslatorApp(
-                        configForLang = { from, to ->
-                            configForLang(
-                                baseContext, from, to
-                            )
-                        },
+                    TranslatorApp(configForLang = { from, to ->
+                        configForLang(
+                            baseContext, from, to
+                        )
+                    },
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
                         ocrService = ocrService,
-                        onOcrProgress = { callback -> onOcrProgress = callback }
-                    )
+                        onOcrProgress = { callback -> onOcrProgress = callback })
                 }
             }
         }
@@ -170,9 +168,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TranslationResult(
-    context: Context,
-    text: String,
-    modifier: Modifier = Modifier
+    context: Context, text: String, modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier
@@ -207,8 +203,7 @@ fun TranslationResult(
                             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager?
                         val clip = ClipData.newPlainText("Translated text", text)
                         clipboard?.setPrimaryClip(clip)
-                    },
-                    modifier = Modifier.size(24.dp)
+                    }, modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
                         painterResource(id = R.drawable.copy),
@@ -236,7 +231,7 @@ fun Greeting(
 
     // Move progress state to this composable
     var ocrProgress by remember { mutableFloatStateOf(0f) }
-    
+
     // Set up progress callback once
     LaunchedEffect(Unit) {
         onOcrProgress { progress ->
@@ -266,7 +261,6 @@ fun Greeting(
             null
         }
     }
-
 
 
     val pickMedia =
@@ -338,16 +332,13 @@ fun Greeting(
             }
         }
     }
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) {
-                Icon(Icons.Filled.Search, "Image")
-            }
+    Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
+        FloatingActionButton(onClick = {
+            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }) {
+            Icon(Icons.Filled.Search, "Image")
         }
-    ) { paddingValues ->
+    }) { paddingValues ->
 
         Column(
             modifier = Modifier
@@ -372,8 +363,7 @@ fun Greeting(
                     onExpandedChange = { fromExpanded = it },
                     modifier = Modifier.weight(1f)
                 ) {
-                    OutlinedTextField(
-                        value = from.displayName,
+                    OutlinedTextField(value = from.displayName,
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
@@ -397,11 +387,11 @@ fun Greeting(
                         )
 
                     )
-                    ExposedDropdownMenu(expanded = fromExpanded,
+                    ExposedDropdownMenu(
+                        expanded = fromExpanded,
                         onDismissRequest = { fromExpanded = false }) {
                         // Path exists to target
-                        Language.entries
-                            .filter { x -> x != to && x != from && availableLanguages[x.code] == true }
+                        Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
                                     setFrom(language)
@@ -444,8 +434,7 @@ fun Greeting(
                     onExpandedChange = { toExpanded = it },
                     modifier = Modifier.weight(1f)
                 ) {
-                    OutlinedTextField(
-                        value = to.displayName,
+                    OutlinedTextField(value = to.displayName,
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
@@ -469,10 +458,10 @@ fun Greeting(
                         )
                     )
 
-                    ExposedDropdownMenu(expanded = toExpanded,
+                    ExposedDropdownMenu(
+                        expanded = toExpanded,
                         onDismissRequest = { toExpanded = false }) {
-                        Language.entries
-                            .filter { x -> x != from && x != to && availableLanguages[x.code] == true }
+                        Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
                             .forEach { language ->
                                 DropdownMenuItem(text = { Text(language.displayName) }, onClick = {
                                     setTo(language)
@@ -482,10 +471,7 @@ fun Greeting(
                                         scope.launch {
                                             withContext(Dispatchers.IO) {
                                                 output = translateInForeground(
-                                                    from,
-                                                    language,
-                                                    context,
-                                                    input
+                                                    from, language, context, input
                                                 )
                                                 setTranslating(false)
                                             }
@@ -508,11 +494,14 @@ fun Greeting(
 
 
             if (translateImage != null && ocrInProgress) {
-                    LinearProgressIndicator(
-                        progress = { ocrProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                Image(bitmap = translateImage!!.asImageBitmap(), contentDescription = "Image to translate")
+                LinearProgressIndicator(
+                    progress = { ocrProgress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Image(
+                    bitmap = translateImage!!.asImageBitmap(),
+                    contentDescription = "Image to translate"
+                )
             }
             // Input TextField
             OutlinedTextField(
@@ -600,9 +589,7 @@ fun Greeting(
             if (output.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TranslationResult(
-                    context = context,
-                    text = output,
-                    modifier = Modifier.fillMaxWidth()
+                    context = context, text = output, modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -659,8 +646,7 @@ fun translateInForeground(
 }
 
 @Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
 fun GreetingPreview() {

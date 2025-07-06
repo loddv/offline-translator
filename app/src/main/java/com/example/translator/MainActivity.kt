@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
@@ -15,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -54,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -110,9 +115,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
+        var ocrProgress by mutableFloatStateOf(0f)
         val tess = TessBaseAPI { progress ->
             run {
                 println("progress ${progress.percent}%")
+                ocrProgress = progress.percent / 100f
             }
         }
 
@@ -128,6 +135,7 @@ class MainActivity : ComponentActivity() {
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
                         tess = tess,
+                        ocrProgress = ocrProgress
                     )
                 }
             }
@@ -240,7 +248,8 @@ fun Greeting(
     onManageLanguages: () -> Unit,
     initialText: String?,
     detectedLanguage: Language? = null,
-    tess: TessBaseAPI
+    tess: TessBaseAPI,
+    ocrProgress: Float,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -256,12 +265,13 @@ fun Greeting(
     if (outputFile.exists()) {
         println("already exists")
     } else {
-        scope.launch {
-            download(
-                "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/$lang.traineddata",
-                outputFile
-            )
-        }
+//        scope.launch {
+//            download(
+//                "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/$lang.traineddata",
+//                outputFile
+//            )
+//            println("downloaded")
+//        }
 
         println("NOT DOWNLOADING, panic")
     }
@@ -274,6 +284,10 @@ fun Greeting(
     var output by remember { mutableStateOf("") }
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
+
+    var translateImage: Bitmap? by remember { mutableStateOf(null) }
+    val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
+
 
     if (initialText !== null && initialText != "") {
         val ld = LangDetect()
@@ -302,30 +316,30 @@ fun Greeting(
                 Log.d("PhotoPicker", "Selected URI: $uri")
                 println("setting image")
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-
+                    setOcrInProgress(true)
                     val bitmap = BitmapFactory.decodeStream(inputStream)
+                    translateImage = bitmap
                     tess.setImage(bitmap)
                     //Automatic orientation + script detection; instead of default "single block of uniform text"
                     tess.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD);
 
-                    val text: String
-                    val elapsed = measureTimeMillis {
-                        // start streaming translation
-                        tess.getHOCRText(0);
-                        // get text
-//                        text = tess.utF8Text
-                        text = tess.getConfidentText(80, TessBaseAPI.PageIteratorLevel.RIL_WORD)
-                    }
-                    println("got text ${text}") //2.5s debug; 800ms in releas
-                    input = text
-                    setTranslating(true)
                     scope.launch {
                         withContext(Dispatchers.IO) {
+                            val text: String
+                            val elapsed = measureTimeMillis {
+                                // start streaming translation
+                                tess.getHOCRText(0);
+                                // get text
+                                text = tess.getConfidentText(80, TessBaseAPI.PageIteratorLevel.RIL_WORD)
+                            }
+                            println("OCR took ${elapsed}ms")
+                            input = text
+                            setTranslating(true)
                             output = translateInForeground(from, to, context, text)
                             setTranslating(false)
+                            setOcrInProgress(false)
                         }
                     }
-                    println("OCR took ${elapsed}ms")
                 }
             } else {
                 Log.d("PhotoPicker", "No media selected")
@@ -542,6 +556,13 @@ fun Greeting(
             Spacer(modifier = Modifier.height(8.dp))
 
 
+            if (translateImage != null && ocrInProgress) {
+                    LinearProgressIndicator(
+                        progress = { ocrProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                Image(bitmap = translateImage!!.asImageBitmap(), contentDescription = "Image to translate")
+            }
             // Input TextField
             OutlinedTextField(
                 value = input,
@@ -670,6 +691,7 @@ fun translateInForeground(
     val elapsed = measureTimeMillis {
         var intermediateOut = ""
         var intermediateIn = input
+        // TODO use pivot instead of this
         pairs.forEach({ pair ->
             println("Translating ${pair}")
             val cfg = configForLang(context, pair.first, pair.second)
@@ -693,7 +715,7 @@ fun translateInForeground(
 fun GreetingPreview() {
     val tess =TessBaseAPI()
     TranslatorTheme {
-        Greeting({ x, y -> "" }, {}, "", null, tess)
+        Greeting({ x, y -> "" }, {}, "", null, tess, 0f)
     }
 }
 

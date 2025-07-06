@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,9 @@ class DownloadService : Service() {
     private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
     val downloadStates: StateFlow<Map<Language, DownloadState>> = _downloadStates
 
+    // Track download jobs for cancellation
+    private val downloadJobs = mutableMapOf<Language, Job>()
+
     companion object {
         private const val CHANNEL_ID = "download_channel"
         private const val NOTIFICATION_ID = 1001
@@ -38,6 +42,14 @@ class DownloadService : Service() {
         fun startDownload(context: Context, language: Language) {
             val intent = Intent(context, DownloadService::class.java).apply {
                 action = "START_DOWNLOAD"
+                putExtra("language_code", language.code)
+            }
+            context.startService(intent)
+        }
+
+        fun cancelDownload(context: Context, language: Language) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = "CANCEL_DOWNLOAD"
                 putExtra("language_code", language.code)
             }
             context.startService(intent)
@@ -58,6 +70,14 @@ class DownloadService : Service() {
                     startLanguageDownload(language)
                 }
             }
+
+            "CANCEL_DOWNLOAD" -> {
+                val languageCode = intent.getStringExtra("language_code")
+                val language = Language.entries.find { it.code == languageCode }
+                if (language != null) {
+                    cancelLanguageDownload(language)
+                }
+            }
         }
         return START_STICKY
     }
@@ -68,9 +88,16 @@ class DownloadService : Service() {
         // Don't start if already downloading
         if (_downloadStates.value[language]?.isDownloading == true) return
 
-        updateDownloadState(language) { it.copy(isDownloading = true, progress = 0f) }
+        updateDownloadState(language) {
+            it.copy(
+                isDownloading = true,
+                progress = 0f,
+                error = null,
+                isCancelled = false
+            )
+        }
 
-        serviceScope.launch {
+        val job = serviceScope.launch {
             try {
                 showNotification("Downloading ${language.displayName}", "Starting download...")
 
@@ -114,8 +141,24 @@ class DownloadService : Service() {
                     it.copy(isDownloading = false, error = e.message)
                 }
                 showNotification("Download Failed", "${language.displayName} download failed")
+            } finally {
+                downloadJobs.remove(language)
             }
         }
+
+        downloadJobs[language] = job
+    }
+
+    private fun cancelLanguageDownload(language: Language) {
+        downloadJobs[language]?.cancel()
+        downloadJobs.remove(language)
+
+        updateDownloadState(language) {
+            it.copy(isDownloading = false, isCancelled = true, error = null)
+        }
+
+        showNotification("Download Cancelled", "${language.displayName} download was cancelled")
+        Log.i("DownloadService", "Cancelled download for ${language.displayName}")
     }
 
     private fun updateProgress(language: Language, progress: Float, message: String) {
@@ -250,6 +293,10 @@ class DownloadService : Service() {
         notificationManager.cancel(NOTIFICATION_ID)
     }
 
+    fun cancelDownload(language: Language) {
+        cancelLanguageDownload(language)
+    }
+
     inner class DownloadBinder : Binder() {
         fun getService(): DownloadService = this@DownloadService
     }
@@ -259,6 +306,7 @@ data class DownloadState(
     val language: Language,
     val isDownloading: Boolean = false,
     val isCompleted: Boolean = false,
+    val isCancelled: Boolean = false,
     val progress: Float = 0f,
     val error: String? = null
 )

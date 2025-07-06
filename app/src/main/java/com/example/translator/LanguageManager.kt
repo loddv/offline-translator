@@ -111,6 +111,29 @@ fun LanguageManagerScreen() {
     val downloadStates by downloadService?.downloadStates?.collectAsState()
         ?: remember { mutableStateOf(emptyMap()) }
 
+    // Refresh local status when downloads complete
+    LaunchedEffect(downloadStates) {
+        downloadStates.values.forEach { downloadState ->
+            if (downloadState.isCompleted) {
+                val language = downloadState.language
+                withContext(Dispatchers.IO) {
+                    val toEnglishDownloaded =
+                        checkLanguagePairFiles(context, language, Language.ENGLISH)
+                    val fromEnglishDownloaded =
+                        checkLanguagePairFiles(context, Language.ENGLISH, language)
+                    val tessDownloaded = checkTessDataFile(context, language)
+
+                    languageStates[language] = LanguageStatus(
+                        language = language,
+                        toEnglishDownloaded = toEnglishDownloaded,
+                        fromEnglishDownloaded = fromEnglishDownloaded,
+                        tessDownloaded = tessDownloaded
+                    )
+                }
+            }
+        }
+    }
+
     // Check which language pairs are already downloaded
     LaunchedEffect(Unit) {
         languageStates.keys.forEach { language ->
@@ -157,6 +180,7 @@ fun LanguageManagerScreen() {
                     val isFullyDownloaded =
                         status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
                     val isDownloading = downloadState?.isDownloading == true
+                    val isCompleted = downloadState?.isCompleted == true
 
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth()
@@ -182,12 +206,22 @@ fun LanguageManagerScreen() {
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
-                                downloadState?.error?.let { error ->
-                                    Text(
-                                        text = "Error: $error",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                when {
+                                    downloadState?.isCancelled == true -> {
+                                        Text(
+                                            text = "Download cancelled",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+
+                                    downloadState?.error != null -> {
+                                        Text(
+                                            text = "Error: ${downloadState.error}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
 
@@ -197,12 +231,12 @@ fun LanguageManagerScreen() {
                                 if (isDownloading) {
                                     FilledTonalIconButton(
                                         onClick = {
-                                            // TODO: implement
+                                            downloadService?.cancelDownload(status.language)
                                         },
                                     ) {
                                         Icon(
                                             painterResource(id = R.drawable.cancel),
-                                            contentDescription = "Downloaded",
+                                            contentDescription = "Cancel Download",
                                         )
                                     }
                                 } else {
@@ -213,18 +247,36 @@ fun LanguageManagerScreen() {
                                                     context, status.language
                                                 )
                                             }
-                                        }, enabled = !isFullyDownloaded
+                                        }, enabled = !isFullyDownloaded && !isCompleted
                                     ) {
-                                        if (isFullyDownloaded || downloadState?.isCompleted == true) {
-                                            Icon(
-                                                painterResource(id = R.drawable.check),
-                                                contentDescription = "Downloaded"
-                                            )
-                                        } else {
-                                            Icon(
-                                                painterResource(id = R.drawable.add),
-                                                contentDescription = "Download"
-                                            )
+                                        when {
+                                            isFullyDownloaded || downloadState?.isCompleted == true -> {
+                                                Icon(
+                                                    painterResource(id = R.drawable.check),
+                                                    contentDescription = "Downloaded"
+                                                )
+                                            }
+
+                                            downloadState?.isCancelled == true -> {
+                                                Icon(
+                                                    painterResource(id = R.drawable.refresh),
+                                                    contentDescription = "Retry Download"
+                                                )
+                                            }
+
+                                            downloadState?.error != null -> {
+                                                Icon(
+                                                    painterResource(id = R.drawable.refresh),
+                                                    contentDescription = "Retry Download"
+                                                )
+                                            }
+
+                                            else -> {
+                                                Icon(
+                                                    painterResource(id = R.drawable.add),
+                                                    contentDescription = "Download"
+                                                )
+                                            }
                                         }
                                     }
                                 }

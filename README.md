@@ -1,6 +1,15 @@
-A collection of hacks to get [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/tree/main) working on Android without WASM.
+A basic Android translator app that combines [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/tree/main) with [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android),
+to perform on-device translation of text and images.
 
-These models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator), which supports compiling to many targets, but apparently Android is not one.
+There's automatic language detection as well, with [cld2](https://github.com/CLD2Owners/cld2).
+
+The translation models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator).
+
+![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png)
+
+
+
+## Running on x86-64 emulator
 
 This app works fine on aarch64, and it "works" on x86-64 -- in quotes because it currently requires `AVX2`, which is not available on the standard emulator, nor in the ABI.
 
@@ -15,5 +24,3 @@ $ANDROID_SDK/emulator/qemu/linux-x86_64/qemu-system-x86_64 -netdelay none -netsp
 ```
 
 If you don't do this, you will just get a `SIGILL` when trying to load the library.
-
-![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png)

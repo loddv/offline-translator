@@ -21,7 +21,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -36,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -65,7 +68,10 @@ fun LanguageManagerPreview() {
 }
 
 @Composable
-fun LanguageManagerScreen() {
+fun LanguageManagerScreen(
+    onLanguageDownloaded: () -> Unit = {},
+    onLanguageDeleted: () -> Unit = {}
+) {
     val context = LocalContext.current
     var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
@@ -115,11 +121,12 @@ fun LanguageManagerScreen() {
     LaunchedEffect(downloadStates) {
         downloadStates.values.forEach { downloadState ->
             val language = downloadState.language
-            
+
             // Refresh status when download completes or when state is reset (indicating deletion)
-            if (downloadState.isCompleted || 
-                (!downloadState.isDownloading && !downloadState.isCompleted && !downloadState.isCancelled && downloadState.error == null)) {
-                
+            if (downloadState.isCompleted ||
+                (!downloadState.isDownloading && !downloadState.isCancelled && downloadState.error == null)
+            ) {
+
                 withContext(Dispatchers.IO) {
                     val toEnglishDownloaded =
                         checkLanguagePairFiles(context, language, Language.ENGLISH)
@@ -133,6 +140,26 @@ fun LanguageManagerScreen() {
                         fromEnglishDownloaded = fromEnglishDownloaded,
                         tessDownloaded = tessDownloaded
                     )
+
+                    // Notify when first language is downloaded
+                    if (downloadState.isCompleted && (toEnglishDownloaded || fromEnglishDownloaded)) {
+                        onLanguageDownloaded()
+                    }
+
+                    // Notify when language is deleted (state reset and no files)
+                    if (!downloadState.isDownloading && !downloadState.isCompleted &&
+                        !toEnglishDownloaded && !fromEnglishDownloaded && !tessDownloaded
+                    ) {
+
+                        // Check if ALL languages are now deleted
+                        val allLanguagesDeleted = languageStates.values.all { status ->
+                            !status.toEnglishDownloaded && !status.fromEnglishDownloaded && !status.tessDownloaded
+                        }
+
+                        if (allLanguagesDeleted) {
+                            onLanguageDeleted()
+                        }
+                    }
                 }
             }
         }
@@ -252,28 +279,21 @@ fun LanguageManagerScreen() {
                                         Icon(
                                             painterResource(id = R.drawable.delete),
                                             contentDescription = "Delete Language",
+                                            tint = Color.hsl(0f, 0.552f, 0.522f),
                                         )
                                     }
                                 } else {
                                     // Download/retry button
                                     FilledTonalIconButton(
                                         onClick = {
-                                            if (!isFullyDownloaded) {
-                                                DownloadService.startDownload(
-                                                    context, status.language
-                                                )
-                                            }
-                                        }, enabled = !isFullyDownloaded && !isCompleted
+                                            DownloadService.startDownload(
+                                                context, status.language
+                                            )
+
+                                        }, enabled = true
                                     ) {
                                         when {
-                                            downloadState?.isCancelled == true -> {
-                                                Icon(
-                                                    painterResource(id = R.drawable.refresh),
-                                                    contentDescription = "Retry Download"
-                                                )
-                                            }
-
-                                            downloadState?.error != null -> {
+                                            downloadState?.isCancelled == true || downloadState?.error != null -> {
                                                 Icon(
                                                     painterResource(id = R.drawable.refresh),
                                                     contentDescription = "Retry Download"

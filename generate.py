@@ -15,7 +15,7 @@ from typing import Dict, Set, Tuple
 LANGUAGE_NAMES = {
     'ar': 'Arabic',
     'az': 'Azerbaijani',
-    'be': 'Belarusian', 
+    'be': 'Belarusian',
     'bg': 'Bulgarian',
     'bn': 'Bengali',
     'bs': 'Bosnian',
@@ -128,7 +128,7 @@ def extract_language_pairs(repo_path: str) -> Dict[str, Set[str]]:
     """
     repo_path = Path(repo_path)
     language_pairs = {'base': set(), 'base-memory': set(), 'tiny': set()}
-    
+
     # Scan models/base, models/base-memory, and models/tiny directories
     for model_type in ['base', 'base-memory', 'tiny']:
         models_dir = repo_path / 'models' / model_type
@@ -143,7 +143,7 @@ def extract_language_pairs(repo_path: str) -> Dict[str, Set[str]]:
                         print(f"Supported pairs: {sorted(LANGUAGE_NAMES.keys())}")
                         sys.exit(1)
                     language_pairs[model_type].add(pair_name)
-    
+
     return language_pairs
 
 def parse_language_pair(pair: str) -> Tuple[str, str]:
@@ -154,11 +154,11 @@ def parse_language_pair(pair: str) -> Tuple[str, str]:
     if len(pair) != 4:
         print(f"Error: Language pair '{pair}' must be exactly 4 characters")
         sys.exit(1)
-    
+
     # Split the 4-character pair in half
     src = pair[:2]
     tgt = pair[2:]
-    
+
     return src, tgt
 
 def get_non_english_language(pair: str) -> Tuple[str, str]:
@@ -168,7 +168,7 @@ def get_non_english_language(pair: str) -> Tuple[str, str]:
     Validates that the language code exists in LANGUAGE_NAMES.
     """
     src, tgt = parse_language_pair(pair)
-    
+
     if src == 'en':
         lang_code = tgt
     elif tgt == 'en':
@@ -176,12 +176,12 @@ def get_non_english_language(pair: str) -> Tuple[str, str]:
     else:
         # If neither is English, return the target language
         lang_code = tgt
-    
+
     if lang_code not in LANGUAGE_NAMES:
         print(f"Error: Language code '{lang_code}' from pair '{pair}' not found in supported language names")
         print(f"Supported language codes: {sorted(LANGUAGE_NAMES.keys())}")
         sys.exit(1)
-    
+
     return lang_code, LANGUAGE_NAMES[lang_code]
 
 def get_best_model_type(model_types: Set[str]) -> str:
@@ -208,49 +208,50 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
             src_code, tgt_code = parse_language_pair(pair)
             all_languages.add(src_code)
             all_languages.add(tgt_code)
-    
+
     all_languages.add("en")
 
     # Generate Language enum entries
     language_entries = []
     for lang_code in sorted(all_languages):
         lang_name = LANGUAGE_NAMES[lang_code]
+        tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
         enum_name = lang_name.upper().replace(' ', '_').replace('Å', 'A')
-        language_entries.append(f'    {enum_name}("{lang_code}", "{lang_name}")')
+        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}")')
 
     language_entries = sorted(language_entries)
-    
+
     # Collect all unique language pairs with their model types
     pairs_data = {}  # pair -> (src_code, tgt_code, model_types)
-    
+
     for model_type, pairs in language_pairs.items():
         for pair in pairs:
             src_code, tgt_code = parse_language_pair(pair)
-            
+
             # Assert that pairs are only to or from English
             if src_code != 'en' and tgt_code != 'en':
                 print(f"Error: Language pair '{pair}' is not to or from English")
                 print(f"Only English-to-X or X-to-English pairs are supported")
                 sys.exit(1)
-            
+
             if pair not in pairs_data:
                 pairs_data[pair] = (src_code, tgt_code, set())
             pairs_data[pair][2].add(model_type)
-    
+
     # Separate into fromEnglish and toEnglish
     from_english = {}  # lang_code -> model_type
     to_english = {}    # lang_code -> model_type
-    
+
     for pair, (src_code, tgt_code, model_types) in pairs_data.items():
         best_model_type = get_best_model_type(model_types)
-        
+
         if src_code == 'en':
             # English to other language
             from_english[tgt_code] = best_model_type
         else:
             # Other language to English
             to_english[src_code] = best_model_type
-    
+
     # Generate fromEnglish map entries
     from_english_entries = []
     for lang_code in sorted(from_english.keys()):
@@ -258,7 +259,7 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
         lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
         model_type_enum = f'ModelType.{from_english[lang_code].upper().replace("-", "_")}'
         from_english_entries.append(f'    {lang_enum} to {model_type_enum}')
-    
+
     # Generate toEnglish map entries
     to_english_entries = []
     for lang_code in sorted(to_english.keys()):
@@ -266,17 +267,19 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
         lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
         model_type_enum = f'ModelType.{to_english[lang_code].upper().replace("-", "_")}'
         to_english_entries.append(f'    {lang_enum} to {model_type_enum}')
-    
+
     # Generate the complete enum classes and maps
-    kotlin_code = f"""enum class ModelType(val pathName: String) {{
+    kotlin_code = f"""package com.example.translator
+
+enum class ModelType(private val pathName: String) {{
     BASE("base"),
     BASE_MEMORY("base-memory"),
     TINY("tiny");
-    
+
     override fun toString(): String = pathName
 }}
 
-enum class Language(val code: String, val displayName: String) {{
+enum class Language(val code: String, val tessName: String, val displayName: String) {{
 {',\n'.join(language_entries)}
 }}
 
@@ -287,41 +290,41 @@ val fromEnglish = mapOf(
 val toEnglish = mapOf(
 {',\n'.join(to_english_entries)}
 )"""
-    
+
     return kotlin_code
 
 def main():
     if len(sys.argv) != 2:
         print("Usage: python generate_language_enum.py <repository_path>")
         sys.exit(1)
-    
+
     repo_path = sys.argv[1]
-    
+
     if not os.path.exists(repo_path):
         print(f"Error: Repository path '{repo_path}' does not exist")
         sys.exit(1)
-    
+
     print(f"Scanning repository at: {repo_path}")
-    
+
     # Extract language pairs
     language_pairs = extract_language_pairs(repo_path)
-    
+
     print(f"Found {len(language_pairs['base'])} base language pairs")
     print(f"Found {len(language_pairs['base-memory'])} base-memory language pairs")
     print(f"Found {len(language_pairs['tiny'])} tiny language pairs")
-    
+
     if not language_pairs['base'] and not language_pairs['base-memory'] and not language_pairs['tiny']:
         print("No language pairs found. Please check the repository structure.")
         sys.exit(1)
-    
+
     # Generate Kotlin enum
     kotlin_code = generate_kotlin_enum(language_pairs)
-    
+
     # Write to file
     output_file = "Language.kt"
     with open(output_file, 'w') as f:
         f.write(kotlin_code)
-    
+
     print(f"Generated Kotlin enum class in {output_file}")
     print("\nPreview:")
     print(kotlin_code)

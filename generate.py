@@ -66,6 +66,60 @@ LANGUAGE_NAMES = {
     'zh': 'Chinese'
 }
 
+TESSERACT_LANGUAGE_MAPPINGS = {
+    'ar': 'ara',          # Arabic
+    'az': 'aze',          # Azerbaijani
+    'be': 'bel',          # Belarusian
+    'bg': 'bul',          # Bulgarian
+    'bn': 'ben',          # Bengali
+    'bs': 'bos',          # Bosnian
+    'ca': 'cat',          # Catalan
+    'cs': 'ces',          # Czech
+    'da': 'dan',          # Danish
+    'de': 'deu',          # German
+    'el': 'ell',          # Greek
+    'en': 'eng',          # English
+    'es': 'spa',          # Spanish
+    'et': 'est',          # Estonian
+    'fa': 'fas',          # Persian
+    'fi': 'fin',          # Finnish
+    'fr': 'fra',          # French
+    'gu': 'guj',          # Gujarati
+    'he': 'heb',          # Hebrew
+    'hi': 'hin',          # Hindi
+    'hr': 'hrv',          # Croatian
+    'hu': 'hun',          # Hungarian
+    'id': 'ind',          # Indonesian
+    'is': 'isl',          # Icelandic
+    'it': 'ita',          # Italian
+    'ja': 'jpn',          # Japanese
+    'kn': 'kan',          # Kannada
+    'ko': 'kor',          # Korean
+    'lt': 'lit',          # Lithuanian
+    'lv': 'lav',          # Latvian
+    'ml': 'mal',          # Malayalam
+    'ms': 'msa',          # Malay
+    'mt': 'mlt',          # Maltese
+    'nb': 'nor',          # Norwegian Bokmål (using nor for Norwegian)
+    'nl': 'nld',          # Dutch
+    'nn': 'nor',          # Norwegian Nynorsk (using nor for Norwegian)
+    'pl': 'pol',          # Polish
+    'pt': 'por',          # Portuguese
+    'ro': 'ron',          # Romanian
+    'ru': 'rus',          # Russian
+    'sk': 'slk',          # Slovak
+    'sl': 'slv',          # Slovenian
+    'sq': 'sqi',          # Albanian
+    'sr': 'srp',          # Serbian
+    'sv': 'swe',          # Swedish
+    'ta': 'tam',          # Tamil
+    'te': 'tel',          # Telugu
+    'tr': 'tur',          # Turkish
+    'uk': 'ukr',          # Ukrainian
+    'vi': 'vie',          # Vietnamese
+    'zh': 'chi_sim',      # Chinese (using simplified Chinese as default)
+}
+
 def extract_language_pairs(repo_path: str) -> Dict[str, Set[str]]:
     """
     Extract language pairs from repository structure.

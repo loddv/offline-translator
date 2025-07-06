@@ -8,7 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import com.googlecode.tesseract.android.TessBaseAPI
 
 @Composable
-fun TranslatorApp(configForLang: (Language, Language) -> String, initialText:String, detectedLanguage: Language? = null, ocrService: OCRService, ocrProgress: Float = 0f) {
+fun TranslatorApp(configForLang: (Language, Language) -> String, initialText:String, detectedLanguage: Language? = null, ocrService: OCRService, onOcrProgress: ((Float) -> Unit) -> Unit) {
     val navController = rememberNavController()
 
     NavHost(
@@ -22,7 +22,7 @@ fun TranslatorApp(configForLang: (Language, Language) -> String, initialText:Str
                 initialText = initialText,
                 detectedLanguage = detectedLanguage,
                 ocrService = ocrService,
-                ocrProgress = ocrProgress,
+                onOcrProgress = onOcrProgress,
             )
         }
         composable("language_manager") {

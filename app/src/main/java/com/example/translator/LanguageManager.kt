@@ -316,7 +316,6 @@ fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Bool
     val hasAll = File(dataPath, model).exists() && File(dataPath, vocab).exists() && File(
         dataPath, lex
     ).exists()
-    println("checking $from $to = $hasAll")
     return hasAll
 }
 
@@ -324,7 +323,6 @@ fun checkTessDataFile(context: Context, language: Language): Boolean {
     val tessDataPath = File(context.filesDir, "tesseract/tessdata")
     val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
     val exists = tessFile.exists()
-    println("checking tessdata for ${language.displayName} (${language.tessName}) = $exists")
     return exists
 }
 

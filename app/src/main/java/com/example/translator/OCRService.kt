@@ -2,8 +2,10 @@ package com.example.translator
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.util.Log
 import com.googlecode.tesseract.android.TessBaseAPI
+import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_WORD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -15,15 +17,14 @@ import kotlin.io.path.pathString
 import kotlin.system.measureTimeMillis
 
 class OCRService(
-    private val context: Context,
-    private val onProgress: (Float) -> Unit = {}
+    private val context: Context, private val onProgress: (Float) -> Unit = {}
 ) {
     private var tess: TessBaseAPI? = null
     private var isInitialized = false
-    
+
     suspend fun initialize(): Boolean = withContext(Dispatchers.IO) {
         if (isInitialized) return@withContext true
-        
+
         try {
             val p = File(context.filesDir, "tesseract").toPath()
             val tessdata = Path(p.pathString, "tessdata")
@@ -45,12 +46,18 @@ class OCRService(
             if (!initialized) {
                 tess?.recycle()
                 tess = null
-                Log.e("OCRService", "Failed to initialize Tesseract with languages: $availableLanguages")
+                Log.e(
+                    "OCRService",
+                    "Failed to initialize Tesseract with languages: $availableLanguages"
+                )
                 return@withContext false
             }
 
             isInitialized = true
-            Log.i("OCRService", "Tesseract initialized successfully with languages: $availableLanguages")
+            Log.i(
+                "OCRService",
+                "Tesseract initialized successfully with languages: $availableLanguages"
+            )
             true
         } catch (e: Exception) {
             Log.e("OCRService", "Error initializing Tesseract", e)
@@ -64,24 +71,48 @@ class OCRService(
             if (!initSuccess) return@withContext ""
         }
 
-        try {
-            val tessInstance = tess ?: return@withContext ""
-            
-            tessInstance.setImage(bitmap)
-            tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
+        val tessInstance = tess ?: return@withContext ""
 
-            val text: String
-            val elapsed = measureTimeMillis {
-                tessInstance.getHOCRText(0)
-                text = tessInstance.getConfidentText(80, TessBaseAPI.PageIteratorLevel.RIL_WORD)
+        tessInstance.setImage(bitmap)
+        tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
+
+        var text = ""
+        var sentences = arrayOf(String)
+        val elapsed = measureTimeMillis {
+            tessInstance.getHOCRText(0)
+
+            // TODO: repaint on top of the image.
+            // Need to get background color (how?) and foreground color (how?)
+            // maybe tessInstance.thresholdedImage to find the position of the letter
+            // then pick a pixel from the letter??
+            // Also, read getConfidentText implementation to do this
+            //https://github.com/tesseract-ocr/tesseract/blob/d8d63fd71b8d56f73469f7db41864098f087599c/src/api/hocrrenderer.cpp#L190
+            if (false) {
+                val iter = tessInstance.resultIterator
+                iter.begin()
+                do {
+                    val conf = iter.confidence(RIL_WORD)
+                    val word = iter.getUTF8Text(RIL_WORD)
+                    val boundingBox = iter.getBoundingRect(RIL_WORD)
+                    println("$word ($conf) x ${boundingBox.centerX()} y: ${boundingBox.centerY()} h: ${boundingBox.height()}")
+                    if (conf < 80) continue
+                    val isLastWord =
+                        iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE, RIL_WORD)
+                    // val isLastWord = prevRect != null && boundingBox.centerY() > (prevRect.centerY() + (prevRect.height() / 2))
+                    text += word
+                    if (isLastWord) {
+                        text += "[NL]\n"
+                    } else {
+                        text += " "
+                    }
+                } while (iter.next(RIL_WORD))
             }
-            
-            Log.i("OCRService", "OCR took ${elapsed}ms")
-            text
-        } catch (e: Exception) {
-            Log.e("OCRService", "Error extracting text", e)
-            ""
+            text = tessInstance.getConfidentText(80, RIL_WORD)
         }
+
+        Log.i("OCRService", "OCR took ${elapsed}ms")
+        text
+
     }
 
 

@@ -8,6 +8,13 @@ android {
     namespace = "com.example.translator"
     compileSdk = 34
 
+    sourceSets {
+        getByName("androidTest") {
+            assets {
+                srcDirs("src/androidTest/assets")
+            }
+        }
+    }
     defaultConfig {
         applicationId = "com.example.translator"
         minSdk = 28 // iconv functions need 28?

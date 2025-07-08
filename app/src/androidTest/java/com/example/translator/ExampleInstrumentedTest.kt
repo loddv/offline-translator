@@ -1,12 +1,20 @@
 package com.example.translator
 
+import android.graphics.BitmapFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.googlecode.leptonica.android.ReadFile
+import com.googlecode.tesseract.android.TessBaseAPI
 
 import org.junit.Test
 import org.junit.runner.RunWith
 
 import org.junit.Assert.*
+import java.io.File
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.createDirectories
+import kotlin.io.path.pathString
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -20,5 +28,37 @@ class ExampleInstrumentedTest {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("com.example.translator", appContext.packageName)
+    }
+
+    @Test
+    fun extractSentences() {
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+
+
+        context.assets.list("").let { item -> println("xxitem ${item.contentToString()}") }
+        // Load PNG from assets
+        val inputStream = context.assets.open("screen.png")
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+
+        val tessDir = File(appContext.dataDir, "tesseract")
+        val tessdataDir = File(tessDir, "tessdata")
+        val dataPath: String = tessDir.toPath().absolutePathString()
+        tessdataDir.mkdirs()
+
+        // copy from test context to app context
+        val inputStreamEng = context.assets.open("eng.traineddata")
+        val trainedDataFile = File(tessdataDir, "eng.traineddata")
+        trainedDataFile.outputStream().use { output ->
+            inputStreamEng.copyTo(output)
+        }
+        inputStreamEng.close()
+
+        
+        val tessInstance = TessBaseAPI()
+        assert(tessInstance.init(dataPath, "eng"))
+        getSentences(bitmap, tessInstance)
+        println(tessInstance)
     }
 }

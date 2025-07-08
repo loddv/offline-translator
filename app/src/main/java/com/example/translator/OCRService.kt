@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.util.Log
+import com.googlecode.leptonica.android.Pix
 import com.googlecode.tesseract.android.TessBaseAPI
 import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_WORD
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,50 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.pathString
 import kotlin.system.measureTimeMillis
+
+fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<String.Companion> {
+    tessInstance.setImage(bitmap)
+    tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
+
+    var text = ""
+    var sentences = arrayOf(String)
+
+    tessInstance.getHOCRText(0)
+
+    // TODO: repaint on top of the image.
+    // Need to get background color (how?) and foreground color (how?)
+    // maybe tessInstance.thresholdedImage to find the position of the letter
+    // then pick a pixel from the letter??
+    // Also, read getConfidentText implementation to do this
+    //https://github.com/tesseract-ocr/tesseract/blob/d8d63fd71b8d56f73469f7db41864098f087599c/src/api/hocrrenderer.cpp#L190
+
+    val iter = tessInstance.resultIterator
+    if (iter == null) {
+        println("NULL ITERATOR")
+        return sentences
+    }
+    iter.begin()
+    do {
+        val conf = iter.confidence(RIL_WORD)
+        val word = iter.getUTF8Text(RIL_WORD)
+        val boundingBox = iter.getBoundingRect(RIL_WORD)
+        println("$word ($conf) x ${boundingBox.centerX()} y: ${boundingBox.centerY()} h: ${boundingBox.height()}")
+        if (conf < 80) continue
+        val isLastWord =
+            iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE, RIL_WORD)
+        // val isLastWord = prevRect != null && boundingBox.centerY() > (prevRect.centerY() + (prevRect.height() / 2))
+        text += word
+        if (isLastWord) {
+            text += "[NL]\n"
+        } else {
+            text += " "
+        }
+    } while (iter.next(RIL_WORD))
+
+
+    return sentences
+
+}
 
 class OCRService(
     private val context: Context, private val onProgress: (Float) -> Unit = {}
@@ -79,6 +124,7 @@ class OCRService(
         var text = ""
         var sentences = arrayOf(String)
         val elapsed = measureTimeMillis {
+
             tessInstance.getHOCRText(0)
 
             // TODO: repaint on top of the image.

@@ -8,6 +8,14 @@ The translation models run on [bergamot-translator](https://github.com/browsermt
 ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png)
 
 
+## Image translation overlay
+
+The app also translates images directly on top of the previous content, similar to Google Translate:
+
+Original | New
+:-------:|:----:
+![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/original-image.png) | ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/translated-image.png)
+
 
 ## Running on x86-64 emulator
 

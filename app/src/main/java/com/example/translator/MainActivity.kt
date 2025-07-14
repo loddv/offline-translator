@@ -371,9 +371,16 @@ fun Greeting(
                             blocks.forEach { textBlock ->
                                 val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
                                 println("blocktext ${blockText}")
-                                val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
+                                val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat() + 2f
+                                val lineSpacing = if (textBlock.lines.size > 1) {
+                                    (0 until textBlock.lines.size - 1).map { i ->
+                                        textBlock.lines[i + 1].boundingBox.top - textBlock.lines[i].boundingBox.bottom
+                                    }.average().toFloat()
+                                } else {
+                                    blockAvgPixelHeight * 0.2f // Default spacing for single line
+                                }
                                 paint.textSize = blockAvgPixelHeight
-                                println("textsize ${blockAvgPixelHeight}")
+                                println("textsize ${blockAvgPixelHeight}, lineSpacing=${lineSpacing}")
 
                                 val translated = translateInForeground(from, to, context, blockText)
                                 val maxWidthBlock = textBlock.lines.map { line -> line.boundingBox.width() }.max()
@@ -385,9 +392,9 @@ fun Greeting(
                                     maxWidthBlock
                                 )
                                 println("translated ${translated}")
-                                val textLayout = builder.setMaxLines(textBlock.lines.size).setLineSpacing(15f, 1f).build()
+                                val textLayout = builder.setMaxLines(textBlock.lines.size).setLineSpacing(lineSpacing, 1f).build()
 
-                                // get position of text's top left corner
+
                                 val x: Float = textBlock.lines[0].boundingBox.left.toFloat()
                                 val y: Float = textBlock.lines[0].boundingBox.top.toFloat()
                                 canvas.save()

@@ -1,6 +1,5 @@
 package com.example.translator
 
-import android.R.attr
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -89,24 +88,69 @@ import java.io.File
 import kotlin.system.measureTimeMillis
 
 
-fun drawBoundingBoxes(originalBitmap: Bitmap, textBlocks: Array<TextBlock>): Bitmap {
+fun drawBoundingBoxes(
+    originalBitmap: Bitmap,
+    textBlocks: Array<TextBlock>,
+    translate: (String) -> String,
+    setTranslateImage: (Bitmap?) -> Unit
+): Pair<Bitmap, String> {
     val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(mutableBitmap)
 
     val paint = Paint().apply {
         style = Paint.Style.FILL
     }
+    val textPaint = TextPaint()
+    textPaint.color = Color.BLACK
 
-    textBlocks.forEach { block ->
-        val blockAvgPixelHeight = block.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
+    var allTranslatedText = ""
+
+    textBlocks.forEach { textBlock ->
+        val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
         paint.textSize = blockAvgPixelHeight
+        val lineSpacing = if (textBlock.lines.size > 1) {
+            (0 until textBlock.lines.size - 1).map { i ->
+                textBlock.lines[i + 1].boundingBox.top - textBlock.lines[i].boundingBox.bottom
+            }.average().toFloat()
+        } else {
+            blockAvgPixelHeight * 0.2f // Default spacing for single line
+        }
+        val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
+        val maxWidthBlock = textBlock.lines.map { line -> line.boundingBox.width() }.max()
+        println("blocktext ${blockText}")
+        textPaint.textSize = blockAvgPixelHeight
+        println("textsize ${blockAvgPixelHeight}, lineSpacing=${lineSpacing}")
 
-        block.lines.forEach { line ->
+
+        val translated = translate(blockText)
+        val builder = StaticLayout.Builder.obtain(
+            translated,
+            0,
+            translated.length,
+            textPaint,
+            maxWidthBlock
+        )
+        println("translated ${translated}")
+        allTranslatedText = "${allTranslatedText}\n${translated}"
+        val textLayout = builder.setMaxLines(textBlock.lines.size).setLineSpacing(lineSpacing, 1f).build()
+
+        val x: Float = textBlock.lines[0].boundingBox.left.toFloat()
+        val y: Float = textBlock.lines[0].boundingBox.top.toFloat()
+
+        textBlock.lines.forEach { line ->
             paint.color = Color.WHITE // TODO: avg background color
             canvas.drawRect(line.boundingBox, paint)
         }
+
+        canvas.save()
+        canvas.translate(x, y)
+        textLayout.draw(canvas)
+        setTranslateImage(mutableBitmap)
+        canvas.restore()
+
     }
-    return mutableBitmap
+
+    return Pair(mutableBitmap, allTranslatedText.trim())
 }
 
 
@@ -282,7 +326,7 @@ fun Greeting(
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
 
-    var translateImage: Bitmap? by remember { mutableStateOf(null) }
+    var (translateImage, setTranslateImage) = remember { mutableStateOf<Bitmap?>(null) }
     val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
 
 
@@ -301,7 +345,7 @@ fun Greeting(
                 context.contentResolver.openInputStream(sharedImageUri)?.use { inputStream ->
                     setOcrInProgress(true)
                     val bitmap = BitmapFactory.decodeStream(inputStream)
-                    translateImage = bitmap
+                    setTranslateImage(bitmap)
 
                     scope.launch {
                         withContext(Dispatchers.IO) {
@@ -348,66 +392,23 @@ fun Greeting(
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     setOcrInProgress(true)
                     val bitmap = BitmapFactory.decodeStream(inputStream)
-                    translateImage = bitmap
+                    setTranslateImage(bitmap)
 
+                    // onInputChange(text) TODO
+                    setTranslating(true)
+                    setOcrInProgress(true)
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             val blocks = ocrService.extractText(bitmap)
-                            val drawn = drawBoundingBoxes(bitmap, blocks)
-                            val paint = TextPaint()
-                            paint.color = Color.BLACK
-                            translateImage = drawn
-                            val text = blocks.map { block ->
-                                block.lines.map { line ->
-                                    line.text
-                                }
-                            }.flatten().joinToString("\n")
-                            onInputChange(text)
-                            setTranslating(true)
-                            setOcrInProgress(false)
-
-                            val mutableBitmap = drawn.copy(Bitmap.Config.ARGB_8888, true)
-                            val canvas = Canvas(mutableBitmap)
-                            blocks.forEach { textBlock ->
-                                val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
-                                println("blocktext ${blockText}")
-                                val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat() + 2f
-                                val lineSpacing = if (textBlock.lines.size > 1) {
-                                    (0 until textBlock.lines.size - 1).map { i ->
-                                        textBlock.lines[i + 1].boundingBox.top - textBlock.lines[i].boundingBox.bottom
-                                    }.average().toFloat()
-                                } else {
-                                    blockAvgPixelHeight * 0.2f // Default spacing for single line
-                                }
-                                paint.textSize = blockAvgPixelHeight
-                                println("textsize ${blockAvgPixelHeight}, lineSpacing=${lineSpacing}")
-
-                                val translated = translateInForeground(from, to, context, blockText)
-                                val maxWidthBlock = textBlock.lines.map { line -> line.boundingBox.width() }.max()
-                                val builder = StaticLayout.Builder.obtain(
-                                    translated,
-                                    0,
-                                    translated.length,
-                                    paint,
-                                    maxWidthBlock
-                                )
-                                println("translated ${translated}")
-                                val textLayout = builder.setMaxLines(textBlock.lines.size).setLineSpacing(lineSpacing, 1f).build()
-
-
-                                val x: Float = textBlock.lines[0].boundingBox.left.toFloat()
-                                val y: Float = textBlock.lines[0].boundingBox.top.toFloat()
-                                canvas.save()
-                                canvas.translate(x, y)
-                                textLayout.draw(canvas)
-                                canvas.restore()
-                                translateImage = mutableBitmap
+                            fun translateFn(text: String): String {
+                                return translateInForeground(from, to, context, text)
                             }
 
-                            val translatedText = "idk some text"
-                            translateInForeground(from, to, context, text)
+                            val (drawn, translatedText) = drawBoundingBoxes(bitmap, blocks, ::translateFn, setTranslateImage)
                             onOutputChange(translatedText)
                             setTranslating(false)
+                            setOcrInProgress(false)
+
                         }
                     }
                 }

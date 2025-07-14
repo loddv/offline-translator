@@ -1,5 +1,6 @@
 package com.example.translator
 
+import android.R.attr
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -7,8 +8,13 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,7 +39,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -70,6 +75,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.bergamot.DetectionResult
@@ -81,6 +87,27 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.system.measureTimeMillis
+
+
+fun drawBoundingBoxes(originalBitmap: Bitmap, textBlocks: Array<TextBlock>): Bitmap {
+    val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
+    val canvas = Canvas(mutableBitmap)
+
+    val paint = Paint().apply {
+        style = Paint.Style.FILL
+    }
+
+    textBlocks.forEach { block ->
+        val blockAvgPixelHeight = block.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
+        paint.textSize = blockAvgPixelHeight
+
+        block.lines.forEach { line ->
+            paint.color = Color.WHITE // TODO: avg background color
+            canvas.drawRect(line.boundingBox, paint)
+        }
+    }
+    return mutableBitmap
+}
 
 
 class MainActivity : ComponentActivity() {
@@ -143,7 +170,7 @@ class MainActivity : ComponentActivity() {
                 // Check if it's text or image
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 val imageUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-                
+
                 if (text != null) {
                     textToTranslate = text
                     detectLanguageForSharedText(textToTranslate)
@@ -278,7 +305,12 @@ fun Greeting(
 
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            val text = ocrService.extractText(bitmap)
+                            val blocks = ocrService.extractText(bitmap)
+                            val text = blocks.map { block ->
+                                block.lines.map { line ->
+                                    line.text
+                                }
+                            }.flatten().joinToString("\n")
                             onInputChange(text)
                             setTranslating(true)
                             val translatedText = translateInForeground(from, to, context, text)
@@ -320,13 +352,55 @@ fun Greeting(
 
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            val text = ocrService.extractText(bitmap)
+                            val blocks = ocrService.extractText(bitmap)
+                            val drawn = drawBoundingBoxes(bitmap, blocks)
+                            val paint = TextPaint()
+                            paint.color = Color.BLACK
+                            translateImage = drawn
+                            val text = blocks.map { block ->
+                                block.lines.map { line ->
+                                    line.text
+                                }
+                            }.flatten().joinToString("\n")
                             onInputChange(text)
                             setTranslating(true)
-                            val translatedText = translateInForeground(from, to, context, text)
+                            setOcrInProgress(false)
+
+                            val mutableBitmap = drawn.copy(Bitmap.Config.ARGB_8888, true)
+                            val canvas = Canvas(mutableBitmap)
+                            blocks.forEach { textBlock ->
+                                val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
+                                println("blocktext ${blockText}")
+                                val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
+                                paint.textSize = blockAvgPixelHeight
+                                println("textsize ${blockAvgPixelHeight}")
+
+                                val translated = translateInForeground(from, to, context, blockText)
+                                val maxWidthBlock = textBlock.lines.map { line -> line.boundingBox.width() }.max()
+                                val builder = StaticLayout.Builder.obtain(
+                                    translated,
+                                    0,
+                                    translated.length,
+                                    paint,
+                                    maxWidthBlock
+                                )
+                                println("translated ${translated}")
+                                val textLayout = builder.setMaxLines(textBlock.lines.size).setLineSpacing(15f, 1f).build()
+
+                                // get position of text's top left corner
+                                val x: Float = textBlock.lines[0].boundingBox.left.toFloat()
+                                val y: Float = textBlock.lines[0].boundingBox.top.toFloat()
+                                canvas.save()
+                                canvas.translate(x, y)
+                                textLayout.draw(canvas)
+                                canvas.restore()
+                                translateImage = mutableBitmap
+                            }
+
+                            val translatedText = "idk some text"
+                            translateInForeground(from, to, context, text)
                             onOutputChange(translatedText)
                             setTranslating(false)
-                            setOcrInProgress(false)
                         }
                     }
                 }
@@ -575,7 +649,7 @@ fun Greeting(
                 Spacer(modifier = Modifier.height(8.dp))
 
 
-                if (translateImage != null && ocrInProgress) {
+                if (translateImage != null) { // && ocrInProgress) {
                     LinearProgressIndicator(
                         progress = { ocrProgress },
                         modifier = Modifier.fillMaxWidth(),

@@ -45,7 +45,6 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
         val conf = iter.confidence(RIL_WORD)
         val word = iter.getUTF8Text(RIL_WORD)
         val boundingBox = iter.getBoundingRect(RIL_WORD)
-        println("$word ($conf) l ${boundingBox.left} t: ${boundingBox.top} r: ${boundingBox.right} b ${boundingBox.bottom}")
         if (conf < 80) continue
         val firstWordInLine = iter.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE)
         val lastWordInLine =
@@ -130,35 +129,25 @@ class OCRService(
         }
     }
 
-    suspend fun extractText(bitmap: Bitmap): String = withContext(Dispatchers.IO) {
+    suspend fun extractText(bitmap: Bitmap): Array<TextBlock> = withContext(Dispatchers.IO) {
         if (!isInitialized) {
             val initSuccess = initialize()
-            if (!initSuccess) return@withContext ""
+            if (!initSuccess) return@withContext emptyArray()
         }
 
-        val tessInstance = tess ?: return@withContext ""
+        val tessInstance = tess ?: return@withContext emptyArray()
 
         tessInstance.setImage(bitmap)
         tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
 
-        var text = ""
+        val blocks: Array<TextBlock>
         val elapsed = measureTimeMillis {
             tessInstance.getHOCRText(0)
-
-            // TODO: repaint on top of the image.
-            // Need to get background color (how?) and foreground color (how?)
-            // maybe tessInstance.thresholdedImage to find the position of the letter
-            // then pick a pixel from the letter??
-            // Also, read getConfidentText implementation to do this
-            //https://github.com/tesseract-ocr/tesseract/blob/d8d63fd71b8d56f73469f7db41864098f087599c/src/api/hocrrenderer.cpp#L190
-            if (false) {
-                getSentences(bitmap, tessInstance)
-            }
-            text = tessInstance.getConfidentText(80, RIL_WORD)
+            blocks = getSentences(bitmap, tessInstance)
         }
 
         Log.i("OCRService", "OCR took ${elapsed}ms")
-        text
+        blocks
 
     }
 

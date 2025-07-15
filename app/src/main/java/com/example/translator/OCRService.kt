@@ -28,7 +28,6 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
     tessInstance.setImage(bitmap)
     tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
 
-
     tessInstance.getHOCRText(0)
 
     val iter = tessInstance.resultIterator
@@ -146,7 +145,6 @@ class OCRService(
 
         val blocks: Array<TextBlock>
         val elapsed = measureTimeMillis {
-            tessInstance.getHOCRText(0)
             blocks = getSentences(bitmap, tessInstance)
         }
 

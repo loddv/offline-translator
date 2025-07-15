@@ -15,6 +15,9 @@ The app also translates images directly on top of the previous content, similar 
 Original | New
 :-------:|:----:
 ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/original-image.png) | ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/translated-image.png)
+![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/kindle.jpg) | ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/translated-kindle.png)
+
+It tries to detect background and foreground colors to blend in better with the original text, but it's not perfect.
 
 
 ## Running on x86-64 emulator

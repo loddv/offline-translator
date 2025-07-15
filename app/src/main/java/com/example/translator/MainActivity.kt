@@ -7,13 +7,8 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
-import android.text.TextPaint
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -87,118 +82,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.system.measureTimeMillis
 
-
-fun detectTextColors(bitmap: Bitmap, textRect: Rect): Pair<Int, Int> {
-    val pixels = IntArray(textRect.width() * textRect.height())
-    bitmap.getPixels(
-        pixels, 0, textRect.width(),
-        textRect.left, textRect.top, textRect.width(), textRect.height()
-    )
-
-    // Create histogram of colors
-    val colorCounts = pixels.toList().groupingBy { it }.eachCount()
-    val sortedColors = colorCounts.toList().sortedByDescending { it.second }
-
-    // Assume most frequent is background, second most is foreground
-    val backgroundColor = sortedColors[0].first
-    val foregroundColor = sortedColors[1].first
-
-
-    return Pair(foregroundColor, backgroundColor)
-}
-
-
-fun drawBoundingBoxes(
-    originalBitmap: Bitmap,
-    textBlocks: Array<TextBlock>,
-    translate: (String) -> String,
-): Pair<Bitmap, String> {
-    val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
-    val canvas = Canvas(mutableBitmap)
-
-    val paint = Paint().apply {
-        style = Paint.Style.FILL
-    }
-
-
-    val textPaint = TextPaint()
-    textPaint.color = Color.BLACK
-
-    var allTranslatedText = ""
-
-    textBlocks.forEach { textBlock ->
-        val blockAvgPixelHeight =
-            textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
-        val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
-        val translated = translate(blockText)
-
-        paint.textSize = blockAvgPixelHeight
-        textPaint.textSize = blockAvgPixelHeight
-
-        println("textsize $blockAvgPixelHeight")
-
-        val translatedSpaceIndices = translated.mapIndexedNotNull { index, char ->
-            if (char == ' ') index else null
-        }
-        allTranslatedText = "${allTranslatedText}\n${translated}"
-
-        // 5% padding for word wrap
-        val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() } * 0.95f
-
-        // Ensure text will fit the existing area
-        while (textPaint.measureText(translated) >= totalBBLength) {
-            textPaint.textSize -= 1
-        }
-
-
-        var start = 0
-        textBlock.lines.forEach { line ->
-            val (fg, bg) = detectTextColors(mutableBitmap, line.boundingBox)
-            paint.color = bg // Color.WHITE
-//            paint.alpha = 220 // bg blurs more ofc, but its confusing
-            textPaint.color = Color.BLACK
-            canvas.drawRect(line.boundingBox, paint) // this should blur out borders maybe
-
-            // Render text if we are not done.
-            // We may be done when translated text takes fewer lines than the original
-            // In which case, we just paint the background color over the previous text
-            if (start < translated.length) {
-                // How many chars can fit in this line?
-
-                val measuredWidth = FloatArray(1)
-                val countedChars = textPaint.breakText(
-                    translated, start, translated.length, true,
-                    line.boundingBox.width().toFloat(), measuredWidth
-                )
-
-                // If we are in the middle of a word, return up to the previous word
-                val endIndex: Int
-                if (start + countedChars == translated.length) {
-                    endIndex = translated.length
-                } else {
-                    val previousSpaceIndex =
-                        translatedSpaceIndices.findLast { it < start + countedChars }
-                    endIndex = if (previousSpaceIndex == null) {
-                        start + countedChars
-                    } else {
-                        previousSpaceIndex + 1
-                    }
-                }
-                canvas.drawText(
-                    translated,
-                    start,
-                    endIndex,
-                    line.boundingBox.left.toFloat(),
-                    line.boundingBox.top.toFloat() - textPaint.ascent(),
-                    textPaint
-                )
-                start = endIndex
-            }
-        }
-    }
-
-    return Pair(mutableBitmap, allTranslatedText.trim())
-}
 
 
 class MainActivity : ComponentActivity() {
@@ -451,7 +334,7 @@ fun Greeting(
                                 return translateInForeground(from, to, context, text)
                             }
 
-                            val (drawn, translatedText) = drawBoundingBoxes(
+                            val (drawn, translatedText) = paintTranslatedTextOver(
                                 bitmap,
                                 blocks,
                                 ::translateFn

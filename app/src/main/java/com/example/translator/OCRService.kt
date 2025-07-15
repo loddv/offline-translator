@@ -42,15 +42,19 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
     var lines = mutableListOf<TextLine>()
     var line = TextLine("", Rect(0, 0, 0, 0))
     do {
-        val conf = iter.confidence(RIL_WORD)
         val word = iter.getUTF8Text(RIL_WORD)
+        if (word.trim() == "") {
+            continue
+        }
+        val conf = iter.confidence(RIL_WORD)
         val boundingBox = iter.getBoundingRect(RIL_WORD)
-        if (conf < 80) continue
+        if (conf < 70) continue
         val firstWordInLine = iter.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE)
         val lastWordInLine =
             iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE, RIL_WORD)
         val lastWordInPara = iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_PARA, RIL_WORD)
 
+        // TODO: words that are spaced "far apart" are probably individual blocks
         if (firstWordInLine) {
             line = TextLine(word, boundingBox);
         } else {
@@ -63,7 +67,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
             )
         }
 
-        if (lastWordInLine && line.text != " ") {
+        if (lastWordInLine && line.text.trim() != "") {
             lines.add(line)
             line = TextLine("", Rect(0, 0, 0, 0))
         }

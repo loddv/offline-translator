@@ -1,5 +1,7 @@
 package com.example.translator
 
+import android.R.attr.maxWidth
+import android.R.attr.text
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -10,9 +12,9 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
-import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -88,6 +90,62 @@ import java.io.File
 import kotlin.system.measureTimeMillis
 
 
+fun detectTextColors(bitmap: Bitmap, textRect: Rect): Pair<Int, Int> {
+    val pixels = IntArray(textRect.width() * textRect.height())
+    bitmap.getPixels(pixels, 0, textRect.width(),
+        textRect.left, textRect.top, textRect.width(), textRect.height())
+
+    // Create histogram of colors
+    val colorCounts = pixels.toList().groupingBy { it }.eachCount()
+    val sortedColors = colorCounts.toList().sortedByDescending { it.second }
+
+    // Assume most frequent is background, second most is foreground
+    val backgroundColor = sortedColors[0].first
+    val foregroundColor = sortedColors[1].first
+
+
+    return Pair(foregroundColor, backgroundColor)
+}
+
+fun calculateMedianColor(pixels: IntArray): Int {
+    fun findMedian(values: IntArray): Int {
+        values.sort()
+        val mid = values.size / 2
+        return if (values.size % 2 == 0) (values[mid - 1] + values[mid]) / 2 else values[mid]
+    }
+
+    return Color.rgb(
+        findMedian(pixels.map { Color.red(it) }.toIntArray()),
+        findMedian(pixels.map { Color.green(it) }.toIntArray()),
+        findMedian(pixels.map { Color.blue(it) }.toIntArray())
+    )
+}
+
+fun calculateAverageColorRGB(pixels: IntArray): Int {
+    var totalRed = 0L
+    var totalGreen = 0L
+    var totalBlue = 0L
+    var black = 0
+
+    for (pixel in pixels) {
+        if (Color.red(pixel) <= 100 || Color.green(pixel) <= 100 || Color.blue(pixel) <= 100) {
+            black += 1
+            continue
+        }
+        totalRed += Color.red(pixel)
+        totalGreen += Color.green(pixel)
+        totalBlue += Color.blue(pixel)
+    }
+
+    println("black ${black}")
+    val count = pixels.size - black
+    val avgRed = (totalRed / count).toInt()
+    val avgGreen = (totalGreen / count).toInt()
+    val avgBlue = (totalBlue / count).toInt()
+
+    return Color.rgb(avgRed, avgGreen, avgBlue)
+}
+
 fun drawBoundingBoxes(
     originalBitmap: Bitmap,
     textBlocks: Array<TextBlock>,
@@ -111,42 +169,68 @@ fun drawBoundingBoxes(
         val lineSpacing = if (textBlock.lines.size > 1) {
             (0 until textBlock.lines.size - 1).map { i ->
                 textBlock.lines[i + 1].boundingBox.top - textBlock.lines[i].boundingBox.bottom
-            }.average().toFloat()
+            }.average().toFloat() - 8f // FIXME what is this spacing
         } else {
             blockAvgPixelHeight * 0.2f // Default spacing for single line
         }
         val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
-        val maxWidthBlock = textBlock.lines.map { line -> line.boundingBox.width() }.max()
         println("blocktext ${blockText}")
         textPaint.textSize = blockAvgPixelHeight
         println("textsize ${blockAvgPixelHeight}, lineSpacing=${lineSpacing}")
 
 
         val translated = translate(blockText)
-        val builder = StaticLayout.Builder.obtain(
-            translated,
-            0,
-            translated.length,
-            textPaint,
-            maxWidthBlock
-        )
         println("translated ${translated}")
         allTranslatedText = "${allTranslatedText}\n${translated}"
-        val textLayout = builder.setMaxLines(textBlock.lines.size).setLineSpacing(lineSpacing, 1f).build()
 
-        val x: Float = textBlock.lines[0].boundingBox.left.toFloat()
-        val y: Float = textBlock.lines[0].boundingBox.top.toFloat()
+        val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() }
 
-        textBlock.lines.forEach { line ->
-            paint.color = Color.WHITE // TODO: avg background color
-            canvas.drawRect(line.boundingBox, paint)
+//        // Embiggen the text to fit as well
+//        while (textPaint.measureText(translated) < totalBBLength && (textPaint.descent() - textPaint.ascent()) < blockAvgPixelHeight) {
+//            textPaint.textSize += 1
+//        }
+
+        // Ensure text will fit the existing area
+        while (textPaint.measureText(translated) >= totalBBLength) {
+            textPaint.textSize -= 1
         }
 
-        canvas.save()
-        canvas.translate(x, y)
-        textLayout.draw(canvas)
+
+
+        var start = 0
+        textBlock.lines.forEach { line ->
+            val (fg, bg) = detectTextColors(mutableBitmap, line.boundingBox)
+            paint.color = bg // Color.WHITE
+//            paint.alpha = 220 // bg blurs more ofc, but its confusing
+            textPaint.color = Color.BLACK
+            canvas.drawRect(line.boundingBox, paint) // this should blur out borders maybe
+
+            if (start < translated.length) {
+                println("tlen ${translated.length} start $start, bbw ${line.boundingBox.width()}")
+                val measuredWidth = FloatArray(1)
+                val countedChars = textPaint.breakText(
+                    translated, start, translated.length, true,
+                    line.boundingBox.width().toFloat(), measuredWidth
+                )
+                println("counted $countedChars")
+                println("substr ${translated.substring(start, start+countedChars)}")
+                canvas.drawText(
+                    translated,
+                    start,
+                    start+countedChars,
+                    line.boundingBox.left.toFloat(),
+                    line.boundingBox.top.toFloat() - textPaint.ascent(),
+                    textPaint
+                )
+                start += countedChars
+            }
+        }
+
+//        canvas.save()
+//        canvas.translate(x, y)
+//        textLayout.draw(canvas)
         setTranslateImage(mutableBitmap)
-        canvas.restore()
+//        canvas.restore()
 
     }
 

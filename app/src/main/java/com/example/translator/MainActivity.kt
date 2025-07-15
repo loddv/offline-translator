@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -150,7 +151,6 @@ fun drawBoundingBoxes(
     originalBitmap: Bitmap,
     textBlocks: Array<TextBlock>,
     translate: (String) -> String,
-    setTranslateImage: (Bitmap?) -> Unit
 ): Pair<Bitmap, String> {
     val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(mutableBitmap)
@@ -158,6 +158,8 @@ fun drawBoundingBoxes(
     val paint = Paint().apply {
         style = Paint.Style.FILL
     }
+
+
     val textPaint = TextPaint()
     textPaint.color = Color.BLACK
 
@@ -165,36 +167,26 @@ fun drawBoundingBoxes(
 
     textBlocks.forEach { textBlock ->
         val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
-        paint.textSize = blockAvgPixelHeight
-        val lineSpacing = if (textBlock.lines.size > 1) {
-            (0 until textBlock.lines.size - 1).map { i ->
-                textBlock.lines[i + 1].boundingBox.top - textBlock.lines[i].boundingBox.bottom
-            }.average().toFloat() - 8f // FIXME what is this spacing
-        } else {
-            blockAvgPixelHeight * 0.2f // Default spacing for single line
-        }
         val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
-        println("blocktext ${blockText}")
-        textPaint.textSize = blockAvgPixelHeight
-        println("textsize ${blockAvgPixelHeight}, lineSpacing=${lineSpacing}")
-
-
         val translated = translate(blockText)
-        println("translated ${translated}")
+
+        paint.textSize = blockAvgPixelHeight
+        textPaint.textSize = blockAvgPixelHeight
+
+        println("textsize ${blockAvgPixelHeight}")
+
+        val translatedSpaceIndices = translated.mapIndexedNotNull { index, char ->
+            if (char == ' ') index else null
+        }
         allTranslatedText = "${allTranslatedText}\n${translated}"
 
-        val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() }
-
-//        // Embiggen the text to fit as well
-//        while (textPaint.measureText(translated) < totalBBLength && (textPaint.descent() - textPaint.ascent()) < blockAvgPixelHeight) {
-//            textPaint.textSize += 1
-//        }
+        // 5% padding for word wrap
+        val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() } * 0.95f
 
         // Ensure text will fit the existing area
         while (textPaint.measureText(translated) >= totalBBLength) {
             textPaint.textSize -= 1
         }
-
 
 
         var start = 0
@@ -205,33 +197,42 @@ fun drawBoundingBoxes(
             textPaint.color = Color.BLACK
             canvas.drawRect(line.boundingBox, paint) // this should blur out borders maybe
 
+            // Render text if we are not done.
+            // We may be done when translated text takes fewer lines than the original
+            // In which case, we just paint the background color over the previous text
             if (start < translated.length) {
-                println("tlen ${translated.length} start $start, bbw ${line.boundingBox.width()}")
+                // How many chars can fit in this line?
+
                 val measuredWidth = FloatArray(1)
                 val countedChars = textPaint.breakText(
                     translated, start, translated.length, true,
                     line.boundingBox.width().toFloat(), measuredWidth
                 )
-                println("counted $countedChars")
-                println("substr ${translated.substring(start, start+countedChars)}")
+
+                // If we are in the middle of a word, return up to the previous word
+                val endIndex: Int
+                if (start+countedChars == translated.length) {
+                    endIndex = translated.length
+                } else {
+                    val previousSpaceIndex =
+                        translatedSpaceIndices.findLast { it < start + countedChars }
+                    endIndex = if (previousSpaceIndex == null) {
+                        start + countedChars
+                    } else {
+                        previousSpaceIndex + 1
+                    }
+                }
                 canvas.drawText(
                     translated,
                     start,
-                    start+countedChars,
+                    endIndex,
                     line.boundingBox.left.toFloat(),
                     line.boundingBox.top.toFloat() - textPaint.ascent(),
                     textPaint
                 )
-                start += countedChars
-            }
+                start = endIndex
+                }
         }
-
-//        canvas.save()
-//        canvas.translate(x, y)
-//        textLayout.draw(canvas)
-        setTranslateImage(mutableBitmap)
-//        canvas.restore()
-
     }
 
     return Pair(mutableBitmap, allTranslatedText.trim())
@@ -488,7 +489,8 @@ fun Greeting(
                                 return translateInForeground(from, to, context, text)
                             }
 
-                            val (drawn, translatedText) = drawBoundingBoxes(bitmap, blocks, ::translateFn, setTranslateImage)
+                            val (drawn, translatedText) = drawBoundingBoxes(bitmap, blocks, ::translateFn)
+                            setTranslateImage(drawn)
                             onOutputChange(translatedText)
                             setTranslating(false)
                             setOcrInProgress(false)

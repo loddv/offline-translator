@@ -1,7 +1,5 @@
 package com.example.translator
 
-import android.R.attr.maxWidth
-import android.R.attr.text
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -9,7 +7,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -93,8 +90,10 @@ import kotlin.system.measureTimeMillis
 
 fun detectTextColors(bitmap: Bitmap, textRect: Rect): Pair<Int, Int> {
     val pixels = IntArray(textRect.width() * textRect.height())
-    bitmap.getPixels(pixels, 0, textRect.width(),
-        textRect.left, textRect.top, textRect.width(), textRect.height())
+    bitmap.getPixels(
+        pixels, 0, textRect.width(),
+        textRect.left, textRect.top, textRect.width(), textRect.height()
+    )
 
     // Create histogram of colors
     val colorCounts = pixels.toList().groupingBy { it }.eachCount()
@@ -108,44 +107,6 @@ fun detectTextColors(bitmap: Bitmap, textRect: Rect): Pair<Int, Int> {
     return Pair(foregroundColor, backgroundColor)
 }
 
-fun calculateMedianColor(pixels: IntArray): Int {
-    fun findMedian(values: IntArray): Int {
-        values.sort()
-        val mid = values.size / 2
-        return if (values.size % 2 == 0) (values[mid - 1] + values[mid]) / 2 else values[mid]
-    }
-
-    return Color.rgb(
-        findMedian(pixels.map { Color.red(it) }.toIntArray()),
-        findMedian(pixels.map { Color.green(it) }.toIntArray()),
-        findMedian(pixels.map { Color.blue(it) }.toIntArray())
-    )
-}
-
-fun calculateAverageColorRGB(pixels: IntArray): Int {
-    var totalRed = 0L
-    var totalGreen = 0L
-    var totalBlue = 0L
-    var black = 0
-
-    for (pixel in pixels) {
-        if (Color.red(pixel) <= 100 || Color.green(pixel) <= 100 || Color.blue(pixel) <= 100) {
-            black += 1
-            continue
-        }
-        totalRed += Color.red(pixel)
-        totalGreen += Color.green(pixel)
-        totalBlue += Color.blue(pixel)
-    }
-
-    println("black ${black}")
-    val count = pixels.size - black
-    val avgRed = (totalRed / count).toInt()
-    val avgGreen = (totalGreen / count).toInt()
-    val avgBlue = (totalBlue / count).toInt()
-
-    return Color.rgb(avgRed, avgGreen, avgBlue)
-}
 
 fun drawBoundingBoxes(
     originalBitmap: Bitmap,
@@ -166,14 +127,15 @@ fun drawBoundingBoxes(
     var allTranslatedText = ""
 
     textBlocks.forEach { textBlock ->
-        val blockAvgPixelHeight = textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
-        val blockText = textBlock.lines.map { line -> line.text }.joinToString(" ")
+        val blockAvgPixelHeight =
+            textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
+        val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
         val translated = translate(blockText)
 
         paint.textSize = blockAvgPixelHeight
         textPaint.textSize = blockAvgPixelHeight
 
-        println("textsize ${blockAvgPixelHeight}")
+        println("textsize $blockAvgPixelHeight")
 
         val translatedSpaceIndices = translated.mapIndexedNotNull { index, char ->
             if (char == ' ') index else null
@@ -211,7 +173,7 @@ fun drawBoundingBoxes(
 
                 // If we are in the middle of a word, return up to the previous word
                 val endIndex: Int
-                if (start+countedChars == translated.length) {
+                if (start + countedChars == translated.length) {
                     endIndex = translated.length
                 } else {
                     val previousSpaceIndex =
@@ -231,7 +193,7 @@ fun drawBoundingBoxes(
                     textPaint
                 )
                 start = endIndex
-                }
+            }
         }
     }
 
@@ -317,7 +279,7 @@ class MainActivity : ComponentActivity() {
             val detected = ld.detectLanguage(text)
             if (detected.isReliable) {
                 detectedLanguage = Language.entries.firstOrNull { it.code == detected.language }
-                println("detected ${detectedLanguage}")
+                println("detected $detectedLanguage")
             }
         }
     }
@@ -411,7 +373,7 @@ fun Greeting(
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
     val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
 
-    var (translateImage, setTranslateImage) = remember { mutableStateOf<Bitmap?>(null) }
+    val (translateImage, setTranslateImage) = remember { mutableStateOf<Bitmap?>(null) }
     val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
 
 
@@ -489,7 +451,11 @@ fun Greeting(
                                 return translateInForeground(from, to, context, text)
                             }
 
-                            val (drawn, translatedText) = drawBoundingBoxes(bitmap, blocks, ::translateFn)
+                            val (drawn, translatedText) = drawBoundingBoxes(
+                                bitmap,
+                                blocks,
+                                ::translateFn
+                            )
                             setTranslateImage(drawn)
                             onOutputChange(translatedText)
                             setTranslating(false)
@@ -743,14 +709,16 @@ fun Greeting(
                 Spacer(modifier = Modifier.height(8.dp))
 
 
-                if (translateImage != null) { // && ocrInProgress) {
+                if (translateImage != null && ocrInProgress) {
                     LinearProgressIndicator(
                         progress = { ocrProgress },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                if (translateImage != null) {
                     Image(
-                        bitmap = translateImage!!.asImageBitmap(),
-                        contentDescription = "Image to translate"
+                        bitmap = translateImage.asImageBitmap(),
+                        contentDescription = "Image to translate",
                     )
                 }
                 // Input TextField
@@ -888,13 +856,13 @@ fun translateInForeground(
         var intermediateOut = ""
         var intermediateIn = input
         // TODO use pivot instead of this
-        pairs.forEach({ pair ->
-            println("Translating ${pair}")
+        pairs.forEach { pair ->
+            println("Translating $pair")
             val cfg = configForLang(context, pair.first, pair.second)
             intermediateOut =
                 nl.stringFromJNI(cfg, intermediateIn, "${pair.first.code}${pair.second.code}")
             intermediateIn = intermediateOut
-        })
+        }
         output = intermediateOut
 
     }

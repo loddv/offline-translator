@@ -78,6 +78,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
 
     } while (iter.next(RIL_WORD))
 
+    iter.delete()
 
     return blocks.toTypedArray()
 
@@ -147,7 +148,8 @@ class OCRService(
         val elapsed = measureTimeMillis {
             blocks = getSentences(bitmap, tessInstance)
         }
-
+        // Release image data & results; but keeps the instance active
+        tess!!.clear()
         Log.i("OCRService", "OCR took ${elapsed}ms")
         blocks
 

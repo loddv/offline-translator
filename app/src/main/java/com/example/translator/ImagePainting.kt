@@ -7,30 +7,30 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.text.TextPaint
+import kotlin.system.measureTimeMillis
 
 
 fun getForegroundColorByContrast(bitmap: Bitmap, textBounds: Rect, backgroundColor: Int): Int {
     val textPixels = mutableListOf<Int>()
 
-    // Sample pixels throughout the text region
-    for (x in textBounds.left until textBounds.right step 2) {
-        for (y in textBounds.top until textBounds.bottom step 2) {
-            textPixels.add(bitmap.getPixel(x, y))
-        }
-    }
+    // Get all pixels from the text region
+    val pixels = IntArray(textBounds.width() * textBounds.height())
+    bitmap.getPixels(pixels, 0, textBounds.width(), textBounds.left, textBounds.top, textBounds.width(), textBounds.height())
+    textPixels.addAll(pixels.toList())
+
+    val bgLuminance = getLuminance(backgroundColor)
 
     // Find the color with highest contrast to background
     return textPixels.maxByOrNull { pixel ->
-        getColorContrast(pixel, backgroundColor)
+        getColorContrast(pixel, bgLuminance)
     } ?: Color.BLACK
 }
 
-fun getColorContrast(color1: Int, color2: Int): Float {
-    val lum1 = getLuminance(color1)
-    val lum2 = getLuminance(color2)
+fun getColorContrast(color1: Int, bgLuminance: Float): Float {
+    val lum = getLuminance(color1)
 
-    val brighter = maxOf(lum1, lum2)
-    val darker = minOf(lum1, lum2)
+    val brighter = maxOf(lum, bgLuminance)
+    val darker = minOf(lum, bgLuminance)
 
     return (brighter + 0.05f) / (darker + 0.05f)
 }
@@ -82,41 +82,35 @@ fun getSurroundingAverageColor(bitmap: Bitmap, textBounds: Rect): Int {
             textBounds.right, minOf(bitmap.height, textBounds.bottom + margin))
     )
 
-    val colors = mutableListOf<Int>()
+    var totalR = 0L
+    var totalG = 0L
+    var totalB = 0L
+    var totalCount = 0
 
-    // TODO: bitmap.getPixels() instead of sampling
     for (region in sampleRegions) {
-        if (region.width() > 0 && region.height() > 0) {
-            // Sample every few pixels to avoid too much processing
-            for (x in region.left until region.right step 3) {
-                for (y in region.top until region.bottom step 3) {
-                    colors.add(bitmap.getPixel(x, y))
-                }
-            }
+        if (region.width() == 0 || region.height() == 0) {
+            continue
+        }
+
+        val pixels = IntArray(region.width() * region.height())
+        bitmap.getPixels(pixels, 0, region.width(), region.left, region.top, region.width(), region.height())
+        for (pixel in pixels) {
+            totalR += Color.red(pixel)
+            totalG += Color.green(pixel)
+            totalB += Color.blue(pixel)
+            totalCount++
         }
     }
 
-    return averageColors(colors)
-}
-
-fun averageColors(colors: List<Int>): Int {
-    if (colors.isEmpty()) return Color.WHITE
-
-    var totalR = 0
-    var totalG = 0
-    var totalB = 0
-
-    for (color in colors) {
-        totalR += Color.red(color)
-        totalG += Color.green(color)
-        totalB += Color.blue(color)
+    return if (totalCount > 0) {
+        Color.rgb(
+            (totalR / totalCount).toInt(),
+            (totalG / totalCount).toInt(),
+            (totalB / totalCount).toInt()
+        )
+    } else {
+        Color.WHITE
     }
-
-    return Color.rgb(
-        totalR / colors.size,
-        totalG / colors.size,
-        totalB / colors.size
-    )
 }
 
 fun paintTranslatedTextOver(
@@ -137,16 +131,18 @@ fun paintTranslatedTextOver(
 
     var allTranslatedText = ""
 
+    var totalTranslateTime = 0L
     textBlocks.forEach { textBlock ->
         val blockAvgPixelHeight =
             textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
         val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
-        val translated = translate(blockText)
+        val translated: String
+        totalTranslateTime += measureTimeMillis {
+            translated = translate(blockText)
+        }
 
         paint.textSize = blockAvgPixelHeight
         textPaint.textSize = blockAvgPixelHeight
-
-        println("textsize $blockAvgPixelHeight")
 
         val translatedSpaceIndices = translated.mapIndexedNotNull { index, char ->
             if (char == ' ') index else null
@@ -161,13 +157,10 @@ fun paintTranslatedTextOver(
             textPaint.textSize -= 1
         }
 
-
         var start = 0
         textBlock.lines.forEach { line ->
+            // TODO: add config for hardcoded fg/bg
             val fg = removeTextWithSmartBlur(canvas, mutableBitmap, line.boundingBox)
-//            val (fg, bg) = detectTextColors(mutableBitmap, line.boundingBox)
-//            paint.color = bg // Color.WHITE
-//            paint.alpha = 220 // bg blurs more ofc, but its confusing
             textPaint.color = fg
         }
         textBlock.lines.forEach { line ->
@@ -176,7 +169,6 @@ fun paintTranslatedTextOver(
             // In which case, we just paint the background color over the previous text
             if (start < translated.length) {
                 // How many chars can fit in this line?
-
                 val measuredWidth = FloatArray(1)
                 val countedChars = textPaint.breakText(
                     translated, start, translated.length, true,
@@ -196,6 +188,7 @@ fun paintTranslatedTextOver(
                         previousSpaceIndex + 1
                     }
                 }
+
                 canvas.drawText(
                     translated,
                     start,
@@ -208,6 +201,7 @@ fun paintTranslatedTextOver(
             }
         }
     }
+    println("Image translation took ${totalTranslateTime}ms")
 
     return Pair(mutableBitmap, allTranslatedText.trim())
 }

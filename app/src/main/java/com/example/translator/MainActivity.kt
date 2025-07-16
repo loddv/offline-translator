@@ -162,7 +162,6 @@ class MainActivity : ComponentActivity() {
             val detected = ld.detectLanguage(text)
             if (detected.isReliable) {
                 detectedLanguage = Language.entries.firstOrNull { it.code == detected.language }
-                println("detected $detectedLanguage")
             }
         }
     }
@@ -709,7 +708,7 @@ fun Greeting(
 fun translateInForeground(
     from: Language, to: Language, context: Context, input: String
 ): String {
-    println("Called translate $from -> $to")
+    Log.d("translate", "Called translate $from -> $to")
     if (from == to) {
         return input
     }
@@ -740,7 +739,7 @@ fun translateInForeground(
         var intermediateIn = input
         // TODO use pivot instead of this
         pairs.forEach { pair ->
-            println("Translating $pair")
+            Log.d("translate", "Translating $pair")
             val cfg = configForLang(context, pair.first, pair.second)
             intermediateOut =
                 nl.stringFromJNI(cfg, intermediateIn, "${pair.first.code}${pair.second.code}")
@@ -749,7 +748,7 @@ fun translateInForeground(
         output = intermediateOut
 
     }
-    println("Took ${elapsed}ms to translate")
+    Log.d("Translate","Took ${elapsed}ms to translate")
     return output
 
 }

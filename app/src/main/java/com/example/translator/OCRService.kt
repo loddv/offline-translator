@@ -46,8 +46,8 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
             continue
         }
         val conf = iter.confidence(RIL_WORD)
+        if (conf < 70) continue // TODO: configuration
         val boundingBox = iter.getBoundingRect(RIL_WORD)
-        if (conf < 70) continue
         val firstWordInLine = iter.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE)
         val lastWordInLine =
             iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE, RIL_WORD)
@@ -79,9 +79,9 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
     } while (iter.next(RIL_WORD))
 
     iter.delete()
+    tessInstance.clear()
 
     return blocks.toTypedArray()
-
 }
 
 class OCRService(
@@ -105,6 +105,7 @@ class OCRService(
                 Log.w("OCRService", "No tessdata language files found")
                 return@withContext false
             }
+
 
             tess = TessBaseAPI { progress ->
                 onProgress(progress.percent / 100f * 1.46f) // tesseract reports up to 66%?
@@ -141,15 +142,12 @@ class OCRService(
 
         val tessInstance = tess ?: return@withContext emptyArray()
 
-        tessInstance.setImage(bitmap)
-        tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
 
         val blocks: Array<TextBlock>
         val elapsed = measureTimeMillis {
             blocks = getSentences(bitmap, tessInstance)
         }
         // Release image data & results; but keeps the instance active
-        tess!!.clear()
         Log.i("OCRService", "OCR took ${elapsed}ms")
         blocks
 

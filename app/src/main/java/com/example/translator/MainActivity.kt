@@ -230,20 +230,27 @@ fun TranslationResult(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Greeting(
+    // Navigation
     onManageLanguages: () -> Unit,
+    
+    // Current state (read-only)
     input: String,
-    onInputChange: (String) -> Unit,
     output: String,
     from: Language,
-    onFromChange: (Language) -> Unit,
     to: Language,
-    onToChange: (Language) -> Unit,
     displayImage: Bitmap?,
     isTranslating: StateFlow<Boolean>,
-    onTranslateRequest: (Language, Language, String) -> Unit,
+    
+    // Action requests
+    onTextInputChange: (String) -> Unit,
+    onLanguageSwap: () -> Unit,
+    onTranslateWithLanguages: (from: Language, to: Language, text: String) -> Unit,
     onDetectLanguageRequest: (String) -> Unit,
     onTranslateImageRequest: (Uri) -> Unit,
     onTranslateImageWithOverlayRequest: (Uri) -> Unit,
+    onInitializeLanguages: (from: Language, to: Language) -> Unit,
+    
+    // System integration
     onOcrProgress: ((Float) -> Unit) -> Unit,
     sharedImageUri: Uri? = null,
 ) {
@@ -320,8 +327,7 @@ fun Greeting(
                 }
 
                 if (availableFromLang != null) {
-                    onToChange(Language.ENGLISH)
-                    onFromChange(availableFromLang)
+                    onInitializeLanguages(availableFromLang, Language.ENGLISH)
                 }
             }
         }
@@ -427,8 +433,7 @@ fun Greeting(
                                     DropdownMenuItem(
                                         text = { Text(language.displayName) },
                                         onClick = {
-                                            onFromChange(language)
-                                            onTranslateRequest(language, to, input)
+                                            onTranslateWithLanguages(language, to, input)
                                             fromExpanded = false
                                         })
                                 }
@@ -436,13 +441,8 @@ fun Greeting(
 
                     }
                     IconButton(onClick = {
-                        val oldFrom = from
-                        val oldTo = to
-                        onFromChange(oldTo)
-                        onToChange(oldFrom)
-
                         if (!translating) {
-                            onTranslateRequest(oldTo, oldFrom, input)
+                            onLanguageSwap()
                         }
                     }) {
                         Icon(
@@ -488,10 +488,8 @@ fun Greeting(
                                     DropdownMenuItem(
                                         text = { Text(language.displayName) },
                                         onClick = {
-                                            onToChange(language)
-
                                             if (!translating) {
-                                                onTranslateRequest(from, language, input)
+                                                onTranslateWithLanguages(from, language, input)
                                             }
                                             toExpanded = false
                                         })
@@ -525,7 +523,7 @@ fun Greeting(
                 TextField(
                     value = input,
                     onValueChange = { newInput ->
-                        onInputChange(newInput)
+                        onTextInputChange(newInput)
                         val ld = LangDetect()
 
                         val detected = ld.detectLanguage(newInput)
@@ -536,7 +534,7 @@ fun Greeting(
                             null
                         }
                         if (!translating) {
-                            onTranslateRequest(from, to, newInput)
+                            onTranslateWithLanguages(from, to, newInput)
                         }
                     },
                     modifier = Modifier
@@ -569,14 +567,6 @@ fun Greeting(
                     if (detectedInput != null && autoLang != null && autoLang != from) {
                         Button(
                             onClick = {
-                                onFromChange(autoLang)
-                                val actualTo = if (to == autoLang) {
-                                    onToChange(Language.ENGLISH)
-                                    Language.ENGLISH
-                                } else {
-                                    to
-                                }
-
                                 onDetectLanguageRequest(input)
                             },
                             modifier = Modifier.weight(1f),

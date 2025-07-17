@@ -69,7 +69,25 @@ fun TranslatorApp(
     // Translation request handlers
     val scope = rememberCoroutineScope()
     
-    val onTranslateRequest: (Language, Language, String) -> Unit = { fromLang, toLang, text ->
+    val onTextInputChange: (String) -> Unit = { newText ->
+        input = newText
+    }
+    
+    val onLanguageSwap: () -> Unit = {
+        val oldFrom = from
+        val oldTo = to
+        setFrom(oldTo)
+        setTo(oldFrom)
+        scope.launch {
+            val result = translationCoordinator.translateText(oldTo, oldFrom, input)
+            result?.let { output = it }
+        }
+    }
+    
+    val onTranslateWithLanguages: (Language, Language, String) -> Unit = { fromLang, toLang, text ->
+        setFrom(fromLang)
+        setTo(toLang)
+        input = text
         scope.launch {
             val result = translationCoordinator.translateText(fromLang, toLang, text)
             result?.let { output = it }
@@ -82,15 +100,23 @@ fun TranslatorApp(
             detected?.let { 
                 if (it != from) {
                     setFrom(it)
-                    if (to == it) {
+                    val actualTo = if (to == it) {
                         setTo(Language.ENGLISH)
+                        Language.ENGLISH
+                    } else {
+                        to
                     }
                     // Auto-translate with new language
-                    val result = translationCoordinator.translateText(it, to, text)
+                    val result = translationCoordinator.translateText(it, actualTo, text)
                     result?.let { output = it }
                 }
             }
         }
+    }
+    
+    val onInitializeLanguages: (Language, Language) -> Unit = { fromLang, toLang ->
+        setFrom(fromLang)
+        setTo(toLang)
     }
     
     val onTranslateImageRequest: (Uri) -> Unit = { uri ->
@@ -141,20 +167,27 @@ fun TranslatorApp(
 
         composable("main") {
             Greeting(
+                // Navigation
                 onManageLanguages = { navController.navigate("language_manager") },
+                
+                // Current state (read-only)
                 input = input,
-                onInputChange = { input = it },
                 output = output,
                 from = from,
-                onFromChange = setFrom,
                 to = to,
-                onToChange = setTo,
                 displayImage = displayImage,
                 isTranslating = translationCoordinator.isTranslating,
-                onTranslateRequest = onTranslateRequest,
+                
+                // Action requests
+                onTextInputChange = onTextInputChange,
+                onLanguageSwap = onLanguageSwap,
+                onTranslateWithLanguages = onTranslateWithLanguages,
                 onDetectLanguageRequest = onDetectLanguageRequest,
                 onTranslateImageRequest = onTranslateImageRequest,
                 onTranslateImageWithOverlayRequest = onTranslateImageWithOverlayRequest,
+                onInitializeLanguages = onInitializeLanguages,
+                
+                // System integration
                 onOcrProgress = onOcrProgress,
                 sharedImageUri = sharedImageUri,
             )

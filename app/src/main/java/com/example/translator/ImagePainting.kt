@@ -109,10 +109,10 @@ fun getSurroundingAverageColor(bitmap: Bitmap, textBounds: Rect): Int {
     }
 }
 
-fun paintTranslatedTextOver(
+suspend fun paintTranslatedTextOver(
     originalBitmap: Bitmap,
     textBlocks: Array<TextBlock>,
-    translate: (String) -> String,
+    translate: suspend (String) -> String,
 ): Pair<Bitmap, String> {
     val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(mutableBitmap)
@@ -127,15 +127,11 @@ fun paintTranslatedTextOver(
 
     var allTranslatedText = ""
 
-    var totalTranslateTime = 0L
     textBlocks.forEach { textBlock ->
         val blockAvgPixelHeight =
             textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
         val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
-        val translated: String
-        totalTranslateTime += measureTimeMillis {
-            translated = translate(blockText)
-        }
+        val translated: String = translate(blockText)
 
         paint.textSize = blockAvgPixelHeight
         textPaint.textSize = blockAvgPixelHeight
@@ -197,7 +193,6 @@ fun paintTranslatedTextOver(
             }
         }
     }
-    println("Image translation took ${totalTranslateTime}ms")
 
     return Pair(mutableBitmap, allTranslatedText.trim())
 }

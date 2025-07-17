@@ -73,14 +73,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.bergamot.DetectionResult
 import com.example.bergamot.LangDetect
-import com.example.bergamot.NativeLib
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import kotlin.system.measureTimeMillis
-
 
 
 class MainActivity : ComponentActivity() {
@@ -89,6 +85,7 @@ class MainActivity : ComponentActivity() {
     private var sharedImageUri: Uri? = null
     private lateinit var ocrService: OCRService
     private lateinit var imageProcessor: ImageProcessor
+    private lateinit var translationService: TranslationService
     private var onOcrProgress: (Float) -> Unit = {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,19 +97,17 @@ class MainActivity : ComponentActivity() {
             onOcrProgress(progress)
         }
         imageProcessor = ImageProcessor(this, ocrService)
+        translationService = TranslationService(this)
 
         setContent {
             TranslatorTheme {
                 MaterialTheme {
-                    TranslatorApp(configForLang = { from, to ->
-                        configForLang(
-                            baseContext, from, to
-                        )
-                    },
+                    TranslatorApp(
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
                         sharedImageUri = sharedImageUri,
                         imageProcessor = imageProcessor,
+                        translationService = translationService,
                         onOcrProgress = { callback -> onOcrProgress = callback })
                 }
             }
@@ -232,7 +227,6 @@ fun TranslationResult(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Greeting(
-    configForLang: (Language, Language) -> String,
     onManageLanguages: () -> Unit,
     input: String,
     onInputChange: (String) -> Unit,
@@ -243,6 +237,7 @@ fun Greeting(
     to: Language,
     onToChange: (Language) -> Unit,
     imageProcessor: ImageProcessor,
+    translationService: TranslationService,
     onOcrProgress: ((Float) -> Unit) -> Unit,
     sharedImageUri: Uri? = null,
 ) {
@@ -289,8 +284,10 @@ fun Greeting(
                     
                     onInputChange(text)
                     setTranslating(true)
-                    val translatedText = translateInForeground(from, to, context, text)
-                    onOutputChange(translatedText)
+                    when (val result = translationService.translate(from, to, text)) {
+                        is TranslationResult.Success -> onOutputChange(result.text)
+                        is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
+                    }
                     setTranslating(false)
                     setOcrInProgress(false)
                 }
@@ -326,8 +323,11 @@ fun Greeting(
                         setTranslateImage(correctedBitmap)
                         val processedImage = imageProcessor.processImage(correctedBitmap)
                         
-                        fun translateFn(text: String): String {
-                            return translateInForeground(from, to, context, text)
+                        suspend fun translateFn(text: String): String {
+                            return when (val result = translationService.translate(from, to, text)) {
+                                is TranslationResult.Success -> result.text
+                                is TranslationResult.Error -> "Error: ${result.message}"
+                            }
                         }
 
                         val (drawn, translatedText) = paintTranslatedTextOver(
@@ -477,16 +477,11 @@ fun Greeting(
                                         onClick = {
                                             onFromChange(language)
                                             scope.launch {
-                                                withContext(Dispatchers.IO) {
-                                                    val translatedText = translateInForeground(
-                                                        language,
-                                                        to,
-                                                        context,
-                                                        input
-                                                    )
-                                                    onOutputChange(translatedText)
-                                                    setTranslating(false)
+                                                when (val result = translationService.translate(language, to, input)) {
+                                                    is TranslationResult.Success -> onOutputChange(result.text)
+                                                    is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
                                                 }
+                                                setTranslating(false)
                                             }
                                             fromExpanded = false
                                         })
@@ -503,12 +498,11 @@ fun Greeting(
                         if (!isTranslating) {
                             setTranslating(true)
                             scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    val translatedText =
-                                        translateInForeground(oldTo, oldFrom, context, input)
-                                    onOutputChange(translatedText)
-                                    setTranslating(false)
+                                when (val result = translationService.translate(oldTo, oldFrom, input)) {
+                                    is TranslationResult.Success -> onOutputChange(result.text)
+                                    is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
                                 }
+                                setTranslating(false)
                             }
                         }
                     }) {
@@ -560,13 +554,11 @@ fun Greeting(
                                             if (!isTranslating) {
                                                 setTranslating(true)
                                                 scope.launch {
-                                                    withContext(Dispatchers.IO) {
-                                                        val translatedText = translateInForeground(
-                                                            from, language, context, input
-                                                        )
-                                                        onOutputChange(translatedText)
-                                                        setTranslating(false)
+                                                    when (val result = translationService.translate(from, language, input)) {
+                                                        is TranslationResult.Success -> onOutputChange(result.text)
+                                                        is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
                                                     }
+                                                    setTranslating(false)
                                                 }
                                             }
                                             toExpanded = false
@@ -614,12 +606,11 @@ fun Greeting(
                         if (!isTranslating) {
                             setTranslating(true)
                             scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    val translatedText =
-                                        translateInForeground(from, to, context, newInput)
-                                    onOutputChange(translatedText)
-                                    setTranslating(false)
+                                when (val result = translationService.translate(from, to, newInput)) {
+                                    is TranslationResult.Success -> onOutputChange(result.text)
+                                    is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
                                 }
+                                setTranslating(false)
                             }
                         }
                     },
@@ -663,16 +654,11 @@ fun Greeting(
 
                                 setTranslating(true)
                                 scope.launch {
-                                    withContext(Dispatchers.IO) {
-                                        val translatedText = translateInForeground(
-                                            autoLang,
-                                            actualTo,
-                                            context,
-                                            input
-                                        )
-                                        onOutputChange(translatedText)
-                                        setTranslating(false)
+                                    when (val result = translationService.translate(autoLang, actualTo, input)) {
+                                        is TranslationResult.Success -> onOutputChange(result.text)
+                                        is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
                                     }
+                                    setTranslating(false)
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -699,53 +685,6 @@ fun Greeting(
     }
 }
 
-fun translateInForeground(
-    from: Language, to: Language, context: Context, input: String
-): String {
-    Log.d("translate", "Called translate $from -> $to")
-    if (from == to) {
-        return input
-    }
-
-    val nl = NativeLib()
-
-    var output: String
-    var pairs = emptyList<Pair<Language, Language>>()
-
-    if (from != Language.ENGLISH && to != Language.ENGLISH) {
-        pairs = pairs + Pair(from, Language.ENGLISH)
-        if (!checkLanguagePairFiles(context, from, Language.ENGLISH)) {
-            return "Language $pairs not installed"
-        }
-        pairs = pairs + Pair(Language.ENGLISH, to)
-        if (!checkLanguagePairFiles(context, Language.ENGLISH, to)) {
-            return "Language $pairs not installed"
-        }
-    } else {
-        if (!checkLanguagePairFiles(context, from, to)) {
-            return "Language not installed"
-        }
-        pairs = pairs + Pair(from, to)
-    }
-
-    val elapsed = measureTimeMillis {
-        var intermediateOut = ""
-        var intermediateIn = input
-        // TODO use pivot instead of this
-        pairs.forEach { pair ->
-            Log.d("translate", "Translating $pair")
-            val cfg = configForLang(context, pair.first, pair.second)
-            intermediateOut =
-                nl.stringFromJNI(cfg, intermediateIn, "${pair.first.code}${pair.second.code}")
-            intermediateIn = intermediateOut
-        }
-        output = intermediateOut
-
-    }
-    Log.d("Translate","Took ${elapsed}ms to translate")
-    return output
-
-}
 
 @Preview(
     showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
@@ -759,31 +698,3 @@ fun GreetingPreview() {
     }
 }
 
-fun configForLang(context: Context, fromLang: Language, toLang: Language): String {
-    val dataPath = File(context.filesDir, "bin")
-    val (model, vocab, lex) = filesFor(fromLang, toLang)
-    val cfg = """
-models:
-  - ${dataPath}/${model}
-vocabs:
-  - ${dataPath}/${vocab}
-  - ${dataPath}/${vocab}
-shortlist:
-    - ${dataPath}/${lex}
-    - false
-beam-size: 1
-normalize: 1.0
-word-penalty: 0
-max-length-break: 128
-mini-batch-words: 1024
-workspace: 128
-max-length-factor: 2.0
-skip-cost: true
-cpu-threads: 0
-quiet: false
-quiet-translation: false
-gemm-precision: int8shiftAlphaAll
-alignment: soft
-)"""
-    return cfg
-}

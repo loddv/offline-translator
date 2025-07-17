@@ -23,11 +23,11 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun TranslatorApp(
-    configForLang: (Language, Language) -> String,
     initialText: String,
     detectedLanguage: Language? = null,
     sharedImageUri: Uri? = null,
     imageProcessor: ImageProcessor,
+    translationService: TranslationService,
     onOcrProgress: ((Float) -> Unit) -> Unit
 ) {
     val navController = rememberNavController()
@@ -87,7 +87,6 @@ fun TranslatorApp(
 
         composable("main") {
             Greeting(
-                configForLang = configForLang,
                 onManageLanguages = { navController.navigate("language_manager") },
                 input = input,
                 onInputChange = { input = it },
@@ -98,6 +97,7 @@ fun TranslatorApp(
                 to = to,
                 onToChange = setTo,
                 imageProcessor = imageProcessor,
+                translationService = translationService,
                 onOcrProgress = onOcrProgress,
                 sharedImageUri = sharedImageUri,
             )

@@ -62,7 +62,7 @@ fun removeTextWithSmartBlur(canvas: Canvas, bitmap: Bitmap, textBounds: Rect): I
 }
 
 fun getSurroundingAverageColor(bitmap: Bitmap, textBounds: Rect): Int {
-    val margin = 4
+    val margin = 16
     val sampleRegions = listOf(
         // Left side
         Rect(maxOf(0, textBounds.left - margin), textBounds.top,

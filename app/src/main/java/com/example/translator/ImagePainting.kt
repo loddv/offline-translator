@@ -6,22 +6,18 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.text.TextPaint
 import kotlin.system.measureTimeMillis
 
 
 fun getForegroundColorByContrast(bitmap: Bitmap, textBounds: Rect, backgroundColor: Int): Int {
-    val textPixels = mutableListOf<Int>()
-
-    // Get all pixels from the text region
-    val pixels = IntArray(textBounds.width() * textBounds.height())
-    bitmap.getPixels(pixels, 0, textBounds.width(), textBounds.left, textBounds.top, textBounds.width(), textBounds.height())
-    textPixels.addAll(pixels.toList())
-
     val bgLuminance = getLuminance(backgroundColor)
 
-    // Find the color with highest contrast to background
-    return textPixels.maxByOrNull { pixel ->
+    val pixels = IntArray(textBounds.width() * textBounds.height())
+    bitmap.getPixels(pixels, 0, textBounds.width(), textBounds.left, textBounds.top, textBounds.width(), textBounds.height())
+
+    return pixels.maxByOrNull { pixel ->
         getColorContrast(pixel, bgLuminance)
     } ?: Color.BLACK
 }

@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -75,8 +76,10 @@ import com.example.bergamot.DetectionResult
 import com.example.bergamot.LangDetect
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.collectAsState
 
 
 class MainActivity : ComponentActivity() {
@@ -84,8 +87,7 @@ class MainActivity : ComponentActivity() {
     private var detectedLanguage: Language? = null
     private var sharedImageUri: Uri? = null
     private lateinit var ocrService: OCRService
-    private lateinit var imageProcessor: ImageProcessor
-    private lateinit var translationService: TranslationService
+    private lateinit var translationCoordinator: TranslationCoordinator
     private var onOcrProgress: (Float) -> Unit = {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,8 +98,10 @@ class MainActivity : ComponentActivity() {
         ocrService = OCRService(this) { progress ->
             onOcrProgress(progress)
         }
-        imageProcessor = ImageProcessor(this, ocrService)
-        translationService = TranslationService(this)
+        val imageProcessor = ImageProcessor(this, ocrService)
+        val translationService = TranslationService(this)
+        val languageDetector = LanguageDetector()
+        translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor)
 
         setContent {
             TranslatorTheme {
@@ -106,8 +110,7 @@ class MainActivity : ComponentActivity() {
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
                         sharedImageUri = sharedImageUri,
-                        imageProcessor = imageProcessor,
-                        translationService = translationService,
+                        translationCoordinator = translationCoordinator,
                         onOcrProgress = { callback -> onOcrProgress = callback })
                 }
             }
@@ -231,28 +234,29 @@ fun Greeting(
     input: String,
     onInputChange: (String) -> Unit,
     output: String,
-    onOutputChange: (String) -> Unit,
     from: Language,
     onFromChange: (Language) -> Unit,
     to: Language,
     onToChange: (Language) -> Unit,
-    imageProcessor: ImageProcessor,
-    translationService: TranslationService,
+    displayImage: Bitmap?,
+    isTranslating: StateFlow<Boolean>,
+    onTranslateRequest: (Language, Language, String) -> Unit,
+    onDetectLanguageRequest: (String) -> Unit,
+    onTranslateImageRequest: (Uri) -> Unit,
+    onTranslateImageWithOverlayRequest: (Uri) -> Unit,
     onOcrProgress: ((Float) -> Unit) -> Unit,
     sharedImageUri: Uri? = null,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Move progress state to this composable
     var ocrProgress by remember { mutableFloatStateOf(0f) }
 
-
-    println("from greeting, from=$from, to=$to")
+    // Collect translation state
+    val translating by isTranslating.collectAsState()
+    
+    // UI state
     var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
-    val (isTranslating, setTranslating) = remember { mutableStateOf(false) }
-
-    val (translateImage, setTranslateImage) = remember { mutableStateOf<Bitmap?>(null) }
     val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
 
 
@@ -267,34 +271,7 @@ fun Greeting(
     LaunchedEffect(sharedImageUri) {
         if (sharedImageUri != null) {
             Log.d("SharedImage", "Processing shared image: $sharedImageUri")
-            try {
-                setOcrInProgress(true)
-                scope.launch {
-                    val bitmap = imageProcessor.loadBitmapFromUri(sharedImageUri)
-                    val correctedBitmap = imageProcessor.correctImageOrientation(sharedImageUri, bitmap)
-                    setTranslateImage(correctedBitmap)
-                    val processedImage = imageProcessor.processImage(correctedBitmap)
-                    setTranslateImage(processedImage.bitmap)
-                    
-                    val text = processedImage.textBlocks.map { block ->
-                        block.lines.map { line ->
-                            line.text
-                        }
-                    }.flatten().joinToString("\n")
-                    
-                    onInputChange(text)
-                    setTranslating(true)
-                    when (val result = translationService.translate(from, to, text)) {
-                        is TranslationResult.Success -> onOutputChange(result.text)
-                        is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
-                    }
-                    setTranslating(false)
-                    setOcrInProgress(false)
-                }
-            } catch (e: Exception) {
-                Log.e("SharedImage", "Error processing shared image", e)
-                setOcrInProgress(false)
-            }
+            onTranslateImageRequest(sharedImageUri)
         }
     }
 
@@ -315,31 +292,7 @@ fun Greeting(
             // photo picker.
             if (uri != null) {
                 Log.d("PhotoPicker", "Selected URI: $uri")
-                setOcrInProgress(true)
-                setTranslating(true)
-                scope.launch {
-                        val bitmap = imageProcessor.loadBitmapFromUri(uri)
-                        val correctedBitmap = imageProcessor.correctImageOrientation(uri, bitmap)
-                        setTranslateImage(correctedBitmap)
-                        val processedImage = imageProcessor.processImage(correctedBitmap)
-                        
-                        suspend fun translateFn(text: String): String {
-                            return when (val result = translationService.translate(from, to, text)) {
-                                is TranslationResult.Success -> result.text
-                                is TranslationResult.Error -> "Error: ${result.message}"
-                            }
-                        }
-
-                        val (drawn, translatedText) = paintTranslatedTextOver(
-                            processedImage.bitmap,
-                            processedImage.textBlocks,
-                            ::translateFn
-                        )
-                        setTranslateImage(drawn)
-                        onOutputChange(translatedText)
-                        setTranslating(false)
-                        setOcrInProgress(false)
-                }
+                onTranslateImageWithOverlayRequest(uri)
             } else {
                 Log.d("PhotoPicker", "No media selected")
             }
@@ -464,7 +417,6 @@ fun Greeting(
                                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surface
                             )
-
                         )
                         ExposedDropdownMenu(
                             expanded = fromExpanded,
@@ -476,13 +428,7 @@ fun Greeting(
                                         text = { Text(language.displayName) },
                                         onClick = {
                                             onFromChange(language)
-                                            scope.launch {
-                                                when (val result = translationService.translate(language, to, input)) {
-                                                    is TranslationResult.Success -> onOutputChange(result.text)
-                                                    is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
-                                                }
-                                                setTranslating(false)
-                                            }
+                                            onTranslateRequest(language, to, input)
                                             fromExpanded = false
                                         })
                                 }
@@ -495,15 +441,8 @@ fun Greeting(
                         onFromChange(oldTo)
                         onToChange(oldFrom)
 
-                        if (!isTranslating) {
-                            setTranslating(true)
-                            scope.launch {
-                                when (val result = translationService.translate(oldTo, oldFrom, input)) {
-                                    is TranslationResult.Success -> onOutputChange(result.text)
-                                    is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
-                                }
-                                setTranslating(false)
-                            }
+                        if (!translating) {
+                            onTranslateRequest(oldTo, oldFrom, input)
                         }
                     }) {
                         Icon(
@@ -551,15 +490,8 @@ fun Greeting(
                                         onClick = {
                                             onToChange(language)
 
-                                            if (!isTranslating) {
-                                                setTranslating(true)
-                                                scope.launch {
-                                                    when (val result = translationService.translate(from, language, input)) {
-                                                        is TranslationResult.Success -> onOutputChange(result.text)
-                                                        is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
-                                                    }
-                                                    setTranslating(false)
-                                                }
+                                            if (!translating) {
+                                                onTranslateRequest(from, language, input)
                                             }
                                             toExpanded = false
                                         })
@@ -577,15 +509,15 @@ fun Greeting(
                 Spacer(modifier = Modifier.height(8.dp))
 
 
-                if (translateImage != null && ocrInProgress) {
+                if (displayImage != null && (ocrInProgress || translating)) {
                     LinearProgressIndicator(
                         progress = { ocrProgress },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (translateImage != null) {
+                if (displayImage != null) {
                     Image(
-                        bitmap = translateImage.asImageBitmap(),
+                        bitmap = displayImage.asImageBitmap(),
                         contentDescription = "Image to translate",
                     )
                 }
@@ -603,15 +535,8 @@ fun Greeting(
                         } else {
                             null
                         }
-                        if (!isTranslating) {
-                            setTranslating(true)
-                            scope.launch {
-                                when (val result = translationService.translate(from, to, newInput)) {
-                                    is TranslationResult.Success -> onOutputChange(result.text)
-                                    is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
-                                }
-                                setTranslating(false)
-                            }
+                        if (!translating) {
+                            onTranslateRequest(from, to, newInput)
                         }
                     },
                     modifier = Modifier
@@ -652,14 +577,7 @@ fun Greeting(
                                     to
                                 }
 
-                                setTranslating(true)
-                                scope.launch {
-                                    when (val result = translationService.translate(autoLang, actualTo, input)) {
-                                        is TranslationResult.Success -> onOutputChange(result.text)
-                                        is TranslationResult.Error -> onOutputChange("Translation error: ${result.message}")
-                                    }
-                                    setTranslating(false)
-                                }
+                                onDetectLanguageRequest(input)
                             },
                             modifier = Modifier.weight(1f),
                             shape = RectangleShape,
@@ -697,4 +615,3 @@ fun GreetingPreview() {
         Text("Preview requires OCR service")
     }
 }
-

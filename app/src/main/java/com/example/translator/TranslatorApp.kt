@@ -1,5 +1,6 @@
 package com.example.translator
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,8 +28,7 @@ fun TranslatorApp(
     initialText: String,
     detectedLanguage: Language? = null,
     sharedImageUri: Uri? = null,
-    imageProcessor: ImageProcessor,
-    translationService: TranslationService,
+    translationCoordinator: TranslationCoordinator,
     onOcrProgress: ((Float) -> Unit) -> Unit
 ) {
     val navController = rememberNavController()
@@ -63,6 +64,59 @@ fun TranslatorApp(
     var output by remember { mutableStateOf("") }
     val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
+    var displayImage by remember { mutableStateOf<Bitmap?>(null) }
+    
+    // Translation request handlers
+    val scope = rememberCoroutineScope()
+    
+    val onTranslateRequest: (Language, Language, String) -> Unit = { fromLang, toLang, text ->
+        scope.launch {
+            val result = translationCoordinator.translateText(fromLang, toLang, text)
+            result?.let { output = it }
+        }
+    }
+    
+    val onDetectLanguageRequest: (String) -> Unit = { text ->
+        scope.launch {
+            val detected = translationCoordinator.detectLanguage(text)
+            detected?.let { 
+                if (it != from) {
+                    setFrom(it)
+                    if (to == it) {
+                        setTo(Language.ENGLISH)
+                    }
+                    // Auto-translate with new language
+                    val result = translationCoordinator.translateText(it, to, text)
+                    result?.let { output = it }
+                }
+            }
+        }
+    }
+    
+    val onTranslateImageRequest: (Uri) -> Unit = { uri ->
+        scope.launch {
+            val result = translationCoordinator.translateImage(from, to, uri) { originalBitmap ->
+                displayImage = originalBitmap
+            }
+            result?.let { 
+                displayImage = it.correctedBitmap
+                input = it.extractedText
+                output = it.translatedText
+            }
+        }
+    }
+    
+    val onTranslateImageWithOverlayRequest: (Uri) -> Unit = { uri ->
+        scope.launch {
+            val result = translationCoordinator.translateImageWithOverlay(from, to, uri) { originalBitmap ->
+                displayImage = originalBitmap
+            }
+            result?.let { 
+                displayImage = it.correctedBitmap
+                output = it.translatedText
+            }
+        }
+    }
 
     // Determine start destination based on language availability
     val startDestination = when (hasLanguages) {
@@ -91,13 +145,16 @@ fun TranslatorApp(
                 input = input,
                 onInputChange = { input = it },
                 output = output,
-                onOutputChange = { output = it },
                 from = from,
                 onFromChange = setFrom,
                 to = to,
                 onToChange = setTo,
-                imageProcessor = imageProcessor,
-                translationService = translationService,
+                displayImage = displayImage,
+                isTranslating = translationCoordinator.isTranslating,
+                onTranslateRequest = onTranslateRequest,
+                onDetectLanguageRequest = onDetectLanguageRequest,
+                onTranslateImageRequest = onTranslateImageRequest,
+                onTranslateImageWithOverlayRequest = onTranslateImageWithOverlayRequest,
                 onOcrProgress = onOcrProgress,
                 sharedImageUri = sharedImageUri,
             )

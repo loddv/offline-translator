@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 @Composable
 fun TranslatorApp(
     initialText: String,
-    detectedLanguage: Language? = null,
     sharedImageUri: Uri? = null,
     translationCoordinator: TranslationCoordinator,
     onOcrProgress: ((Float) -> Unit) -> Unit
@@ -62,13 +61,30 @@ fun TranslatorApp(
     // Move all persistent state to this level so it survives navigation
     var input by remember { mutableStateOf(initialText) }
     var output by remember { mutableStateOf("") }
-    val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
+    val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
     var displayImage by remember { mutableStateOf<Bitmap?>(null) }
     var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
     
     // Translation request handlers
     val scope = rememberCoroutineScope()
+    
+    // Auto-translate initial text if provided
+    LaunchedEffect(initialText) {
+        if (initialText.isNotBlank()) {
+            currentDetectedLanguage = translationCoordinator.detectLanguage(initialText)
+            println("launched effect detected $currentDetectedLanguage")
+            val translated: String?
+            if (currentDetectedLanguage != null) {
+                setFrom(currentDetectedLanguage!!)
+                // TODO: SetTo to the first non-from language, if any
+                translated = translationCoordinator.translateText(currentDetectedLanguage!!, to, initialText)
+            } else {
+                translated = translationCoordinator.translateText(from, to, initialText)
+            }
+            translated?.let { output = it }
+        }
+    }
     
     val onTextInputChange: (String) -> Unit = { newText ->
         input = newText

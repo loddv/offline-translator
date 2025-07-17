@@ -60,7 +60,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,14 +74,12 @@ import androidx.compose.ui.unit.dp
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.collectAsState
 
 
 class MainActivity : ComponentActivity() {
     private var textToTranslate: String = ""
-    private var detectedLanguage: Language? = null
     private var sharedImageUri: Uri? = null
     private lateinit var ocrService: OCRService
     private lateinit var translationCoordinator: TranslationCoordinator
@@ -106,7 +103,6 @@ class MainActivity : ComponentActivity() {
                 MaterialTheme {
                     TranslatorApp(
                         initialText = textToTranslate,
-                        detectedLanguage = detectedLanguage,
                         sharedImageUri = sharedImageUri,
                         translationCoordinator = translationCoordinator,
                         onOcrProgress = { callback -> onOcrProgress = callback })
@@ -134,9 +130,6 @@ class MainActivity : ComponentActivity() {
                     intent.getStringExtra(Intent.EXTRA_TEXT)
                 }
                 textToTranslate = text ?: ""
-                kotlinx.coroutines.MainScope().launch {
-                    detectLanguageForSharedText(textToTranslate)
-                }
             }
 
             Intent.ACTION_SEND -> {
@@ -146,9 +139,6 @@ class MainActivity : ComponentActivity() {
 
                 if (text != null) {
                     textToTranslate = text
-                    kotlinx.coroutines.MainScope().launch {
-                        detectLanguageForSharedText(textToTranslate)
-                    }
                 } else if (imageUri != null) {
                     sharedImageUri = imageUri
                     textToTranslate = "" // Clear any existing text
@@ -157,11 +147,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun detectLanguageForSharedText(text: String) {
-        if (text.isNotEmpty()) {
-            detectedLanguage = translationCoordinator.detectLanguage(text)
-        }
-    }
 
     companion object {
         fun createProcessTextIntent(context: Context, text: String): Intent {
@@ -261,8 +246,6 @@ fun Greeting(
     // Collect translation state
     val translating by isTranslating.collectAsState()
     val ocrInProgress by isOcrInProgress.collectAsState()
-    
-    // UI state (none needed now)
 
 
     // Set up progress callback once

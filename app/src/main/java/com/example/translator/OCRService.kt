@@ -8,6 +8,8 @@ import androidx.compose.material3.Text
 import com.googlecode.leptonica.android.Box
 import com.googlecode.leptonica.android.Pix
 import com.googlecode.tesseract.android.TessBaseAPI
+import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_PARA
+import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE
 import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_WORD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,30 +42,60 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
     val blocks = mutableListOf<TextBlock>()
     var lines = mutableListOf<TextLine>()
     var line = TextLine("", Rect(0, 0, 0, 0))
+    var lastRight = 0
     do {
         val word = iter.getUTF8Text(RIL_WORD)
         if (word.trim() == "") {
             continue
         }
+
         val conf = iter.confidence(RIL_WORD)
-        if (conf < 70) continue // TODO: configuration
+        if (conf < 75) continue // TODO: configuration
+        if (word.length == 1 && conf < 80) continue
+//        println("word $word attrs ${iter.wordFontAttributes}")
         val boundingBox = iter.getBoundingRect(RIL_WORD)
-        val firstWordInLine = iter.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE)
-        val lastWordInLine =
-            iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE, RIL_WORD)
-        val lastWordInPara = iter.isAtFinalElement(TessBaseAPI.PageIteratorLevel.RIL_PARA, RIL_WORD)
+        if (word.length == 1) {
+            println("word $word conf $conf box $boundingBox")
+        }
+        val firstWordInLine = iter.isAtBeginningOf(RIL_TEXTLINE)
+        val lastWordInLine = iter.isAtFinalElement(RIL_TEXTLINE, RIL_WORD)
+        val lastWordInPara = iter.isAtFinalElement(RIL_PARA, RIL_WORD)
 
         // TODO: words that are spaced "far apart" are probably individual blocks
         if (firstWordInLine) {
-            line = TextLine(word, boundingBox);
+            line = TextLine(word, boundingBox)
         } else {
-            line.text = "${line.text} ${word}"
-            line.boundingBox = Rect(
-                line.boundingBox.left, // left is immutable
-                min(line.boundingBox.top, boundingBox.top), // top can be stretched upwards ('g' -> 'T')
-                boundingBox.right, // Right takes the right of the new word always
-                max(line.boundingBox.bottom, boundingBox.bottom) // bottom can be stretched ('a' -> 'g')
-            )
+            val delta = boundingBox.left - lastRight
+            val charWidth = boundingBox.width() / word.length
+            val deltaInChars = delta / charWidth
+
+            // In the same line but too far apart, make a new block
+            if (deltaInChars >= 3) { // TODO: how to figure out the delta better
+                println("Forcing new block with word $word")
+                if (line.text.trim() != "") {
+                    lines.add(line)
+                }
+                line = TextLine(word, boundingBox)
+                if (lines.isNotEmpty()) {
+                    blocks.add(TextBlock(lines.toTypedArray()))
+                    lines = mutableListOf()
+                }
+            } else {
+                line.text = "${line.text} ${word}"
+                line.boundingBox = Rect(
+                    // left is immutable
+                    line.boundingBox.left,
+                    min(
+                        line.boundingBox.top,
+                        boundingBox.top
+                    ), // top can be stretched upwards ('g' -> 'T')
+                    boundingBox.right, // Right takes the right of the new word always
+                    max(
+                        line.boundingBox.bottom,
+                        boundingBox.bottom
+                    ) // bottom can be stretched ('a' -> 'g')
+                )
+            }
         }
 
         if (lastWordInLine && line.text.trim() != "") {
@@ -75,6 +107,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
             blocks.add(TextBlock(lines.toTypedArray()))
             lines = mutableListOf()
         }
+        lastRight = boundingBox.right
 
     } while (iter.next(RIL_WORD))
 
@@ -90,7 +123,7 @@ class OCRService(
     private var tess: TessBaseAPI? = null
     private var isInitialized = false
 
-    suspend fun initialize(): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun initialize(): Boolean = withContext(Dispatchers.IO) {
         if (isInitialized) return@withContext true
 
         try {

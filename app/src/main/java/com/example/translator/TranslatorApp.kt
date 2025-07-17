@@ -27,7 +27,7 @@ fun TranslatorApp(
     initialText: String,
     detectedLanguage: Language? = null,
     sharedImageUri: Uri? = null,
-    ocrService: OCRService,
+    imageProcessor: ImageProcessor,
     onOcrProgress: ((Float) -> Unit) -> Unit
 ) {
     val navController = rememberNavController()
@@ -97,7 +97,7 @@ fun TranslatorApp(
                 onFromChange = setFrom,
                 to = to,
                 onToChange = setTo,
-                ocrService = ocrService,
+                imageProcessor = imageProcessor,
                 onOcrProgress = onOcrProgress,
                 sharedImageUri = sharedImageUri,
             )

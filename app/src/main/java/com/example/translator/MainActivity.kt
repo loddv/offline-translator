@@ -6,9 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -91,6 +88,7 @@ class MainActivity : ComponentActivity() {
     private var detectedLanguage: Language? = null
     private var sharedImageUri: Uri? = null
     private lateinit var ocrService: OCRService
+    private lateinit var imageProcessor: ImageProcessor
     private var onOcrProgress: (Float) -> Unit = {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +99,7 @@ class MainActivity : ComponentActivity() {
         ocrService = OCRService(this) { progress ->
             onOcrProgress(progress)
         }
+        imageProcessor = ImageProcessor(this, ocrService)
 
         setContent {
             TranslatorTheme {
@@ -113,7 +112,7 @@ class MainActivity : ComponentActivity() {
                         initialText = textToTranslate,
                         detectedLanguage = detectedLanguage,
                         sharedImageUri = sharedImageUri,
-                        ocrService = ocrService,
+                        imageProcessor = imageProcessor,
                         onOcrProgress = { callback -> onOcrProgress = callback })
                 }
             }
@@ -177,40 +176,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        fun correctImageOrientation(context: Context, uri: Uri, bitmap: Bitmap): Bitmap {
-            return try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val exif = ExifInterface(inputStream)
-                    val orientation = exif.getAttributeInt(
-                        ExifInterface.TAG_ORIENTATION,
-                        ExifInterface.ORIENTATION_NORMAL
-                    )
-                    
-                    val matrix = Matrix()
-                    when (orientation) {
-                        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-                        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-                        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-                        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-                        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-                        ExifInterface.ORIENTATION_TRANSPOSE -> {
-                            matrix.postRotate(90f)
-                            matrix.postScale(-1f, 1f)
-                        }
-                        ExifInterface.ORIENTATION_TRANSVERSE -> {
-                            matrix.postRotate(270f)
-                            matrix.postScale(-1f, 1f)
-                        }
-                        else -> return bitmap
-                    }
-                    
-                    Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-                } ?: bitmap
-            } catch (e: Exception) {
-                Log.e("ExifOrientation", "Error correcting image orientation", e)
-                bitmap
-            }
-        }
     }
 }
 
@@ -277,7 +242,7 @@ fun Greeting(
     onFromChange: (Language) -> Unit,
     to: Language,
     onToChange: (Language) -> Unit,
-    ocrService: OCRService,
+    imageProcessor: ImageProcessor,
     onOcrProgress: ((Float) -> Unit) -> Unit,
     sharedImageUri: Uri? = null,
 ) {
@@ -308,28 +273,26 @@ fun Greeting(
         if (sharedImageUri != null) {
             Log.d("SharedImage", "Processing shared image: $sharedImageUri")
             try {
-                context.contentResolver.openInputStream(sharedImageUri)?.use { inputStream ->
-                    setOcrInProgress(true)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    val correctedBitmap = MainActivity.correctImageOrientation(context, sharedImageUri, bitmap)
+                setOcrInProgress(true)
+                scope.launch {
+                    val bitmap = imageProcessor.loadBitmapFromUri(sharedImageUri)
+                    val correctedBitmap = imageProcessor.correctImageOrientation(sharedImageUri, bitmap)
                     setTranslateImage(correctedBitmap)
-
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            val blocks = ocrService.extractText(correctedBitmap)
-                            val text = blocks.map { block ->
-                                block.lines.map { line ->
-                                    line.text
-                                }
-                            }.flatten().joinToString("\n")
-                            onInputChange(text)
-                            setTranslating(true)
-                            val translatedText = translateInForeground(from, to, context, text)
-                            onOutputChange(translatedText)
-                            setTranslating(false)
-                            setOcrInProgress(false)
+                    val processedImage = imageProcessor.processImage(correctedBitmap)
+                    setTranslateImage(processedImage.bitmap)
+                    
+                    val text = processedImage.textBlocks.map { block ->
+                        block.lines.map { line ->
+                            line.text
                         }
-                    }
+                    }.flatten().joinToString("\n")
+                    
+                    onInputChange(text)
+                    setTranslating(true)
+                    val translatedText = translateInForeground(from, to, context, text)
+                    onOutputChange(translatedText)
+                    setTranslating(false)
+                    setOcrInProgress(false)
                 }
             } catch (e: Exception) {
                 Log.e("SharedImage", "Error processing shared image", e)
@@ -355,35 +318,27 @@ fun Greeting(
             // photo picker.
             if (uri != null) {
                 Log.d("PhotoPicker", "Selected URI: $uri")
-                println("setting image")
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    setOcrInProgress(true)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    val correctedBitmap = MainActivity.correctImageOrientation(context, uri, bitmap)
-                    setTranslateImage(correctedBitmap)
-
-                    // onInputChange(text) TODO
-                    setTranslating(true)
-                    setOcrInProgress(true)
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            val blocks = ocrService.extractText(correctedBitmap)
-                            fun translateFn(text: String): String {
-                                return translateInForeground(from, to, context, text)
-                            }
-
-                            val (drawn, translatedText) = paintTranslatedTextOver(
-                                correctedBitmap,
-                                blocks,
-                                ::translateFn
-                            )
-                            setTranslateImage(drawn)
-                            onOutputChange(translatedText)
-                            setTranslating(false)
-                            setOcrInProgress(false)
-
+                setOcrInProgress(true)
+                setTranslating(true)
+                scope.launch {
+                        val bitmap = imageProcessor.loadBitmapFromUri(uri)
+                        val correctedBitmap = imageProcessor.correctImageOrientation(uri, bitmap)
+                        setTranslateImage(correctedBitmap)
+                        val processedImage = imageProcessor.processImage(correctedBitmap)
+                        
+                        fun translateFn(text: String): String {
+                            return translateInForeground(from, to, context, text)
                         }
-                    }
+
+                        val (drawn, translatedText) = paintTranslatedTextOver(
+                            processedImage.bitmap,
+                            processedImage.textBlocks,
+                            ::translateFn
+                        )
+                        setTranslateImage(drawn)
+                        onOutputChange(translatedText)
+                        setTranslating(false)
+                        setOcrInProgress(false)
                 }
             } else {
                 Log.d("PhotoPicker", "No media selected")

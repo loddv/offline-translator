@@ -17,6 +17,9 @@ class TranslationCoordinator(
     private val _isTranslating = MutableStateFlow(false)
     val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
     
+    private val _isOcrInProgress = MutableStateFlow(false)
+    val isOcrInProgress: StateFlow<Boolean> = _isOcrInProgress.asStateFlow()
+    
     suspend fun translateText(from: Language, to: Language, text: String): String? {
         if (text.isBlank()) return ""
         
@@ -35,7 +38,7 @@ class TranslationCoordinator(
     }
     
     suspend fun detectLanguage(text: String): Language? {
-        return languageDetector.detectLanguageEnum(text)
+        return languageDetector.detectLanguage(text)
     }
     
     suspend fun translateImage(from: Language, to: Language, uri: Uri, onImageLoaded: (Bitmap) -> Unit): ProcessedImageResult? {
@@ -49,7 +52,9 @@ class TranslationCoordinator(
             onImageLoaded(correctedBitmap)
             
             // Process image for OCR
+            _isOcrInProgress.value = true
             val processedImage = imageProcessor.processImage(correctedBitmap)
+            _isOcrInProgress.value = false
             
             // Extract text from image
             val extractedText = processedImage.textBlocks.map { block ->
@@ -74,6 +79,7 @@ class TranslationCoordinator(
             Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT).show()
             null
         } finally {
+            _isOcrInProgress.value = false
             _isTranslating.value = false
         }
     }
@@ -89,7 +95,9 @@ class TranslationCoordinator(
             onImageLoaded(correctedBitmap)
             
             // Process image for OCR
+            _isOcrInProgress.value = true
             val processedImage = imageProcessor.processImage(correctedBitmap)
+            _isOcrInProgress.value = false
             
             // Create translation function for overlay
             suspend fun translateFn(text: String): String {
@@ -120,6 +128,7 @@ class TranslationCoordinator(
             Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT).show()
             null
         } finally {
+            _isOcrInProgress.value = false
             _isTranslating.value = false
         }
     }

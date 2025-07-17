@@ -99,21 +99,6 @@ gemm-precision: int8shiftAlphaAll
 alignment: soft
 )"""
     }
-    
-    suspend fun isLanguagePairAvailable(from: Language, to: Language): Boolean = withContext(Dispatchers.IO) {
-        val pairs = getTranslationPairs(from, to)
-        pairs.all { pair ->
-            checkLanguagePairFiles(context, pair.first, pair.second)
-        }
-    }
-    
-    suspend fun getAvailableLanguages(): List<Language> = withContext(Dispatchers.IO) {
-        Language.entries.filter { language ->
-            language == Language.ENGLISH || 
-            checkLanguagePairFiles(context, language, Language.ENGLISH) ||
-            checkLanguagePairFiles(context, Language.ENGLISH, language)
-        }
-    }
 }
 
 sealed class TranslationResult {

@@ -8,24 +8,18 @@ import kotlinx.coroutines.withContext
 class LanguageDetector {
     
     private val langDetect = LangDetect()
-    
-    suspend fun detectLanguage(text: String): DetectionResult? = withContext(Dispatchers.IO) {
+
+
+    suspend fun detectLanguage(text: String): Language? = withContext(Dispatchers.IO) {
         if (text.isBlank()) {
             return@withContext null
         }
-        
+
         val detected = langDetect.detectLanguage(text)
         if (detected.isReliable) {
-            detected
+            Language.entries.firstOrNull { it.code == detected.language }
         } else {
             null
-        }
-    }
-    
-    suspend fun detectLanguageEnum(text: String): Language? = withContext(Dispatchers.IO) {
-        val detected = detectLanguage(text)
-        detected?.let { result ->
-            Language.entries.firstOrNull { it.code == result.language }
         }
     }
 }

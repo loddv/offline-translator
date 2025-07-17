@@ -72,8 +72,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.bergamot.DetectionResult
-import com.example.bergamot.LangDetect
 import com.example.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -136,7 +134,9 @@ class MainActivity : ComponentActivity() {
                     intent.getStringExtra(Intent.EXTRA_TEXT)
                 }
                 textToTranslate = text ?: ""
-                detectLanguageForSharedText(textToTranslate)
+                kotlinx.coroutines.MainScope().launch {
+                    detectLanguageForSharedText(textToTranslate)
+                }
             }
 
             Intent.ACTION_SEND -> {
@@ -146,7 +146,9 @@ class MainActivity : ComponentActivity() {
 
                 if (text != null) {
                     textToTranslate = text
-                    detectLanguageForSharedText(textToTranslate)
+                    kotlinx.coroutines.MainScope().launch {
+                        detectLanguageForSharedText(textToTranslate)
+                    }
                 } else if (imageUri != null) {
                     sharedImageUri = imageUri
                     textToTranslate = "" // Clear any existing text
@@ -155,13 +157,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun detectLanguageForSharedText(text: String) {
+    private suspend fun detectLanguageForSharedText(text: String) {
         if (text.isNotEmpty()) {
-            val ld = LangDetect()
-            val detected = ld.detectLanguage(text)
-            if (detected.isReliable) {
-                detectedLanguage = Language.entries.firstOrNull { it.code == detected.language }
-            }
+            detectedLanguage = translationCoordinator.detectLanguage(text)
         }
     }
 
@@ -238,14 +236,15 @@ fun Greeting(
     output: String,
     from: Language,
     to: Language,
+    detectedLanguage: Language?,
     displayImage: Bitmap?,
     isTranslating: StateFlow<Boolean>,
+    isOcrInProgress: StateFlow<Boolean>,
     
     // Action requests
     onTextInputChange: (String) -> Unit,
     onLanguageSwap: () -> Unit,
     onTranslateWithLanguages: (from: Language, to: Language, text: String) -> Unit,
-    onDetectLanguageRequest: (String) -> Unit,
     onTranslateImageRequest: (Uri) -> Unit,
     onTranslateImageWithOverlayRequest: (Uri) -> Unit,
     onInitializeLanguages: (from: Language, to: Language) -> Unit,
@@ -261,10 +260,9 @@ fun Greeting(
 
     // Collect translation state
     val translating by isTranslating.collectAsState()
+    val ocrInProgress by isOcrInProgress.collectAsState()
     
-    // UI state
-    var detectedInput: DetectionResult? by remember { mutableStateOf(null) }
-    val (ocrInProgress, setOcrInProgress) = remember { mutableStateOf(false) }
+    // UI state (none needed now)
 
 
     // Set up progress callback once
@@ -282,15 +280,6 @@ fun Greeting(
         }
     }
 
-    if (input.isNotEmpty()) {
-        val ld = LangDetect()
-        val detected = ld.detectLanguage(input)
-        detectedInput = if (detected.isReliable) {
-            detected
-        } else {
-            null
-        }
-    }
 
 
     val pickMedia =
@@ -524,18 +513,6 @@ fun Greeting(
                     value = input,
                     onValueChange = { newInput ->
                         onTextInputChange(newInput)
-                        val ld = LangDetect()
-
-                        val detected = ld.detectLanguage(newInput)
-                        println("onchange detected $detected")
-                        detectedInput = if (detected.isReliable) {
-                            detected
-                        } else {
-                            null
-                        }
-                        if (!translating) {
-                            onTranslateWithLanguages(from, to, newInput)
-                        }
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -561,19 +538,16 @@ fun Greeting(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row {
-                    val autoLang =
-                        Language.entries.firstOrNull { l -> l.code == detectedInput?.language }
-
-                    if (detectedInput != null && autoLang != null && autoLang != from) {
+                    if (detectedLanguage != null && detectedLanguage != from) {
                         Button(
                             onClick = {
-                                onDetectLanguageRequest(input)
+                                onTranslateWithLanguages(detectedLanguage, to, input)
                             },
                             modifier = Modifier.weight(1f),
                             shape = RectangleShape,
                         ) {
                             Text(
-                                "From ${autoLang.displayName} ✨"
+                                "From ${detectedLanguage.displayName} ✨"
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))

@@ -65,12 +65,27 @@ fun TranslatorApp(
     val (from, setFrom) = remember { mutableStateOf(detectedLanguage ?: Language.SPANISH) }
     val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
     var displayImage by remember { mutableStateOf<Bitmap?>(null) }
+    var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
     
     // Translation request handlers
     val scope = rememberCoroutineScope()
     
     val onTextInputChange: (String) -> Unit = { newText ->
         input = newText
+        // Detect language in background for auto-suggest button
+        if (newText.isNotBlank()) {
+            scope.launch {
+                currentDetectedLanguage = translationCoordinator.detectLanguage(newText)
+            }
+            // Auto-translate with current languages
+            scope.launch {
+                val translated = translationCoordinator.translateText(from, to, newText)
+                translated?.let { output = it }
+            }
+        } else {
+            currentDetectedLanguage = null
+            output = ""
+        }
     }
     
     val onLanguageSwap: () -> Unit = {
@@ -91,26 +106,6 @@ fun TranslatorApp(
         scope.launch {
             val result = translationCoordinator.translateText(fromLang, toLang, text)
             result?.let { output = it }
-        }
-    }
-    
-    val onDetectLanguageRequest: (String) -> Unit = { text ->
-        scope.launch {
-            val detected = translationCoordinator.detectLanguage(text)
-            detected?.let { 
-                if (it != from) {
-                    setFrom(it)
-                    val actualTo = if (to == it) {
-                        setTo(Language.ENGLISH)
-                        Language.ENGLISH
-                    } else {
-                        to
-                    }
-                    // Auto-translate with new language
-                    val result = translationCoordinator.translateText(it, actualTo, text)
-                    result?.let { output = it }
-                }
-            }
         }
     }
     
@@ -175,14 +170,15 @@ fun TranslatorApp(
                 output = output,
                 from = from,
                 to = to,
+                detectedLanguage = currentDetectedLanguage,
                 displayImage = displayImage,
                 isTranslating = translationCoordinator.isTranslating,
+                isOcrInProgress = translationCoordinator.isOcrInProgress,
                 
                 // Action requests
                 onTextInputChange = onTextInputChange,
                 onLanguageSwap = onLanguageSwap,
                 onTranslateWithLanguages = onTranslateWithLanguages,
-                onDetectLanguageRequest = onDetectLanguageRequest,
                 onTranslateImageRequest = onTranslateImageRequest,
                 onTranslateImageWithOverlayRequest = onTranslateImageWithOverlayRequest,
                 onInitializeLanguages = onInitializeLanguages,

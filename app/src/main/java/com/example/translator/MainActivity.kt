@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -174,6 +176,41 @@ class MainActivity : ComponentActivity() {
                 type = "text/plain"
             }
         }
+
+        fun correctImageOrientation(context: Context, uri: Uri, bitmap: Bitmap): Bitmap {
+            return try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val exif = ExifInterface(inputStream)
+                    val orientation = exif.getAttributeInt(
+                        ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.ORIENTATION_NORMAL
+                    )
+                    
+                    val matrix = Matrix()
+                    when (orientation) {
+                        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+                        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+                        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+                        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+                        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+                        ExifInterface.ORIENTATION_TRANSPOSE -> {
+                            matrix.postRotate(90f)
+                            matrix.postScale(-1f, 1f)
+                        }
+                        ExifInterface.ORIENTATION_TRANSVERSE -> {
+                            matrix.postRotate(270f)
+                            matrix.postScale(-1f, 1f)
+                        }
+                        else -> return bitmap
+                    }
+                    
+                    Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                } ?: bitmap
+            } catch (e: Exception) {
+                Log.e("ExifOrientation", "Error correcting image orientation", e)
+                bitmap
+            }
+        }
     }
 }
 
@@ -274,11 +311,12 @@ fun Greeting(
                 context.contentResolver.openInputStream(sharedImageUri)?.use { inputStream ->
                     setOcrInProgress(true)
                     val bitmap = BitmapFactory.decodeStream(inputStream)
-                    setTranslateImage(bitmap)
+                    val correctedBitmap = MainActivity.correctImageOrientation(context, sharedImageUri, bitmap)
+                    setTranslateImage(correctedBitmap)
 
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            val blocks = ocrService.extractText(bitmap)
+                            val blocks = ocrService.extractText(correctedBitmap)
                             val text = blocks.map { block ->
                                 block.lines.map { line ->
                                     line.text
@@ -321,20 +359,21 @@ fun Greeting(
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     setOcrInProgress(true)
                     val bitmap = BitmapFactory.decodeStream(inputStream)
-                    setTranslateImage(bitmap)
+                    val correctedBitmap = MainActivity.correctImageOrientation(context, uri, bitmap)
+                    setTranslateImage(correctedBitmap)
 
                     // onInputChange(text) TODO
                     setTranslating(true)
                     setOcrInProgress(true)
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            val blocks = ocrService.extractText(bitmap)
+                            val blocks = ocrService.extractText(correctedBitmap)
                             fun translateFn(text: String): String {
                                 return translateInForeground(from, to, context, text)
                             }
 
                             val (drawn, translatedText) = paintTranslatedTextOver(
-                                bitmap,
+                                correctedBitmap,
                                 blocks,
                                 ::translateFn
                             )

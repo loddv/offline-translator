@@ -5,7 +5,7 @@ There's automatic language detection as well, with [cld2](https://github.com/CLD
 
 The translation models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator).
 
-![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png)
+<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png" width="400">
 
 
 ## Image translation overlay

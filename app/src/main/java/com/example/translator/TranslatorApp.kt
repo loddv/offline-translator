@@ -129,19 +129,7 @@ fun TranslatorApp(
         setFrom(fromLang)
         setTo(toLang)
     }
-    
-    val onTranslateImageRequest: (Uri) -> Unit = { uri ->
-        scope.launch {
-            val result = translationCoordinator.translateImage(from, to, uri) { originalBitmap ->
-                displayImage = originalBitmap
-            }
-            result?.let { 
-                displayImage = it.correctedBitmap
-                input = it.extractedText
-                output = it.translatedText
-            }
-        }
-    }
+
     
     val onTranslateImageWithOverlayRequest: (Uri) -> Unit = { uri ->
         scope.launch {
@@ -195,7 +183,6 @@ fun TranslatorApp(
                 onTextInputChange = onTextInputChange,
                 onLanguageSwap = onLanguageSwap,
                 onTranslateWithLanguages = onTranslateWithLanguages,
-                onTranslateImageRequest = onTranslateImageRequest,
                 onTranslateImageWithOverlayRequest = onTranslateImageWithOverlayRequest,
                 onInitializeLanguages = onInitializeLanguages,
                 

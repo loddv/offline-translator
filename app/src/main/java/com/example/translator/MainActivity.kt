@@ -230,7 +230,6 @@ fun Greeting(
     onTextInputChange: (String) -> Unit,
     onLanguageSwap: () -> Unit,
     onTranslateWithLanguages: (from: Language, to: Language, text: String) -> Unit,
-    onTranslateImageRequest: (Uri) -> Unit,
     onTranslateImageWithOverlayRequest: (Uri) -> Unit,
     onInitializeLanguages: (from: Language, to: Language) -> Unit,
     
@@ -259,7 +258,7 @@ fun Greeting(
     LaunchedEffect(sharedImageUri) {
         if (sharedImageUri != null) {
             Log.d("SharedImage", "Processing shared image: $sharedImageUri")
-            onTranslateImageRequest(sharedImageUri)
+            onTranslateImageWithOverlayRequest(sharedImageUri)
         }
     }
 

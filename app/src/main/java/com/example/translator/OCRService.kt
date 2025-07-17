@@ -52,7 +52,6 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
         val conf = iter.confidence(RIL_WORD)
         if (conf < 75) continue // TODO: configuration
         if (word.length == 1 && conf < 80) continue
-//        println("word $word attrs ${iter.wordFontAttributes}")
         val boundingBox = iter.getBoundingRect(RIL_WORD)
         if (word.length == 1) {
             println("word $word conf $conf box $boundingBox")
@@ -61,7 +60,6 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
         val lastWordInLine = iter.isAtFinalElement(RIL_TEXTLINE, RIL_WORD)
         val lastWordInPara = iter.isAtFinalElement(RIL_PARA, RIL_WORD)
 
-        // TODO: words that are spaced "far apart" are probably individual blocks
         if (firstWordInLine) {
             line = TextLine(word, boundingBox)
         } else {
@@ -174,7 +172,6 @@ class OCRService(
         }
 
         val tessInstance = tess ?: return@withContext emptyArray()
-
 
         val blocks: Array<TextBlock>
         val elapsed = measureTimeMillis {

@@ -22,7 +22,7 @@ import kotlin.system.measureTimeMillis
 data class TextLine(var text: String, var boundingBox: Rect)
 data class TextBlock(val lines: Array<TextLine>)
 
-fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
+fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int = 75): Array<TextBlock> {
     tessInstance.setImage(bitmap)
     tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
 

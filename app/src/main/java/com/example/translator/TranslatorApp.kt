@@ -136,6 +136,11 @@ fun TranslatorApp(
         setFrom(fromLang)
         setTo(toLang)
     }
+    
+    val onClearImage: () -> Unit = {
+        displayImage = null
+        output = ""
+    }
 
     
     val onTranslateImageWithOverlayRequest: (Uri) -> Unit = { uri ->
@@ -193,6 +198,7 @@ fun TranslatorApp(
                 onTranslateWithLanguages = onTranslateWithLanguages,
                 onTranslateImageWithOverlayRequest = onTranslateImageWithOverlayRequest,
                 onInitializeLanguages = onInitializeLanguages,
+                onClearImage = onClearImage,
                 
                 // System integration
                 onOcrProgress = onOcrProgress,

@@ -1,8 +1,5 @@
 package com.example.translator
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -96,6 +93,8 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ocrService.cleanup()
+        TranslationService.cleanup()
+        println("cleaning up main activity")
     }
 
     override fun onNewIntent(intent: Intent?) {

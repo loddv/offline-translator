@@ -11,15 +11,23 @@
 using namespace marian::bergamot;
 
 #include <unordered_map>
+#include <mutex>
 static std::unordered_map<std::string, std::shared_ptr<TranslationModel>> model_cache;
+static std::unique_ptr<AsyncService> global_service = nullptr;
+static std::mutex service_mutex;
 
 std::string func(const char* cfg, const char *input, const char* key) {
-    ConfigParser<AsyncService> configParser("Bergamot CLI", //multiOpMode
-                                            false);
-    auto &config = configParser.getConfig();
+    std::lock_guard<std::mutex> lock(service_mutex);
+    
+    // Initialize service only once
+    if (global_service == nullptr) {
+        ConfigParser<AsyncService> configParser("Bergamot CLI", //multiOpMode
+                                                false);
+        auto &config = configParser.getConfig();
+        global_service = std::make_unique<AsyncService>(config.serviceConfig);
+    }
+    
     std::string key_str(key);
-    AsyncService service(config.serviceConfig);
-;
     auto validate = true;
     auto pathsDir = "";
     std::string cfg_s(cfg);
@@ -27,7 +35,7 @@ std::string func(const char* cfg, const char *input, const char* key) {
     // This "parseOptionsFromString" throws/aborts
     if (model_cache.find(key_str) == model_cache.end()) {
         auto options = parseOptionsFromString(cfg_s, validate, pathsDir);
-        model_cache[key_str] = service.createCompatibleModel(options);
+        model_cache[key_str] = global_service->createCompatibleModel(options);
     }
 
     ResponseOptions responseOptions;
@@ -41,7 +49,7 @@ std::string func(const char* cfg, const char *input, const char* key) {
         promise.set_value(std::move(response));
     };
 
-    service.translate(model_cache[key_str], std::move(input), callback, responseOptions);
+    global_service->translate(model_cache[key_str], std::move(input), callback, responseOptions);
 
     // Wait until promise sets the response.
     Response response = future.get();
@@ -75,6 +83,14 @@ Java_com_example_bergamot_NativeLib_stringFromJNI(
 
     return env->NewStringUTF(out);
 
+}
+
+// Cleanup function to be called when the library is unloaded
+extern "C" JNIEXPORT void JNICALL
+Java_com_example_bergamot_NativeLib_cleanup(JNIEnv* env, jobject /* this */) {
+    std::lock_guard<std::mutex> lock(service_mutex);
+    global_service.reset();
+    model_cache.clear();
 }
 
 

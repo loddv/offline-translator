@@ -10,7 +10,25 @@ import kotlin.system.measureTimeMillis
 
 class TranslationService(private val context: Context) {
     
-    private val nativeLib = NativeLib()
+    companion object {
+        @Volatile
+        private var nativeLibInstance: NativeLib? = null
+        
+        private fun getNativeLib(): NativeLib {
+            return nativeLibInstance ?: synchronized(this) {
+                nativeLibInstance ?: NativeLib().also { nativeLibInstance = it }
+            }
+        }
+        
+        fun cleanup() {
+            synchronized(this) {
+                nativeLibInstance?.cleanup()
+                nativeLibInstance = null
+            }
+        }
+    }
+    
+    private val nativeLib = getNativeLib()
     
     suspend fun translate(
         from: Language,

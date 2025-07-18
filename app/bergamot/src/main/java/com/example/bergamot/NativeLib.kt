@@ -7,6 +7,12 @@ class NativeLib {
      * which is packaged with this application.
      */
     external fun stringFromJNI(cfg: String, data: String, key: String): String
+    
+    /**
+     * Cleanup method to properly dispose native resources
+     */
+    external fun cleanup()
+    
     companion object {
         // Used to load the 'bergamot' library on application startup.
         init {
@@ -24,12 +30,5 @@ data class DetectionResult(
 )
 
 class LangDetect {
-    companion object {
-        init {
-            println("Loaded cld2")
-            System.loadLibrary("bergamot-sys")
-        }
-    }
-
     external fun detectLanguage(text: String): DetectionResult
 }

@@ -40,10 +40,18 @@ fun getLuminance(color: Int): Float {
 }
 
 
-fun removeTextWithSmartBlur(canvas: Canvas, bitmap: Bitmap, textBounds: Rect): Int {
-    // Get average color from area around text (not inside text)
-    val surroundingColor = getSurroundingAverageColor(bitmap, textBounds)
-    val fgColor = getForegroundColorByContrast(bitmap, textBounds, surroundingColor)
+fun removeTextWithSmartBlur(canvas: Canvas, bitmap: Bitmap, textBounds: Rect, backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT): Int {
+    // Determine background and foreground colors based on mode
+    val (surroundingColor, fgColor) = when (backgroundMode) {
+        BackgroundMode.WHITE_ON_BLACK -> Pair(Color.BLACK, Color.WHITE)
+        BackgroundMode.BLACK_ON_WHITE -> Pair(Color.WHITE, Color.BLACK)
+        BackgroundMode.AUTO_DETECT -> {
+            // Get average color from area around text (not inside text)
+            val detectedSurroundingColor = getSurroundingAverageColor(bitmap, textBounds)
+            val detectedFgColor = getForegroundColorByContrast(bitmap, textBounds, detectedSurroundingColor)
+            Pair(detectedSurroundingColor, detectedFgColor)
+        }
+    }
     var paint = Paint().apply {
         color = surroundingColor
     }
@@ -113,6 +121,7 @@ suspend fun paintTranslatedTextOver(
     originalBitmap: Bitmap,
     textBlocks: Array<TextBlock>,
     translate: suspend (String) -> String,
+    backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT
 ): Pair<Bitmap, String> {
     val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(mutableBitmap)
@@ -151,10 +160,12 @@ suspend fun paintTranslatedTextOver(
 
         var start = 0
         textBlock.lines.forEach { line ->
-            // TODO: add config for hardcoded fg/bg
-            val fg = removeTextWithSmartBlur(canvas, mutableBitmap, line.boundingBox)
+            val fg = removeTextWithSmartBlur(canvas, mutableBitmap, line.boundingBox, backgroundMode)
             textPaint.color = fg
+            // FIXME: the color should be set in the next loop, but we need some kind of lookup
+            // to store it. for now this assumes that last FG color will be applied to entire block
         }
+
         textBlock.lines.forEach { line ->
             // Render text if we are not done.
             // We may be done when translated text takes fewer lines than the original

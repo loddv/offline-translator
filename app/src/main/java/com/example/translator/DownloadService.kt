@@ -27,6 +27,7 @@ class DownloadService : Service() {
     private val binder = DownloadBinder()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
+    private val settingsManager by lazy { SettingsManager(this) }
 
     // Track download status for each language
     private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
@@ -258,9 +259,7 @@ class DownloadService : Service() {
         val lang = "${from.code}${to.code}"
         val dataPath = File(context.filesDir, "bin")
         dataPath.mkdirs()
-        val ref = "4886b27f3c9756fff56005e7abe3fbfa34461209"
-        val base =
-            "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/${ref}/models"
+        val base = settingsManager.settings.value.translationModelsBaseUrl
 
         val modelQuality = if (from == Language.ENGLISH) {
             fromEnglish[to]
@@ -291,8 +290,7 @@ class DownloadService : Service() {
             tessDataPath.mkdirs()
         }
         val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-        val url =
-            "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main/${language.tessName}.traineddata"
+        val url = "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
 
         if (!tessFile.exists()) {
             withContext(Dispatchers.IO) {

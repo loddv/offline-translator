@@ -22,28 +22,35 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun TranslatorApp(
     initialText: String,
     sharedImageUri: Uri? = null,
     translationCoordinator: TranslationCoordinator,
+    settingsManager: SettingsManager,
     onOcrProgress: ((Float) -> Unit) -> Unit
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    
+    // Settings management
+    val settings by settingsManager.settings.collectAsState()
 
     // Check if any languages are available
     var hasLanguages by remember { mutableStateOf<Boolean?>(null) } // null = checking, true/false = result
+    var availableLanguages by remember { mutableStateOf<List<Language>>(emptyList()) }
 
     // Check for available languages on startup
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            val anyLanguageAvailable = Language.entries.any { language ->
+            val available = Language.entries.filter { language ->
                 checkLanguagePairFiles(context, language, Language.ENGLISH) ||
                         checkLanguagePairFiles(context, Language.ENGLISH, language)
             }
-            hasLanguages = anyLanguageAvailable
+            availableLanguages = available
+            hasLanguages = available.isNotEmpty()
         }
     }
 
@@ -62,7 +69,7 @@ fun TranslatorApp(
     var input by remember { mutableStateOf(initialText) }
     var output by remember { mutableStateOf("") }
     val (from, setFrom) = remember { mutableStateOf(Language.SPANISH) }
-    val (to, setTo) = remember { mutableStateOf(Language.ENGLISH) }
+    val (to, setTo) = remember { mutableStateOf(settings.defaultTargetLanguage) }
     var displayImage by remember { mutableStateOf<Bitmap?>(null) }
     var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
     
@@ -168,6 +175,7 @@ fun TranslatorApp(
             Greeting(
                 // Navigation
                 onManageLanguages = { navController.navigate("language_manager") },
+                onSettings = { navController.navigate("settings") },
                 
                 // Current state (read-only)
                 input = input,
@@ -207,6 +215,26 @@ fun TranslatorApp(
                     // Update state when all languages are deleted
                     hasLanguages = false
                 }
+            )
+        }
+        composable("settings") {
+            SettingsScreen(
+                settings = settings,
+                availableLanguages = if (availableLanguages.contains(Language.ENGLISH)) {
+                    availableLanguages
+                } else {
+                    availableLanguages + Language.ENGLISH
+                },
+                onSettingsChange = { newSettings ->
+                    settingsManager.updateSettings(newSettings)
+                    // Update current target language if it changed
+                    if (newSettings.defaultTargetLanguage != settings.defaultTargetLanguage) {
+                        setTo(newSettings.defaultTargetLanguage)
+                    }
+                },
+                onManageLanguages = {
+                    navController.navigate("language_manager")
+                },
             )
         }
     }

@@ -96,7 +96,8 @@ class MainActivity : ComponentActivity() {
         val imageProcessor = ImageProcessor(this, ocrService)
         val translationService = TranslationService(this)
         val languageDetector = LanguageDetector()
-        translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor)
+        val settingsManager = SettingsManager(this)
+        translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager)
 
         setContent {
             TranslatorTheme {
@@ -105,6 +106,7 @@ class MainActivity : ComponentActivity() {
                         initialText = textToTranslate,
                         sharedImageUri = sharedImageUri,
                         translationCoordinator = translationCoordinator,
+                        settingsManager = settingsManager,
                         onOcrProgress = { callback -> onOcrProgress = callback })
                 }
             }
@@ -215,6 +217,7 @@ fun TranslationResult(
 fun Greeting(
     // Navigation
     onManageLanguages: () -> Unit,
+    onSettings: () -> Unit,
     
     // Current state (read-only)
     input: String,
@@ -467,10 +470,11 @@ fun Greeting(
                                 }
                         }
                     }
-                    IconButton(onClick = onManageLanguages) {
+
+                    IconButton(onClick = onSettings) {
                         Icon(
                             painterResource(id = R.drawable.settings),
-                            contentDescription = "Manage Languages"
+                            contentDescription = "Settings"
                         )
                     }
 

@@ -12,7 +12,8 @@ class TranslationCoordinator(
     private val context: Context,
     private val translationService: TranslationService,
     private val languageDetector: LanguageDetector,
-    private val imageProcessor: ImageProcessor
+    private val imageProcessor: ImageProcessor,
+    private val settingsManager: SettingsManager
 ) {
     private val _isTranslating = MutableStateFlow(false)
     val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
@@ -67,7 +68,8 @@ class TranslationCoordinator(
             val (overlayBitmap, allTranslatedText) = paintTranslatedTextOver(
                 processedImage.bitmap,
                 processedImage.textBlocks,
-                ::translateFn
+                ::translateFn,
+                settingsManager.settings.value.backgroundMode
             )
             
             ProcessedImageResult(

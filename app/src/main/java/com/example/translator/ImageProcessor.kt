@@ -15,8 +15,8 @@ class ImageProcessor(
     private val ocrService: OCRService
 ) {
     
-    suspend fun processImage(bitmap: Bitmap): ProcessedImage = withContext(Dispatchers.IO) {
-        val textBlocks = ocrService.extractText(bitmap)
+    suspend fun processImage(bitmap: Bitmap, minConfidence: Int = 75): ProcessedImage = withContext(Dispatchers.IO) {
+        val textBlocks = ocrService.extractText(bitmap, minConfidence)
         
         ProcessedImage(
             bitmap = bitmap,

@@ -50,7 +50,8 @@ class TranslationCoordinator(
             onImageLoaded(correctedBitmap)
             
             _isOcrInProgress.value = true
-            val processedImage = imageProcessor.processImage(correctedBitmap)
+            val minConfidence = settingsManager.settings.value.minConfidence
+            val processedImage = imageProcessor.processImage(correctedBitmap, minConfidence)
             _isOcrInProgress.value = false
             
             // Create translation function for overlay

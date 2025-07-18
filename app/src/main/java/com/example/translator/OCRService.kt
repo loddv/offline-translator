@@ -50,8 +50,8 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
         }
 
         val conf = iter.confidence(RIL_WORD)
-        if (conf < 75) continue // TODO: configuration
-        if (word.length == 1 && conf < 80) continue
+        if (conf < minConfidence) continue
+        if (word.length == 1 && conf < min(100, minConfidence + 5)) continue
         val boundingBox = iter.getBoundingRect(RIL_WORD)
 
         val firstWordInLine = iter.isAtBeginningOf(RIL_TEXTLINE)
@@ -160,7 +160,7 @@ class OCRService(
         }
     }
 
-    suspend fun extractText(bitmap: Bitmap): Array<TextBlock> = withContext(Dispatchers.IO) {
+    suspend fun extractText(bitmap: Bitmap, minConfidence: Int = 75): Array<TextBlock> = withContext(Dispatchers.IO) {
         if (!isInitialized) {
             val initSuccess = initialize()
             if (!initSuccess) return@withContext emptyArray()
@@ -170,7 +170,7 @@ class OCRService(
 
         val blocks: Array<TextBlock>
         val elapsed = measureTimeMillis {
-            blocks = getSentences(bitmap, tessInstance)
+            blocks = getSentences(bitmap, tessInstance, minConfidence)
         }
         // Release image data & results; but keeps the instance active
         Log.i("OCRService", "OCR took ${elapsed}ms")

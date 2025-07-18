@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -196,7 +197,7 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Images",
+                        text = "OCR",
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -240,6 +241,23 @@ fun SettingsScreen(
                             }
                         }
                     }
+                    
+                    // Min Confidence Slider
+                    Text(
+                        text = "Min Confidence: ${settings.minConfidence}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    Slider(
+                        value = settings.minConfidence.toFloat(),
+                        onValueChange = { value ->
+                            onSettingsChange(settings.copy(minConfidence = value.toInt()))
+                        },
+                        valueRange = 50f..100f,
+                        steps = 49, // 50 steps for values 50-100
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

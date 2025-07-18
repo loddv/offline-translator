@@ -58,7 +58,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,9 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.translator.ui.theme.TranslatorTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.withContext
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -147,18 +144,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-
-    companion object {
-        fun createProcessTextIntent(context: Context, text: String): Intent {
-            return Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_PROCESS_TEXT
-                putExtra(Intent.EXTRA_PROCESS_TEXT, text)
-                type = "text/plain"
-            }
-        }
-
     }
 }
 
@@ -233,14 +218,10 @@ fun Greeting(
     
     // System integration
     sharedImageUri: Uri? = null,
+    availableLanguages: Map<String, Boolean>,
 ) {
-    val context = LocalContext.current
 
-    // Collect translation state
     val translating by isTranslating.collectAsState()
-    val ocrInProgress by isOcrInProgress.collectAsState()
-
-
 
     // Process shared image when component loads
     LaunchedEffect(sharedImageUri) {
@@ -249,8 +230,6 @@ fun Greeting(
             onMessage(TranslatorMessage.SetImageUri(sharedImageUri))
         }
     }
-
-
 
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
@@ -263,48 +242,25 @@ fun Greeting(
                 Log.d("PhotoPicker", "No media selected")
             }
         }
-    // Track available language pairs
-    val availableLanguages = remember { mutableStateMapOf<String, Boolean>() }
-
-    // Check which language pairs are downloaded
-    LaunchedEffect(Unit) {
-        availableLanguages[Language.ENGLISH.code] = true
-        withContext(Dispatchers.IO) {
-            Language.entries.forEach { fromLang ->
-                val toLang = Language.ENGLISH
-                if (fromLang != toLang) {
-                    val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
-                    availableLanguages[fromLang.code] = isAvailable
-                }
-            }
-
-            // Set initial languages if none selected - only if current languages aren't available
-            if (availableLanguages[from.code] != true) {
-                // Find first available language pair
-                val availableFromLang = Language.entries.find { fromLang ->
-                    availableLanguages[fromLang.code] == true && fromLang != Language.ENGLISH
-                }
-
-                if (availableFromLang != null) {
-                    onMessage(TranslatorMessage.InitializeLanguages(availableFromLang, Language.ENGLISH))
-                }
-            }
-        }
-    }
 
     // Check if any languages are available
     val hasAnyLanguages = availableLanguages.values.any { it }
 
-    Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
-        FloatingActionButton(onClick = {
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }) {
-            Icon(
-                painterResource(id = R.drawable.add_photo),
-                contentDescription = "Translate image",
-            )
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        floatingActionButton = {
+            if (hasAnyLanguages) {
+                FloatingActionButton(onClick = {
+                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) {
+                    Icon(
+                        painterResource(id = R.drawable.add_photo),
+                        contentDescription = "Translate image",
+                    )
+                }
+            }
         }
-    }) { paddingValues ->
+    ) { paddingValues ->
 
         if (!hasAnyLanguages) {
             // Show message when no languages are available
@@ -397,7 +353,6 @@ fun Greeting(
 
 
                 if (displayImage != null) {
-                    // Image display with progress indicator and close button
                     Box(
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -436,21 +391,15 @@ fun Greeting(
                     )
                 }
 
-                Row {
-                    if (detectedLanguage != null && detectedLanguage != from) {
-                        Button(
-                            onClick = {
-                                onMessage(TranslatorMessage.FromLang(detectedLanguage))
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RectangleShape,
-                        ) {
-                            Text(
-                                "From ${detectedLanguage.displayName} ✨"
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
+                // Detected language toast
+                if (detectedLanguage != null && detectedLanguage != from) {
+                    DetectedLanguageToast(
+                        detectedLanguage = detectedLanguage,
+                        onSwitchClick = {
+                            onMessage(TranslatorMessage.FromLang(detectedLanguage))
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                    )
                 }
 
                 Box(
@@ -491,12 +440,41 @@ fun GreetingPreview() {
             output = "Example output",
             from = Language.ENGLISH,
             to = Language.SPANISH,
-            detectedLanguage = null,
+            detectedLanguage = Language.FRENCH,
             displayImage = null,
             isTranslating = MutableStateFlow(false).asStateFlow(),
             isOcrInProgress = MutableStateFlow(false).asStateFlow(),
             onMessage = {},
             sharedImageUri = null,
+            availableLanguages = mapOf(
+                Language.ENGLISH.code to true,
+                Language.SPANISH.code to true,
+                Language.FRENCH.code to true
+            ),
+        )
+    }
+}
+
+@Preview(
+    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
+)
+@Composable
+fun PreviewNoLang() {
+    TranslatorTheme {
+        Greeting(
+            onManageLanguages = { },
+            onSettings = {  },
+            input = "Example input",
+            output = "Example output",
+            from = Language.ENGLISH,
+            to = Language.SPANISH,
+            detectedLanguage = Language.FRENCH,
+            displayImage = null,
+            isTranslating = MutableStateFlow(false).asStateFlow(),
+            isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+            onMessage = {},
+            sharedImageUri = null,
+            availableLanguages = mapOf(),
         )
     }
 }

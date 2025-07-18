@@ -8,6 +8,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,13 +41,28 @@ fun TranslatorApp(
     // Check if any languages are available
     var hasLanguages by remember { mutableStateOf<Boolean?>(null) } // null = checking, true/false = result
     var availableLanguages by remember { mutableStateOf<List<Language>>(emptyList()) }
+    
+    // Track available language pairs (detailed map for UI components)
+    val availableLanguageMap = remember { mutableStateMapOf<String, Boolean>() }
 
     // Check for available languages on startup
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
+            // Set English as always available
+            availableLanguageMap[Language.ENGLISH.code] = true
+            
+            // Check each language pair
+            Language.entries.forEach { fromLang ->
+                val toLang = Language.ENGLISH
+                if (fromLang != toLang) {
+                    val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
+                    availableLanguageMap[fromLang.code] = isAvailable
+                }
+            }
+            
+            // Create list of available languages
             val available = Language.entries.filter { language ->
-                checkLanguagePairFiles(context, language, Language.ENGLISH) ||
-                        checkLanguagePairFiles(context, Language.ENGLISH, language)
+                availableLanguageMap[language.code] == true
             }
             availableLanguages = available
             hasLanguages = available.isNotEmpty()
@@ -229,6 +245,7 @@ fun TranslatorApp(
                 
                 // System integration
                 sharedImageUri = sharedImageUri,
+                availableLanguages = availableLanguageMap,
             )
         }
         composable("language_manager") {

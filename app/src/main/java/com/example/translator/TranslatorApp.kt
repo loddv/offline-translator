@@ -72,6 +72,8 @@ fun TranslatorApp(
     val (to, setTo) = remember { mutableStateOf(settings.defaultTargetLanguage) }
     var displayImage by remember { mutableStateOf<Bitmap?>(null) }
     var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
+    var inputType by remember { mutableStateOf(InputType.TEXT) }
+    var originalImageUri by remember { mutableStateOf<Uri?>(null) }
     
     // Translation request handlers
     val scope = rememberCoroutineScope()
@@ -93,64 +95,93 @@ fun TranslatorApp(
         }
     }
     
-    val onTextInputChange: (String) -> Unit = { newText ->
-        input = newText
-        // Detect language in background for auto-suggest button
-        if (newText.isNotBlank()) {
-            scope.launch {
-                currentDetectedLanguage = translationCoordinator.detectLanguage(newText)
+    // Reusable translation closure based on input type
+    val translateWithLanguages: (Language, Language) -> Unit = { fromLang, toLang ->
+        scope.launch {
+            when (inputType) {
+                InputType.TEXT -> {
+                    val result = translationCoordinator.translateText(fromLang, toLang, input)
+                    result?.let { output = it }
+                }
+                InputType.IMAGE -> {
+                    originalImageUri?.let { uri ->
+                        val result = translationCoordinator.translateImageWithOverlay(fromLang, toLang, uri) { originalBitmap ->
+                            displayImage = originalBitmap
+                        }
+                        result?.let { 
+                            displayImage = it.correctedBitmap
+                            output = it.translatedText
+                        }
+                    }
+                }
             }
-            // Auto-translate with current languages
-            scope.launch {
-                val translated = translationCoordinator.translateText(from, to, newText)
-                translated?.let { output = it }
-            }
-        } else {
-            currentDetectedLanguage = null
-            output = ""
         }
     }
     
-    val onLanguageSwap: () -> Unit = {
-        val oldFrom = from
-        val oldTo = to
-        setFrom(oldTo)
-        setTo(oldFrom)
-        scope.launch {
-            val result = translationCoordinator.translateText(oldTo, oldFrom, input)
-            result?.let { output = it }
-        }
-    }
-    
-    val onTranslateWithLanguages: (Language, Language, String) -> Unit = { fromLang, toLang, text ->
-        setFrom(fromLang)
-        setTo(toLang)
-        input = text
-        scope.launch {
-            val result = translationCoordinator.translateText(fromLang, toLang, text)
-            result?.let { output = it }
-        }
-    }
-    
-    val onInitializeLanguages: (Language, Language) -> Unit = { fromLang, toLang ->
-        setFrom(fromLang)
-        setTo(toLang)
-    }
-    
-    val onClearImage: () -> Unit = {
-        displayImage = null
-        output = ""
-    }
-
-    
-    val onTranslateImageWithOverlayRequest: (Uri) -> Unit = { uri ->
-        scope.launch {
-            val result = translationCoordinator.translateImageWithOverlay(from, to, uri) { originalBitmap ->
-                displayImage = originalBitmap
+    // Centralized message handler
+    val handleMessage: (TranslatorMessage) -> Unit = { message ->
+        when (message) {
+            is TranslatorMessage.TextInput -> {
+                input = message.text
+                // Detect language in background for auto-suggest button
+                if (message.text.isNotBlank()) {
+                    scope.launch {
+                        currentDetectedLanguage = translationCoordinator.detectLanguage(message.text)
+                    }
+                    // Auto-translate with current languages
+                    scope.launch {
+                        val translated = translationCoordinator.translateText(from, to, message.text)
+                        translated?.let { output = it }
+                    }
+                } else {
+                    currentDetectedLanguage = null
+                    output = ""
+                }
             }
-            result?.let { 
-                displayImage = it.correctedBitmap
-                output = it.translatedText
+            
+            is TranslatorMessage.FromLang -> {
+                setFrom(message.language)
+                translateWithLanguages(message.language, to)
+            }
+            
+            is TranslatorMessage.ToLang -> {
+                setTo(message.language)
+                translateWithLanguages(from, message.language)
+            }
+            
+            is TranslatorMessage.SetImageUri -> {
+                // Store the original image URI and set input type
+                originalImageUri = message.uri
+                inputType = InputType.IMAGE
+                scope.launch {
+                    val result = translationCoordinator.translateImageWithOverlay(from, to, message.uri) { originalBitmap ->
+                        displayImage = originalBitmap
+                    }
+                    result?.let { 
+                        displayImage = it.correctedBitmap
+                        output = it.translatedText
+                    }
+                }
+            }
+            
+            TranslatorMessage.SwapLanguages -> {
+                val oldFrom = from
+                val oldTo = to
+                setFrom(oldTo)
+                setTo(oldFrom)
+                translateWithLanguages(oldTo, oldFrom)
+            }
+            
+            TranslatorMessage.ClearImage -> {
+                displayImage = null
+                output = ""
+                inputType = InputType.TEXT
+                originalImageUri = null
+            }
+            
+            is TranslatorMessage.InitializeLanguages -> {
+                setFrom(message.from)
+                setTo(message.to)
             }
         }
     }
@@ -193,12 +224,7 @@ fun TranslatorApp(
                 isOcrInProgress = translationCoordinator.isOcrInProgress,
                 
                 // Action requests
-                onTextInputChange = onTextInputChange,
-                onLanguageSwap = onLanguageSwap,
-                onTranslateWithLanguages = onTranslateWithLanguages,
-                onTranslateImageWithOverlayRequest = onTranslateImageWithOverlayRequest,
-                onInitializeLanguages = onInitializeLanguages,
-                onClearImage = onClearImage,
+                onMessage = handleMessage,
                 
                 // System integration
                 onOcrProgress = onOcrProgress,

@@ -212,7 +212,6 @@ fun TranslationResult(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Greeting(
     // Navigation
@@ -230,12 +229,7 @@ fun Greeting(
     isOcrInProgress: StateFlow<Boolean>,
     
     // Action requests
-    onTextInputChange: (String) -> Unit,
-    onLanguageSwap: () -> Unit,
-    onTranslateWithLanguages: (from: Language, to: Language, text: String) -> Unit,
-    onTranslateImageWithOverlayRequest: (Uri) -> Unit,
-    onInitializeLanguages: (from: Language, to: Language) -> Unit,
-    onClearImage: () -> Unit,
+    onMessage: (TranslatorMessage) -> Unit,
     
     // System integration
     onOcrProgress: ((Float) -> Unit) -> Unit,
@@ -262,7 +256,7 @@ fun Greeting(
     LaunchedEffect(sharedImageUri) {
         if (sharedImageUri != null) {
             Log.d("SharedImage", "Processing shared image: $sharedImageUri")
-            onTranslateImageWithOverlayRequest(sharedImageUri)
+            onMessage(TranslatorMessage.SetImageUri(sharedImageUri))
         }
     }
 
@@ -274,7 +268,7 @@ fun Greeting(
             // photo picker.
             if (uri != null) {
                 Log.d("PhotoPicker", "Selected URI: $uri")
-                onTranslateImageWithOverlayRequest(uri)
+                onMessage(TranslatorMessage.SetImageUri(uri))
             } else {
                 Log.d("PhotoPicker", "No media selected")
             }
@@ -302,7 +296,7 @@ fun Greeting(
                 }
 
                 if (availableFromLang != null) {
-                    onInitializeLanguages(availableFromLang, Language.ENGLISH)
+                    onMessage(TranslatorMessage.InitializeLanguages(availableFromLang, Language.ENGLISH))
                 }
             }
         }
@@ -374,14 +368,14 @@ fun Greeting(
                         selectedLanguage = from,
                         availableLanguages = fromLanguages,
                         onLanguageSelected = { language ->
-                            onTranslateWithLanguages(language, to, input)
+                            onMessage(TranslatorMessage.FromLang(language))
                         },
                         modifier = Modifier.weight(1f)
                     )
                     
                     IconButton(onClick = {
                         if (!translating) {
-                            onLanguageSwap()
+                            onMessage(TranslatorMessage.SwapLanguages)
                         }
                     }) {
                         Icon(
@@ -395,7 +389,7 @@ fun Greeting(
                         availableLanguages = toLanguages,
                         onLanguageSelected = { language ->
                             if (!translating) {
-                                onTranslateWithLanguages(from, language, input)
+                                onMessage(TranslatorMessage.ToLang(language))
                             }
                         },
                         modifier = Modifier.weight(1f)
@@ -433,7 +427,7 @@ fun Greeting(
                         
                         // Close button in top-right corner
                         IconButton(
-                            onClick = onClearImage,
+                            onClick = { onMessage(TranslatorMessage.ClearImage) },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(8.dp)
@@ -447,11 +441,10 @@ fun Greeting(
                         }
                     }
                 } else {
-                    // Show input field only when no image is displayed
                     TranslationField(
                         text = input,
                         onTextChange = { newInput ->
-                            onTextInputChange(newInput)
+                            onMessage(TranslatorMessage.TextInput(newInput))
                         },
                         placeholder = "Enter text",
                         isInput = true,
@@ -463,7 +456,7 @@ fun Greeting(
                     if (detectedLanguage != null && detectedLanguage != from) {
                         Button(
                             onClick = {
-                                onTranslateWithLanguages(detectedLanguage, to, input)
+                                onMessage(TranslatorMessage.FromLang(detectedLanguage))
                             },
                             modifier = Modifier.weight(1f),
                             shape = RectangleShape,
@@ -476,7 +469,6 @@ fun Greeting(
                     }
                 }
 
-                // Add horizontal divider for clean separation
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -490,14 +482,13 @@ fun Greeting(
                     )
                 }
 
-                // Output field with clean styling
                 TranslationField(
                     text = output,
                     isInput = false,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-        } // Close the else block
+        }
 
     }
 }

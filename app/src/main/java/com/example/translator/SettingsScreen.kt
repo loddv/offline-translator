@@ -255,7 +255,7 @@ fun SettingsScreen(
                             onSettingsChange(settings.copy(minConfidence = value.toInt()))
                         },
                         valueRange = 50f..100f,
-                        steps = 49, // 50 steps for values 50-100
+                        steps = 9,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

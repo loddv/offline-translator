@@ -31,11 +31,14 @@ class SettingsManager(context: Context) {
             BackgroundMode.AUTO_DETECT
         }
         
+        val minConfidence = prefs.getInt("min_confidence", 75)
+        
         return AppSettings(
             defaultTargetLanguage = defaultTargetLanguage,
             translationModelsBaseUrl = translationModelsBaseUrl,
             tesseractModelsBaseUrl = tesseractModelsBaseUrl,
-            backgroundMode = backgroundMode
+            backgroundMode = backgroundMode,
+            minConfidence = minConfidence
         )
     }
     
@@ -45,24 +48,9 @@ class SettingsManager(context: Context) {
             putString("translation_models_base_url", newSettings.translationModelsBaseUrl)
             putString("tesseract_models_base_url", newSettings.tesseractModelsBaseUrl)
             putString("background_mode", newSettings.backgroundMode.name)
+            putInt("min_confidence", newSettings.minConfidence)
             apply()
         }
         _settings.value = newSettings
-    }
-    
-    fun updateDefaultTargetLanguage(language: Language) {
-        updateSettings(_settings.value.copy(defaultTargetLanguage = language))
-    }
-    
-    fun updateTranslationModelsBaseUrl(url: String) {
-        updateSettings(_settings.value.copy(translationModelsBaseUrl = url))
-    }
-    
-    fun updateTesseractModelsBaseUrl(url: String) {
-        updateSettings(_settings.value.copy(tesseractModelsBaseUrl = url))
-    }
-    
-    fun updateBackgroundMode(mode: BackgroundMode) {
-        updateSettings(_settings.value.copy(backgroundMode = mode))
     }
 }

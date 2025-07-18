@@ -4,9 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.util.Log
-import androidx.compose.material3.Text
-import com.googlecode.leptonica.android.Box
-import com.googlecode.leptonica.android.Pix
 import com.googlecode.tesseract.android.TessBaseAPI
 import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_PARA
 import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE
@@ -14,7 +11,6 @@ import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_WORD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.URL
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories

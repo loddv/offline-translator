@@ -6,9 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
-import android.graphics.Typeface
 import android.text.TextPaint
-import kotlin.system.measureTimeMillis
 
 
 fun getForegroundColorByContrast(bitmap: Bitmap, textBounds: Rect, backgroundColor: Int): Int {

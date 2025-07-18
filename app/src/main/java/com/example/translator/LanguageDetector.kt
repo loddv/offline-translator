@@ -1,6 +1,5 @@
 package com.example.translator
 
-import com.example.bergamot.DetectionResult
 import com.example.bergamot.LangDetect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

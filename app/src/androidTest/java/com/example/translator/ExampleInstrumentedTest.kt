@@ -1,20 +1,14 @@
 package com.example.translator
 
 import android.graphics.BitmapFactory
-import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.googlecode.leptonica.android.ReadFile
+import androidx.test.platform.app.InstrumentationRegistry
 import com.googlecode.tesseract.android.TessBaseAPI
-
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
-
-import org.junit.Assert.*
 import java.io.File
-import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
-import kotlin.io.path.createDirectories
-import kotlin.io.path.pathString
 
 /**
  * Instrumented test, which will execute on an Android device.

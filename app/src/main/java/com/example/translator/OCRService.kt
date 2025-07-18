@@ -116,7 +116,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
 }
 
 class OCRService(
-    private val context: Context, private val onProgress: (Float) -> Unit = {}
+    private val context: Context
 ) {
     private var tess: TessBaseAPI? = null
     private var isInitialized = false

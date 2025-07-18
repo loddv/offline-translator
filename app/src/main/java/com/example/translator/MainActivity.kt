@@ -86,16 +86,13 @@ class MainActivity : ComponentActivity() {
     private var sharedImageUri: Uri? = null
     private lateinit var ocrService: OCRService
     private lateinit var translationCoordinator: TranslationCoordinator
-    private var onOcrProgress: (Float) -> Unit = {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
 
-        ocrService = OCRService(this) { progress ->
-            onOcrProgress(progress)
-        }
+        ocrService = OCRService(this)
         val imageProcessor = ImageProcessor(this, ocrService)
         val translationService = TranslationService(this)
         val languageDetector = LanguageDetector()
@@ -109,8 +106,8 @@ class MainActivity : ComponentActivity() {
                         initialText = textToTranslate,
                         sharedImageUri = sharedImageUri,
                         translationCoordinator = translationCoordinator,
-                        settingsManager = settingsManager,
-                        onOcrProgress = { callback -> onOcrProgress = callback })
+                        settingsManager = settingsManager
+                    )
                 }
             }
         }
@@ -235,25 +232,15 @@ fun Greeting(
     onMessage: (TranslatorMessage) -> Unit,
     
     // System integration
-    onOcrProgress: ((Float) -> Unit) -> Unit,
     sharedImageUri: Uri? = null,
 ) {
     val context = LocalContext.current
-
-    // Move progress state to this composable
-    var ocrProgress by remember { mutableFloatStateOf(0f) }
 
     // Collect translation state
     val translating by isTranslating.collectAsState()
     val ocrInProgress by isOcrInProgress.collectAsState()
 
 
-    // Set up progress callback once
-    LaunchedEffect(Unit) {
-        onOcrProgress { progress ->
-            ocrProgress = progress
-        }
-    }
 
     // Process shared image when component loads
     LaunchedEffect(sharedImageUri) {
@@ -415,12 +402,6 @@ fun Greeting(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
-                            if (ocrInProgress || translating) {
-                                LinearProgressIndicator(
-                                    progress = { ocrProgress },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
                             Image(
                                 bitmap = displayImage.asImageBitmap(),
                                 contentDescription = "Image to translate",
@@ -515,7 +496,6 @@ fun GreetingPreview() {
             isTranslating = MutableStateFlow(false).asStateFlow(),
             isOcrInProgress = MutableStateFlow(false).asStateFlow(),
             onMessage = {},
-            onOcrProgress = {},
             sharedImageUri = null,
         )
     }

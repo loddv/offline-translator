@@ -30,7 +30,6 @@ fun TranslatorApp(
     sharedImageUri: Uri? = null,
     translationCoordinator: TranslationCoordinator,
     settingsManager: SettingsManager,
-    onOcrProgress: ((Float) -> Unit) -> Unit
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -153,6 +152,7 @@ fun TranslatorApp(
                 // Store the original image URI and set input type
                 originalImageUri = message.uri
                 inputType = InputType.IMAGE
+                currentDetectedLanguage = null
                 scope.launch {
                     val result = translationCoordinator.translateImageWithOverlay(from, to, message.uri) { originalBitmap ->
                         displayImage = originalBitmap
@@ -177,6 +177,7 @@ fun TranslatorApp(
                 output = ""
                 inputType = InputType.TEXT
                 originalImageUri = null
+                currentDetectedLanguage = null
             }
             
             is TranslatorMessage.InitializeLanguages -> {
@@ -227,7 +228,6 @@ fun TranslatorApp(
                 onMessage = handleMessage,
                 
                 // System integration
-                onOcrProgress = onOcrProgress,
                 sharedImageUri = sharedImageUri,
             )
         }

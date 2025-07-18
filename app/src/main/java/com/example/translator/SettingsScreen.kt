@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.translator.ui.theme.TranslatorTheme
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -245,5 +247,34 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SettingsScreenPreview() {
+    TranslatorTheme {
+        SettingsScreen(
+            settings = AppSettings(),
+            availableLanguages = Language.entries,
+            onSettingsChange = {},
+            onManageLanguages = {}
+        )
+    }
+}
+
+@Preview(
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
+@Composable
+fun SettingsScreenDarkPreview() {
+    TranslatorTheme {
+        SettingsScreen(
+            settings = AppSettings(),
+            availableLanguages = Language.entries,
+            onSettingsChange = {},
+            onManageLanguages = {}
+        )
     }
 }

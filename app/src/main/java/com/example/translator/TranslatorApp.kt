@@ -45,40 +45,6 @@ fun TranslatorApp(
     // Track available language pairs (detailed map for UI components)
     val availableLanguageMap = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Check for available languages on startup
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            // Set English as always available
-            availableLanguageMap[Language.ENGLISH.code] = true
-            
-            // Check each language pair
-            Language.entries.forEach { fromLang ->
-                val toLang = Language.ENGLISH
-                if (fromLang != toLang) {
-                    val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
-                    availableLanguageMap[fromLang.code] = isAvailable
-                }
-            }
-            
-            // Create list of available languages
-            val available = Language.entries.filter { language ->
-                availableLanguageMap[language.code] == true
-            }
-            availableLanguages = available
-            hasLanguages = available.isNotEmpty()
-        }
-    }
-
-    // Watch for when all languages are deleted and navigate accordingly
-    // Only auto-navigate if we're on main screen and have no languages
-    LaunchedEffect(hasLanguages) {
-        if (hasLanguages == false && navController.currentDestination?.route == "main") {
-            // If user is on main page and no languages available, go to language manager
-            navController.navigate("language_manager") {
-                popUpTo("main") { inclusive = true }
-            }
-        }
-    }
 
     // Move all persistent state to this level so it survives navigation
     var input by remember { mutableStateOf(initialText) }
@@ -169,6 +135,7 @@ fun TranslatorApp(
                 originalImageUri = message.uri
                 inputType = InputType.IMAGE
                 currentDetectedLanguage = null
+                output = ""
                 scope.launch {
                     val result = translationCoordinator.translateImageWithOverlay(from, to, message.uri) { originalBitmap ->
                         displayImage = originalBitmap
@@ -191,6 +158,7 @@ fun TranslatorApp(
             TranslatorMessage.ClearImage -> {
                 displayImage = null
                 output = ""
+                input = ""
                 inputType = InputType.TEXT
                 originalImageUri = null
                 currentDetectedLanguage = null

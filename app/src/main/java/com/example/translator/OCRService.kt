@@ -41,6 +41,10 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
     var lastRight = 0
     do {
         val word = iter.getUTF8Text(RIL_WORD)
+        if (word == null) {
+            Log.e("OCRService", "WTF word was null")
+            continue
+        }
         if (word.trim() == "") {
             continue
         }
@@ -49,9 +53,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI): Array<TextBlock> {
         if (conf < 75) continue // TODO: configuration
         if (word.length == 1 && conf < 80) continue
         val boundingBox = iter.getBoundingRect(RIL_WORD)
-        if (word.length == 1) {
-            println("word $word conf $conf box $boundingBox")
-        }
+
         val firstWordInLine = iter.isAtBeginningOf(RIL_TEXTLINE)
         val lastWordInLine = iter.isAtFinalElement(RIL_TEXTLINE, RIL_WORD)
         val lastWordInPara = iter.isAtFinalElement(RIL_PARA, RIL_WORD)
@@ -132,7 +134,6 @@ class OCRService(
                 Log.w("OCRService", "No tessdata language files found")
                 return@withContext false
             }
-
 
             tess = TessBaseAPI()
 

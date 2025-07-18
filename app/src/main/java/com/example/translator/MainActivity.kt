@@ -21,15 +21,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
@@ -38,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +42,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -130,56 +124,6 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TranslationResult(
-    context: Context, text: String, modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(max = LocalConfiguration.current.screenHeightDp.dp / 2),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.Top
-            ) {
-                SelectionContainer(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.widthIn(max = (LocalConfiguration.current.screenWidthDp - 66).dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = {
-                        val clipboard: ClipboardManager? =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager?
-                        val clip = ClipData.newPlainText("Translated text", text)
-                        clipboard?.setPrimaryClip(clip)
-                    }, modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.copy),
-                        contentDescription = "Copy translation",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun Greeting(
     // Navigation
     onManageLanguages: () -> Unit,
@@ -225,9 +169,9 @@ fun Greeting(
             }
         }
 
-    // Check if any languages are available
-    val hasAnyLanguages = availableLanguages.values.any { it }
-
+    // Check if any languages are available (apart from english, which can't
+    // be deleted)
+    val hasAnyLanguages = availableLanguages.any { it.key != "en" && it.value }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {

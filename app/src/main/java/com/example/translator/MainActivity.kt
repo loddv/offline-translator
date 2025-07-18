@@ -43,6 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -76,6 +77,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 
 class MainActivity : ComponentActivity() {
@@ -475,7 +478,7 @@ fun Greeting(
                         .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    androidx.compose.material3.HorizontalDivider(
+                    HorizontalDivider(
                         modifier = Modifier.fillMaxWidth(0.33f),
                         thickness = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant
@@ -499,9 +502,21 @@ fun Greeting(
 )
 @Composable
 fun GreetingPreview() {
-    // Preview can't use real OCR service, create a mock
     TranslatorTheme {
-        // Preview disabled - requires OCR service
-        Text("Preview requires OCR service")
+        Greeting(
+            onManageLanguages = { },
+            onSettings = {  },
+            input = "Example input",
+            output = "Example output",
+            from = Language.ENGLISH,
+            to = Language.SPANISH,
+            detectedLanguage = null,
+            displayImage = null,
+            isTranslating = MutableStateFlow(false).asStateFlow(),
+            isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+            onMessage = {},
+            onOcrProgress = {},
+            sharedImageUri = null,
+        )
     }
 }

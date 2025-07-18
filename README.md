@@ -5,17 +5,13 @@ There's automatic language detection as well, with [cld2](https://github.com/CLD
 
 The translation models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator).
 
-<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/app-dark.png" width="400">
-
+<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/new-ui.png" width="400px">
 
 ## Image translation overlay
 
 The app also translates images directly on top of the previous content, similar to Google Translate:
 
-Original | New
-:-------:|:----:
-![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/original-image.png) | ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/translated-image.png)
-![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/kindle.jpg) | ![](https://raw.github.com/davidventura/firefox-translator/master/screenshots/translated-kindle.png)
+<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/new-ui-pic.png" width="400px">
 
 It tries to detect background and foreground colors to blend in better with the original text, but it's not perfect.
 

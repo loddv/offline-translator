@@ -59,6 +59,37 @@ fun TranslatorApp(
     // Translation request handlers
     val scope = rememberCoroutineScope()
     
+    // Function to refresh available languages
+    val refreshAvailableLanguages = {
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                // Set English as always available
+                availableLanguageMap[Language.ENGLISH.code] = true
+                
+                // Check each language pair
+                Language.entries.forEach { fromLang ->
+                    val toLang = Language.ENGLISH
+                    if (fromLang != toLang) {
+                        val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
+                        availableLanguageMap[fromLang.code] = isAvailable
+                    }
+                }
+                
+                // Create list of available languages
+                val available = Language.entries.filter { language ->
+                    availableLanguageMap[language.code] == true
+                }
+                availableLanguages = available
+                hasLanguages = available.isNotEmpty()
+            }
+        }
+    }
+
+    // Check for available languages on startup
+    LaunchedEffect(Unit) {
+        refreshAvailableLanguages()
+    }
+    
     // Auto-translate initial text if provided
     LaunchedEffect(initialText) {
         if (initialText.isNotBlank()) {
@@ -219,6 +250,8 @@ fun TranslatorApp(
         composable("language_manager") {
             LanguageManagerScreen(
                 onLanguageDownloaded = {
+                    // Refresh available languages after download
+                    refreshAvailableLanguages()
                     if (hasLanguages == false) {
                         hasLanguages = true
                         MainScope().launch {
@@ -229,6 +262,8 @@ fun TranslatorApp(
                     }
                 },
                 onLanguageDeleted = {
+                    // Refresh available languages after deletion
+                    refreshAvailableLanguages()
                     // Update state when all languages are deleted
                     hasLanguages = false
                 }

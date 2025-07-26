@@ -13,6 +13,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -118,27 +120,45 @@ class DownloadService : Service() {
             try {
                 showNotification("Downloading ${language.displayName}", "Starting download...")
 
-                // Download translation pairs
+                val downloadTasks = mutableListOf<suspend () -> Unit>()
+
+                // Prepare download tasks
                 if (!checkLanguagePairFiles(this@DownloadService, language, Language.ENGLISH)) {
-                    updateProgress(language, 0.1f, "Downloading translation model...")
-                    downloadLanguagePair(this@DownloadService, language, Language.ENGLISH)
+                    downloadTasks.add {
+                        downloadLanguagePair(this@DownloadService, language, Language.ENGLISH)
+                    }
                 }
 
                 if (!checkLanguagePairFiles(this@DownloadService, Language.ENGLISH, language)) {
-                    updateProgress(language, 0.5f, "Downloading reverse translation...")
-                    downloadLanguagePair(this@DownloadService, Language.ENGLISH, language)
+                    downloadTasks.add {
+                        downloadLanguagePair(this@DownloadService, Language.ENGLISH, language)
+                    }
                 }
 
-                // Download tessdata
                 if (!checkTessDataFile(this@DownloadService, language)) {
-                    updateProgress(language, 0.8f, "Downloading OCR data...")
-                    downloadTessData(this@DownloadService, language)
+                    downloadTasks.add {
+                        downloadTessData(this@DownloadService, language)
+                    }
                 }
 
                 // Always ensure English OCR is available
                 if (!checkTessDataFile(this@DownloadService, Language.ENGLISH)) {
-                    updateProgress(language, 0.9f, "Downloading English OCR...")
-                    downloadTessData(this@DownloadService, Language.ENGLISH)
+                    downloadTasks.add {
+                        downloadTessData(this@DownloadService, Language.ENGLISH)
+                    }
+                }
+
+                // Execute all downloads in parallel
+                if (downloadTasks.isNotEmpty()) {
+                    updateProgress(language, 0f, "Downloading ${downloadTasks.size} files in parallel...")
+                    
+                    val downloadJobs = downloadTasks.mapIndexed { index, task ->
+                        async { 
+                            task()
+                            updateProgress(language, 1f / downloadTasks.size, "Downloaded index $index out of ${downloadTasks.size} files")
+                        }
+                    }
+                    downloadJobs.awaitAll()
                 }
 
                 updateDownloadState(language) {
@@ -242,7 +262,7 @@ class DownloadService : Service() {
     }
 
     private fun updateProgress(language: Language, progress: Float, message: String) {
-        updateDownloadState(language) { it.copy(progress = progress) }
+        updateDownloadState(language) { it.copy(progress = progress + it.progress) }
         showNotification("Downloading ${language.displayName}", message)
     }
 
@@ -273,14 +293,20 @@ class DownloadService : Service() {
         }
 
         withContext(Dispatchers.IO) {
-            files.forEach { fileName ->
-                val file = File(dataPath, fileName)
-                if (!file.exists()) {
-                    val url = "${base}/${modelQuality}/${lang}/${fileName}.gz"
-                    val success = downloadAndDecompress(url, file)
-                    Log.i("DownloadService", "Downloaded ${url} to ${file} = $success")
+            val downloadJobs = files.map { fileName ->
+                async {
+                    val file = File(dataPath, fileName)
+                    if (!file.exists()) {
+                        val url = "${base}/${modelQuality}/${lang}/${fileName}.gz"
+                        val success = downloadAndDecompress(url, file)
+                        Log.i("DownloadService", "Downloaded ${url} to ${file} = $success")
+                        success
+                    } else {
+                        true
+                    }
                 }
             }
+            downloadJobs.awaitAll()
         }
     }
 

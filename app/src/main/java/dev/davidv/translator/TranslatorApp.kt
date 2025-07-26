@@ -82,8 +82,8 @@ fun TranslatorApp(
                 availableLanguages = available
                 // Only consider it as having languages if there are non-English languages
                 hasLanguages = available.any { it != Language.ENGLISH }
-                if (available.isNotEmpty() && from == null) {
-                    setFrom(availableLanguages.filterNot { lang -> lang != settingsManager.settings.value.defaultTargetLanguage } .first())
+                if (hasLanguages as Boolean && from == null) {
+                    setFrom(availableLanguages.filterNot { lang -> lang == settingsManager.settings.value.defaultTargetLanguage }.first())
                 }
             }
         }

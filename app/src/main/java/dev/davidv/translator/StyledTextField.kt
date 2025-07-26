@@ -1,7 +1,6 @@
 package dev.davidv.translator
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -10,7 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun StyledTextField(
@@ -20,14 +20,12 @@ fun StyledTextField(
     placeholder: String? = null,
     readOnly: Boolean = false,
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
-    minHeight: Int = 120
 ) {
     TextField(
         value = text,
         onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(minHeight.dp),
+        modifier =
+            modifier.fillMaxWidth(),
         textStyle = textStyle,
         placeholder = placeholder?.let { { Text(it, style = textStyle) } },
         readOnly = readOnly,
@@ -46,4 +44,17 @@ fun StyledTextField(
             unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun StyledTextFieldWeightedPreview() {
+    TranslatorTheme {
+        StyledTextField(
+            text = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+            onValueChange = {},
+            placeholder = "Enter text",
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }

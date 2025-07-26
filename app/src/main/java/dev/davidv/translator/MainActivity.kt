@@ -224,7 +224,6 @@ fun Greeting(
                     .fillMaxSize()
                     .navigationBarsPadding()
                     .imePadding()
-                    .verticalScroll(rememberScrollState())
                     .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp)
                     .padding(horizontal = 8.dp)
             ) {
@@ -320,14 +319,15 @@ fun Greeting(
                         }
                     }
                 } else {
-                    TranslationField(
+                    StyledTextField(
                         text = input,
-                        onTextChange = { newInput ->
+                        onValueChange = { newInput ->
                             onMessage(TranslatorMessage.TextInput(newInput))
                         },
                         placeholder = "Enter text",
-                        isInput = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     )
                 }
 
@@ -349,7 +349,7 @@ fun Greeting(
                     contentAlignment = Alignment.Center
                 ) {
                     HorizontalDivider(
-                        modifier = Modifier.fillMaxWidth(0.33f),
+                        modifier = Modifier.fillMaxWidth(0.5f),
                         thickness = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant
                     )
@@ -357,8 +357,9 @@ fun Greeting(
 
                 TranslationField(
                     text = output,
-                    isInput = false,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
                 )
             }
         }
@@ -415,6 +416,34 @@ fun PreviewNoLang() {
             onMessage = {},
             sharedImageUri = null,
             availableLanguages = mapOf(),
+        )
+    }
+}
+
+@Preview(
+    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
+)
+@Composable
+fun PreviewVeryLongText() {
+    TranslatorTheme {
+        Greeting(
+            onManageLanguages = { },
+            onSettings = {  },
+            input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+            output = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+            from = Language.ENGLISH,
+            to = Language.ENGLISH,
+            detectedLanguage = null,
+            displayImage = null,
+            isTranslating = MutableStateFlow(false).asStateFlow(),
+            isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+            onMessage = {},
+            sharedImageUri = null,
+            availableLanguages = mapOf(
+                Language.ENGLISH.code to true,
+                Language.SPANISH.code to true,
+                Language.FRENCH.code to true
+            ),
         )
     }
 }

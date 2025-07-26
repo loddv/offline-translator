@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -23,45 +25,32 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun TranslationField(
     text: String,
-    onTextChange: ((String) -> Unit)? = null,
-    placeholder: String? = null,
-    isInput: Boolean = true,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
-    minHeight: Int = 120
 ) {
     val context = LocalContext.current
-    
+
     Column(modifier = modifier) {
-        if (isInput) {
-            StyledTextField(
-                text = text,
-                onValueChange = onTextChange ?: {},
-                placeholder = placeholder,
-                textStyle = textStyle,
-                minHeight = minHeight,
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            // Output field with copy functionality and transparent background
             Box(
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
-                    .heightIn(min = minHeight.dp, max = LocalConfiguration.current.screenHeightDp.dp / 2)
+                    .fillMaxHeight()
             ) {
                 if (text.isNotEmpty()) {
-                    // Text content with scrolling
                     SelectionContainer(
                         modifier = Modifier
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                             .padding(12.dp)
-                            .padding(end = 40.dp) // Leave space for copy button
+                            .padding(end = 20.dp) // Leave space for copy button
                     ) {
                         Text(
                             text = text,
@@ -69,11 +58,12 @@ fun TranslationField(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    
+
                     // Copy button positioned sticky to the right
                     IconButton(
                         onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clipboard =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = ClipData.newPlainText("Translation", text)
                             clipboard.setPrimaryClip(clip)
                         },
@@ -89,8 +79,22 @@ fun TranslationField(
                         )
                     }
                 }
-                // No placeholder when empty - just empty space
             }
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun TranslationFieldBothWeightedPreview() {
+    TranslatorTheme {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TranslationField(
+                text = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            )
         }
     }
 }

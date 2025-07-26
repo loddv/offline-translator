@@ -39,6 +39,15 @@ import kotlin.system.measureTimeMillis
 data class TextLine(var text: String, var boundingBox: Rect)
 data class TextBlock(val lines: Array<TextLine>)
 
+data class WordInfo(
+    val text: String,
+    val confidence: Float,
+    val boundingBox: Rect,
+    val isFirstInLine: Boolean,
+    var isLastInLine: Boolean,
+    var isLastInPara: Boolean
+)
+
 fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int = 75): Array<TextBlock> {
     tessInstance.setImage(bitmap)
     tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
@@ -52,31 +61,79 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
     }
 
     iter.begin()
-    val blocks = mutableListOf<TextBlock>()
-    var lines = mutableListOf<TextLine>()
-    var line = TextLine("", Rect(0, 0, 0, 0))
-    var lastRight = 0
+    val allWords = mutableListOf<WordInfo>()
     do {
         val word = iter.getUTF8Text(RIL_WORD)
         if (word == null) {
             Log.e("OCRService", "WTF word was null")
             continue
         }
+
+        allWords.add(WordInfo(
+            text = word,
+            confidence = iter.confidence(RIL_WORD),
+            boundingBox = iter.getBoundingRect(RIL_WORD),
+            isFirstInLine = iter.isAtBeginningOf(RIL_TEXTLINE),
+            isLastInLine = iter.isAtFinalElement(RIL_TEXTLINE, RIL_WORD),
+            isLastInPara = iter.isAtFinalElement(RIL_PARA, RIL_WORD)
+        ))
+
+    } while (iter.next(RIL_WORD))
+
+    iter.delete()
+    tessInstance.clear()
+
+    val filteredWords = mutableListOf<WordInfo>()
+    var pendingFirstInLine = false
+
+    for (i in allWords.indices) {
+        val wordInfo = allWords[i]
+        
+        val shouldInclude = wordInfo.confidence >= minConfidence &&
+                           !(wordInfo.text.length == 1 && wordInfo.confidence < min(100, minConfidence + 5))
+
+        if (shouldInclude) {
+            val adjustedWordInfo = wordInfo.copy(
+                // If we skipped over the previous word (due to low confidence)
+                // then we drag over the 'first' marker
+                isFirstInLine = wordInfo.isFirstInLine || pendingFirstInLine,
+                isLastInLine = wordInfo.isLastInLine,
+                isLastInPara = wordInfo.isLastInPara
+            )
+            filteredWords.add(adjustedWordInfo)
+            pendingFirstInLine = false
+        } else {
+            if (wordInfo.isFirstInLine) {
+                pendingFirstInLine = true
+            }
+            // if we are skipping the last word; add the 'last' marker to the previous (kept) word
+            if (wordInfo.isLastInLine && i > 0) {
+                allWords[i-1].isLastInLine = true
+            }
+            if (wordInfo.isLastInPara && i > 0) {
+                allWords[i-1].isLastInPara = true
+            }
+        }
+    }
+
+    val blocks = mutableListOf<TextBlock>()
+    val lines = mutableListOf<TextLine>()
+    var line = TextLine("", Rect(0, 0, 0, 0))
+    var lastRight = 0
+
+    for (wordInfo in filteredWords) {
+        val word = wordInfo.text
         if (word.trim() == "") {
             continue
         }
-
-        val conf = iter.confidence(RIL_WORD)
-        if (conf < minConfidence) continue
-        if (word.length == 1 && conf < min(100, minConfidence + 5)) continue
-        val boundingBox = iter.getBoundingRect(RIL_WORD)
-
-        // FIXME: this breaks when we skip words due to low confidence;
-        // for example, we are on word n-1, but we are going to skip word n
+        val boundingBox = wordInfo.boundingBox
         val skippedFirstWord = boundingBox.right < line.boundingBox.left
-        val firstWordInLine = iter.isAtBeginningOf(RIL_TEXTLINE) || skippedFirstWord
-        val lastWordInLine = iter.isAtFinalElement(RIL_TEXTLINE, RIL_WORD)
-        val lastWordInPara = iter.isAtFinalElement(RIL_PARA, RIL_WORD)
+        if (skippedFirstWord) {
+            println(wordInfo)
+        }
+        val firstWordInLine = wordInfo.isFirstInLine || skippedFirstWord
+        val lastWordInLine = wordInfo.isLastInLine
+        val lastWordInPara = wordInfo.isLastInPara
 
         if (firstWordInLine) {
             line = TextLine(word, boundingBox)
@@ -94,7 +151,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
                 line = TextLine(word, boundingBox)
                 if (lines.isNotEmpty()) {
                     blocks.add(TextBlock(lines.toTypedArray()))
-                    lines = mutableListOf()
+                    lines.clear()
                 }
             } else {
                 line.text = "${line.text} ${word}"
@@ -128,14 +185,10 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
 
         if (lastWordInPara && lines.isNotEmpty()) {
             blocks.add(TextBlock(lines.toTypedArray()))
-            lines = mutableListOf()
+            lines.clear()
         }
         lastRight = boundingBox.right
-
-    } while (iter.next(RIL_WORD))
-
-    iter.delete()
-    tessInstance.clear()
+    }
 
     return blocks.toTypedArray()
 }

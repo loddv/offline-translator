@@ -52,16 +52,20 @@ class TranslationService(private val context: Context) {
         to: Language,
         text: String
     ): TranslationResult = withContext(Dispatchers.IO) {
-        Log.d("TranslationService", "Translating $from -> $to")
-        
         if (from == to) {
             return@withContext TranslationResult.Success(text)
         }
-        
+        // numbers don't translate :^)
+        if (text.trim().toFloatOrNull() != null) {
+            return@withContext TranslationResult.Success(text)
+        }
+
         if (text.isBlank()) {
             return@withContext TranslationResult.Success("")
         }
-        
+
+        Log.d("TranslationService", "Translating $from -> $to")
+
         try {
             val translationPairs = getTranslationPairs(from, to)
             

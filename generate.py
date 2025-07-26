@@ -273,7 +273,7 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
         to_english_entries.append(f'    {lang_enum} to {model_type_enum}')
 
     # Generate the complete enum classes and maps
-    kotlin_code = f"""package com.example.translator
+    kotlin_code = f"""package dev.davidv.translator
 
 enum class ModelType(private val pathName: String) {{
     BASE("base"),

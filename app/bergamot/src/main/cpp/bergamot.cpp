@@ -59,7 +59,7 @@ std::string func(const char* cfg, const char *input, const char* key) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_bergamot_NativeLib_stringFromJNI(
+Java_dev_davidv_bergamot_NativeLib_stringFromJNI(
         JNIEnv* env,
         jobject /* this */,
         jstring cfg,
@@ -87,7 +87,7 @@ Java_com_example_bergamot_NativeLib_stringFromJNI(
 
 // Cleanup function to be called when the library is unloaded
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_bergamot_NativeLib_cleanup(JNIEnv* env, jobject /* this */) {
+Java_dev_davidv_bergamot_NativeLib_cleanup(JNIEnv* env, jobject /* this */) {
     std::lock_guard<std::mutex> lock(service_mutex);
     global_service.reset();
     model_cache.clear();
@@ -135,7 +135,7 @@ DetectionResult detectLanguage(const char* text) {
 
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_com_example_bergamot_LangDetect_detectLanguage(
+Java_dev_davidv_bergamot_LangDetect_detectLanguage(
         JNIEnv* env,
         jobject /* this */,
         jstring text) {
@@ -143,7 +143,7 @@ Java_com_example_bergamot_LangDetect_detectLanguage(
     const char* c_text = env->GetStringUTFChars(text, nullptr);
 
     // Find the Result class and its constructor
-    jclass resultClass = env->FindClass("com/example/bergamot/DetectionResult");
+    jclass resultClass = env->FindClass("dev/davidv/bergamot/DetectionResult");
     jmethodID constructor = env->GetMethodID(resultClass, "<init>",
                                              "(Ljava/lang/String;ZI)V");
 

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.bergamot"
+    namespace = "dev.davidv.bergamot"
     compileSdk = 34
 
     defaultConfig {

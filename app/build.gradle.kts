@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.translator"
+    namespace = "dev.davidv.translator"
     compileSdk = 34
 
     sourceSets {
@@ -16,7 +16,7 @@ android {
         }
     }
     defaultConfig {
-        applicationId = "com.example.translator"
+        applicationId = "dev.davidv.translator"
         minSdk = 28 // iconv functions need 28?
         targetSdk = 34
         versionCode = 1
@@ -34,7 +34,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
         }
 
         flavorDimensions += listOf("architecture")

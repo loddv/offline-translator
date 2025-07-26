@@ -21,6 +21,6 @@
 #-renamesourcefileattribute SourceFile
 
 
--keep class com.example.bergamot.DetectionResult { *; }
-#-keep class com.example.bergamot.LangDetect { *; }
-#-keep class com.example.bergamot.NativeLib { *; }
+-keep class dev.davidv.bergamot.DetectionResult { *; }
+#-keep class dev.davidv.bergamot.LangDetect { *; }
+#-keep class dev.davidv.bergamot.NativeLib { *; }

@@ -7,6 +7,3 @@
 [submodule "app/firefox-translations-models"]
 	path = app/firefox-translations-models
 	url = git@github.com:mozilla/firefox-translations-models.git
-[submodule "app/Tesseract4Android"]
-	path = app/Tesseract4Android
-	url = git@github.com:DavidVentura/Tesseract4Android.git

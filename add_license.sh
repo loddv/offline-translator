@@ -1,4 +1,6 @@
-/*
+#!/bin/bash
+
+LICENSE_HEADER='/*
  * Copyright (C) 2024 David V
  *
  * This program is free software: you can redistribute it and/or modify
@@ -13,11 +15,22 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ */'
 
-package dev.davidv.translator
-
-enum class InputType {
-    TEXT,
-    IMAGE
-}
+# Find all .kt files and process them
+find . -name "*.kt" -type f | while read file; do
+    # Check if file already has the license header
+    if ! head -n 5 "$file" | grep -q "Copyright (C) 2024 David V"; then
+        echo "Adding license to: $file"
+        # Create temp file with license header + original content
+        {
+            echo "$LICENSE_HEADER"
+            echo ""
+            cat "$file"
+        } > "${file}.tmp"
+        # Replace original file
+        mv "${file}.tmp" "$file"
+    else
+        echo "License already exists in: $file"
+    fi
+done

@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -203,14 +204,19 @@ fun Greeting(
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp)
-                .padding(horizontal = 8.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -312,7 +318,7 @@ fun Greeting(
                         placeholder = "Enter text",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .height(200.dp)
                     )
                 }
 
@@ -344,8 +350,12 @@ fun Greeting(
                 text = output,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .height(300.dp)
             )
+            
+            // Add extra padding at bottom to ensure content can be scrolled fully into view
+            Spacer(modifier = Modifier.height(100.dp))
+            }
         }
         
         // Full screen image viewer

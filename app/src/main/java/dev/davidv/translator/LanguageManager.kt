@@ -7,18 +7,21 @@ import android.content.ServiceConnection
 import android.content.res.Configuration
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -111,6 +114,19 @@ fun LanguageManagerScreen(
     val downloadStates by downloadService?.downloadStates?.collectAsState()
         ?: remember { mutableStateOf(emptyMap()) }
 
+    // Show toast for download errors
+    LaunchedEffect(downloadStates) {
+        downloadStates.values.forEach { downloadState ->
+            if (downloadState.error != null) {
+                Toast.makeText(
+                    context,
+                    "Download failed: ${downloadState.error}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
     // Refresh local status when downloads complete or when states change
     LaunchedEffect(downloadStates) {
         downloadStates.values.forEach { downloadState ->
@@ -198,7 +214,7 @@ fun LanguageManagerScreen(
             }
 
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(
                     languageStates.values.toList()
@@ -209,63 +225,43 @@ fun LanguageManagerScreen(
                     val isDownloading = downloadState?.isDownloading == true
                     val isCompleted = downloadState?.isCompleted == true
 
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
                         Row(
                             modifier = Modifier
-                                .padding(4.dp)
                                 .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = status.language.displayName,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
 
-                                when {
-                                    downloadState?.isCancelled == true -> {
-                                        Text(
-                                            text = "Download cancelled",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
-
-                                    downloadState?.error != null -> {
-                                        Text(
-                                            text = "Error: ${downloadState.error}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                            }
-
+                            Text(
+                                text = status.language.displayName,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                             Row {
                                 if (isDownloading) {
-                                    // Cancel button during download
-                                    FilledTonalIconButton(
-                                        onClick = {
-                                            downloadService?.cancelDownload(status.language)
-                                        },
+                                    // Cancel button with progress indicator around it
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.size(48.dp)
                                     ) {
-                                        Icon(
-                                            painterResource(id = R.drawable.cancel),
-                                            contentDescription = "Cancel Download",
+                                        CircularProgressIndicator(
+                                            progress = { downloadState?.progress ?: 0f },
+                                            modifier = Modifier.size(48.dp)
                                         )
+                                        IconButton(
+                                            onClick = {
+                                                downloadService?.cancelDownload(status.language)
+                                            },
+                                            modifier = Modifier.size(40.dp)
+                                        ) {
+                                            Icon(
+                                                painterResource(id = R.drawable.cancel),
+                                                contentDescription = "Cancel Download",
+                                            )
+                                        }
                                     }
-                                    CircularProgressIndicator(
-                                        progress = { downloadState?.progress ?: 0f },
-                                    )
                                 } else if (isFullyDownloaded || isCompleted) {
                                     // Delete button for completed downloads
-                                    FilledTonalIconButton(
+                                    IconButton(
                                         onClick = {
                                             downloadService?.deleteLanguage(status.language)
                                         },
@@ -273,12 +269,11 @@ fun LanguageManagerScreen(
                                         Icon(
                                             painterResource(id = R.drawable.delete),
                                             contentDescription = "Delete Language",
-                                            tint = Color.hsl(0f, 0.552f, 0.522f),
                                         )
                                     }
                                 } else {
                                     // Download/retry button
-                                    FilledTonalIconButton(
+                                    IconButton(
                                         onClick = {
                                             DownloadService.startDownload(
                                                 context, status.language
@@ -304,7 +299,7 @@ fun LanguageManagerScreen(
                                     }
                                 }
                             }
-                        }
+
                     }
                 }
             }

@@ -212,7 +212,6 @@ fun Greeting(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Clean language selectors
                     val fromLanguages = Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
                     val toLanguages = Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
                     

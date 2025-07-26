@@ -26,7 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,10 +36,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.Dispatchers
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun TranslatorApp(
@@ -51,64 +50,34 @@ fun TranslatorApp(
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     // Settings management
     val settings by settingsManager.settings.collectAsState()
 
-    // Check if any languages are available
-    var hasLanguages by remember { mutableStateOf<Boolean?>(null) } // null = checking, true/false = result
-    var availableLanguages by remember { mutableStateOf<List<Language>>(emptyList()) }
-    
-    // Track available language pairs (detailed map for UI components)
-    val availableLanguageMap = remember { mutableStateMapOf<String, Boolean>() }
+    // Centralized language state management
+    val languageStateManager = remember { LanguageStateManager(context, scope) }
+    val languageState by languageStateManager.languageState.collectAsState()
 
 
     // Move all persistent state to this level so it survives navigation
     var input by remember { mutableStateOf(initialText) }
     var output by remember { mutableStateOf("") }
-    val (from, setFrom) = remember { mutableStateOf(availableLanguages.firstOrNull()) }
+    val (from, setFrom) = remember { mutableStateOf<Language?>(null) }
     val (to, setTo) = remember { mutableStateOf(settings.defaultTargetLanguage) }
     var displayImage by remember { mutableStateOf<Bitmap?>(null) }
     var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
     var inputType by remember { mutableStateOf(InputType.TEXT) }
     var originalImageUri by remember { mutableStateOf<Uri?>(null) }
     
-    // Translation request handlers
-    val scope = rememberCoroutineScope()
-    
-    // Function to refresh available languages
-    val refreshAvailableLanguages = {
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                // Set English as always available
-                availableLanguageMap[Language.ENGLISH.code] = true
-                
-                // Check each language pair
-                Language.entries.forEach { fromLang ->
-                    val toLang = Language.ENGLISH
-                    if (fromLang != toLang) {
-                        val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
-                        availableLanguageMap[fromLang.code] = isAvailable
-                    }
-                }
-                
-                // Create list of available languages
-                val available = Language.entries.filter { language ->
-                    availableLanguageMap[language.code] == true
-                }
-                availableLanguages = available
-                // Only consider it as having languages if there are non-English languages
-                hasLanguages = available.any { it != Language.ENGLISH }
-                if (hasLanguages as Boolean && from == null) {
-                    setFrom(availableLanguages.filterNot { lang -> lang == settingsManager.settings.value.defaultTargetLanguage }.first())
-                }
+    // Initialize from language when languages become available
+    LaunchedEffect(languageState.availableLanguages, settings.defaultTargetLanguage) {
+        if (from == null && languageState.availableLanguages.isNotEmpty()) {
+            val firstAvailable = languageStateManager.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
+            if (firstAvailable != null) {
+                setFrom(firstAvailable)
             }
         }
-    }
-
-    // Check for available languages on startup
-    LaunchedEffect(Unit) {
-        refreshAvailableLanguages()
     }
     
     // Auto-translate initial text if provided
@@ -223,22 +192,24 @@ fun TranslatorApp(
         }
     }
 
-    // Determine start destination based on language availability - only calculate once
+    // Determine start destination based on initial language availability (fixed at first composition)
     val startDestination = remember {
-        when (hasLanguages) {
-            null -> "loading" // Still checking
-            true -> "main"    // Languages available, go to main
-            false -> "no_languages" // No languages, go to no languages screen
+        if (languageState.isChecking) {
+            "loading"
+        } else if (languageState.hasLanguages) {
+            "main"
+        } else {
+            "no_languages"
         }
     }
     
-    // Handle navigation when hasLanguages state changes (only from loading screen)
-    LaunchedEffect(hasLanguages) {
+    // Handle initial navigation from loading screen only
+    LaunchedEffect(languageState.isChecking) {
         val currentRoute = navController.currentDestination?.route
         
-        if (hasLanguages != null && currentRoute == "loading") {
-            // Initial navigation from loading screen
-            val destination = if (hasLanguages == true) "main" else "no_languages"
+        if (!languageState.isChecking && currentRoute == "loading") {
+            // Initial navigation from loading screen only
+            val destination = if (languageState.hasLanguages) "main" else "no_languages"
             navController.navigate(destination) {
                 popUpTo("loading") { inclusive = true }
             }
@@ -247,7 +218,7 @@ fun TranslatorApp(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
     ) {
         composable("loading") {
             // Simple loading screen while checking languages
@@ -263,33 +234,35 @@ fun TranslatorApp(
             NoLanguagesScreen(
                 onLanguageDownloaded = {
                     // Refresh available languages after download
-                    refreshAvailableLanguages()
+                    languageStateManager.refreshLanguageAvailability()
                 },
                 onLanguageDeleted = {
                     // Refresh available languages after deletion
-                    refreshAvailableLanguages()
+                    languageStateManager.refreshLanguageAvailability()
                 },
                 onDone = {
-                    // Navigate to main screen when Done is pressed
-                    MainScope().launch {
-                        navController.navigate("main") {
-                            popUpTo("no_languages") { inclusive = true }
+                    // Only navigate if languages are available
+                    if (languageState.hasLanguages) {
+                        MainScope().launch {
+                            navController.navigate("main") {
+                                popUpTo("no_languages") { inclusive = true }
+                            }
                         }
                     }
                 },
-                hasLanguages = hasLanguages == true
+                hasLanguages = languageState.hasLanguages
             )
         }
         
         composable("main") {
-            // Guard: redirect to no_languages if no languages available
-            if (hasLanguages == false) {
+            // Guard: redirect to no_languages if no languages available (only on initial load)
+            if (!languageState.hasLanguages && !languageState.isChecking) {
                 LaunchedEffect(Unit) {
                     navController.navigate("no_languages") {
                         popUpTo("main") { inclusive = true }
                     }
                 }
-            } else {
+            } else if (from != null) {
                 Greeting(
                     // Navigation
                     onSettings = { navController.navigate("settings") },
@@ -297,7 +270,7 @@ fun TranslatorApp(
                     // Current state (read-only)
                     input = input,
                     output = output,
-                    from = from!!,
+                    from = from,
                     to = to,
                     detectedLanguage = currentDetectedLanguage,
                     displayImage = displayImage,
@@ -309,7 +282,7 @@ fun TranslatorApp(
                     
                     // System integration
                     sharedImageUri = sharedImageUri,
-                    availableLanguages = availableLanguageMap,
+                    availableLanguages = languageState.availableLanguageMap,
                 )
             }
         }
@@ -317,21 +290,21 @@ fun TranslatorApp(
             LanguageManagerScreen(
                 onLanguageDownloaded = {
                     // Refresh available languages after download
-                    refreshAvailableLanguages()
+                    languageStateManager.refreshLanguageAvailability()
                 },
                 onLanguageDeleted = {
                     // Refresh available languages after deletion
-                    refreshAvailableLanguages()
+                    languageStateManager.refreshLanguageAvailability()
                 }
             )
         }
         composable("settings") {
             SettingsScreen(
                 settings = settings,
-                availableLanguages = if (availableLanguages.contains(Language.ENGLISH)) {
-                    availableLanguages
+                availableLanguages = if (languageState.availableLanguages.contains(Language.ENGLISH)) {
+                    languageState.availableLanguages
                 } else {
-                    availableLanguages + Language.ENGLISH
+                    languageState.availableLanguages + Language.ENGLISH
                 },
                 onSettingsChange = { newSettings ->
                     settingsManager.updateSettings(newSettings)

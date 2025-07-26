@@ -24,6 +24,8 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.text.TextPaint
+import android.util.Log
+import kotlin.system.measureTimeMillis
 
 
 fun getForegroundColorByContrast(bitmap: Bitmap, textBounds: Rect, backgroundColor: Int): Int {
@@ -151,11 +153,15 @@ suspend fun paintTranslatedTextOver(
 
     var allTranslatedText = ""
 
+    var totalTranslateMs: Long = 0
     textBlocks.forEach { textBlock ->
         val blockAvgPixelHeight =
             textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
         val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
-        val translated: String = translate(blockText)
+        val translated: String
+        totalTranslateMs += measureTimeMillis {
+            translated = translate(blockText)
+        }
         paint.textSize = blockAvgPixelHeight
         textPaint.textSize = blockAvgPixelHeight
 
@@ -219,5 +225,6 @@ suspend fun paintTranslatedTextOver(
         }
     }
 
+    Log.i("ImagePainting", "Translation took ${totalTranslateMs}ms")
     return Pair(mutableBitmap, allTranslatedText.trim())
 }

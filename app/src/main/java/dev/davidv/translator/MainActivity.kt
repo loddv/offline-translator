@@ -30,6 +30,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -163,7 +167,7 @@ fun Greeting(
     sharedImageUri: Uri? = null,
     availableLanguages: Map<String, Boolean>,
 ) {
-
+    var showFullScreenImage by remember { mutableStateOf(false) }
     val translating by isTranslating.collectAsState()
 
     // Process shared image when component loads
@@ -278,7 +282,9 @@ fun Greeting(
                             Image(
                                 bitmap = displayImage.asImageBitmap(),
                                 contentDescription = "Image to translate",
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showFullScreenImage = true }
                             )
                         }
 
@@ -339,6 +345,14 @@ fun Greeting(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+            )
+        }
+        
+        // Full screen image viewer
+        if (showFullScreenImage && displayImage != null) {
+            ZoomableImageViewer(
+                bitmap = displayImage,
+                onDismiss = { showFullScreenImage = false }
             )
         }
     }

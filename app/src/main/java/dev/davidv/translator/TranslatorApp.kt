@@ -80,9 +80,10 @@ fun TranslatorApp(
                     availableLanguageMap[language.code] == true
                 }
                 availableLanguages = available
-                hasLanguages = available.isNotEmpty()
+                // Only consider it as having languages if there are non-English languages
+                hasLanguages = available.any { it != Language.ENGLISH }
                 if (available.isNotEmpty() && from == null) {
-                    setFrom(availableLanguages.first())
+                    setFrom(availableLanguages.filterNot { lang -> lang != settingsManager.settings.value.defaultTargetLanguage } .first())
                 }
             }
         }
@@ -205,11 +206,26 @@ fun TranslatorApp(
         }
     }
 
-    // Determine start destination based on language availability
-    val startDestination = when (hasLanguages) {
-        null -> "loading" // Still checking
-        true -> "main"    // Languages available, go to main
-        false -> "language_manager" // No languages, go to manager
+    // Determine start destination based on language availability - only calculate once
+    val startDestination = remember {
+        when (hasLanguages) {
+            null -> "loading" // Still checking
+            true -> "main"    // Languages available, go to main
+            false -> "no_languages" // No languages, go to no languages screen
+        }
+    }
+    
+    // Handle navigation when hasLanguages state changes (only from loading screen)
+    LaunchedEffect(hasLanguages) {
+        val currentRoute = navController.currentDestination?.route
+        
+        if (hasLanguages != null && currentRoute == "loading") {
+            // Initial navigation from loading screen
+            val destination = if (hasLanguages == true) "main" else "no_languages"
+            navController.navigate(destination) {
+                popUpTo("loading") { inclusive = true }
+            }
+        }
     }
 
     NavHost(
@@ -226,49 +242,69 @@ fun TranslatorApp(
             }
         }
 
-        composable("main") {
-            Greeting(
-                // Navigation
-                onManageLanguages = { navController.navigate("language_manager") },
-                onSettings = { navController.navigate("settings") },
-                
-                // Current state (read-only)
-                input = input,
-                output = output,
-                from = from!!,
-                to = to,
-                detectedLanguage = currentDetectedLanguage,
-                displayImage = displayImage,
-                isTranslating = translationCoordinator.isTranslating,
-                isOcrInProgress = translationCoordinator.isOcrInProgress,
-                
-                // Action requests
-                onMessage = handleMessage,
-                
-                // System integration
-                sharedImageUri = sharedImageUri,
-                availableLanguages = availableLanguageMap,
+        composable("no_languages") {
+            NoLanguagesScreen(
+                onLanguageDownloaded = {
+                    // Refresh available languages after download
+                    refreshAvailableLanguages()
+                },
+                onLanguageDeleted = {
+                    // Refresh available languages after deletion
+                    refreshAvailableLanguages()
+                },
+                onDone = {
+                    // Navigate to main screen when Done is pressed
+                    MainScope().launch {
+                        navController.navigate("main") {
+                            popUpTo("no_languages") { inclusive = true }
+                        }
+                    }
+                },
+                hasLanguages = hasLanguages == true
             )
+        }
+        
+        composable("main") {
+            // Guard: redirect to no_languages if no languages available
+            if (hasLanguages == false) {
+                LaunchedEffect(Unit) {
+                    navController.navigate("no_languages") {
+                        popUpTo("main") { inclusive = true }
+                    }
+                }
+            } else {
+                Greeting(
+                    // Navigation
+                    onSettings = { navController.navigate("settings") },
+                    
+                    // Current state (read-only)
+                    input = input,
+                    output = output,
+                    from = from!!,
+                    to = to,
+                    detectedLanguage = currentDetectedLanguage,
+                    displayImage = displayImage,
+                    isTranslating = translationCoordinator.isTranslating,
+                    isOcrInProgress = translationCoordinator.isOcrInProgress,
+                    
+                    // Action requests
+                    onMessage = handleMessage,
+                    
+                    // System integration
+                    sharedImageUri = sharedImageUri,
+                    availableLanguages = availableLanguageMap,
+                )
+            }
         }
         composable("language_manager") {
             LanguageManagerScreen(
                 onLanguageDownloaded = {
                     // Refresh available languages after download
                     refreshAvailableLanguages()
-                    if (hasLanguages == false) {
-                        hasLanguages = true
-                        MainScope().launch {
-                            navController.navigate("main") {
-                                popUpTo("language_manager") { inclusive = true }
-                            }
-                        }
-                    }
                 },
                 onLanguageDeleted = {
                     // Refresh available languages after deletion
                     refreshAvailableLanguages()
-                    // Update state when all languages are deleted
-                    hasLanguages = false
                 }
             )
         }

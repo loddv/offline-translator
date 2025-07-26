@@ -127,7 +127,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Greeting(
     // Navigation
-    onManageLanguages: () -> Unit,
     onSettings: () -> Unit,
     
     // Current state (read-only)
@@ -170,63 +169,27 @@ fun Greeting(
             }
         }
 
-    // Check if any languages are available (apart from english, which can't
-    // be deleted)
-    val hasAnyLanguages = availableLanguages.any { it.key != "en" && it.value }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            if (hasAnyLanguages) {
-                FloatingActionButton(onClick = {
-                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }) {
-                    Icon(
-                        painterResource(id = R.drawable.add_photo),
-                        contentDescription = "Translate image",
-                    )
-                }
+            FloatingActionButton(onClick = {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) {
+                Icon(
+                    painterResource(id = R.drawable.add_photo),
+                    contentDescription = "Translate image",
+                )
             }
         }
     ) { paddingValues ->
-
-        if (!hasAnyLanguages) {
-            // Show message when no languages are available
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "No Language Packs Installed",
-                    style = MaterialTheme.typography.headlineMedium,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Download language packs to start translating",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = onManageLanguages
-                ) {
-                    Text("Download Languages")
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp)
-                    .padding(horizontal = 8.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp)
+                .padding(horizontal = 8.dp)
+        ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -355,15 +318,13 @@ fun Greeting(
                     )
                 }
 
-                TranslationField(
-                    text = output,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                )
-            }
+            TranslationField(
+                text = output,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            )
         }
-
     }
 }
 
@@ -375,7 +336,6 @@ fun Greeting(
 fun GreetingPreview() {
     TranslatorTheme {
         Greeting(
-            onManageLanguages = { },
             onSettings = {  },
             input = "Example input",
             output = "Example output",
@@ -396,29 +356,6 @@ fun GreetingPreview() {
     }
 }
 
-@Preview(
-    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
-)
-@Composable
-fun PreviewNoLang() {
-    TranslatorTheme {
-        Greeting(
-            onManageLanguages = { },
-            onSettings = {  },
-            input = "Example input",
-            output = "Example output",
-            from = Language.ENGLISH,
-            to = Language.SPANISH,
-            detectedLanguage = Language.FRENCH,
-            displayImage = null,
-            isTranslating = MutableStateFlow(false).asStateFlow(),
-            isOcrInProgress = MutableStateFlow(false).asStateFlow(),
-            onMessage = {},
-            sharedImageUri = null,
-            availableLanguages = mapOf(),
-        )
-    }
-}
 
 @Preview(
     showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
@@ -427,7 +364,6 @@ fun PreviewNoLang() {
 fun PreviewVeryLongText() {
     TranslatorTheme {
         Greeting(
-            onManageLanguages = { },
             onSettings = {  },
             input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
             output = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",

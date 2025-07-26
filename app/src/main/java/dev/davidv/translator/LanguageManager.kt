@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -62,7 +63,8 @@ fun LanguageManagerPreview() {
 @Composable
 fun LanguageManagerScreen(
     onLanguageDownloaded: () -> Unit = {},
-    onLanguageDeleted: () -> Unit = {}
+    onLanguageDeleted: () -> Unit = {},
+    embedded: Boolean = false,
 ) {
     val context = LocalContext.current
     var downloadService by remember { mutableStateOf<DownloadService?>(null) }
@@ -187,11 +189,13 @@ fun LanguageManagerScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Language Packs",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            if (!embedded) {
+                Text(
+                    text = "Language Packs",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -210,7 +214,7 @@ fun LanguageManagerScreen(
                     ) {
                         Row(
                             modifier = Modifier
-                                .padding(16.dp)
+                                .padding(4.dp)
                                 .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -223,12 +227,7 @@ fun LanguageManagerScreen(
                                     text = status.language.displayName,
                                     style = MaterialTheme.typography.titleMedium
                                 )
-                                if (isDownloading) {
-                                    LinearProgressIndicator(
-                                        progress = { downloadState?.progress ?: 0f },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
+
                                 when {
                                     downloadState?.isCancelled == true -> {
                                         Text(
@@ -261,6 +260,9 @@ fun LanguageManagerScreen(
                                             contentDescription = "Cancel Download",
                                         )
                                     }
+                                    CircularProgressIndicator(
+                                        progress = { downloadState?.progress ?: 0f },
+                                    )
                                 } else if (isFullyDownloaded || isCompleted) {
                                     // Delete button for completed downloads
                                     FilledTonalIconButton(

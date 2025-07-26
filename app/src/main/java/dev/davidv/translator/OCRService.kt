@@ -70,7 +70,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
 
             // In the same line but too far apart, make a new block
             if (deltaInChars >= 3) { // TODO: how to figure out the delta better
-                println("Forcing new block with word $word")
+                Log.d("OCRService", "Forcing new block with word $word")
                 if (line.text.trim() != "") {
                     lines.add(line)
                 }
@@ -81,10 +81,9 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
                 }
             } else {
                 line.text = "${line.text} ${word}"
-                println("BB")
-                println(line.boundingBox)
+
                 if (boundingBox.right < line.boundingBox.left) {
-                    println("going to break")
+                    Log.e("OCRService", "going to break $boundingBox ${line.boundingBox}")
                 }
                 line.boundingBox = Rect(
                     // left is immutable
@@ -99,7 +98,6 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
                         boundingBox.bottom
                     ) // bottom can be stretched ('a' -> 'g')
                 )
-                println(line.boundingBox)
                 if (line.boundingBox.width() < 0) {
                     println("WTF?")
                 }

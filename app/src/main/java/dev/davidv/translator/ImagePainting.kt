@@ -138,9 +138,7 @@ suspend fun paintTranslatedTextOver(
         val blockAvgPixelHeight =
             textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
         val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
-        println("start ${blockText}")
         val translated: String = translate(blockText)
-        println("end")
         paint.textSize = blockAvgPixelHeight
         textPaint.textSize = blockAvgPixelHeight
 

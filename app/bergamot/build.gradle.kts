@@ -17,8 +17,21 @@ android {
                 cppFlags("-std=c++17")
             }
         }
-        ndk {
-            abiFilters += listOf("x86_64", "arm64-v8a")
+    }
+
+    flavorDimensions += listOf("architecture")
+    productFlavors {
+        create("x86") {
+            ndk {
+                abiFilters += listOf("x86_64")
+            }
+            dimension = "architecture"
+        }
+        create("aarch64") {
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+            dimension = "architecture"
         }
     }
 

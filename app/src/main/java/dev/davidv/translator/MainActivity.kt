@@ -29,6 +29,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import android.provider.MediaStore
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +61,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,6 +77,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -169,6 +183,7 @@ fun Greeting(
     availableLanguages: Map<String, Boolean>,
 ) {
     var showFullScreenImage by remember { mutableStateOf(false) }
+    var showImageSourceSheet by remember { mutableStateOf(false) }
     val translating by isTranslating.collectAsState()
 
     // Process shared image when component loads
@@ -178,11 +193,29 @@ fun Greeting(
             onMessage(TranslatorMessage.SetImageUri(sharedImageUri))
         }
     }
+    val context = LocalContext.current
+
+    // Create temporary file for camera capture
+    val cameraImageUri = remember {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val imageFile = File(context.cacheDir, "camera_image_$timeStamp.jpg")
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
+    }
+    // Camera launcher using MediaStore intent with EXTRA_OUTPUT
+    val takePictureIntent = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            // When using EXTRA_OUTPUT, the full image is saved to the URI we provided
+            Log.d("Camera", "Photo captured: $cameraImageUri")
+            onMessage(TranslatorMessage.SetImageUri(cameraImageUri))
+        } else {
+            Log.d("Camera", "Photo capture cancelled or failed")
+        }
+    }
 
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
-            // Callback is invoked after the user selects a media item or closes the
-            // photo picker.
             if (uri != null) {
                 Log.d("PhotoPicker", "Selected URI: $uri")
                 onMessage(TranslatorMessage.SetImageUri(uri))
@@ -190,12 +223,25 @@ fun Greeting(
                 Log.d("PhotoPicker", "No media selected")
             }
         }
+    
+    val pickFromGallery =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val imageUri = result.data?.data
+                if (imageUri != null) {
+                    Log.d("Gallery", "Selected URI: $imageUri")
+                    onMessage(TranslatorMessage.SetImageUri(imageUri))
+                } else {
+                    Log.d("Gallery", "No image selected")
+                }
+            }
+        }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                showImageSourceSheet = true
             }) {
                 Icon(
                     painterResource(id = R.drawable.add_photo),
@@ -358,12 +404,123 @@ fun Greeting(
             }
         }
         
+        // Image source selection bottom sheet
+        if (showImageSourceSheet) {
+            ImageSourceBottomSheet(
+                onDismiss = { showImageSourceSheet = false },
+                onCameraClick = {
+                    showImageSourceSheet = false
+                    val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                        putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri)
+                    }
+                    takePictureIntent.launch(cameraIntent)
+                },
+                onMediaPickerClick = {
+                    showImageSourceSheet = false
+                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onGalleryClick = {
+                    showImageSourceSheet = false
+                    val galleryIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                    pickFromGallery.launch(galleryIntent)
+                }
+            )
+        }
+
         // Full screen image viewer
         if (showFullScreenImage && displayImage != null) {
             ZoomableImageViewer(
                 bitmap = displayImage,
                 onDismiss = { showFullScreenImage = false }
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ImageSourceBottomSheet(
+    onDismiss: () -> Unit,
+    onCameraClick: () -> Unit,
+    onMediaPickerClick: () -> Unit,
+    onGalleryClick: () -> Unit
+) {
+    val bottomSheetState = rememberModalBottomSheetState()
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = bottomSheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { onCameraClick() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add, // TODO
+                        contentDescription = "Camera",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(bottom = 8.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Camera",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { onMediaPickerClick() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add, // TODO
+                        contentDescription = "Media Picker",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(bottom = 8.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Media Picker",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { onGalleryClick() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add, // TODO
+                        contentDescription = "Gallery",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(bottom = 8.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Gallery",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }

@@ -275,6 +275,23 @@ fun SettingsScreen(
                         steps = 9,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    
+                    // Max Image Size Slider
+                    Text(
+                        text = "Max Image Size: ${settings.maxImageSize}px",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    Slider(
+                        value = settings.maxImageSize.toFloat(),
+                        onValueChange = { value ->
+                            onSettingsChange(settings.copy(maxImageSize = value.toInt()))
+                        },
+                        valueRange = 1500f..4000f,
+                        steps = 24,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

@@ -49,13 +49,15 @@ class SettingsManager(context: Context) {
         }
         
         val minConfidence = prefs.getInt("min_confidence", 75)
+        val maxImageSize = prefs.getInt("max_image_size", 1500)
         
         return AppSettings(
             defaultTargetLanguage = defaultTargetLanguage,
             translationModelsBaseUrl = translationModelsBaseUrl,
             tesseractModelsBaseUrl = tesseractModelsBaseUrl,
             backgroundMode = backgroundMode,
-            minConfidence = minConfidence
+            minConfidence = minConfidence,
+            maxImageSize = maxImageSize
         )
     }
     
@@ -66,6 +68,7 @@ class SettingsManager(context: Context) {
             putString("tesseract_models_base_url", newSettings.tesseractModelsBaseUrl)
             putString("background_mode", newSettings.backgroundMode.name)
             putInt("min_confidence", newSettings.minConfidence)
+            putInt("max_image_size", newSettings.maxImageSize)
             apply()
         }
         _settings.value = newSettings

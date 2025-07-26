@@ -26,6 +26,7 @@ import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.max
 
 class ImageProcessor(
     private val context: Context,
@@ -45,6 +46,22 @@ class ImageProcessor(
         return context.contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream)
         } ?: throw IllegalArgumentException("Cannot load bitmap from URI: $uri")
+    }
+    
+    fun downscaleImage(bitmap: Bitmap, maxSize: Int): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        val longestSide = max(width, height)
+        
+        if (longestSide <= maxSize) {
+            return bitmap
+        }
+        
+        val scale = maxSize.toFloat() / longestSide.toFloat()
+        val newWidth = (width * scale).toInt()
+        val newHeight = (height * scale).toInt()
+        println("new $newWidth x $newHeight")
+        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
     
     fun correctImageOrientation(uri: Uri, bitmap: Bitmap): Bitmap {

@@ -65,11 +65,13 @@ class TranslationCoordinator(
         return try {
             val bitmap = imageProcessor.loadBitmapFromUri(uri)
             val correctedBitmap = imageProcessor.correctImageOrientation(uri, bitmap)
-            onImageLoaded(correctedBitmap)
+            val maxImageSize = settingsManager.settings.value.maxImageSize
+            val downscaledBitmap = imageProcessor.downscaleImage(correctedBitmap, maxImageSize)
+            onImageLoaded(downscaledBitmap)
             
             _isOcrInProgress.value = true
             val minConfidence = settingsManager.settings.value.minConfidence
-            val processedImage = imageProcessor.processImage(correctedBitmap, minConfidence)
+            val processedImage = imageProcessor.processImage(downscaledBitmap, minConfidence)
             _isOcrInProgress.value = false
             
             // Create translation function for overlay

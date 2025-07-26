@@ -22,5 +22,6 @@ data class AppSettings(
     val translationModelsBaseUrl: String = Constants.DEFAULT_TRANSLATION_MODELS_BASE_URL,
     val tesseractModelsBaseUrl: String = Constants.DEFAULT_TESSERACT_MODELS_BASE_URL,
     val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
-    val minConfidence: Int = 75
+    val minConfidence: Int = 75,
+    val maxImageSize: Int = 1500
 )

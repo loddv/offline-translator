@@ -413,14 +413,6 @@ class DownloadService : Service() {
         notificationManager.cancel(NOTIFICATION_ID)
     }
 
-    fun cancelDownload(language: Language) {
-        cancelLanguageDownload(language)
-    }
-
-    fun deleteLanguage(language: Language) {
-        deleteLanguageFiles(language)
-    }
-
     inner class DownloadBinder : Binder() {
         fun getService(): DownloadService = this@DownloadService
     }

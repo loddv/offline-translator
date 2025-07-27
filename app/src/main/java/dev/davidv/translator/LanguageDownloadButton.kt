@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 fun LanguageDownloadButton(
     language: Language,
     downloadState: DownloadState?,
-    downloadService: DownloadService?,
     context: Context,
     isLanguageAvailable: Boolean,
     modifier: Modifier = Modifier
@@ -62,7 +61,7 @@ fun LanguageDownloadButton(
             )
             IconButton(
                 onClick = {
-                    downloadService?.cancelDownload(language)
+                    DownloadService.cancelDownload(context, language)
                 },
                 modifier = Modifier.size(40.dp)
             ) {
@@ -76,7 +75,7 @@ fun LanguageDownloadButton(
         // Delete button for available/completed languages
         IconButton(
             onClick = {
-                downloadService?.deleteLanguage(language)
+                DownloadService.deleteLanguage(context, language)
             },
             modifier = modifier
         ) {

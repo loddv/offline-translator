@@ -97,7 +97,6 @@ fun DetectedLanguageToast(
             LanguageDownloadButton(
                 language = detectedLanguage,
                 downloadState = downloadStates[detectedLanguage],
-                downloadService = downloadService,
                 context = context,
                 isLanguageAvailable = isLanguageAvailable,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)

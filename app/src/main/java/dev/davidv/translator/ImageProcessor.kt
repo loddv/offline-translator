@@ -60,7 +60,7 @@ class ImageProcessor(
         val scale = maxSize.toFloat() / longestSide.toFloat()
         val newWidth = (width * scale).toInt()
         val newHeight = (height * scale).toInt()
-        println("new $newWidth x $newHeight")
+        Log.i("ImageProcessor", "Resized to $newWidth x $newHeight")
         return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
     

@@ -139,11 +139,11 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
             line = TextLine(word, boundingBox)
         } else {
             val delta = boundingBox.left - lastRight
-            val charWidth = boundingBox.width() / word.length
-            val deltaInChars = delta / charWidth
+            val charWidth = boundingBox.width().toFloat() / word.length
+            val deltaInChars: Float = if (charWidth > 0) delta.toFloat() / charWidth else 0f
 
             // In the same line but too far apart, make a new block
-            if (deltaInChars >= 3) { // TODO: how to figure out the delta better
+            if (deltaInChars >= 3f) { // TODO: how to figure out the delta better
                 Log.d("OCRService", "Forcing new block with word $word")
                 if (line.text.trim() != "") {
                     lines.add(line)

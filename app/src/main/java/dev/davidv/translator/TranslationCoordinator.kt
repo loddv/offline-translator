@@ -102,6 +102,7 @@ class TranslationCoordinator(
                 translatedText = allTranslatedText
             )
         } catch (e: Exception) {
+            println(e.stackTrace)
             Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT).show()
             null
         } finally {

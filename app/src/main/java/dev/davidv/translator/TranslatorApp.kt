@@ -36,10 +36,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.DisposableEffect
+import android.content.ComponentName
+import android.content.ServiceConnection
+import android.os.IBinder
 
 @Composable
 fun TranslatorApp(
@@ -58,6 +60,39 @@ fun TranslatorApp(
     // Centralized language state management
     val languageStateManager = remember { LanguageStateManager(context, scope) }
     val languageState by languageStateManager.languageState.collectAsState()
+    
+    // Download service management
+    var downloadService by remember { mutableStateOf<DownloadService?>(null) }
+    val serviceConnection = remember {
+        object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                val binder = service as DownloadService.DownloadBinder
+                downloadService = binder.getService()
+            }
+            override fun onServiceDisconnected(name: ComponentName?) {
+                downloadService = null
+            }
+        }
+    }
+    
+    // Bind to download service
+    DisposableEffect(context) {
+        val intent = android.content.Intent(context, DownloadService::class.java)
+        context.bindService(intent, serviceConnection, android.content.Context.BIND_AUTO_CREATE)
+        onDispose {
+            context.unbindService(serviceConnection)
+        }
+    }
+    
+    // Get download states from service
+    val downloadStates by downloadService?.downloadStates?.collectAsState()
+        ?: remember { mutableStateOf(emptyMap()) }
+    
+    // Refresh language availability when download states change
+    LaunchedEffect(downloadStates) {
+        // Refresh whenever download states change (covers downloads, deletions, etc.)
+        languageStateManager.refreshLanguageAvailability()
+    }
 
 
     // Move all persistent state to this level so it survives navigation
@@ -266,6 +301,9 @@ fun TranslatorApp(
                 Greeting(
                     // Navigation
                     onSettings = { navController.navigate("settings") },
+                    onDownloadLanguage = { language ->
+                        navController.navigate("language_manager")
+                    },
                     
                     // Current state (read-only)
                     input = input,
@@ -283,6 +321,8 @@ fun TranslatorApp(
                     // System integration
                     sharedImageUri = sharedImageUri,
                     availableLanguages = languageState.availableLanguageMap,
+                    downloadService = downloadService,
+                    downloadStates = downloadStates,
                 )
             }
         }

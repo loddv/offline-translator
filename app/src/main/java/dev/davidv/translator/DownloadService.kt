@@ -127,7 +127,7 @@ class DownloadService : Service() {
         updateDownloadState(language) {
             it.copy(
                 isDownloading = true,
-                progress = 0f,
+                progress = 0.01f, // show something
                 error = null,
                 isCancelled = false
             )

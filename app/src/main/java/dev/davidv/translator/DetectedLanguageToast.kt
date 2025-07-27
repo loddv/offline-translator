@@ -38,12 +38,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun DetectedLanguageToast(
     detectedLanguage: Language,
+    availableLanguages: Map<String, Boolean>,
     onSwitchClick: () -> Unit,
+    onDownloadLanguage: (Language) -> Unit,
+    downloadService: DownloadService? = null,
+    downloadStates: Map<Language, DownloadState> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -58,8 +63,10 @@ fun DetectedLanguageToast(
         Column(
             modifier = Modifier.weight(1f)
         ) {
+            val isLanguageAvailable = availableLanguages[detectedLanguage.code] == true
+            
             Text(
-                text = "Translate from",
+                text = if (isLanguageAvailable) "Translate from" else "Missing language",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.bodySmall
@@ -73,14 +80,29 @@ fun DetectedLanguageToast(
             )
         }
         
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = "Switch to detected language",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier
-                .clickable { onSwitchClick() }
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        )
+        val isLanguageAvailable = availableLanguages[detectedLanguage.code] == true
+        
+        val context = LocalContext.current
+        
+        if (isLanguageAvailable) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Switch to detected language",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .clickable { onSwitchClick() }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        } else {
+            LanguageDownloadButton(
+                language = detectedLanguage,
+                downloadState = downloadStates[detectedLanguage],
+                downloadService = downloadService,
+                context = context,
+                isLanguageAvailable = isLanguageAvailable,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 
@@ -90,7 +112,11 @@ fun DetectedLanguageToastPreview() {
     TranslatorTheme {
         DetectedLanguageToast(
             detectedLanguage = Language.SPANISH,
-            onSwitchClick = {}
+            availableLanguages = mapOf(Language.SPANISH.code to true),
+            onSwitchClick = {},
+            onDownloadLanguage = {},
+            downloadService = null,
+            downloadStates = emptyMap()
         )
     }
 }
@@ -104,7 +130,30 @@ fun DetectedLanguageToastDarkPreview() {
     TranslatorTheme {
         DetectedLanguageToast(
             detectedLanguage = Language.FRENCH,
-            onSwitchClick = {}
+            availableLanguages = mapOf(Language.FRENCH.code to true),
+            onSwitchClick = {},
+            onDownloadLanguage = {},
+            downloadService = null,
+            downloadStates = emptyMap()
+        )
+    }
+}
+
+
+@Preview(
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
+@Composable
+fun MissingLanguage() {
+    TranslatorTheme {
+        DetectedLanguageToast(
+            detectedLanguage = Language.SPANISH,
+            availableLanguages = mapOf(Language.FRENCH.code to false),
+            onSwitchClick = {},
+            onDownloadLanguage = {},
+            downloadService = null,
+            downloadStates = emptyMap()
         )
     }
 }

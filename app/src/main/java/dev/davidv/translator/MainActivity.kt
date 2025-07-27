@@ -164,6 +164,7 @@ class MainActivity : ComponentActivity() {
 fun Greeting(
     // Navigation
     onSettings: () -> Unit,
+    onDownloadLanguage: (Language) -> Unit,
     
     // Current state (read-only)
     input: String,
@@ -180,7 +181,7 @@ fun Greeting(
     
     // System integration
     sharedImageUri: Uri? = null,
-    availableLanguages: Map<String, Boolean>,
+    availableLanguages: Map<String, Boolean>,    downloadService: DownloadService? = null,    downloadStates: Map<Language, DownloadState> = emptyMap(),
 ) {
     var showFullScreenImage by remember { mutableStateOf(false) }
     var showImageSourceSheet by remember { mutableStateOf(false) }
@@ -372,9 +373,13 @@ fun Greeting(
                 if (detectedLanguage != null && detectedLanguage != from) {
                     DetectedLanguageToast(
                         detectedLanguage = detectedLanguage,
+                        availableLanguages = availableLanguages,
                         onSwitchClick = {
                             onMessage(TranslatorMessage.FromLang(detectedLanguage))
                         },
+                        onDownloadLanguage = onDownloadLanguage,
+                        downloadService = downloadService,
+                        downloadStates = downloadStates,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                     )
                 }
@@ -534,6 +539,7 @@ fun GreetingPreview() {
     TranslatorTheme {
         Greeting(
             onSettings = {  },
+            onDownloadLanguage = {  },
             input = "Example input",
             output = "Example output",
             from = Language.ENGLISH,
@@ -549,6 +555,8 @@ fun GreetingPreview() {
                 Language.SPANISH.code to true,
                 Language.FRENCH.code to true
             ),
+            downloadService = null,
+            downloadStates = emptyMap(),
         )
     }
 }
@@ -562,6 +570,7 @@ fun PreviewVeryLongText() {
     TranslatorTheme {
         Greeting(
             onSettings = {  },
+            onDownloadLanguage = {  },
             input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
             output = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
             from = Language.ENGLISH,
@@ -577,6 +586,8 @@ fun PreviewVeryLongText() {
                 Language.SPANISH.code to true,
                 Language.FRENCH.code to true
             ),
+            downloadService = null,
+            downloadStates = emptyMap(),
         )
     }
 }

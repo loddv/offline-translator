@@ -21,6 +21,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -378,9 +379,9 @@ fun Greeting(
                             onMessage(TranslatorMessage.FromLang(detectedLanguage))
                         },
                         onDownloadLanguage = onDownloadLanguage,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                         downloadService = downloadService,
-                        downloadStates = downloadStates,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        downloadStates = downloadStates
                     )
                 }
 
@@ -442,6 +443,7 @@ fun Greeting(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageSourceBottomSheet(
@@ -469,17 +471,18 @@ fun ImageSourceBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
+                // Camera (always present)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.clickable { onCameraClick() }
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Add, // TODO
+                        painter = painterResource(id = R.drawable.camera),
                         contentDescription = "Camera",
                         modifier = Modifier
                             .size(48.dp)
                             .padding(bottom = 8.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Camera",
@@ -488,42 +491,47 @@ fun ImageSourceBottomSheet(
                     )
                 }
                 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { onMediaPickerClick() }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add, // TODO
-                        contentDescription = "Media Picker",
-                        modifier = Modifier
-                            .size(48.dp)
-                            .padding(bottom = 8.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Media Picker",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { onGalleryClick() }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add, // TODO
-                        contentDescription = "Gallery",
-                        modifier = Modifier
-                            .size(48.dp)
-                            .padding(bottom = 8.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Gallery",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
+                // Conditional: Photos (Android 13+) or Gallery (older versions)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    // Modern Photos picker for Android 13+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { onMediaPickerClick() }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.gallery),
+                            contentDescription = "Photos",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .padding(bottom = 8.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Photos",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    // Traditional Gallery for older Android versions
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { onGalleryClick() }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.gallery),
+                            contentDescription = "Gallery",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .padding(bottom = 8.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Gallery",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }

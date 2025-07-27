@@ -47,9 +47,9 @@ fun DetectedLanguageToast(
     availableLanguages: Map<String, Boolean>,
     onSwitchClick: () -> Unit,
     onDownloadLanguage: (Language) -> Unit,
+    modifier: Modifier = Modifier,
     downloadService: DownloadService? = null,
-    downloadStates: Map<Language, DownloadState> = emptyMap(),
-    modifier: Modifier = Modifier
+    downloadStates: Map<Language, DownloadState> = emptyMap()
 ) {
     Row(
         modifier = modifier

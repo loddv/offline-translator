@@ -71,10 +71,10 @@ class ExampleInstrumentedTest {
         assert(tessInstance.init(dataPath, "eng"))
         val blocks = getSentences(bitmap, tessInstance)
         println(blocks.joinToString("\n"))
-        assertEquals(8, blocks.count()) // first 3 contain some artifact
-        assertEquals(3, blocks[3].lines.count())
-        assertEquals("Philipsen sprint naar eerste gele trui in", blocks[3].lines[0].text)
-        assertEquals("Tour, Evenepoel mist slag in hectische", blocks[3].lines[1].text)
-        assertEquals("finale", blocks[3].lines[2].text)
+        assertEquals(11, blocks.count())
+        assertEquals(3, blocks[6].lines.count())
+        assertEquals("Philipsen sprint naar eerste gele trui in", blocks[6].lines[0].text)
+        assertEquals("Tour, Evenepoel mist slag in hectische", blocks[6].lines[1].text)
+        assertEquals("finale", blocks[6].lines[2].text)
     }
 }

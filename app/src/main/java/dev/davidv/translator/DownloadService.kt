@@ -126,10 +126,8 @@ class DownloadService : Service() {
 
         updateDownloadState(language) {
             it.copy(
-                isDownloading = true,
-                progress = 0.01f, // show something
-                error = null,
-                isCancelled = false
+                isDownloading = true, progress = 0.01f, // show something
+                error = null, isCancelled = false
             )
         }
 
@@ -167,12 +165,20 @@ class DownloadService : Service() {
 
                 // Execute all downloads in parallel
                 if (downloadTasks.isNotEmpty()) {
-                    updateProgress(language, 0f, "Downloading ${downloadTasks.size} files in parallel...")
-                    
+                    updateProgress(
+                        language,
+                        0f,
+                        "Downloading ${downloadTasks.size} files in parallel..."
+                    )
+
                     val downloadJobs = downloadTasks.mapIndexed { index, task ->
-                        async { 
+                        async {
                             task()
-                            updateProgress(language, 1f / downloadTasks.size, "Downloaded index $index out of ${downloadTasks.size} files")
+                            updateProgress(
+                                language,
+                                1f / downloadTasks.size,
+                                "Downloaded index $index out of ${downloadTasks.size} files"
+                            )
                         }
                     }
                     downloadJobs.awaitAll()
@@ -267,12 +273,10 @@ class DownloadService : Service() {
             }
 
             showNotification(
-                "Deletion Complete",
-                "${language.displayName} files removed ($deletedFiles files)"
+                "Deletion Complete", "${language.displayName} files removed ($deletedFiles files)"
             )
             Log.i(
-                "DownloadService",
-                "Deleted ${language.displayName} - $deletedFiles files removed"
+                "DownloadService", "Deleted ${language.displayName} - $deletedFiles files removed"
             )
 
         }
@@ -333,7 +337,8 @@ class DownloadService : Service() {
             tessDataPath.mkdirs()
         }
         val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-        val url = "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
+        val url =
+            "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
 
         if (!tessFile.exists()) {
             withContext(Dispatchers.IO) {
@@ -346,50 +351,53 @@ class DownloadService : Service() {
         }
     }
 
-    private suspend fun download(url: String, outputFile: File) = withContext(Dispatchers.IO) {
+    private suspend fun download(
+        url: String, outputFile: File, decompress: Boolean = false
+    ) = withContext(Dispatchers.IO) {
+        val tempFile = File(outputFile.parentFile, "${outputFile.name}.tmp")
+
         try {
+            outputFile.parentFile?.mkdirs()
+
             URL(url).openStream().use { input ->
-                outputFile.outputStream().use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
+                val processedInput = if (decompress) GZIPInputStream(input) else input
+                processedInput.use { stream ->
+                    tempFile.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var bytesRead: Int
+                        while (stream.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                        }
                     }
                 }
             }
-            true
+
+            if (tempFile.renameTo(outputFile)) {
+                true
+            } else {
+                Log.e("DownloadService", "Failed to move temp file to final location")
+                tempFile.delete()
+                false
+            }
         } catch (e: Exception) {
-            Log.e("DownloadService", "Error downloading file", e)
+            val operation = if (decompress) "decompressing" else "downloading"
+            Log.e("DownloadService", "Error $operation file", e)
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            if (outputFile.exists()) {
+                outputFile.delete()
+            }
             false
         }
     }
 
     private suspend fun downloadAndDecompress(url: String, outputFile: File) =
-        withContext(Dispatchers.IO) {
-            try {
-                URL(url).openStream().use { input ->
-                    GZIPInputStream(input).use { gzipInput ->
-                        outputFile.outputStream().use { output ->
-                            val buffer = ByteArray(8192)
-                            var bytesRead: Int
-                            while (gzipInput.read(buffer).also { bytesRead = it } != -1) {
-                                output.write(buffer, 0, bytesRead)
-                            }
-                        }
-                    }
-                }
-                true
-            } catch (e: Exception) {
-                Log.e("DownloadService", "Error decompressing file", e)
-                false
-            }
-        }
+        download(url, outputFile, decompress = true)
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Language Downloads",
-            NotificationManager.IMPORTANCE_LOW
+            CHANNEL_ID, "Language Downloads", NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Shows progress of language pack downloads"
         }
@@ -397,12 +405,9 @@ class DownloadService : Service() {
     }
 
     private fun showNotification(title: String, content: String) {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setSmallIcon(R.drawable.add) // You'll need to add an icon
-            .setOngoing(true)
-            .build()
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID).setContentTitle(title)
+            .setContentText(content).setSmallIcon(R.drawable.add) // You'll need to add an icon
+            .setOngoing(true).build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
@@ -411,6 +416,31 @@ class DownloadService : Service() {
         super.onDestroy()
         serviceScope.cancel()
         notificationManager.cancel(NOTIFICATION_ID)
+        cleanupTempFiles()
+    }
+
+    private fun cleanupTempFiles() {
+        try {
+            val binDir = File(filesDir, "bin")
+            if (binDir.exists()) {
+                binDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
+                    if (tempFile.delete()) {
+                        Log.d("DownloadService", "Cleaned up temp file: ${tempFile.name}")
+                    }
+                }
+            }
+
+            val tessDir = File(filesDir, "tesseract/tessdata")
+            if (tessDir.exists()) {
+                tessDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
+                    if (tempFile.delete()) {
+                        Log.d("DownloadService", "Cleaned up temp file: ${tempFile.name}")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("DownloadService", "Error cleaning up temp files", e)
+        }
     }
 
     inner class DownloadBinder : Binder() {

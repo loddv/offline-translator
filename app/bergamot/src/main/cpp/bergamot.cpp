@@ -16,27 +16,39 @@ static std::unordered_map<std::string, std::shared_ptr<TranslationModel>> model_
 static std::unique_ptr<AsyncService> global_service = nullptr;
 static std::mutex service_mutex;
 
-std::string func(const char* cfg, const char *input, const char* key) {
+void initializeService() {
     std::lock_guard<std::mutex> lock(service_mutex);
     
-    // Initialize service only once
     if (global_service == nullptr) {
-        ConfigParser<AsyncService> configParser("Bergamot CLI", //multiOpMode
-                                                false);
+        ConfigParser<AsyncService> configParser("Bergamot CLI", false);
         auto &config = configParser.getConfig();
         global_service = std::make_unique<AsyncService>(config.serviceConfig);
     }
+}
+
+void loadModelIntoCache(const std::string& cfg, const std::string& key) {
+    std::lock_guard<std::mutex> lock(service_mutex);
     
-    std::string key_str(key);
     auto validate = true;
     auto pathsDir = "";
+    
+    if (model_cache.find(key) == model_cache.end()) {
+        auto options = parseOptionsFromString(cfg, validate, pathsDir);
+        model_cache[key] = global_service->createCompatibleModel(options);
+    }
+}
+
+std::string func(const char* cfg, const char *input, const char* key) {
+    // Initialize service if not already done
+    initializeService();
+    
+    std::string key_str(key);
     std::string cfg_s(cfg);
 
-    // This "parseOptionsFromString" throws/aborts
-    if (model_cache.find(key_str) == model_cache.end()) {
-        auto options = parseOptionsFromString(cfg_s, validate, pathsDir);
-        model_cache[key_str] = global_service->createCompatibleModel(options);
-    }
+    // Load model into cache if not already present
+    loadModelIntoCache(cfg_s, key_str);
+    
+    std::lock_guard<std::mutex> lock(service_mutex);
 
     ResponseOptions responseOptions;
     std::string input_str(input);
@@ -56,6 +68,41 @@ std::string func(const char* cfg, const char *input, const char* key) {
 
     // Print (only) translated text.
     return response.target.text;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_davidv_bergamot_NativeLib_initializeService(
+        JNIEnv* env,
+        jobject /* this */) {
+    try {
+        initializeService();
+    } catch(const std::exception &e) {
+        jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exceptionClass, e.what());
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_davidv_bergamot_NativeLib_loadModelIntoCache(
+        JNIEnv* env,
+        jobject /* this */,
+        jstring cfg,
+        jstring key) {
+
+    const char* c_cfg = env->GetStringUTFChars(cfg, nullptr);
+    const char* c_key = env->GetStringUTFChars(key, nullptr);
+
+    try {
+        std::string cfg_str(c_cfg);
+        std::string key_str(c_key);
+        loadModelIntoCache(cfg_str, key_str);
+    } catch(const std::exception &e) {
+        jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exceptionClass, e.what());
+    }
+    
+    env->ReleaseStringUTFChars(cfg, c_cfg);
+    env->ReleaseStringUTFChars(key, c_key);
 }
 
 extern "C" JNIEXPORT jstring JNICALL

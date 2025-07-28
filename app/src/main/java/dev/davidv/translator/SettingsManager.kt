@@ -51,8 +51,14 @@ class SettingsManager(context: Context) {
         val minConfidence = prefs.getInt("min_confidence", 75)
         val maxImageSize = prefs.getInt("max_image_size", 1500)
         
+        val startupLanguagesSet = prefs.getStringSet("startup_languages", emptySet()) ?: emptySet()
+        val startupLanguages = startupLanguagesSet.mapNotNull { code ->
+            Language.entries.find { it.code == code }
+        }.toSet()
+        
         return AppSettings(
             defaultTargetLanguage = defaultTargetLanguage,
+            startupLanguages = startupLanguages,
             translationModelsBaseUrl = translationModelsBaseUrl,
             tesseractModelsBaseUrl = tesseractModelsBaseUrl,
             backgroundMode = backgroundMode,
@@ -64,6 +70,7 @@ class SettingsManager(context: Context) {
     fun updateSettings(newSettings: AppSettings) {
         prefs.edit().apply {
             putString("default_target_language", newSettings.defaultTargetLanguage.code)
+            putStringSet("startup_languages", newSettings.startupLanguages.map { it.code }.toSet())
             putString("translation_models_base_url", newSettings.translationModelsBaseUrl)
             putString("tesseract_models_base_url", newSettings.tesseractModelsBaseUrl)
             putString("background_mode", newSettings.backgroundMode.name)

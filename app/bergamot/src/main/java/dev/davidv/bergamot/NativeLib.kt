@@ -17,17 +17,15 @@
 
 package dev.davidv.bergamot
 
-class NativeLib {
+class NativeLib() {
+    init {
+        initializeService()
+    }
 
-    /**
-     * A native method that is implemented by the 'bergamot' native library,
-     * which is packaged with this application.
-     */
     external fun stringFromJNI(cfg: String, data: String, key: String): String
-    
-    /**
-     * Cleanup method to properly dispose native resources
-     */
+    external fun loadModelIntoCache(cfg: String, key: String)
+    private external fun initializeService()
+
     external fun cleanup()
     
     companion object {

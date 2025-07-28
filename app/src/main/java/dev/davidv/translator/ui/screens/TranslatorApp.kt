@@ -209,7 +209,10 @@ fun TranslatorApp(
                 val oldTo = to
                 setFrom(oldTo)
                 setTo(oldFrom)
-                translateWithLanguages(oldTo, oldFrom)
+                scope.launch {
+                    translationCoordinator.translationService.preloadModel(oldTo, oldFrom)
+                    translateWithLanguages(oldTo, oldFrom)
+                }
             }
             
             TranslatorMessage.ClearImage -> {

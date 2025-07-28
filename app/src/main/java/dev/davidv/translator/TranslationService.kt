@@ -83,8 +83,6 @@ class TranslationService(private val context: Context) {
             return@withContext TranslationResult.Success("")
         }
 
-        Log.d("TranslationService", "Translating $from -> $to")
-
         try {
             val translationPairs = getTranslationPairs(from, to)
             
@@ -115,19 +113,11 @@ class TranslationService(private val context: Context) {
     
     private fun performTranslation(pairs: List<Pair<Language, Language>>, initialText: String): String {
         var currentText = initialText
-        val totalElapsed = measureTimeMillis {
-            pairs.forEach { pair ->
-                Log.d("TranslationService", "Translating step: $pair")
-                val stepElapsed = measureTimeMillis {
-                    val config = generateConfig(pair.first, pair.second)
-                    val languageCode = "${pair.first.code}${pair.second.code}"
-                    Log.d("TranslationService", "Using model key: $languageCode for translation")
-                    currentText = nativeLib.stringFromJNI(config, currentText, languageCode)
-                }
-                Log.d("TranslationService", "Step ${pair.first} -> ${pair.second} took ${stepElapsed}ms")
-            }
+        pairs.forEach { pair ->
+            val config = generateConfig(pair.first, pair.second)
+            val languageCode = "${pair.first.code}${pair.second.code}"
+            currentText = nativeLib.stringFromJNI(config, currentText, languageCode)
         }
-        Log.d("TranslationService", "Total translation took ${totalElapsed}ms")
         return currentText
     }
     

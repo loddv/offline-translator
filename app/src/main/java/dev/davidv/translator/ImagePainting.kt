@@ -87,7 +87,7 @@ fun removeTextWithSmartBlur(canvas: Canvas, bitmap: Bitmap, textBounds: Rect, ba
 }
 
 fun getSurroundingAverageColor(bitmap: Bitmap, textBounds: Rect): Int {
-    val margin = 16
+    val margin = 4
     val sampleRegions = listOf(
         // Left side
         Rect(maxOf(0, textBounds.left - margin), textBounds.top,
@@ -143,73 +143,65 @@ suspend fun paintTranslatedTextOver(
     val mutableBitmap = originalBitmap.copy(originalBitmap.config, true)
     val canvas = Canvas(mutableBitmap)
 
-    val paint = Paint().apply {
-        style = Paint.Style.FILL
+    val textPaint = TextPaint().apply {
+        isAntiAlias = true
     }
 
-
-    val textPaint = TextPaint()
-    textPaint.color = Color.BLACK
-
     var allTranslatedText = ""
-
     var totalTranslateMs: Long = 0
+    
+    val textSizePadding = 0.95f
+    val minTextSize = 8f
+    
     textBlocks.forEach { textBlock ->
         val blockAvgPixelHeight =
             textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
         val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
+        
         val translated: String
         totalTranslateMs += measureTimeMillis {
             translated = translate(blockText)
         }
-        paint.textSize = blockAvgPixelHeight
-        textPaint.textSize = blockAvgPixelHeight
 
         val translatedSpaceIndices = translated.mapIndexedNotNull { index, char ->
             if (char == ' ') index else null
         }
         allTranslatedText = "${allTranslatedText}\n${translated}"
 
-        // 5% padding for word wrap
-        val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() } * 0.95f
+        val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() }
+        val availableBBLength = totalBBLength * textSizePadding
 
-        // Ensure text will fit the existing area
-        while (textPaint.measureText(translated) >= totalBBLength && textPaint.textSize > 8) {
-            textPaint.textSize -= 1
+        textPaint.textSize = blockAvgPixelHeight
+        while (textPaint.measureText(translated) >= availableBBLength && textPaint.textSize > minTextSize) {
+            textPaint.textSize -= 1f
+        }
+
+        // Store colors for each line to avoid redundant calculations
+        val lineColors = mutableMapOf<Int, Int>()
+        textBlock.lines.forEachIndexed { index, line ->
+            val fg = removeTextWithSmartBlur(canvas, mutableBitmap, line.boundingBox, backgroundMode)
+            lineColors[index] = fg
         }
 
         var start = 0
-        textBlock.lines.forEach { line ->
-            val fg = removeTextWithSmartBlur(canvas, mutableBitmap, line.boundingBox, backgroundMode)
-            textPaint.color = fg
-            // FIXME: the color should be set in the next loop, but we need some kind of lookup
-            // to store it. for now this assumes that last FG color will be applied to entire block
-        }
-
-        textBlock.lines.forEach { line ->
-            // Render text if we are not done.
-            // We may be done when translated text takes fewer lines than the original
-            // In which case, we just paint the background color over the previous text
+        textBlock.lines.forEachIndexed { lineIndex, line ->
+            // Set color for this specific line
+            lineColors[lineIndex]?.let { color ->
+                textPaint.color = color
+            }
+            
             if (start < translated.length) {
-                // How many chars can fit in this line?
                 val measuredWidth = FloatArray(1)
                 val countedChars = textPaint.breakText(
                     translated, start, translated.length, true,
                     line.boundingBox.width().toFloat(), measuredWidth
                 )
 
-                // If we are in the middle of a word, return up to the previous word
-                val endIndex: Int
-                if (start + countedChars == translated.length) {
-                    endIndex = translated.length
+                val endIndex: Int = if (start + countedChars == translated.length) {
+                    translated.length
                 } else {
-                    val previousSpaceIndex =
-                        translatedSpaceIndices.findLast { it < start + countedChars }
-                    endIndex = if (previousSpaceIndex == null) {
-                        start + countedChars
-                    } else {
-                        previousSpaceIndex + 1
-                    }
+                    val previousSpaceIndex = translatedSpaceIndices.findLast { it < start + countedChars }
+                    previousSpaceIndex?.let { it + 1 } ?: (start + countedChars)
                 }
 
                 canvas.drawText(

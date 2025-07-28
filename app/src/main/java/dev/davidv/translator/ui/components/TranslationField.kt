@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dev.davidv.translator
+package dev.davidv.translator.ui.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -44,6 +44,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable

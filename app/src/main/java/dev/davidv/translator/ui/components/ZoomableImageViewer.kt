@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dev.davidv.translator
+package dev.davidv.translator.ui.components
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import dev.davidv.translator.R
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min

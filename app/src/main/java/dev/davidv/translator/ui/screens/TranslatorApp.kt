@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dev.davidv.translator
+package dev.davidv.translator.ui.screens
 
 import android.graphics.Bitmap
 import android.net.Uri
@@ -38,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import dev.davidv.translator.*
 import androidx.compose.runtime.DisposableEffect
 import android.content.ComponentName
 import android.content.ServiceConnection

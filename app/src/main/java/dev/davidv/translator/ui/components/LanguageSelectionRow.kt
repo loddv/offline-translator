@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dev.davidv.translator
+package dev.davidv.translator.ui.components
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +30,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import dev.davidv.translator.Language
+import dev.davidv.translator.TranslatorMessage
+import dev.davidv.translator.R
 
 @Composable
 fun LanguageSelectionRow(

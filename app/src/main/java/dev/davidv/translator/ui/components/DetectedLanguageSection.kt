@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dev.davidv.translator
+package dev.davidv.translator.ui.components
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.padding
@@ -23,6 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.davidv.translator.ui.components.DetectedLanguageToast
+import dev.davidv.translator.DownloadService
+import dev.davidv.translator.DownloadState
+import dev.davidv.translator.Language
+import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable

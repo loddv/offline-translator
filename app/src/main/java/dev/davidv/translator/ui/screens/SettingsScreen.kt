@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dev.davidv.translator
+package dev.davidv.translator.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,6 +48,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import dev.davidv.translator.AppSettings
+import dev.davidv.translator.Language
+import dev.davidv.translator.BackgroundMode
 
 
 @OptIn(ExperimentalMaterial3Api::class)

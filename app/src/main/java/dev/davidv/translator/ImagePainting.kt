@@ -140,7 +140,7 @@ suspend fun paintTranslatedTextOver(
     translate: suspend (String) -> String,
     backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT
 ): Pair<Bitmap, String> {
-    val mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
+    val mutableBitmap = originalBitmap.copy(originalBitmap.config, true)
     val canvas = Canvas(mutableBitmap)
 
     val paint = Paint().apply {

@@ -32,12 +32,11 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import android.provider.MediaStore
+import androidx.compose.foundation.clickable
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,19 +45,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -66,9 +60,6 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -79,7 +70,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -160,6 +150,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
+
+
 
 @Composable
 fun Greeting(
@@ -265,145 +259,39 @@ fun Greeting(
                     .padding(horizontal = 8.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val fromLanguages = Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
-                    val toLanguages = Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
-                    
-                    LanguageSelector(
-                        selectedLanguage = from,
-                        availableLanguages = fromLanguages,
-                        onLanguageSelected = { language ->
-                            onMessage(TranslatorMessage.FromLang(language))
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    IconButton(onClick = {
-                        if (!translating) {
-                            onMessage(TranslatorMessage.SwapLanguages)
-                        }
-                    }) {
-                        Icon(
-                            painterResource(id = R.drawable.compare),
-                            contentDescription = "Reverse translation direction"
-                        )
-                    }
-                    
-                    LanguageSelector(
-                        selectedLanguage = to,
-                        availableLanguages = toLanguages,
-                        onLanguageSelected = { language ->
-                            if (!translating) {
-                                onMessage(TranslatorMessage.ToLang(language))
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    IconButton(onClick = onSettings) {
-                        Icon(
-                            painterResource(id = R.drawable.settings),
-                            contentDescription = "Settings"
-                        )
-                    }
-
-                }
+                LanguageSelectionRow(
+                    from = from,
+                    to = to,
+                    availableLanguages = availableLanguages,
+                    translating = translating,
+                    onMessage = onMessage,
+                    onSettings = onSettings
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
 
-                if (displayImage != null) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            // Progress bar for OCR and translation work
-                            val isOcrInProgressState by isOcrInProgress.collectAsState()
-                            val isTranslatingState by isTranslating.collectAsState()
-                            val isProcessing = isOcrInProgressState || isTranslatingState
-                            
-                            if (isProcessing) {
-                                LinearProgressIndicator(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                            
-                            Image(
-                                bitmap = displayImage.asImageBitmap(),
-                                contentDescription = "Image to translate",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { showFullScreenImage = true }
-                            )
-                        }
+                InputSection(
+                    displayImage = displayImage,
+                    input = input,
+                    isOcrInProgress = isOcrInProgress,
+                    isTranslating = isTranslating,
+                    onMessage = onMessage,
+                    onShowFullScreenImage = { showFullScreenImage = true }
+                )
 
-                        // Close button in top-right corner
-                        IconButton(
-                            onClick = { onMessage(TranslatorMessage.ClearImage) },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(32.dp)
-                        ) {
-                            Icon(
-                                painterResource(id = R.drawable.cancel),
-                                contentDescription = "Remove image",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                } else {
-                    StyledTextField(
-                        text = input,
-                        onValueChange = { newInput ->
-                            onMessage(TranslatorMessage.TextInput(newInput))
-                        },
-                        placeholder = "Enter text",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
-                }
+                DetectedLanguageSection(
+                    detectedLanguage = detectedLanguage,
+                    from = from,
+                    availableLanguages = availableLanguages,
+                    onMessage = onMessage,
+                    onDownloadLanguage = onDownloadLanguage,
+                    downloadService = downloadService,
+                    downloadStates = downloadStates
+                )
 
-                // Detected language toast
-                if (detectedLanguage != null && detectedLanguage != from) {
-                    DetectedLanguageToast(
-                        detectedLanguage = detectedLanguage,
-                        availableLanguages = availableLanguages,
-                        onSwitchClick = {
-                            onMessage(TranslatorMessage.FromLang(detectedLanguage))
-                        },
-                        onDownloadLanguage = onDownloadLanguage,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                        downloadService = downloadService,
-                        downloadStates = downloadStates
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    HorizontalDivider(
-                        modifier = Modifier.fillMaxWidth(0.5f),
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-                }
-
-            TranslationField(
-                text = output,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-            )
+                TranslationOutputSection(
+                    output = output
+                )
             
             // Add extra padding at bottom to ensure content can be scrolled fully into view
             Spacer(modifier = Modifier.height(100.dp))

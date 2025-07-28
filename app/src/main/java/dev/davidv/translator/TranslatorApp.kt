@@ -123,7 +123,6 @@ fun TranslatorApp(
             val translated: String?
             if (currentDetectedLanguage != null) {
                 setFrom(currentDetectedLanguage!!)
-                // TODO: SetTo to the first non-from language, if any
                 translated = translationCoordinator.translateText(currentDetectedLanguage!!, to, initialText)
             } else {
                 translated = translationCoordinator.translateText(from!!, to, initialText)

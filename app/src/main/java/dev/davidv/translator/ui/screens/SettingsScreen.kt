@@ -27,7 +27,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -166,65 +165,6 @@ fun SettingsScreen(
                                     onClick = {
                                         onSettingsChange(settings.copy(defaultTargetLanguage = language))
                                         languageExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    
-                    // Startup Languages
-                    var startupLanguagesExpanded by remember { mutableStateOf(false) }
-                    
-                    Text(
-                        text = "Languages to load on startup",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    ExposedDropdownMenuBox(
-                        expanded = startupLanguagesExpanded,
-                        onExpandedChange = { startupLanguagesExpanded = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = if (settings.startupLanguages.isEmpty()) {
-                                "None selected"
-                            } else {
-                                "${settings.startupLanguages.size} language${if (settings.startupLanguages.size == 1) "" else "s"} selected"
-                            },
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = startupLanguagesExpanded) },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = startupLanguagesExpanded,
-                            onDismissRequest = { startupLanguagesExpanded = false }
-                        ) {
-                            availableLanguages.forEach { language ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Checkbox(
-                                                checked = settings.startupLanguages.contains(language),
-                                                onCheckedChange = null
-                                            )
-                                            Text(language.displayName)
-                                        }
-                                    },
-                                    onClick = {
-                                        val newStartupLanguages = if (settings.startupLanguages.contains(language)) {
-                                            settings.startupLanguages - language
-                                        } else {
-                                            settings.startupLanguages + language
-                                        }
-                                        onSettingsChange(settings.copy(startupLanguages = newStartupLanguages))
                                     }
                                 )
                             }

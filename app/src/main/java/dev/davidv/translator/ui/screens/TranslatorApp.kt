@@ -112,6 +112,7 @@ fun TranslatorApp(
             val firstAvailable = languageStateManager.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
             if (firstAvailable != null) {
                 setFrom(firstAvailable)
+                translationCoordinator.translationService.preloadModel(firstAvailable, to)
             }
         }
     }

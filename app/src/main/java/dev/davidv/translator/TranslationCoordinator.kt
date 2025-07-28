@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class TranslationCoordinator(
     private val context: Context,
-    private val translationService: TranslationService,
+    val translationService: TranslationService,
     private val languageDetector: LanguageDetector,
     private val imageProcessor: ImageProcessor,
     private val settingsManager: SettingsManager

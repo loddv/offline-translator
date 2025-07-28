@@ -47,6 +47,25 @@ class TranslationService(private val context: Context) {
     
     private val nativeLib = getNativeLib()
     
+    suspend fun preloadModel(from: Language, to: Language) = withContext(Dispatchers.IO) {
+        try {
+            val translationPairs = getTranslationPairs(from, to)
+            
+            for (pair in translationPairs) {
+                if (checkLanguagePairFiles(context, pair.first, pair.second)) {
+                    val config = generateConfig(pair.first, pair.second)
+                    val languageCode = "${pair.first.code}${pair.second.code}"
+                    Log.d("TranslationService", "Preloading model with key: $languageCode")
+//                    nativeLib.loadModelIntoCache(config, languageCode)
+                    nativeLib.stringFromJNI(config, ".", languageCode) // translate empty string to load the model
+                    Log.d("TranslationService", "Preloaded model for ${pair.first} -> ${pair.second} with key: $languageCode")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("TranslationService", "Failed to preload model for $from -> $to", e)
+        }
+    }
+    
     suspend fun translate(
         from: Language,
         to: Language,
@@ -102,6 +121,7 @@ class TranslationService(private val context: Context) {
                 val stepElapsed = measureTimeMillis {
                     val config = generateConfig(pair.first, pair.second)
                     val languageCode = "${pair.first.code}${pair.second.code}"
+                    Log.d("TranslationService", "Using model key: $languageCode for translation")
                     currentText = nativeLib.stringFromJNI(config, currentText, languageCode)
                 }
                 Log.d("TranslationService", "Step ${pair.first} -> ${pair.second} took ${stepElapsed}ms")

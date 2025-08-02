@@ -7,6 +7,8 @@ plugins {
 android {
     namespace = "dev.davidv.translator"
     compileSdk = 34
+    ndkVersion = "27.0.12077973"
+    buildToolsVersion = "34.0.0"
 
     sourceSets {
         getByName("androidTest") {

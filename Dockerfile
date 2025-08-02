@@ -2,7 +2,7 @@ FROM openjdk:17-jdk-slim
 
 # Set environment variables
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
-ENV ANDROID_NDK_VERSION=26.3.11579264
+ENV ANDROID_NDK_VERSION=27.0.12077973
 ENV ANDROID_HOME=$ANDROID_SDK_ROOT
 ENV PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
 
@@ -35,7 +35,6 @@ RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-1107
 RUN yes | sdkmanager --licenses && \
     sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" && \
     sdkmanager "ndk;${ANDROID_NDK_VERSION}" && \
-    sdkmanager "ndk;27.0.12077973" && \
     sdkmanager "cmake;3.22.1"
 
 # Set NDK environment variable

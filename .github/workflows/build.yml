@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -30,14 +32,9 @@ jobs:
     
     - name: Run build in container
       run: |
-        docker run --name build-container translator-app:latest
-          -v ${{ github.workspace }}/app/src:/workspace/app/src \
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
           translator-app:latest
-    
-    - name: Copy APK files from container
-      run: |
-        docker cp build-container:/workspace/app/build/outputs ./app/build/
-        docker rm build-container
     
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4

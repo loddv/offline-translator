@@ -49,10 +49,6 @@ COPY . .
 # Make gradlew executable
 RUN chmod +x ./gradlew
 
-# Fix Git ownership issues and initialize submodules
-RUN git config --global --add safe.directory '*' && \
-    git submodule update --init --recursive
-
 # download gradle
 RUN ./gradlew --help
 

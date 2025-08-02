@@ -41,7 +41,7 @@ RUN yes | sdkmanager --licenses && \
 ENV ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /build/build/dev.davidv.translator
 
 RUN echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 # Default command to build the project

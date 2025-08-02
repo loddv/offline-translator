@@ -43,14 +43,5 @@ ENV ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
 # Set working directory
 WORKDIR /workspace
 
-# Copy project files
-COPY . .
-
-# Make gradlew executable
-RUN chmod +x ./gradlew
-
-# download gradle
-RUN ./gradlew --help
-
 # Default command to build the project
 CMD ["./gradlew", "assembleRelease"]

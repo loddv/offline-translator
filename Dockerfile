@@ -43,6 +43,10 @@ ENV ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
 # Set working directory
 WORKDIR /build/build/dev.davidv.translator
 
+# some commands run `git rev-parse --short` and may get different
+# lengths depending on git version or repo status
+RUN git config --system core.abbrev 10
+
 RUN echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 # Default command to build the project
 CMD ["./gradlew", "assembleRelease"]

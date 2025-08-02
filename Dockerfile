@@ -47,6 +47,10 @@ WORKDIR /build/build/dev.davidv.translator
 # lengths depending on git version or repo status
 RUN git config --system core.abbrev 10
 
+# Copy signing script
+COPY sign-apk.sh /usr/local/bin/sign-apk.sh
+RUN chmod +x /usr/local/bin/sign-apk.sh
+
 RUN echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 # Default command to build the project
 CMD ["./gradlew", "assembleRelease"]

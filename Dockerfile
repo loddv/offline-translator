@@ -35,6 +35,7 @@ RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-1107
 RUN yes | sdkmanager --licenses && \
     sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" && \
     sdkmanager "ndk;${ANDROID_NDK_VERSION}" && \
+    sdkmanager "ndk;27.0.12077973" && \
     sdkmanager "cmake;3.22.1"
 
 # Set NDK environment variable
@@ -43,5 +44,6 @@ ENV ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
 # Set working directory
 WORKDIR /workspace
 
+RUN echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 # Default command to build the project
 CMD ["./gradlew", "assembleRelease"]

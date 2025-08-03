@@ -31,3 +31,18 @@ $ANDROID_SDK/emulator/qemu/linux-x86_64/qemu-system-x86_64 -netdelay none -netsp
 ```
 
 If you don't do this, you will just get a `SIGILL` when trying to load the library.
+
+## Building & signing
+
+```sh
+bash build.sh
+```
+
+will trigger a build in a docker container, matching the CI environment.
+
+```sh
+bash sign-apk.sh keystore.jks keystorepass pass alias
+```
+
+will sign the file built by `build.sh` (`app/build/outputs/apk/aarch64/release/app-aarch64-release-unsigned.apk`) and place the signed copy, with version number, in `signed/`
+

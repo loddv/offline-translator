@@ -36,7 +36,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
 
-data class TextLine(var text: String, var boundingBox: Rect)
+data class TextLine(var text: String, var boundingBox: Rect, var wordRects: Array<Rect>)
 data class TextBlock(val lines: Array<TextLine>)
 
 data class WordInfo(
@@ -118,7 +118,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
 
     val blocks = mutableListOf<TextBlock>()
     val lines = mutableListOf<TextLine>()
-    var line = TextLine("", Rect(0, 0, 0, 0))
+    var line = TextLine("", Rect(0, 0, 0, 0), emptyArray())
     var lastRight = 0
 
     for (wordInfo in filteredWords) {
@@ -136,7 +136,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
         val lastWordInPara = wordInfo.isLastInPara
 
         if (firstWordInLine) {
-            line = TextLine(word, boundingBox)
+            line = TextLine(word, boundingBox, arrayOf(boundingBox))
         } else {
             val delta = boundingBox.left - lastRight
             val charWidth = boundingBox.width().toFloat() / word.length
@@ -148,14 +148,14 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
                 if (line.text.trim() != "") {
                     lines.add(line)
                 }
-                line = TextLine(word, boundingBox)
+                line = TextLine(word, boundingBox, arrayOf(boundingBox))
                 if (lines.isNotEmpty()) {
                     blocks.add(TextBlock(lines.toTypedArray()))
                     lines.clear()
                 }
             } else {
                 line.text = "${line.text} ${word}"
-
+                line.wordRects += boundingBox
                 if (boundingBox.right < line.boundingBox.left) {
                     Log.e("OCRService", "going to break $boundingBox ${line.boundingBox}")
                 }
@@ -180,7 +180,7 @@ fun getSentences(bitmap: Bitmap, tessInstance: TessBaseAPI, minConfidence: Int =
 
         if (lastWordInLine && line.text.trim() != "") {
             lines.add(line)
-            line = TextLine("", Rect(0, 0, 0, 0))
+            line = TextLine("", Rect(0, 0, 0, 0), emptyArray())
         }
 
         if (lastWordInPara && lines.isNotEmpty()) {

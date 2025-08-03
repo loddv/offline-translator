@@ -7,7 +7,7 @@ docker build -t translator-app:latest .
 
 echo "Running build in container..."
 docker run --rm \
-  -v "$(pwd)":/builds/fdroid/fdroiddata/build/dev.davidv.translator \
+  -v "$(pwd)":/home/vagrant/build/dev.davidv.translator/ \
   --user "$(id -u):$(id -g)" \
   translator-app:latest \
   ./gradlew assembleAarch64Release

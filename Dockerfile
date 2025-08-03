@@ -41,7 +41,7 @@ RUN yes | sdkmanager --licenses && \
 ENV ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
 
 # Set working directory
-WORKDIR /builds/fdroid/fdroiddata/build/dev.davidv.translator
+WORKDIR /home/vagrant/build/dev.davidv.translator
 
 # some commands run `git rev-parse --short` and may get different
 # lengths depending on git version or repo status

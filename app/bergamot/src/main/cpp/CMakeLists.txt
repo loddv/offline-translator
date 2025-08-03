@@ -4,7 +4,7 @@
 
 # Sets the minimum CMake version required for this project.
 cmake_minimum_required(VERSION 3.22.1)
-
+add_compile_options("-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.")
 # Declares the project name. The project name can be accessed via ${ PROJECT_NAME},
 # Since this is the top level CMakeLists.txt, the project name is also accessible
 # with ${CMAKE_PROJECT_NAME} (both CMake variables are in-sync within the top level
@@ -27,6 +27,7 @@ project("bergamot-sys")
 add_library(${CMAKE_PROJECT_NAME} SHARED
         # List C/C++ source files with relative paths to this CMakeLists.txt.
         bergamot.cpp)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "/tmp/build/")
 
 set(USE_WASM_COMPATIBLE_SOURCES OFF CACHE BOOL "" FORCE)
 set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
@@ -58,6 +59,8 @@ set(ENABLE_CACHE_STATS OFF CACHE BOOL "" FORCE)
 set(USE_MKL OFF CACHE BOOL "" FORCE)
 
 # Reproducible builds
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s")  # strip
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdebug-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdebug-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-builtin-macro-redefined")

@@ -35,19 +35,23 @@ class TranslationCoordinator(
 ) {
     private val _isTranslating = MutableStateFlow(false)
     val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
-    
+
     private val _isOcrInProgress = MutableStateFlow(false)
     val isOcrInProgress: StateFlow<Boolean> = _isOcrInProgress.asStateFlow()
-    
+
     suspend fun translateText(from: Language, to: Language, text: String): String? {
         if (text.isBlank()) return ""
-        
+
         _isTranslating.value = true
         return try {
             when (val result = translationService.translate(from, to, text)) {
                 is TranslationResult.Success -> result.text
                 is TranslationResult.Error -> {
-                    Toast.makeText(context, "Translation error: ${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Translation error: ${result.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     null
                 }
             }
@@ -55,49 +59,66 @@ class TranslationCoordinator(
             _isTranslating.value = false
         }
     }
-    
+
     suspend fun detectLanguage(text: String): Language? {
         return languageDetector.detectLanguage(text)
     }
 
-    suspend fun translateImageWithOverlay(from: Language, to: Language, uri: Uri, onImageLoaded: (Bitmap) -> Unit): ProcessedImageResult? {
+    suspend fun translateImageWithOverlay(
+        from: Language,
+        to: Language,
+        uri: Uri,
+        onImageLoaded: (Bitmap) -> Unit,
+        onMessage: (TranslatorMessage.ImageTextDetected) -> Unit
+    ): ProcessedImageResult? {
         _isTranslating.value = true
         return try {
             val originalBitmap = imageProcessor.loadBitmapFromUri(uri)
             val correctedBitmap = imageProcessor.correctImageOrientation(uri, originalBitmap)
-            
+
             // Recycle original if it's different from corrected
             if (correctedBitmap !== originalBitmap && !originalBitmap.isRecycled) {
                 originalBitmap.recycle()
             }
-            
+
             val maxImageSize = settingsManager.settings.value.maxImageSize
             val finalBitmap = imageProcessor.downscaleImage(correctedBitmap, maxImageSize)
-            
+
             // Recycle corrected if it's different from final
             if (finalBitmap !== correctedBitmap && !correctedBitmap.isRecycled) {
                 correctedBitmap.recycle()
             }
-            
+
             onImageLoaded(finalBitmap)
-            
+
             _isOcrInProgress.value = true
             val minConfidence = settingsManager.settings.value.minConfidence
             val processedImage = imageProcessor.processImage(finalBitmap, minConfidence)
             _isOcrInProgress.value = false
-            
+
             // Create translation function for overlay
             suspend fun translateFn(text: String): String {
                 return when (val result = translationService.translate(from, to, text)) {
                     is TranslationResult.Success -> result.text
                     is TranslationResult.Error -> {
-                        Toast.makeText(context, "Translation error: ${result.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "Translation error: ${result.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         "Error"
                     }
                 }
             }
 
             Log.d("OCR", "complete, result ${processedImage.textBlocks}")
+
+            val extractedText = processedImage.textBlocks.map { block ->
+                block.lines.map { line -> line.text }
+            }.flatten().joinToString("\n")
+
+            onMessage(TranslatorMessage.ImageTextDetected(extractedText))
+
             // Paint translated text over image
             val (overlayBitmap, allTranslatedText) = paintTranslatedTextOver(
                 processedImage.bitmap,
@@ -105,17 +126,16 @@ class TranslationCoordinator(
                 ::translateFn,
                 settingsManager.settings.value.backgroundMode
             )
-            
+
             ProcessedImageResult(
                 correctedBitmap = overlayBitmap,
-                extractedText = processedImage.textBlocks.map { block ->
-                    block.lines.map { line -> line.text }
-                }.flatten().joinToString("\n"),
+                extractedText = extractedText,
                 translatedText = allTranslatedText
             )
         } catch (e: Exception) {
             println(e.stackTrace)
-            Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT)
+                .show()
             null
         } finally {
             _isOcrInProgress.value = false
@@ -125,7 +145,5 @@ class TranslationCoordinator(
 }
 
 data class ProcessedImageResult(
-    val correctedBitmap: Bitmap,
-    val extractedText: String,
-    val translatedText: String
+    val correctedBitmap: Bitmap, val extractedText: String, val translatedText: String
 )

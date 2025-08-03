@@ -27,4 +27,5 @@ sealed class TranslatorMessage {
     object SwapLanguages : TranslatorMessage()
     object ClearImage : TranslatorMessage()
     data class InitializeLanguages(val from: Language, val to: Language) : TranslatorMessage()
+    data class ImageTextDetected(val extractedText: String) : TranslatorMessage()
 }

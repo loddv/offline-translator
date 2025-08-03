@@ -140,7 +140,12 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_SEND -> {
                 // Check if it's text or image
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                val imageUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                val imageUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
 
                 if (text != null) {
                     textToTranslate = text

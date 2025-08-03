@@ -1,2 +1,6 @@
 app/
 .github
+local.properties
+*.iml
+.gradle
+.idea

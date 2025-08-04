@@ -41,14 +41,16 @@ void loadModelIntoCache(const std::string& cfg, const std::string& key) {
 std::string func(const char* cfg, const char *input, const char* key) {
     // Initialize service if not already done
     initializeService();
-    
+
     std::string key_str(key);
     std::string cfg_s(cfg);
 
     // Load model into cache if not already present
     loadModelIntoCache(cfg_s, key_str);
-    
-    std::lock_guard<std::mutex> lock(service_mutex);
+
+    // NB: this assumes a thread has not unloaded the model from the cache
+    // as we don't implement unloading, it's fine
+    std::shared_ptr<TranslationModel> model = model_cache[key_str];
 
     ResponseOptions responseOptions;
     std::string input_str(input);
@@ -61,7 +63,8 @@ std::string func(const char* cfg, const char *input, const char* key) {
         promise.set_value(std::move(response));
     };
 
-    global_service->translate(model_cache[key_str], std::move(input), callback, responseOptions);
+    // Pass the model via shared_ptr and move the input string.
+    global_service->translate(model, std::move(input_str), callback, responseOptions);
 
     // Wait until promise sets the response.
     Response response = future.get();
@@ -117,19 +120,20 @@ Java_dev_davidv_bergamot_NativeLib_stringFromJNI(
     const char* c_data = env->GetStringUTFChars(data, nullptr);
     const char* c_key = env->GetStringUTFChars(key, nullptr);
 
-    const char* out;
+    jstring result = nullptr;
     try {
         std::string s = func(c_cfg, c_data, c_key);
-        out = s.c_str();
+        result = env->NewStringUTF(s.c_str());
     } catch(const std::exception &e) {
-        out = e.what();
+        jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exceptionClass, e.what());
     }
+
     env->ReleaseStringUTFChars(cfg, c_cfg);
     env->ReleaseStringUTFChars(data, c_data);
     env->ReleaseStringUTFChars(key, c_key);
 
-    return env->NewStringUTF(out);
-
+    return result;
 }
 
 // Cleanup function to be called when the library is unloaded

@@ -149,16 +149,17 @@ fun removeTextWithSmartBlur(
         color = surroundingColor
     }
 
+    if (backgroundMode == BackgroundMode.AUTO_DETECT) {
+        words.forEach { word ->
+            val w = word
+            w.inset(-2, -2)
+            canvas.drawRect(w, paint)
+        }
 
-    words.forEach { word ->
-        val w = word
-        w.inset(-2, -2)
-        canvas.drawRect(w, paint)
-    }
-
-    paint = Paint().apply {
-        color = surroundingColor
-        maskFilter = BlurMaskFilter(8f, BlurMaskFilter.Blur.INNER)
+        paint = Paint().apply {
+            color = surroundingColor
+            maskFilter = BlurMaskFilter(8f, BlurMaskFilter.Blur.INNER)
+        }
     }
 
     canvas.drawRect(textBounds, paint)

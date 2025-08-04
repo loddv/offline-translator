@@ -25,6 +25,7 @@ import android.widget.Toast
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.system.measureTimeMillis
 
 class TranslationCoordinator(
     private val context: Context,
@@ -120,12 +121,21 @@ class TranslationCoordinator(
             onMessage(TranslatorMessage.ImageTextDetected(extractedText))
 
             // Paint translated text over image
-            val (overlayBitmap, allTranslatedText) = paintTranslatedTextOver(
+            val overlayBitmap: Bitmap
+            val allTranslatedText: String
+            val translatePaint = measureTimeMillis {
+                val pair = paintTranslatedTextOver(
                 processedImage.bitmap,
                 processedImage.textBlocks,
                 ::translateFn,
                 settingsManager.settings.value.backgroundMode
-            )
+                )
+                overlayBitmap = pair.first
+                allTranslatedText = pair.second
+            }
+
+            println("Translating and overpainting took ${translatePaint}ms")
+
 
             ProcessedImageResult(
                 correctedBitmap = overlayBitmap,

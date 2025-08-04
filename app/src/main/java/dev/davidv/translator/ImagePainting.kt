@@ -30,13 +30,77 @@ import kotlin.system.measureTimeMillis
 
 fun getForegroundColorByContrast(bitmap: Bitmap, textBounds: Rect, backgroundColor: Int): Int {
     val bgLuminance = getLuminance(backgroundColor)
+    val bestNaiveColor = if (bgLuminance > 0.5) Color.BLACK else Color.WHITE
+    if (textBounds.width() <= 0 || textBounds.height() <= 0) {
+        return bestNaiveColor
+    }
 
     val pixels = IntArray(textBounds.width() * textBounds.height())
-    bitmap.getPixels(pixels, 0, textBounds.width(), textBounds.left, textBounds.top, textBounds.width(), textBounds.height())
+    bitmap.getPixels(
+        pixels,
+        0,
+        textBounds.width(),
+        textBounds.left,
+        textBounds.top,
+        textBounds.width(),
+        textBounds.height()
+    )
 
-    return pixels.maxByOrNull { pixel ->
-        getColorContrast(pixel, bgLuminance)
-    } ?: Color.BLACK
+    val width = textBounds.width()
+    // Sample 1 out of every 5 pixels
+    val step = maxOf(1, minOf(width, textBounds.height()) / 5)
+
+    // quantized color -> (count, sum of contrasts, first original color)
+    val colorData = mutableMapOf<Int, Triple<Int, Float, Int>>()
+
+
+    var i = 0
+    while (i < pixels.size) {
+        val pixel = pixels[i]
+        val contrast = getColorContrast(pixel, bgLuminance)
+
+        if (contrast <= 1.5f) {
+            i += step
+            continue
+        }
+
+        // quantize the colors, we don't care that much for the least-significant nibble
+        // and this dramatically reduces the amount of work we need to do
+        val r = Color.red(pixel) and 0xF0
+        val g = Color.green(pixel) and 0xF0
+        val b = Color.blue(pixel) and 0xF0
+        val quantizedColor = Color.rgb(r, g, b)
+
+        val existing = colorData[quantizedColor]
+        if (existing != null) {
+            colorData[quantizedColor] =
+                Triple(existing.first + 1, existing.second + contrast, existing.third)
+        } else {
+            colorData[quantizedColor] = Triple(1, contrast, pixel)
+        }
+        i += step
+    }
+
+    if (colorData.isEmpty()) {
+        return bestNaiveColor
+    }
+
+    var bestColor = bestNaiveColor
+    var bestScore = 0f
+
+    for ((_, data) in colorData) {
+        val count = data.first
+        if (count > 3) {
+            val avgContrast = data.second / count
+            val score = count * avgContrast
+            if (score > bestScore) {
+                bestScore = score
+                bestColor = data.third
+            }
+        }
+    }
+
+    return bestColor
 }
 
 fun getColorContrast(color1: Int, bgLuminance: Float): Float {
@@ -56,7 +120,9 @@ fun getLuminance(color: Int): Float {
     return 0.299f * r + 0.587f * g + 0.114f * b
 }
 
-
+// TODO: this paints over each word with the average of the entire block
+// maybe we should get the background color for each word?
+// in pictures the color shifts quite a bit within the same block
 fun removeTextWithSmartBlur(
     canvas: Canvas,
     bitmap: Bitmap,
@@ -73,7 +139,9 @@ fun removeTextWithSmartBlur(
             } else {
                 getBackgroundColorExcludingWords(bitmap, textBounds, words)
             }
-            val detectedFgColor = getForegroundColorByContrast(bitmap, textBounds, detectedSurroundingColor)
+            val detectedFgColor =
+                getForegroundColorByContrast(bitmap, textBounds, detectedSurroundingColor)
+
             Pair(detectedSurroundingColor, detectedFgColor)
         }
     }
@@ -81,16 +149,21 @@ fun removeTextWithSmartBlur(
         color = surroundingColor
     }
 
-    canvas.drawRect(textBounds, paint)
+
+    words.forEach { word ->
+        val w = word
+        w.inset(-2, -2)
+        canvas.drawRect(w, paint)
+    }
 
     paint = Paint().apply {
         color = surroundingColor
-        maskFilter = BlurMaskFilter(8f, BlurMaskFilter.Blur.NORMAL)
-        alpha = 128
-        isAntiAlias = true
+        maskFilter = BlurMaskFilter(8f, BlurMaskFilter.Blur.INNER)
     }
 
     canvas.drawRect(textBounds, paint)
+
+
     return fgColor
 }
 
@@ -224,7 +297,8 @@ suspend fun paintTranslatedTextOver(
                 val endIndex: Int = if (start + countedChars == translated.length) {
                     translated.length
                 } else {
-                    val previousSpaceIndex = translatedSpaceIndices.findLast { it < start + countedChars }
+                    val previousSpaceIndex =
+                        translatedSpaceIndices.findLast { it < start + countedChars }
                     previousSpaceIndex?.let { it + 1 } ?: (start + countedChars)
                 }
 
@@ -245,62 +319,56 @@ suspend fun paintTranslatedTextOver(
     return Pair(mutableBitmap, allTranslatedText.trim())
 }
 
-fun extractPixelsExcludingRects(
-    bitmap: Bitmap,
-    largeRect: Rect,
-    excludeRects: Array<Rect>
-): IntArray {
-    val width = largeRect.width()
-    val height = largeRect.height()
-    val totalPixels = width * height
-
-    val mask = BooleanArray(totalPixels) { true }
-
-    for (excludeRect in excludeRects) {
-        val intersect = Rect()
-        if (intersect.setIntersect(largeRect, excludeRect)) {
-            val offsetLeft = intersect.left - largeRect.left
-            val offsetTop = intersect.top - largeRect.top
-            val intersectWidth = intersect.width()
-            val intersectHeight = intersect.height()
-
-            for (y in 0 until intersectHeight) {
-                val rowStart = (offsetTop + y) * width + offsetLeft
-                for (x in 0 until intersectWidth) {
-                    mask[rowStart + x] = false
-                }
-            }
-        }
-    }
-
-    val allPixels = IntArray(totalPixels)
-    bitmap.getPixels(allPixels, 0, width, largeRect.left, largeRect.top, width, height)
-
-    return allPixels.filterIndexed { index, _ -> mask[index] }.toIntArray()
-}
-
 fun getBackgroundColorExcludingWords(
     bitmap: Bitmap,
     textBounds: Rect,
     wordRects: Array<Rect>
 ): Int {
-    val backgroundPixels = extractPixelsExcludingRects(bitmap, textBounds, wordRects)
+    val width = textBounds.width()
+    val height = textBounds.height()
+    if (width <= 0 || height <= 0) {
+        return getSurroundingAverageColor(bitmap, textBounds)
+    }
 
-    if (backgroundPixels.isEmpty()) {
-        return Color.WHITE
+    val pixels = IntArray(width * height)
+    bitmap.getPixels(pixels, 0, width, textBounds.left, textBounds.top, width, height)
+
+    val mask = BooleanArray(width * height) { true }
+
+    for (excludeRect in wordRects) {
+        val intersect = Rect()
+        if (intersect.setIntersect(textBounds, excludeRect)) {
+            val offsetLeft = intersect.left - textBounds.left
+            val offsetTop = intersect.top - textBounds.top
+            val intersectWidth = intersect.width()
+            val intersectHeight = intersect.height()
+
+            for (y in 0 until intersectHeight) {
+                val rowStart = (offsetTop + y) * width + offsetLeft
+                mask.fill(false, rowStart, rowStart + intersectWidth)
+            }
+        }
     }
 
     var totalR = 0L
     var totalG = 0L
     var totalB = 0L
+    var count = 0
 
-    for (pixel in backgroundPixels) {
-        totalR += Color.red(pixel)
-        totalG += Color.green(pixel)
-        totalB += Color.blue(pixel)
+    for (i in pixels.indices) {
+        if (mask[i]) {
+            val pixel = pixels[i]
+            totalR += Color.red(pixel)
+            totalG += Color.green(pixel)
+            totalB += Color.blue(pixel)
+            count++
+        }
     }
 
-    val count = backgroundPixels.size
+    if (count == 0) {
+        return getSurroundingAverageColor(bitmap, textBounds)
+    }
+
     return Color.rgb(
         (totalR / count).toInt(),
         (totalG / count).toInt(),

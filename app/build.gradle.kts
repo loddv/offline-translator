@@ -22,7 +22,7 @@ android {
         minSdk = 28 // iconv functions need 28?
         targetSdk = 34
         versionCode = 1
-        versionName = "0.0.9"
+        versionName = "0.0.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

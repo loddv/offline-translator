@@ -1,1 +1,0 @@
-Offline translator app using Mozilla's models for text and image translation with OCR

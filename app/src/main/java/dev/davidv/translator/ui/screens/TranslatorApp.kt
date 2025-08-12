@@ -321,6 +321,8 @@ fun TranslatorApp(
                         }
                     }
                 }
+            }, onSettings = {
+                navController.navigate("settings")
             }, hasLanguages = languageState.hasLanguages
             )
         }

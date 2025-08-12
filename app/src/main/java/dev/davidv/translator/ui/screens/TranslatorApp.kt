@@ -135,9 +135,18 @@ fun TranslatorApp(
             } else null
             val translated: String?
             if (currentDetectedLanguage != null) {
-                setFrom(currentDetectedLanguage!!)
-                translated =
-                    translationCoordinator.translateText(currentDetectedLanguage!!, to, initialText)
+                if (languageState.availableLanguageMap[currentDetectedLanguage!!.code] == true) {
+                    setFrom(currentDetectedLanguage!!)
+                    translated =
+                        translationCoordinator.translateText(
+                            currentDetectedLanguage!!,
+                            to,
+                            initialText
+                        )
+                } else {
+                    translated = ""
+                }
+
             } else {
                 translated = translationCoordinator.translateText(from!!, to, initialText)
             }

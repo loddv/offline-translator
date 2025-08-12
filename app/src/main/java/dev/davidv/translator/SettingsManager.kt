@@ -50,6 +50,8 @@ class SettingsManager(context: Context) {
         
         val minConfidence = prefs.getInt("min_confidence", 75)
         val maxImageSize = prefs.getInt("max_image_size", 1500)
+        val disableOcr = prefs.getBoolean("disable_ocr", false)
+        val disableCLD = prefs.getBoolean("disable_cld", false)
         
         return AppSettings(
             defaultTargetLanguage = defaultTargetLanguage,
@@ -57,7 +59,9 @@ class SettingsManager(context: Context) {
             tesseractModelsBaseUrl = tesseractModelsBaseUrl,
             backgroundMode = backgroundMode,
             minConfidence = minConfidence,
-            maxImageSize = maxImageSize
+            maxImageSize = maxImageSize,
+            disableOcr = disableOcr,
+            disableCLD = disableCLD
         )
     }
     
@@ -69,6 +73,8 @@ class SettingsManager(context: Context) {
             putString("background_mode", newSettings.backgroundMode.name)
             putInt("min_confidence", newSettings.minConfidence)
             putInt("max_image_size", newSettings.maxImageSize)
+            putBoolean("disable_ocr", newSettings.disableOcr)
+            putBoolean("disable_cld", newSettings.disableCLD)
             apply()
         }
         _settings.value = newSettings

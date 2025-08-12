@@ -23,5 +23,7 @@ data class AppSettings(
     val tesseractModelsBaseUrl: String = Constants.DEFAULT_TESSERACT_MODELS_BASE_URL,
     val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
     val minConfidence: Int = 75,
-    val maxImageSize: Int = 1500
+    val maxImageSize: Int = 1500,
+    val disableOcr: Boolean = false,
+    val disableCLD: Boolean = false
 )

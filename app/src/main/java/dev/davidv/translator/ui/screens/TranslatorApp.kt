@@ -130,8 +130,9 @@ fun TranslatorApp(
     // Auto-translate initial text if provided
     LaunchedEffect(initialText) {
         if (initialText.isNotBlank()) {
-            currentDetectedLanguage = translationCoordinator.detectLanguage(initialText)
-            println("launched effect detected $currentDetectedLanguage")
+            currentDetectedLanguage = if (!settings.disableCLD) {
+                translationCoordinator.detectLanguage(initialText)
+            } else null
             val translated: String?
             if (currentDetectedLanguage != null) {
                 setFrom(currentDetectedLanguage!!)
@@ -162,8 +163,9 @@ fun TranslatorApp(
                                 displayImage = originalBitmap
                             }) { imageTextDetected ->
                             scope.launch {
-                                currentDetectedLanguage =
+                                currentDetectedLanguage = if (!settings.disableCLD) {
                                     translationCoordinator.detectLanguage(imageTextDetected.extractedText)
+                                } else null
                             }
                         }
                         result?.let {
@@ -184,8 +186,9 @@ fun TranslatorApp(
                 // Detect language in background for auto-suggest button
                 if (message.text.isNotBlank()) {
                     scope.launch {
-                        currentDetectedLanguage =
+                        currentDetectedLanguage = if (!settings.disableCLD) {
                             translationCoordinator.detectLanguage(message.text)
+                        } else null
                     }
                     // Auto-translate with current languages
                     scope.launch {
@@ -223,8 +226,9 @@ fun TranslatorApp(
                             displayImage = originalBitmap
                         }) { imageTextDetected ->
                         scope.launch {
-                            currentDetectedLanguage =
+                            currentDetectedLanguage = if (!settings.disableCLD) {
                                 translationCoordinator.detectLanguage(imageTextDetected.extractedText)
+                            } else null
                         }
                     }
                     result?.let {
@@ -261,8 +265,9 @@ fun TranslatorApp(
 
             is TranslatorMessage.ImageTextDetected -> {
                 scope.launch {
-                    currentDetectedLanguage =
+                    currentDetectedLanguage = if (!settings.disableCLD) {
                         translationCoordinator.detectLanguage(message.extractedText)
+                    } else null
                 }
             }
         }
@@ -361,6 +366,7 @@ fun TranslatorApp(
                     availableLanguages = languageState.availableLanguageMap,
                     downloadService = downloadService,
                     downloadStates = downloadStates,
+                    settings = settings,
                 )
             }
         }

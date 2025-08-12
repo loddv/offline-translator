@@ -17,6 +17,7 @@
 
 package dev.davidv.translator.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,11 +32,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -45,12 +48,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.ui.theme.TranslatorTheme
 import dev.davidv.translator.AppSettings
-import dev.davidv.translator.Language
 import dev.davidv.translator.BackgroundMode
+import dev.davidv.translator.Language
+import dev.davidv.translator.R
+import dev.davidv.translator.ui.theme.TranslatorTheme
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,48 +175,17 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    
-                    // Translation Models Base URL
-                    Text(
-                        text = "Base URL for Translation Models",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    OutlinedTextField(
-                        value = settings.translationModelsBaseUrl,
-                        onValueChange = { 
-                            onSettingsChange(settings.copy(translationModelsBaseUrl = it))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    
-                    // Tesseract Models Base URL
-                    Text(
-                        text = "Base URL for Tesseract Models",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    OutlinedTextField(
-                        value = settings.tesseractModelsBaseUrl,
-                        onValueChange = { 
-                            onSettingsChange(settings.copy(tesseractModelsBaseUrl = it))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
                 }
             }
-            
-            // Images Settings Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
-            ) {
+
+            // OCR Settings Section - Only show if OCR is not disabled
+            if (!settings.disableOcr) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -295,6 +269,118 @@ fun SettingsScreen(
                         steps = 24,
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+            }
+            }
+            // Advanced Settings Section
+            var advancedExpanded by remember { mutableStateOf(false) }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Clickable header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { advancedExpanded = !advancedExpanded },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Advanced Settings",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Icon(
+                            painter = painterResource(
+                                id = if (advancedExpanded) R.drawable.expandless else R.drawable.expandmore
+                            ),
+                            contentDescription = if (advancedExpanded) "Collapse" else "Expand",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    // Expandable content
+                    if (advancedExpanded) {
+                        // Translation Models Base URL
+                        Text(
+                            text = "Base URL for Translation Models",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        OutlinedTextField(
+                            value = settings.translationModelsBaseUrl,
+                            onValueChange = {
+                                onSettingsChange(settings.copy(translationModelsBaseUrl = it))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        // Tesseract Models Base URL
+                        Text(
+                            text = "Base URL for Tesseract Models",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        OutlinedTextField(
+                            value = settings.tesseractModelsBaseUrl,
+                            onValueChange = {
+                                onSettingsChange(settings.copy(tesseractModelsBaseUrl = it))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        // Disable OCR Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Disable OCR",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Switch(
+                                checked = settings.disableOcr,
+                                onCheckedChange = { checked ->
+                                    onSettingsChange(settings.copy(disableOcr = checked))
+                                }
+                            )
+                        }
+
+                        // Disable CLD Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Disable automatic language detection",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Switch(
+                                checked = settings.disableCLD,
+                                onCheckedChange = { checked ->
+                                    onSettingsChange(settings.copy(disableCLD = checked))
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

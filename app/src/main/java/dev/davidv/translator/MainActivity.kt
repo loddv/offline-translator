@@ -23,6 +23,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -30,13 +31,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
-import android.provider.MediaStore
 import androidx.compose.foundation.clickable
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,14 +46,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,12 +69,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.ui.theme.TranslatorTheme
-import dev.davidv.translator.ui.components.*
+import androidx.core.content.FileProvider
+import dev.davidv.translator.ui.components.DetectedLanguageSection
+import dev.davidv.translator.ui.components.InputSection
+import dev.davidv.translator.ui.components.LanguageSelectionRow
+import dev.davidv.translator.ui.components.TranslationOutputSection
+import dev.davidv.translator.ui.components.ZoomableImageViewer
 import dev.davidv.translator.ui.screens.TranslatorApp
+import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 class MainActivity : ComponentActivity() {
@@ -183,7 +187,10 @@ fun Greeting(
     
     // System integration
     sharedImageUri: Uri? = null,
-    availableLanguages: Map<String, Boolean>,    downloadService: DownloadService? = null,    downloadStates: Map<Language, DownloadState> = emptyMap(),
+    availableLanguages: Map<String, Boolean>,
+    downloadService: DownloadService? = null,
+    downloadStates: Map<Language, DownloadState> = emptyMap(),
+    settings: AppSettings,
 ) {
     var showFullScreenImage by remember { mutableStateOf(false) }
     var showImageSourceSheet by remember { mutableStateOf(false) }
@@ -243,13 +250,15 @@ fun Greeting(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                showImageSourceSheet = true
-            }) {
-                Icon(
-                    painterResource(id = R.drawable.add_photo),
-                    contentDescription = "Translate image",
-                )
+            if (!settings.disableOcr) {
+                FloatingActionButton(onClick = {
+                    showImageSourceSheet = true
+                }) {
+                    Icon(
+                        painterResource(id = R.drawable.add_photo),
+                        contentDescription = "Translate image",
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -460,6 +469,7 @@ fun GreetingPreview() {
             ),
             downloadService = null,
             downloadStates = emptyMap(),
+            settings = AppSettings(),
         )
     }
 }
@@ -491,6 +501,7 @@ fun PreviewVeryLongText() {
             ),
             downloadService = null,
             downloadStates = emptyMap(),
+            settings = AppSettings(),
         )
     }
 }

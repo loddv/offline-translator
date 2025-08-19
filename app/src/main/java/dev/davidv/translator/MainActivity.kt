@@ -37,18 +37,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -73,7 +74,7 @@ import androidx.core.content.FileProvider
 import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.InputSection
 import dev.davidv.translator.ui.components.LanguageSelectionRow
-import dev.davidv.translator.ui.components.TranslationOutputSection
+import dev.davidv.translator.ui.components.TranslationField
 import dev.davidv.translator.ui.components.ZoomableImageViewer
 import dev.davidv.translator.ui.screens.TranslatedText
 import dev.davidv.translator.ui.screens.TranslatorApp
@@ -266,18 +267,17 @@ fun Greeting(
   ) { paddingValues ->
     Box(
       modifier =
-        Modifier
-          .fillMaxSize()
-          .navigationBarsPadding()
-          .imePadding()
-          .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp),
+      Modifier
+        .fillMaxSize()
+        .navigationBarsPadding()
+        .imePadding()
+        .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp),
     ) {
       Column(
         modifier =
-          Modifier
-            .fillMaxSize()
-            .padding(horizontal = 8.dp)
-            .verticalScroll(rememberScrollState()),
+        Modifier
+          .fillMaxSize()
+          .padding(horizontal = 8.dp),
       ) {
         LanguageSelectionRow(
           from = from,
@@ -289,14 +289,20 @@ fun Greeting(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        InputSection(
-          displayImage = displayImage,
-          input = input,
-          isOcrInProgress = isOcrInProgress,
-          isTranslating = isTranslating,
-          onMessage = onMessage,
-          onShowFullScreenImage = { showFullScreenImage = true },
-        )
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .weight(0.4f)
+        ) {
+          InputSection(
+            displayImage = displayImage,
+            input = input,
+            isOcrInProgress = isOcrInProgress,
+            isTranslating = isTranslating,
+            onMessage = onMessage,
+            onShowFullScreenImage = { showFullScreenImage = true },
+          )
+        }
 
         DetectedLanguageSection(
           detectedLanguage = detectedLanguage,
@@ -307,13 +313,30 @@ fun Greeting(
           downloadService = downloadService,
           downloadStates = downloadStates,
         )
-
-        TranslationOutputSection(
-          output = output,
-        )
-
-        // Add extra padding at bottom to ensure content can be scrolled fully into view
-        Spacer(modifier = Modifier.height(100.dp))
+        Box(
+          modifier =
+          Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+          contentAlignment = Alignment.Center,
+        ) {
+          HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(0.5f),
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+          )
+        }
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .weight(0.5f)
+        ) {
+          if (output != null) {
+            TranslationField(
+              text = output,
+            )
+          }
+        }
       }
     }
 
@@ -368,10 +391,10 @@ fun ImageSourceBottomSheet(
   ) {
     Column(
       modifier =
-        Modifier
-          .fillMaxWidth()
-          .padding(16.dp)
-          .padding(bottom = 16.dp),
+      Modifier
+        .fillMaxWidth()
+        .padding(16.dp)
+        .padding(bottom = 16.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Row(
@@ -387,9 +410,9 @@ fun ImageSourceBottomSheet(
             painter = painterResource(id = R.drawable.camera),
             contentDescription = "Camera",
             modifier =
-              Modifier
-                .size(48.dp)
-                .padding(bottom = 8.dp),
+            Modifier
+              .size(48.dp)
+              .padding(bottom = 8.dp),
             tint = MaterialTheme.colorScheme.onSurface,
           )
           Text(
@@ -410,9 +433,9 @@ fun ImageSourceBottomSheet(
               painter = painterResource(id = R.drawable.gallery),
               contentDescription = "Photos",
               modifier =
-                Modifier
-                  .size(48.dp)
-                  .padding(bottom = 8.dp),
+              Modifier
+                .size(48.dp)
+                .padding(bottom = 8.dp),
               tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -431,9 +454,9 @@ fun ImageSourceBottomSheet(
               painter = painterResource(id = R.drawable.gallery),
               contentDescription = "Gallery",
               modifier =
-                Modifier
-                  .size(48.dp)
-                  .padding(bottom = 8.dp),
+              Modifier
+                .size(48.dp)
+                .padding(bottom = 8.dp),
               tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(

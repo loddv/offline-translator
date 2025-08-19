@@ -23,6 +23,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -69,7 +70,6 @@ fun InputSection(
             modifier =
               Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
           )
         }
 
@@ -107,8 +107,7 @@ fun InputSection(
       placeholder = "Enter text",
       modifier =
         Modifier
-          .fillMaxWidth()
-          .height(200.dp),
+          .fillMaxSize(),
     )
   }
 }

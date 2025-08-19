@@ -17,6 +17,7 @@
 
 package dev.davidv.translator.ui.components
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,7 +43,7 @@ fun StyledTextField(
     value = text,
     onValueChange = onValueChange,
     modifier =
-      modifier.fillMaxWidth(),
+      modifier.fillMaxSize(),
     textStyle = textStyle,
     placeholder = placeholder?.let { { Text(it, style = textStyle) } },
     readOnly = readOnly,

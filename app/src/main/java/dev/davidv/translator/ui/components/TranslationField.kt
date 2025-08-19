@@ -85,7 +85,7 @@ fun TranslationField(
                             Text(
                                 modifier = Modifier.padding(top = 5.dp),
                                 text = text.transliterated,
-                                style = textStyle.copy(fontSize = textStyle.fontSize.times(0.8)),
+                                style = textStyle.copy(fontSize = textStyle.fontSize.times(0.7)),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }

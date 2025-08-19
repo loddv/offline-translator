@@ -120,6 +120,61 @@ TESSERACT_LANGUAGE_MAPPINGS = {
     'zh': 'chi_sim',      # Chinese (using simplified Chinese as default)
 }
 
+# Script mappings for transliteration (ICU4J script names)
+LANGUAGE_SCRIPTS = {
+    'ar': 'Arabic',       # Arabic script
+    'az': 'Latin',        # Azerbaijan uses Latin script (post-1991)
+    'be': 'Cyrillic',     # Belarusian uses Cyrillic
+    'bg': 'Cyrillic',     # Bulgarian uses Cyrillic
+    'bn': 'Bengali',      # Bengali script (also called Bangla)
+    'bs': 'Latin',        # Bosnian uses Latin script
+    'ca': 'Latin',        # Catalan uses Latin
+    'cs': 'Latin',        # Czech uses Latin
+    'da': 'Latin',        # Danish uses Latin
+    'de': 'Latin',        # German uses Latin
+    'el': 'Greek',        # Greek script
+    'en': 'Latin',        # English uses Latin
+    'es': 'Latin',        # Spanish uses Latin
+    'et': 'Latin',        # Estonian uses Latin
+    'fa': 'Arabic',       # Persian uses Arabic script (modified)
+    'fi': 'Latin',        # Finnish uses Latin
+    'fr': 'Latin',        # French uses Latin
+    'gu': 'Gujarati',     # Gujarati script
+    'he': 'Hebrew',       # Hebrew script
+    'hi': 'Devanagari',   # Hindi uses Devanagari
+    'hr': 'Latin',        # Croatian uses Latin
+    'hu': 'Latin',        # Hungarian uses Latin
+    'id': 'Latin',        # Indonesian uses Latin
+    'is': 'Latin',        # Icelandic uses Latin
+    'it': 'Latin',        # Italian uses Latin
+    'ja': 'Japanese',     # Japanese (mixed: Hiragana, Katakana, Han)
+    'kn': 'Kannada',      # Kannada script
+    'ko': 'Hangul',       # Korean uses Hangul
+    'lt': 'Latin',        # Lithuanian uses Latin
+    'lv': 'Latin',        # Latvian uses Latin
+    'ml': 'Malayalam',    # Malayalam script
+    'ms': 'Latin',        # Malay uses Latin
+    'mt': 'Latin',        # Maltese uses Latin
+    'nb': 'Latin',        # Norwegian Bokmål uses Latin
+    'nl': 'Latin',        # Dutch uses Latin
+    'nn': 'Latin',        # Norwegian Nynorsk uses Latin
+    'pl': 'Latin',        # Polish uses Latin
+    'pt': 'Latin',        # Portuguese uses Latin
+    'ro': 'Latin',        # Romanian uses Latin
+    'ru': 'Cyrillic',     # Russian uses Cyrillic
+    'sk': 'Latin',        # Slovak uses Latin
+    'sl': 'Latin',        # Slovenian uses Latin
+    'sq': 'Latin',        # Albanian uses Latin
+    'sr': 'Cyrillic',     # Serbian primarily uses Cyrillic
+    'sv': 'Latin',        # Swedish uses Latin
+    'ta': 'Tamil',        # Tamil script
+    'te': 'Telugu',       # Telugu script
+    'tr': 'Latin',        # Turkish uses Latin
+    'uk': 'Cyrillic',     # Ukrainian uses Cyrillic
+    'vi': 'Latin',        # Vietnamese uses Latin
+    'zh': 'Han',          # Chinese uses Han characters
+}
+
 def extract_language_pairs(repo_path: str) -> Dict[str, Set[str]]:
     """
     Extract language pairs from repository structure.
@@ -216,8 +271,9 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
     for lang_code in sorted(all_languages):
         lang_name = LANGUAGE_NAMES[lang_code]
         tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
+        script = LANGUAGE_SCRIPTS[lang_code]
         enum_name = lang_name.upper().replace(' ', '_').replace('Å', 'A')
-        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}")')
+        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}")')
 
     language_entries = sorted(language_entries)
 
@@ -273,7 +329,24 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
         to_english_entries.append(f'    {lang_enum} to {model_type_enum}')
 
     # Generate the complete enum classes and maps
-    kotlin_code = f"""package dev.davidv.translator
+    kotlin_code = f"""/*
+ * Copyright (C) 2024 David V
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package dev.davidv.translator
 
 enum class ModelType(private val pathName: String) {{
     BASE("base"),
@@ -283,7 +356,7 @@ enum class ModelType(private val pathName: String) {{
     override fun toString(): String = pathName
 }}
 
-enum class Language(val code: String, val tessName: String, val displayName: String) {{
+enum class Language(val code: String, val tessName: String, val displayName: String, val script: String) {{
 {',\n'.join(language_entries)}
 }}
 

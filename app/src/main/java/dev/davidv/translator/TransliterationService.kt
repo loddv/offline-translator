@@ -26,28 +26,38 @@ object TransliterationService {
     
     private val transliterators = mutableMapOf<String, Transliterator?>()
     
-    private val cjkLanguages = setOf(
-        Language.CHINESE,
-        Language.JAPANESE,
-        Language.KOREAN
+    private val scriptComponents = mapOf(
+        "Arabic" to listOf("Arabic"),
+        "Cyrillic" to listOf("Cyrillic"), 
+        "Greek" to listOf("Greek"),
+        "Han" to listOf("Han"),
+        "Japanese" to listOf("Hiragana", "Katakana", "Han"),
+        "Hangul" to listOf("Hangul"),
+        "Devanagari" to listOf("Devanagari"),
+        "Hebrew" to listOf("Hebrew"),
+        "Bengali" to listOf("Bengali"),
+        "Gujarati" to listOf("Gujarati"),
+        "Kannada" to listOf("Kannada"),
+        "Malayalam" to listOf("Malayalam"),
+        "Tamil" to listOf("Tamil"),
+        "Telugu" to listOf("Telugu")
     )
     
-    private val transliterationRules = mapOf(
-        Language.CHINESE to "Han-Latin",
-        Language.JAPANESE to "Hiragana-Latin; Katakana-Latin; Han-Latin",
-        Language.KOREAN to "Hangul-Latin"
-    )
-    
-    private fun shouldTransliterate(language: Language): Boolean {
-        return cjkLanguages.contains(language)
+    private fun shouldTransliterate(language: Language, targetScript: String = "Latin"): Boolean {
+        return language.script != targetScript && scriptComponents.containsKey(language.script)
     }
     
-    fun transliterate(text: String, language: Language): String? {
-        if (!shouldTransliterate(language) || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+    private fun getTransliterationRule(fromScript: String, toScript: String = "Latin"): String? {
+        val components = scriptComponents[fromScript] ?: return null
+        return components.joinToString("; ") { "$it-$toScript" }
+    }
+    
+    fun transliterate(text: String, language: Language, targetScript: String = "Latin"): String? {
+        if (!shouldTransliterate(language, targetScript) || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return null
         }
         
-        val rule = transliterationRules[language] ?: return null
+        val rule = getTransliterationRule(language.script, targetScript) ?: return null
         
         return try {
             val transliterator = getTransliterator(rule)
@@ -55,6 +65,13 @@ object TransliterationService {
         } catch (e: Exception) {
             Log.w("TransliterationService", "Failed to transliterate text for $language", e)
             null
+        }
+    }
+    
+    // Debug function to see generated transliteration rules
+    private fun getGeneratedRuleForScript(script: String, targetScript: String = "Latin"): String? {
+        return getTransliterationRule(script, targetScript)?.also { rule ->
+            Log.d("TransliterationService", "Generated rule for $script -> $targetScript: $rule")
         }
     }
     

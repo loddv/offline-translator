@@ -52,6 +52,7 @@ class SettingsManager(context: Context) {
         val maxImageSize = prefs.getInt("max_image_size", 1500)
         val disableOcr = prefs.getBoolean("disable_ocr", false)
         val disableCLD = prefs.getBoolean("disable_cld", false)
+        val disableTransliteration = prefs.getBoolean("disable_transliteration", false)
         
         return AppSettings(
             defaultTargetLanguage = defaultTargetLanguage,
@@ -61,7 +62,8 @@ class SettingsManager(context: Context) {
             minConfidence = minConfidence,
             maxImageSize = maxImageSize,
             disableOcr = disableOcr,
-            disableCLD = disableCLD
+            disableCLD = disableCLD,
+            disableTransliteration = disableTransliteration
         )
     }
     
@@ -75,6 +77,7 @@ class SettingsManager(context: Context) {
             putInt("max_image_size", newSettings.maxImageSize)
             putBoolean("disable_ocr", newSettings.disableOcr)
             putBoolean("disable_cld", newSettings.disableCLD)
+            putBoolean("disable_transliteration", newSettings.disableTransliteration)
             apply()
         }
         _settings.value = newSettings

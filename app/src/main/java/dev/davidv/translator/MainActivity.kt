@@ -100,9 +100,9 @@ class MainActivity : ComponentActivity() {
 
         ocrService = OCRService(this)
         val imageProcessor = ImageProcessor(this, ocrService)
-        val translationService = TranslationService(this)
-        val languageDetector = LanguageDetector()
         val settingsManager = SettingsManager(this)
+        val translationService = TranslationService(this, settingsManager)
+        val languageDetector = LanguageDetector()
         translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager)
 
         setContent {

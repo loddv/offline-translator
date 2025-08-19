@@ -25,7 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class TranslationService(private val context: Context) {
+class TranslationService(private val context: Context, private val settingsManager: SettingsManager) {
     
     companion object {
         @Volatile
@@ -94,7 +94,11 @@ class TranslationService(private val context: Context) {
             }
             
             val result = performTranslation(translationPairs, text)
-            val transliterated = TransliterationService.transliterate(result, to)
+            val transliterated = if (!settingsManager.settings.value.disableTransliteration) {
+                TransliterationService.transliterate(result, to)
+            } else {
+                null
+            }
             TranslationResult.Success(TranslatedText(result, transliterated))
             
         } catch (e: Exception) {

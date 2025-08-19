@@ -23,7 +23,6 @@ import dev.davidv.bergamot.NativeLib
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.system.measureTimeMillis
 
 class TranslationService(private val context: Context) {
     
@@ -123,15 +122,15 @@ class TranslationService(private val context: Context) {
     
     private fun generateConfig(fromLang: Language, toLang: Language): String {
         val dataPath = File(context.filesDir, "bin")
-        val (model, vocab, lex) = filesFor(fromLang, toLang)
+        val files = filesFor(fromLang, toLang)
         return """
 models:
-  - ${dataPath}/${model}
+  - ${dataPath}/${files.model}
 vocabs:
-  - ${dataPath}/${vocab}
-  - ${dataPath}/${vocab}
+  - ${dataPath}/${files.vocab[0]}
+  - ${dataPath}/${files.vocab[1]}
 shortlist:
-    - ${dataPath}/${lex}
+    - ${dataPath}/${files.lex}
     - false
 beam-size: 1
 normalize: 1.0

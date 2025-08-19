@@ -26,20 +26,13 @@ import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -52,13 +45,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
@@ -73,6 +62,11 @@ data class LanguageStatus(
     var fromEnglishDownloaded: Boolean = false,
     var tessDownloaded: Boolean = false,
     var isDownloading: Boolean = false
+)
+data class FilesForLang(
+    val model: String,
+    val lex: String,
+    val vocab: List<String>
 )
 
 @Composable
@@ -319,9 +313,13 @@ private fun LanguageItem(
 
 fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Boolean {
     val dataPath = File(context.filesDir, "bin")
-    val (model, vocab, lex) = filesFor(from, to)
-    val hasAll = File(dataPath, model).exists() && File(dataPath, vocab).exists() && File(
-        dataPath, lex
+    val files = filesFor(from, to)
+    val hasAll =
+        File(dataPath, files.model).exists() && File(dataPath, files.vocab[0]).exists() && File(
+            dataPath,
+            files.vocab[1]
+        ).exists() && File(
+            dataPath, files.lex
     ).exists()
     return hasAll
 }
@@ -344,10 +342,13 @@ fun getAvailableTessLanguages(context: Context): String {
 }
 
 
-fun filesFor(from: Language, to: Language): Triple<String, String, String> {
-
+fun filesFor(from: Language, to: Language): FilesForLang {
     val lang = "${from.code}${to.code}"
+    val model = "model.$lang.intgemm.alphas.bin"
+    val lex = "lex.50.50.$lang.s2t.bin"
+    val ret = arrayListOf(model, lex)
     // vocab lang is *en for es, bg, fr, et, de (models/prod/enes/vocab.esen.spm.gz)
+    // sometimes it's flipped SAD
     val vocabLang = if (from == Language.ENGLISH && listOf(
             Language.SPANISH,
             Language.BULGARIAN,
@@ -360,8 +361,14 @@ fun filesFor(from: Language, to: Language): Triple<String, String, String> {
     } else {
         "${from.code}${to.code}"
     }
-    val model = "model.$lang.intgemm.alphas.bin"
-    val vocab = "vocab.$vocabLang.spm" // sometimes it's flipped SAD
-    val lex = "lex.50.50.$lang.s2t.bin"
-    return Triple(model, vocab, lex)
+    val splitVocab = arrayListOf(Language.CHINESE, Language.JAPANESE)
+    val vocab = arrayListOf<String>()
+    if (splitVocab.contains(to)) {
+        vocab.add("srcvocab.${from.code}${to.code}.spm")
+        vocab.add("trgvocab.${from.code}${to.code}.spm")
+    } else {
+        vocab.add("vocab.$vocabLang.spm")
+        vocab.add("vocab.$vocabLang.spm")
+    }
+    return FilesForLang(model, lex, vocab)
 }

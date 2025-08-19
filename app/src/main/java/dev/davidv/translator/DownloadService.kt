@@ -135,7 +135,7 @@ class DownloadService : Service() {
             try {
                 showNotification("Downloading ${language.displayName}", "Starting download...")
 
-                val downloadTasks = mutableListOf<suspend () -> Unit>()
+                val downloadTasks = mutableListOf<suspend () -> Boolean>()
 
                 // Prepare download tasks
                 if (!checkLanguagePairFiles(this@DownloadService, language, Language.ENGLISH)) {
@@ -164,6 +164,7 @@ class DownloadService : Service() {
                 }
 
                 // Execute all downloads in parallel
+                var success = true
                 if (downloadTasks.isNotEmpty()) {
                     updateProgress(
                         language,
@@ -173,28 +174,29 @@ class DownloadService : Service() {
 
                     val downloadJobs = downloadTasks.mapIndexed { index, task ->
                         async {
-                            task()
+                            val ret = task()
                             updateProgress(
                                 language,
                                 1f / downloadTasks.size,
                                 "Downloaded index $index out of ${downloadTasks.size} files"
                             )
+                            return@async ret
                         }
                     }
-                    downloadJobs.awaitAll()
+                    success = downloadJobs.awaitAll().all { it }
                 }
 
                 updateDownloadState(language) {
                     DownloadState(
                         language = language,
                         isDownloading = false,
-                        isCompleted = true,
+                        isCompleted = success,
                         progress = 1f
                     )
                 }
-
-                showNotification("Download Complete", "${language.displayName} is ready to use")
-
+                if (success) {
+                    showNotification("Download Complete", "${language.displayName} is ready to use")
+                }
             } catch (e: Exception) {
                 Log.e("DownloadService", "Download failed for ${language.displayName}", e)
                 updateDownloadState(language) {
@@ -232,8 +234,8 @@ class DownloadService : Service() {
                 val dataPath = File(this@DownloadService.filesDir, "bin")
 
                 // Delete to English files
-                val (toModel, toVocab, toLex) = filesFor(language, Language.ENGLISH)
-                listOf(toModel, toVocab, toLex).forEach { fileName ->
+                val files = filesFor(language, Language.ENGLISH)
+                listOf(files.lex, files.model, files.vocab[0], files.vocab[1]).forEach { fileName ->
                     val file = File(dataPath, fileName)
                     if (file.exists() && file.delete()) {
                         deletedFiles++
@@ -243,7 +245,7 @@ class DownloadService : Service() {
 
                 // Delete from English files
                 val (fromModel, fromVocab, fromLex) = filesFor(Language.ENGLISH, language)
-                listOf(fromModel, fromVocab, fromLex).forEach { fileName ->
+                listOf(files.lex, files.model, files.vocab[0], files.vocab[1]).forEach { fileName ->
                     val file = File(dataPath, fileName)
                     if (file.exists() && file.delete()) {
                         deletedFiles++
@@ -294,9 +296,13 @@ class DownloadService : Service() {
         _downloadStates.value = currentStates
     }
 
-    private suspend fun downloadLanguagePair(context: Context, from: Language, to: Language) {
-        val (model, vocab, lex) = filesFor(from, to)
-        val files = listOf(model, vocab, lex)
+    private suspend fun downloadLanguagePair(
+        context: Context,
+        from: Language,
+        to: Language
+    ): Boolean {
+        val f = filesFor(from, to)
+        val files = listOf(f.model, f.lex) + f.vocab
         val lang = "${from.code}${to.code}"
         val dataPath = File(context.filesDir, "bin")
         dataPath.mkdirs()
@@ -310,11 +316,12 @@ class DownloadService : Service() {
 
         if (modelQuality == null) {
             Log.w("DownloadService", "Could not find model quality for ${from} -> ${to}")
-            return
+            return false
         }
 
-        withContext(Dispatchers.IO) {
-            val downloadJobs = files.map { fileName ->
+        return withContext(Dispatchers.IO) {
+            // prevent duplicated files (vocab are listed twice)
+            val downloadJobs = files.toSet().map { fileName ->
                 async {
                     val file = File(dataPath, fileName)
                     if (!file.exists()) {
@@ -327,11 +334,11 @@ class DownloadService : Service() {
                     }
                 }
             }
-            downloadJobs.awaitAll()
+            return@withContext downloadJobs.awaitAll().all { it }
         }
     }
 
-    private suspend fun downloadTessData(context: Context, language: Language) {
+    private suspend fun downloadTessData(context: Context, language: Language): Boolean {
         val tessDataPath = File(context.filesDir, "tesseract/tessdata")
         if (!tessDataPath.isDirectory) {
             tessDataPath.mkdirs()
@@ -340,15 +347,17 @@ class DownloadService : Service() {
         val url =
             "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
 
-        if (!tessFile.exists()) {
-            withContext(Dispatchers.IO) {
-                val success = download(url, tessFile)
-                Log.i(
-                    "DownloadService",
-                    "Downloaded tessdata for ${language.displayName} = ${url}: $success"
-                )
-            }
+        if (tessFile.exists()) {
+            return true
         }
+        withContext(Dispatchers.IO) {
+            val success = download(url, tessFile)
+            Log.i(
+                "DownloadService",
+                "Downloaded tessdata for ${language.displayName} = ${url}: $success"
+            )
+        }
+        return true
     }
 
     private suspend fun download(
@@ -375,7 +384,10 @@ class DownloadService : Service() {
             if (tempFile.renameTo(outputFile)) {
                 true
             } else {
-                Log.e("DownloadService", "Failed to move temp file to final location")
+                Log.e(
+                    "DownloadService",
+                    "Failed to move temp file ${tempFile} to final location ${outputFile}"
+                )
                 tempFile.delete()
                 false
             }

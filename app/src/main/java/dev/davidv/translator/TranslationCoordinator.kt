@@ -40,13 +40,13 @@ class TranslationCoordinator(
     private val _isOcrInProgress = MutableStateFlow(false)
     val isOcrInProgress: StateFlow<Boolean> = _isOcrInProgress.asStateFlow()
 
-    suspend fun translateText(from: Language, to: Language, text: String): String? {
-        if (text.isBlank()) return ""
+    suspend fun translateText(from: Language, to: Language, text: String): TranslationResult? {
+        if (text.isBlank()) return null
 
         _isTranslating.value = true
         return try {
             when (val result = translationService.translate(from, to, text)) {
-                is TranslationResult.Success -> result.text
+                is TranslationResult.Success -> result
                 is TranslationResult.Error -> {
                     Toast.makeText(
                         context,
@@ -100,7 +100,7 @@ class TranslationCoordinator(
             // Create translation function for overlay
             suspend fun translateFn(text: String): String {
                 return when (val result = translationService.translate(from, to, text)) {
-                    is TranslationResult.Success -> result.text
+                    is TranslationResult.Success -> result.result.translated
                     is TranslationResult.Error -> {
                         Toast.makeText(
                             context,

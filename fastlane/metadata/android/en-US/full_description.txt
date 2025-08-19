@@ -2,6 +2,7 @@ A translator app that performs on-device translation of text and images without 
 
 Features:
 • On-device translation using Mozilla's translation models
+• Transliteration of non-latin script
 • OCR (Optical Character Recognition) for translating text in images
 • Automatic language detection
 • Image translation overlay that preserves original formatting

@@ -16,6 +16,12 @@ The app also translates images directly on top of the previous content, similar 
 It tries to detect background and foreground colors to blend in better with the original text, but it's not perfect.
 
 
+## Transliteration
+
+<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/transliteration.jpg" width="400px">
+
+
+
 ## Running on x86-64 emulator
 
 This app works fine on aarch64, and it "works" on x86-64 -- in quotes because it currently requires `AVX2`, which is not available on the standard emulator, nor in the ABI.

@@ -48,9 +48,15 @@ import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.TranslationCoordinator
+import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+
+data class TranslatedText(
+    val translated: String,
+    val transliterated: String?
+)
 
 @Composable
 fun TranslatorApp(
@@ -107,7 +113,7 @@ fun TranslatorApp(
 
     // Move all persistent state to this level so it survives navigation
     var input by remember { mutableStateOf(initialText) }
-    var output by remember { mutableStateOf("") }
+    var output by remember { mutableStateOf<TranslatedText?>(null) }
     val (from, setFrom) = remember { mutableStateOf<Language?>(null) }
     val (to, setTo) = remember { mutableStateOf(settings.defaultTargetLanguage) }
     var displayImage by remember { mutableStateOf<Bitmap?>(null) }
@@ -133,7 +139,7 @@ fun TranslatorApp(
             currentDetectedLanguage = if (!settings.disableCLD) {
                 translationCoordinator.detectLanguage(initialText)
             } else null
-            val translated: String?
+            val translated: TranslationResult?
             if (currentDetectedLanguage != null) {
                 if (languageState.availableLanguageMap[currentDetectedLanguage!!.code] == true) {
                     setFrom(currentDetectedLanguage!!)
@@ -144,13 +150,18 @@ fun TranslatorApp(
                             initialText
                         )
                 } else {
-                    translated = ""
+                    translated = null
                 }
 
             } else {
                 translated = translationCoordinator.translateText(from!!, to, initialText)
             }
-            translated?.let { output = it }
+            translated?.let { 
+                when (it) {
+                    is TranslationResult.Success -> output = it.result
+                    is TranslationResult.Error -> output = null
+                }
+            }
         }
     }
 
@@ -160,7 +171,12 @@ fun TranslatorApp(
             when (inputType) {
                 InputType.TEXT -> {
                     val result = translationCoordinator.translateText(fromLang, toLang, input)
-                    result?.let { output = it }
+                    result?.let { 
+                        when (it) {
+                            is TranslationResult.Success -> output = it.result
+                            is TranslationResult.Error -> output = null
+                        }
+                    }
                 }
 
                 InputType.IMAGE -> {
@@ -179,7 +195,7 @@ fun TranslatorApp(
                         }
                         result?.let {
                             displayImage = it.correctedBitmap
-                            output = it.translatedText
+                            output = TranslatedText(it.translatedText, null)
                         }
                     }
                 }
@@ -203,11 +219,16 @@ fun TranslatorApp(
                     scope.launch {
                         val translated =
                             translationCoordinator.translateText(from!!, to, message.text)
-                        translated?.let { output = it }
+                        translated?.let { 
+                when (it) {
+                    is TranslationResult.Success -> output = it.result
+                    is TranslationResult.Error -> output = null
+                }
+            }
                     }
                 } else {
                     currentDetectedLanguage = null
-                    output = ""
+                    output = null
                 }
             }
 
@@ -226,7 +247,7 @@ fun TranslatorApp(
                 originalImageUri = message.uri
                 inputType = InputType.IMAGE
                 currentDetectedLanguage = null
-                output = ""
+                output = null
                 scope.launch {
                     val result = translationCoordinator.translateImageWithOverlay(from!!,
                         to,
@@ -242,7 +263,7 @@ fun TranslatorApp(
                     }
                     result?.let {
                         displayImage = it.correctedBitmap
-                        output = it.translatedText
+                        output = TranslatedText(it.translatedText, null)
                     }
                 }
             }
@@ -260,7 +281,7 @@ fun TranslatorApp(
 
             TranslatorMessage.ClearImage -> {
                 displayImage = null
-                output = ""
+                output = null
                 input = ""
                 inputType = InputType.TEXT
                 originalImageUri = null

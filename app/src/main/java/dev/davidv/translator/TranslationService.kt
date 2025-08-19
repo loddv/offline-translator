@@ -20,6 +20,7 @@ package dev.davidv.translator
 import android.content.Context
 import android.util.Log
 import dev.davidv.bergamot.NativeLib
+import dev.davidv.translator.ui.screens.TranslatedText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -71,15 +72,15 @@ class TranslationService(private val context: Context) {
         text: String
     ): TranslationResult = withContext(Dispatchers.IO) {
         if (from == to) {
-            return@withContext TranslationResult.Success(text)
+            return@withContext TranslationResult.Success(TranslatedText(text, null))
         }
         // numbers don't translate :^)
         if (text.trim().toFloatOrNull() != null) {
-            return@withContext TranslationResult.Success(text)
+            return@withContext TranslationResult.Success(TranslatedText(text, null))
         }
 
         if (text.isBlank()) {
-            return@withContext TranslationResult.Success("")
+            return@withContext TranslationResult.Success(TranslatedText("", null))
         }
 
         try {
@@ -93,7 +94,8 @@ class TranslationService(private val context: Context) {
             }
             
             val result = performTranslation(translationPairs, text)
-            TranslationResult.Success(result)
+            val transliterated = TransliterationService.transliterate(result, to)
+            TranslationResult.Success(TranslatedText(result, transliterated))
             
         } catch (e: Exception) {
             Log.e("TranslationService", "Translation failed", e)
@@ -150,6 +152,6 @@ alignment: soft
 }
 
 sealed class TranslationResult {
-    data class Success(val text: String) : TranslationResult()
+    data class Success(val result: TranslatedText) : TranslationResult()
     data class Error(val message: String) : TranslationResult()
 }

@@ -1,3 +1,4 @@
 - Added transliteration for non-Latin scripts
 - Fixed downloads for Chinese & Japanese
 - Fixed some language files being downloaded twice
+- Updated model versions & URL, if you had a custom URL for translation models, you will need to re-set it.

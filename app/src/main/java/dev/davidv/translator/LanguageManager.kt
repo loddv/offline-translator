@@ -346,21 +346,8 @@ fun filesFor(from: Language, to: Language): FilesForLang {
     val lang = "${from.code}${to.code}"
     val model = "model.$lang.intgemm.alphas.bin"
     val lex = "lex.50.50.$lang.s2t.bin"
-    val ret = arrayListOf(model, lex)
-    // vocab lang is *en for es, bg, fr, et, de (models/prod/enes/vocab.esen.spm.gz)
-    // sometimes it's flipped SAD
-    val vocabLang = if (from == Language.ENGLISH && listOf(
-            Language.SPANISH,
-            Language.BULGARIAN,
-            Language.FRENCH,
-            Language.ESTONIAN,
-            Language.GERMAN
-        ).contains(to)
-    ) {
-        "${to.code}${from.code}"
-    } else {
-        "${from.code}${to.code}"
-    }
+    val vocabLang = "${from.code}${to.code}"
+    
     val splitVocab = arrayListOf(Language.CHINESE, Language.JAPANESE)
     val vocab = arrayListOf<String>()
     if (splitVocab.contains(to)) {

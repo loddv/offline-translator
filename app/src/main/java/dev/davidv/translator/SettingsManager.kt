@@ -26,33 +26,74 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     
+    // Track which settings have been explicitly modified - initialize first
+    private val modifiedSettings = mutableSetOf<String>()
+    
     private val _settings = MutableStateFlow(loadSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
     
     private fun loadSettings(): AppSettings {
-        val defaultTargetLanguageCode = prefs.getString("default_target_language", Language.ENGLISH.code)
-        val defaultTargetLanguage = Language.entries.find { it.code == defaultTargetLanguageCode } ?: Language.ENGLISH
+        val defaults = AppSettings() // Get current defaults
         
-        val translationModelsBaseUrl = prefs.getString("translation_models_base_url", 
-            Constants.DEFAULT_TRANSLATION_MODELS_BASE_URL)
-            ?: Constants.DEFAULT_TRANSLATION_MODELS_BASE_URL
-        
-        val tesseractModelsBaseUrl = prefs.getString("tesseract_models_base_url", 
-            Constants.DEFAULT_TESSERACT_MODELS_BASE_URL)
-            ?: Constants.DEFAULT_TESSERACT_MODELS_BASE_URL
-        
-        val backgroundModeName = prefs.getString("background_mode", BackgroundMode.AUTO_DETECT.name)
-        val backgroundMode = try {
-            BackgroundMode.valueOf(backgroundModeName ?: BackgroundMode.AUTO_DETECT.name)
-        } catch (e: IllegalArgumentException) {
-            BackgroundMode.AUTO_DETECT
+        // Build set of modified settings from SharedPreferences
+        modifiedSettings.clear()
+        prefs.all.keys?.forEach { key ->
+            modifiedSettings.add(key)
         }
         
-        val minConfidence = prefs.getInt("min_confidence", 75)
-        val maxImageSize = prefs.getInt("max_image_size", 1500)
-        val disableOcr = prefs.getBoolean("disable_ocr", false)
-        val disableCLD = prefs.getBoolean("disable_cld", false)
-        val disableTransliteration = prefs.getBoolean("disable_transliteration", false)
+        val defaultTargetLanguageCode = prefs.getString("default_target_language", null)
+        val defaultTargetLanguage = if (defaultTargetLanguageCode != null) {
+            Language.entries.find { it.code == defaultTargetLanguageCode } ?: defaults.defaultTargetLanguage
+        } else {
+            defaults.defaultTargetLanguage
+        }
+        
+        val translationModelsBaseUrl = prefs.getString("translation_models_base_url_v2", null)
+            ?: defaults.translationModelsBaseUrl
+        
+        val tesseractModelsBaseUrl = prefs.getString("tesseract_models_base_url", null)
+            ?: defaults.tesseractModelsBaseUrl
+        
+        val backgroundModeName = prefs.getString("background_mode", null)
+        val backgroundMode = if (backgroundModeName != null) {
+            try {
+                BackgroundMode.valueOf(backgroundModeName)
+            } catch (e: IllegalArgumentException) {
+                defaults.backgroundMode
+            }
+        } else {
+            defaults.backgroundMode
+        }
+        
+        val minConfidence = if (prefs.contains("min_confidence")) {
+            prefs.getInt("min_confidence", defaults.minConfidence)
+        } else {
+            defaults.minConfidence
+        }
+        
+        val maxImageSize = if (prefs.contains("max_image_size")) {
+            prefs.getInt("max_image_size", defaults.maxImageSize)
+        } else {
+            defaults.maxImageSize
+        }
+        
+        val disableOcr = if (prefs.contains("disable_ocr")) {
+            prefs.getBoolean("disable_ocr", defaults.disableOcr)
+        } else {
+            defaults.disableOcr
+        }
+        
+        val disableCLD = if (prefs.contains("disable_cld")) {
+            prefs.getBoolean("disable_cld", defaults.disableCLD)
+        } else {
+            defaults.disableCLD
+        }
+        
+        val disableTransliteration = if (prefs.contains("disable_transliteration")) {
+            prefs.getBoolean("disable_transliteration", defaults.disableTransliteration)
+        } else {
+            defaults.disableTransliteration
+        }
         
         return AppSettings(
             defaultTargetLanguage = defaultTargetLanguage,
@@ -68,16 +109,46 @@ class SettingsManager(context: Context) {
     }
     
     fun updateSettings(newSettings: AppSettings) {
+        val currentSettings = _settings.value
+        
         prefs.edit().apply {
-            putString("default_target_language", newSettings.defaultTargetLanguage.code)
-            putString("translation_models_base_url", newSettings.translationModelsBaseUrl)
-            putString("tesseract_models_base_url", newSettings.tesseractModelsBaseUrl)
-            putString("background_mode", newSettings.backgroundMode.name)
-            putInt("min_confidence", newSettings.minConfidence)
-            putInt("max_image_size", newSettings.maxImageSize)
-            putBoolean("disable_ocr", newSettings.disableOcr)
-            putBoolean("disable_cld", newSettings.disableCLD)
-            putBoolean("disable_transliteration", newSettings.disableTransliteration)
+            // Only save settings that have changed from their current value
+            if (newSettings.defaultTargetLanguage != currentSettings.defaultTargetLanguage) {
+                putString("default_target_language", newSettings.defaultTargetLanguage.code)
+                modifiedSettings.add("default_target_language")
+            }
+            if (newSettings.translationModelsBaseUrl != currentSettings.translationModelsBaseUrl) {
+                putString("translation_models_base_url_v2", newSettings.translationModelsBaseUrl)
+                modifiedSettings.add("translation_models_base_url_v2")
+            }
+            if (newSettings.tesseractModelsBaseUrl != currentSettings.tesseractModelsBaseUrl) {
+                putString("tesseract_models_base_url", newSettings.tesseractModelsBaseUrl)
+                modifiedSettings.add("tesseract_models_base_url")
+            }
+            if (newSettings.backgroundMode != currentSettings.backgroundMode) {
+                putString("background_mode", newSettings.backgroundMode.name)
+                modifiedSettings.add("background_mode")
+            }
+            if (newSettings.minConfidence != currentSettings.minConfidence) {
+                putInt("min_confidence", newSettings.minConfidence)
+                modifiedSettings.add("min_confidence")
+            }
+            if (newSettings.maxImageSize != currentSettings.maxImageSize) {
+                putInt("max_image_size", newSettings.maxImageSize)
+                modifiedSettings.add("max_image_size")
+            }
+            if (newSettings.disableOcr != currentSettings.disableOcr) {
+                putBoolean("disable_ocr", newSettings.disableOcr)
+                modifiedSettings.add("disable_ocr")
+            }
+            if (newSettings.disableCLD != currentSettings.disableCLD) {
+                putBoolean("disable_cld", newSettings.disableCLD)
+                modifiedSettings.add("disable_cld")
+            }
+            if (newSettings.disableTransliteration != currentSettings.disableTransliteration) {
+                putBoolean("disable_transliteration", newSettings.disableTransliteration)
+                modifiedSettings.add("disable_transliteration")
+            }
             apply()
         }
         _settings.value = newSettings

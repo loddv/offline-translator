@@ -81,6 +81,7 @@ enum class Language(val code: String, val tessName: String, val displayName: Str
 
 val fromEnglish = mapOf(
     Language.ARABIC to ModelType.BASE,
+    Language.AZERBAIJANI to ModelType.TINY,
     Language.BULGARIAN to ModelType.TINY,
     Language.BENGALI to ModelType.TINY,
     Language.CATALAN to ModelType.BASE_MEMORY,
@@ -125,6 +126,7 @@ val fromEnglish = mapOf(
 
 val toEnglish = mapOf(
     Language.ARABIC to ModelType.BASE,
+    Language.AZERBAIJANI to ModelType.TINY,
     Language.BULGARIAN to ModelType.TINY,
     Language.BENGALI to ModelType.TINY,
     Language.CATALAN to ModelType.BASE_MEMORY,

@@ -9,3 +9,58 @@ Features:
 • Support for multiple language pairs
 • No internet required for translation once models are downloaded
 • All translation happens locally
+
+
+Supports 52 languages:
+
+- Albanian
+- Arabic
+- Azerbaijani
+- Belarusian
+- Bengali
+- Bosnian
+- Bulgarian
+- Catalan
+- Chinese
+- Croatian
+- Czech
+- Danish
+- Dutch
+- English
+- Estonian
+- Finnish
+- French
+- German
+- Greek
+- Gujarati
+- Hebrew
+- Hindi
+- Hungarian
+- Icelandic
+- Indonesian
+- Italian
+- Japanese
+- Kannada
+- Korean
+- Latvian
+- Lithuanian
+- Malay
+- Malayalam
+- Maltese
+- Norwegian Bokmål
+- Norwegian Nynorsk
+- Persian
+- Polish
+- Portuguese
+- Romanian
+- Russian
+- Serbian
+- Slovak
+- Slovenian
+- Spanish
+- Swedish
+- Tamil
+- Telugu
+- Turkish
+- Ukrainian
+- Vietnamese

@@ -18,6 +18,8 @@
 package dev.davidv.translator
 
 object Constants {
-    const val DEFAULT_TRANSLATION_MODELS_BASE_URL = "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/4886b27f3c9756fff56005e7abe3fbfa34461209/models"
+    private const val COMMIT = "39a47f355e808057bbda8ee1556a546a4c6e0558"
+    const val DEFAULT_TRANSLATION_MODELS_BASE_URL =
+        "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/$COMMIT/models"
     const val DEFAULT_TESSERACT_MODELS_BASE_URL = "https://github.com/tesseract-ocr/tessdata_fast/raw/refs/heads/main"
 }

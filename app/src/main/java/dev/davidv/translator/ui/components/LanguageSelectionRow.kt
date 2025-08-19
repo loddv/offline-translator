@@ -29,107 +29,109 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.ui.theme.TranslatorTheme
 import dev.davidv.translator.Language
-import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.R
+import dev.davidv.translator.TranslatorMessage
+import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun LanguageSelectionRow(
-    from: Language,
-    to: Language,
-    availableLanguages: Map<String, Boolean>,
-    translating: Boolean,
-    onMessage: (TranslatorMessage) -> Unit,
-    onSettings: () -> Unit
+  from: Language,
+  to: Language,
+  availableLanguages: Map<String, Boolean>,
+  translating: Boolean,
+  onMessage: (TranslatorMessage) -> Unit,
+  onSettings: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val fromLanguages = Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
-        val toLanguages = Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
-        
-        LanguageSelector(
-            selectedLanguage = from,
-            availableLanguages = fromLanguages,
-            onLanguageSelected = { language ->
-                onMessage(TranslatorMessage.FromLang(language))
-            },
-            modifier = Modifier.weight(1f)
-        )
-        
-        IconButton(onClick = {
-            if (!translating) {
-                onMessage(TranslatorMessage.SwapLanguages)
-            }
-        }) {
-            Icon(
-                painterResource(id = R.drawable.compare),
-                contentDescription = "Reverse translation direction"
-            )
-        }
-        
-        LanguageSelector(
-            selectedLanguage = to,
-            availableLanguages = toLanguages,
-            onLanguageSelected = { language ->
-                if (!translating) {
-                    onMessage(TranslatorMessage.ToLang(language))
-                }
-            },
-            modifier = Modifier.weight(1f)
-        )
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    val fromLanguages = Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
+    val toLanguages = Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
 
-        IconButton(onClick = onSettings) {
-            Icon(
-                painterResource(id = R.drawable.settings),
-                contentDescription = "Settings"
-            )
-        }
+    LanguageSelector(
+      selectedLanguage = from,
+      availableLanguages = fromLanguages,
+      onLanguageSelected = { language ->
+        onMessage(TranslatorMessage.FromLang(language))
+      },
+      modifier = Modifier.weight(1f),
+    )
+
+    IconButton(onClick = {
+      if (!translating) {
+        onMessage(TranslatorMessage.SwapLanguages)
+      }
+    }) {
+      Icon(
+        painterResource(id = R.drawable.compare),
+        contentDescription = "Reverse translation direction",
+      )
     }
+
+    LanguageSelector(
+      selectedLanguage = to,
+      availableLanguages = toLanguages,
+      onLanguageSelected = { language ->
+        if (!translating) {
+          onMessage(TranslatorMessage.ToLang(language))
+        }
+      },
+      modifier = Modifier.weight(1f),
+    )
+
+    IconButton(onClick = onSettings) {
+      Icon(
+        painterResource(id = R.drawable.settings),
+        contentDescription = "Settings",
+      )
+    }
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun LanguageSelectionRowPreview() {
-    TranslatorTheme {
-        LanguageSelectionRow(
-            from = Language.ENGLISH,
-            to = Language.SPANISH,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.FRENCH.code to true,
-                Language.GERMAN.code to true
-            ),
-            translating = false,
-            onMessage = {},
-            onSettings = {}
-        )
-    }
+  TranslatorTheme {
+    LanguageSelectionRow(
+      from = Language.ENGLISH,
+      to = Language.SPANISH,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+          Language.GERMAN.code to true,
+        ),
+      translating = false,
+      onMessage = {},
+      onSettings = {},
+    )
+  }
 }
 
 @Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun LanguageSelectionRowDarkPreview() {
-    TranslatorTheme {
-        LanguageSelectionRow(
-            from = Language.FRENCH,
-            to = Language.GERMAN,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.FRENCH.code to true,
-                Language.GERMAN.code to true
-            ),
-            translating = true,
-            onMessage = {},
-            onSettings = {}
-        )
-    }
+  TranslatorTheme {
+    LanguageSelectionRow(
+      from = Language.FRENCH,
+      to = Language.GERMAN,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+          Language.GERMAN.code to true,
+        ),
+      translating = true,
+      onMessage = {},
+      onSettings = {},
+    )
+  }
 }

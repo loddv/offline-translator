@@ -31,86 +31,86 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.Language
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
+import dev.davidv.translator.Language
 import dev.davidv.translator.R
 
 @Composable
 fun LanguageDownloadButton(
-    language: Language,
-    downloadState: DownloadState?,
-    context: Context,
-    isLanguageAvailable: Boolean,
-    modifier: Modifier = Modifier
+  language: Language,
+  downloadState: DownloadState?,
+  context: Context,
+  isLanguageAvailable: Boolean,
+  modifier: Modifier = Modifier,
 ) {
-    val isDownloading = downloadState?.isDownloading == true
-    val isCompleted = downloadState?.isCompleted == true
-    
-    if (isDownloading) {
-        // Progress indicator with cancel button
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = modifier.size(48.dp)
-        ) {
-            val targetProgress = downloadState?.progress ?: 1f
-            val animatedProgress by animateFloatAsState(
-                targetValue = targetProgress,
-                animationSpec = tween(durationMillis = 300),
-                label = "progress"
-            )
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.size(48.dp)
-            )
-            IconButton(
-                onClick = {
-                    DownloadService.cancelDownload(context, language)
-                },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    painterResource(id = R.drawable.cancel),
-                    contentDescription = "Cancel Download",
-                )
-            }
-        }
-    } else if (isLanguageAvailable || isCompleted) {
-        // Delete button for available/completed languages
-        IconButton(
-            onClick = {
-                DownloadService.deleteLanguage(context, language)
-            },
-            modifier = modifier
-        ) {
-            Icon(
-                painterResource(id = R.drawable.delete),
-                contentDescription = "Delete Language",
-            )
-        }
-    } else {
-        // Download/retry button
-        IconButton(
-            onClick = {
-                DownloadService.startDownload(context, language)
-            },
-            enabled = true,
-            modifier = modifier
-        ) {
-            when {
-                downloadState?.isCancelled == true || downloadState?.error != null -> {
-                    Icon(
-                        painterResource(id = R.drawable.refresh),
-                        contentDescription = "Retry Download"
-                    )
-                }
-                else -> {
-                    Icon(
-                        painterResource(id = R.drawable.add),
-                        contentDescription = "Download"
-                    )
-                }
-            }
-        }
+  val isDownloading = downloadState?.isDownloading == true
+  val isCompleted = downloadState?.isCompleted == true
+
+  if (isDownloading) {
+    // Progress indicator with cancel button
+    Box(
+      contentAlignment = Alignment.Center,
+      modifier = modifier.size(48.dp),
+    ) {
+      val targetProgress = downloadState?.progress ?: 1f
+      val animatedProgress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = tween(durationMillis = 300),
+        label = "progress",
+      )
+      CircularProgressIndicator(
+        progress = { animatedProgress },
+        modifier = Modifier.size(48.dp),
+      )
+      IconButton(
+        onClick = {
+          DownloadService.cancelDownload(context, language)
+        },
+        modifier = Modifier.size(40.dp),
+      ) {
+        Icon(
+          painterResource(id = R.drawable.cancel),
+          contentDescription = "Cancel Download",
+        )
+      }
     }
+  } else if (isLanguageAvailable || isCompleted) {
+    // Delete button for available/completed languages
+    IconButton(
+      onClick = {
+        DownloadService.deleteLanguage(context, language)
+      },
+      modifier = modifier,
+    ) {
+      Icon(
+        painterResource(id = R.drawable.delete),
+        contentDescription = "Delete Language",
+      )
+    }
+  } else {
+    // Download/retry button
+    IconButton(
+      onClick = {
+        DownloadService.startDownload(context, language)
+      },
+      enabled = true,
+      modifier = modifier,
+    ) {
+      when {
+        downloadState?.isCancelled == true || downloadState?.error != null -> {
+          Icon(
+            painterResource(id = R.drawable.refresh),
+            contentDescription = "Retry Download",
+          )
+        }
+        else -> {
+          Icon(
+            painterResource(id = R.drawable.add),
+            contentDescription = "Download",
+          )
+        }
+      }
+    }
+  }
 }

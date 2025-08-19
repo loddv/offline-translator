@@ -18,13 +18,13 @@
 package dev.davidv.translator
 
 data class AppSettings(
-    val defaultTargetLanguage: Language = Language.ENGLISH,
-    val translationModelsBaseUrl: String = Constants.DEFAULT_TRANSLATION_MODELS_BASE_URL,
-    val tesseractModelsBaseUrl: String = Constants.DEFAULT_TESSERACT_MODELS_BASE_URL,
-    val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
-    val minConfidence: Int = 75,
-    val maxImageSize: Int = 1500,
-    val disableOcr: Boolean = false,
-    val disableCLD: Boolean = false,
-    val disableTransliteration: Boolean = false
+  val defaultTargetLanguage: Language = Language.ENGLISH,
+  val translationModelsBaseUrl: String = Constants.DEFAULT_TRANSLATION_MODELS_BASE_URL,
+  val tesseractModelsBaseUrl: String = Constants.DEFAULT_TESSERACT_MODELS_BASE_URL,
+  val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
+  val minConfidence: Int = 75,
+  val maxImageSize: Int = 1500,
+  val disableOcr: Boolean = false,
+  val disableCLD: Boolean = false,
+  val disableTransliteration: Boolean = false,
 )

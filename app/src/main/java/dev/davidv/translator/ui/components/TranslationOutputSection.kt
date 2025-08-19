@@ -33,80 +33,83 @@ import dev.davidv.translator.ui.screens.TranslatedText
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
-fun TranslationOutputSection(
-    output: TranslatedText?
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(0.5f),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-    }
+fun TranslationOutputSection(output: TranslatedText?) {
+  Box(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .padding(vertical = 16.dp),
+    contentAlignment = Alignment.Center,
+  ) {
+    HorizontalDivider(
+      modifier = Modifier.fillMaxWidth(0.5f),
+      thickness = 1.dp,
+      color = MaterialTheme.colorScheme.outlineVariant,
+    )
+  }
 
-    if (output != null) {
-        TranslationField(
-            text = output,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-        )
-    }
+  if (output != null) {
+    TranslationField(
+      text = output,
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .height(300.dp),
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun TranslationOutputSectionPreview() {
-    TranslatorTheme {
-        TranslationOutputSection(
-            output = TranslatedText(
-                "This is the translated text output that appears in the translation field below the divider.",
-                null
-            )
-        )
-    }
+  TranslatorTheme {
+    TranslationOutputSection(
+      output =
+        TranslatedText(
+          "This is the translated text output that appears in the translation field below the divider.",
+          null,
+        ),
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun TranslationOutputSectionEmptyPreview() {
-    TranslatorTheme {
-        TranslationOutputSection(
-            output = TranslatedText("", null)
-        )
-    }
+  TranslatorTheme {
+    TranslationOutputSection(
+      output = TranslatedText("", null),
+    )
+  }
 }
 
 @Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun TranslationOutputSectionDarkPreview() {
-    TranslatorTheme {
-        TranslationOutputSection(
-            output = TranslatedText(
-                "Translated text in dark mode with proper theming and contrast.",
-                null
-            )
-        )
-    }
+  TranslatorTheme {
+    TranslationOutputSection(
+      output =
+        TranslatedText(
+          "Translated text in dark mode with proper theming and contrast.",
+          null,
+        ),
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun TranslationOutputSectionLongTextPreview() {
-    TranslatorTheme {
-        TranslationOutputSection(
-            output = TranslatedText(
-                "This is a very long translation that demonstrates how the component handles multiple lines of text. It should wrap properly and maintain good readability throughout the entire text content. The translation field should scroll if the content exceeds the available space.",
-                null
-            )
-        )
-    }
+  TranslatorTheme {
+    TranslationOutputSection(
+      output =
+        TranslatedText(
+          "This is a very long translation that demonstrates how the component handles multiple lines of text. It should wrap properly and maintain good readability throughout the entire text content. The translation field should scroll if the content exceeds the available space.",
+          null,
+        ),
+    )
+  }
 }

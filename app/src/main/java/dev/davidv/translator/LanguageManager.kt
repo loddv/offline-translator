@@ -55,307 +55,332 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-
 data class LanguageStatus(
-    val language: Language,
-    var toEnglishDownloaded: Boolean = false,
-    var fromEnglishDownloaded: Boolean = false,
-    var tessDownloaded: Boolean = false,
-    var isDownloading: Boolean = false
+  val language: Language,
+  var toEnglishDownloaded: Boolean = false,
+  var fromEnglishDownloaded: Boolean = false,
+  var tessDownloaded: Boolean = false,
+  var isDownloading: Boolean = false,
 )
+
 data class FilesForLang(
-    val model: String,
-    val lex: String,
-    val vocab: List<String>
+  val model: String,
+  val lex: String,
+  val vocab: List<String>,
 )
 
 @Composable
 @Preview(
-    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 fun LanguageManagerPreview() {
-    LanguageManagerScreen()
+  LanguageManagerScreen()
 }
 
 @Composable
 fun LanguageManagerScreen(
-    onLanguageDownloaded: () -> Unit = {},
-    onLanguageDeleted: () -> Unit = {},
-    embedded: Boolean = false,
+  onLanguageDownloaded: () -> Unit = {},
+  onLanguageDeleted: () -> Unit = {},
+  embedded: Boolean = false,
 ) {
-    val context = LocalContext.current
-    var downloadService by remember { mutableStateOf<DownloadService?>(null) }
+  val context = LocalContext.current
+  var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
-    // Service connection
-    val serviceConnection = remember {
-        object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                val binder = service as DownloadService.DownloadBinder
-                downloadService = binder.getService()
-            }
-
-            override fun onServiceDisconnected(name: ComponentName?) {
-                downloadService = null
-            }
-        }
-    }
-
-    // Bind to service
-    DisposableEffect(context) {
-        val intent = Intent(context, DownloadService::class.java)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-
-        onDispose {
-            context.unbindService(serviceConnection)
-        }
-    }
-
-    // Track status for each language
-    val languageStates = remember {
-        mutableStateMapOf<Language, LanguageStatus>().apply {
-            Language.entries.forEach { lang ->
-                // fromEnglish and toEnglish are symmetrical by construction
-                // (generate.py); so filter languages down to whichever has
-                // translations available
-                if (fromEnglish[lang] != null) {
-                    put(lang, LanguageStatus(lang))
-                }
-            }
-        }
-    }
-
-    // Get download states from service
-    val downloadStates by downloadService?.downloadStates?.collectAsState()
-        ?: remember { mutableStateOf(emptyMap()) }
-
-    // Show toast for download errors
-    LaunchedEffect(downloadStates) {
-        downloadStates.values.forEach { downloadState ->
-            if (downloadState.error != null) {
-                Toast.makeText(
-                    context,
-                    "Download failed: ${downloadState.error}",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-
-    // Refresh local status when downloads complete or when states change
-    LaunchedEffect(downloadStates) {
-        downloadStates.values.forEach { downloadState ->
-            val language = downloadState.language
-
-            // Refresh status when download completes or when state is reset (indicating deletion)
-            if (downloadState.isCompleted ||
-                (!downloadState.isDownloading && !downloadState.isCancelled && downloadState.error == null)
-            ) {
-
-                withContext(Dispatchers.IO) {
-                    val toEnglishDownloaded =
-                        checkLanguagePairFiles(context, language, Language.ENGLISH)
-                    val fromEnglishDownloaded =
-                        checkLanguagePairFiles(context, Language.ENGLISH, language)
-                    val tessDownloaded = checkTessDataFile(context, language)
-
-                    languageStates[language] = LanguageStatus(
-                        language = language,
-                        toEnglishDownloaded = toEnglishDownloaded,
-                        fromEnglishDownloaded = fromEnglishDownloaded,
-                        tessDownloaded = tessDownloaded
-                    )
-
-                    // Notify when first language is downloaded
-                    if (downloadState.isCompleted && (toEnglishDownloaded || fromEnglishDownloaded)) {
-                        onLanguageDownloaded()
-                    }
-
-                    // Notify when language is deleted (state reset and no files)
-                    if (!downloadState.isDownloading && !downloadState.isCompleted &&
-                        !toEnglishDownloaded && !fromEnglishDownloaded && !tessDownloaded
-                    ) {
-
-                        // Check if ALL languages are now deleted
-                        val allLanguagesDeleted = languageStates.values.all { status ->
-                            !status.toEnglishDownloaded && !status.fromEnglishDownloaded && !status.tessDownloaded
-                        }
-
-                        if (allLanguagesDeleted) {
-                            onLanguageDeleted()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Check which language pairs are already downloaded
-    LaunchedEffect(Unit) {
-        languageStates.keys.forEach { language ->
-            val toEnglishDownloaded = withContext(Dispatchers.IO) {
-                checkLanguagePairFiles(context, language, Language.ENGLISH)
-            }
-            val fromEnglishDownloaded = withContext(Dispatchers.IO) {
-                checkLanguagePairFiles(context, Language.ENGLISH, language)
-            }
-            val tessDownloaded = withContext(Dispatchers.IO) {
-                checkTessDataFile(context, language)
-            }
-            languageStates[language] = LanguageStatus(
-                language = language,
-                toEnglishDownloaded = toEnglishDownloaded,
-                fromEnglishDownloaded = fromEnglishDownloaded,
-                tessDownloaded = tessDownloaded
-            )
-        }
-    }
-    Scaffold(
-        modifier = Modifier.fillMaxSize()
-    ) { paddingValues ->
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (!embedded) Modifier.padding(paddingValues) else Modifier)
-                .padding(horizontal = 16.dp, vertical = if (embedded) 0.dp else 16.dp)
+  // Service connection
+  val serviceConnection =
+    remember {
+      object : ServiceConnection {
+        override fun onServiceConnected(
+          name: ComponentName?,
+          service: IBinder?,
         ) {
-            if (!embedded) {
-                Text(
-                    text = "Language Packs",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
-
-            // Separate languages into installed and available
-            val allLanguages = languageStates.values.toList().sortedBy { it.language.displayName }
-            val installedLanguages = allLanguages.filter { status ->
-                status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
-            }
-            val availableLanguages = allLanguages.filterNot { status ->
-                status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
-            }
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                // Installed Languages Section
-                if (installedLanguages.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Installed",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-
-                    items(installedLanguages) { status ->
-                        LanguageItem(
-                            status = status,
-                            downloadState = downloadStates[status.language],
-                            downloadService = downloadService,
-                            context = context
-                        )
-                    }
-                }
-
-                // Available Languages Section
-                if (availableLanguages.isNotEmpty()) {
-                    if (!embedded || installedLanguages.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Available",
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
-                    }
-
-                    items(availableLanguages) { status ->
-                        LanguageItem(
-                            status = status,
-                            downloadState = downloadStates[status.language],
-                            downloadService = downloadService,
-                            context = context
-                        )
-                    }
-                }
-            }
+          val binder = service as DownloadService.DownloadBinder
+          downloadService = binder.getService()
         }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+          downloadService = null
+        }
+      }
     }
+
+  // Bind to service
+  DisposableEffect(context) {
+    val intent = Intent(context, DownloadService::class.java)
+    context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+    onDispose {
+      context.unbindService(serviceConnection)
+    }
+  }
+
+  // Track status for each language
+  val languageStates =
+    remember {
+      mutableStateMapOf<Language, LanguageStatus>().apply {
+        Language.entries.forEach { lang ->
+          // fromEnglish and toEnglish are symmetrical by construction
+          // (generate.py); so filter languages down to whichever has
+          // translations available
+          if (fromEnglish[lang] != null) {
+            put(lang, LanguageStatus(lang))
+          }
+        }
+      }
+    }
+
+  // Get download states from service
+  val downloadStates by downloadService?.downloadStates?.collectAsState()
+    ?: remember { mutableStateOf(emptyMap()) }
+
+  // Show toast for download errors
+  LaunchedEffect(downloadStates) {
+    downloadStates.values.forEach { downloadState ->
+      if (downloadState.error != null) {
+        Toast.makeText(
+          context,
+          "Download failed: ${downloadState.error}",
+          Toast.LENGTH_LONG,
+        ).show()
+      }
+    }
+  }
+
+  // Refresh local status when downloads complete or when states change
+  LaunchedEffect(downloadStates) {
+    downloadStates.values.forEach { downloadState ->
+      val language = downloadState.language
+
+      // Refresh status when download completes or when state is reset (indicating deletion)
+      if (downloadState.isCompleted ||
+        (!downloadState.isDownloading && !downloadState.isCancelled && downloadState.error == null)
+      ) {
+        withContext(Dispatchers.IO) {
+          val toEnglishDownloaded =
+            checkLanguagePairFiles(context, language, Language.ENGLISH)
+          val fromEnglishDownloaded =
+            checkLanguagePairFiles(context, Language.ENGLISH, language)
+          val tessDownloaded = checkTessDataFile(context, language)
+
+          languageStates[language] =
+            LanguageStatus(
+              language = language,
+              toEnglishDownloaded = toEnglishDownloaded,
+              fromEnglishDownloaded = fromEnglishDownloaded,
+              tessDownloaded = tessDownloaded,
+            )
+
+          // Notify when first language is downloaded
+          if (downloadState.isCompleted && (toEnglishDownloaded || fromEnglishDownloaded)) {
+            onLanguageDownloaded()
+          }
+
+          // Notify when language is deleted (state reset and no files)
+          if (!downloadState.isDownloading && !downloadState.isCompleted &&
+            !toEnglishDownloaded && !fromEnglishDownloaded && !tessDownloaded
+          ) {
+            // Check if ALL languages are now deleted
+            val allLanguagesDeleted =
+              languageStates.values.all { status ->
+                !status.toEnglishDownloaded && !status.fromEnglishDownloaded && !status.tessDownloaded
+              }
+
+            if (allLanguagesDeleted) {
+              onLanguageDeleted()
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Check which language pairs are already downloaded
+  LaunchedEffect(Unit) {
+    languageStates.keys.forEach { language ->
+      val toEnglishDownloaded =
+        withContext(Dispatchers.IO) {
+          checkLanguagePairFiles(context, language, Language.ENGLISH)
+        }
+      val fromEnglishDownloaded =
+        withContext(Dispatchers.IO) {
+          checkLanguagePairFiles(context, Language.ENGLISH, language)
+        }
+      val tessDownloaded =
+        withContext(Dispatchers.IO) {
+          checkTessDataFile(context, language)
+        }
+      languageStates[language] =
+        LanguageStatus(
+          language = language,
+          toEnglishDownloaded = toEnglishDownloaded,
+          fromEnglishDownloaded = fromEnglishDownloaded,
+          tessDownloaded = tessDownloaded,
+        )
+    }
+  }
+  Scaffold(
+    modifier = Modifier.fillMaxSize(),
+  ) { paddingValues ->
+
+    Column(
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .then(if (!embedded) Modifier.padding(paddingValues) else Modifier)
+          .padding(horizontal = 16.dp, vertical = if (embedded) 0.dp else 16.dp),
+    ) {
+      if (!embedded) {
+        Text(
+          text = "Language Packs",
+          style = MaterialTheme.typography.headlineMedium,
+          modifier = Modifier.padding(bottom = 16.dp),
+        )
+      }
+
+      // Separate languages into installed and available
+      val allLanguages = languageStates.values.toList().sortedBy { it.language.displayName }
+      val installedLanguages =
+        allLanguages.filter { status ->
+          status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
+        }
+      val availableLanguages =
+        allLanguages.filterNot { status ->
+          status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
+        }
+
+      LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+      ) {
+        // Installed Languages Section
+        if (installedLanguages.isNotEmpty()) {
+          item {
+            Text(
+              text = "Installed",
+              style = MaterialTheme.typography.titleLarge,
+              modifier = Modifier.padding(vertical = 8.dp),
+            )
+          }
+
+          items(installedLanguages) { status ->
+            LanguageItem(
+              status = status,
+              downloadState = downloadStates[status.language],
+              downloadService = downloadService,
+              context = context,
+            )
+          }
+        }
+
+        // Available Languages Section
+        if (availableLanguages.isNotEmpty()) {
+          if (!embedded || installedLanguages.isNotEmpty()) {
+            item {
+              Text(
+                text = "Available",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(vertical = 8.dp),
+              )
+            }
+          }
+
+          items(availableLanguages) { status ->
+            LanguageItem(
+              status = status,
+              downloadState = downloadStates[status.language],
+              downloadService = downloadService,
+              context = context,
+            )
+          }
+        }
+      }
+    }
+  }
 }
 
 @Composable
 private fun LanguageItem(
-    status: LanguageStatus,
-    downloadState: DownloadState?,
-    downloadService: DownloadService?,
-    context: Context
+  status: LanguageStatus,
+  downloadState: DownloadState?,
+  downloadService: DownloadService?,
+  context: Context,
 ) {
-    val isFullyDownloaded =
-        status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
+  val isFullyDownloaded =
+    status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
 
-    Row(
-        modifier = Modifier
-            .padding(0.dp)
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        Text(
-            text = status.language.displayName,
-            style = MaterialTheme.typography.titleMedium
-        )
-        LanguageDownloadButton(status.language, downloadState, context, isFullyDownloaded)
-    }
+  Row(
+    modifier =
+      Modifier
+        .padding(0.dp)
+        .fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Text(
+      text = status.language.displayName,
+      style = MaterialTheme.typography.titleMedium,
+    )
+    LanguageDownloadButton(status.language, downloadState, context, isFullyDownloaded)
+  }
 }
 
-fun checkLanguagePairFiles(context: Context, from: Language, to: Language): Boolean {
-    val dataPath = File(context.filesDir, "bin")
-    val files = filesFor(from, to)
-    val hasAll =
-        File(dataPath, files.model).exists() && File(dataPath, files.vocab[0]).exists() && File(
-            dataPath,
-            files.vocab[1]
-        ).exists() && File(
-            dataPath, files.lex
-    ).exists()
-    return hasAll
+fun checkLanguagePairFiles(
+  context: Context,
+  from: Language,
+  to: Language,
+): Boolean {
+  val dataPath = File(context.filesDir, "bin")
+  val files = filesFor(from, to)
+  val hasAll =
+    File(dataPath, files.model).exists() && File(dataPath, files.vocab[0]).exists() &&
+      File(
+        dataPath,
+        files.vocab[1],
+      ).exists() &&
+      File(
+        dataPath, files.lex,
+      ).exists()
+  return hasAll
 }
 
-fun checkTessDataFile(context: Context, language: Language): Boolean {
-    val tessDataPath = File(context.filesDir, "tesseract/tessdata")
-    val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-    val exists = tessFile.exists()
-    return exists
+fun checkTessDataFile(
+  context: Context,
+  language: Language,
+): Boolean {
+  val tessDataPath = File(context.filesDir, "tesseract/tessdata")
+  val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
+  val exists = tessFile.exists()
+  return exists
 }
 
 fun getAvailableTessLanguages(context: Context): String {
-    val availableLanguages = Language.entries.filter { language ->
-        checkTessDataFile(context, language)
+  val availableLanguages =
+    Language.entries.filter { language ->
+      checkTessDataFile(context, language)
     }.map { it.tessName }
 
-    val languageString = availableLanguages.joinToString("+")
-    Log.i("LanguageManager", "Available tess languages: $languageString")
-    return languageString
+  val languageString = availableLanguages.joinToString("+")
+  Log.i("LanguageManager", "Available tess languages: $languageString")
+  return languageString
 }
 
+fun filesFor(
+  from: Language,
+  to: Language,
+): FilesForLang {
+  val lang = "${from.code}${to.code}"
+  val model = "model.$lang.intgemm.alphas.bin"
+  val lex = "lex.50.50.$lang.s2t.bin"
+  val vocabLang = "${from.code}${to.code}"
 
-fun filesFor(from: Language, to: Language): FilesForLang {
-    val lang = "${from.code}${to.code}"
-    val model = "model.$lang.intgemm.alphas.bin"
-    val lex = "lex.50.50.$lang.s2t.bin"
-    val vocabLang = "${from.code}${to.code}"
-    
-    val splitVocab = arrayListOf(Language.CHINESE, Language.JAPANESE)
-    val vocab = arrayListOf<String>()
-    if (splitVocab.contains(to)) {
-        vocab.add("srcvocab.${from.code}${to.code}.spm")
-        vocab.add("trgvocab.${from.code}${to.code}.spm")
-    } else {
-        vocab.add("vocab.$vocabLang.spm")
-        vocab.add("vocab.$vocabLang.spm")
-    }
-    return FilesForLang(model, lex, vocab)
+  val splitVocab = arrayListOf(Language.CHINESE, Language.JAPANESE)
+  val vocab = arrayListOf<String>()
+  if (splitVocab.contains(to)) {
+    vocab.add("srcvocab.${from.code}${to.code}.spm")
+    vocab.add("trgvocab.${from.code}${to.code}.spm")
+  } else {
+    vocab.add("vocab.$vocabLang.spm")
+    vocab.add("vocab.$vocabLang.spm")
+  }
+  return FilesForLang(model, lex, vocab)
 }

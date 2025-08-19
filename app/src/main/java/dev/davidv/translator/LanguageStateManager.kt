@@ -27,62 +27,64 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class LanguageAvailabilityState(
-    val hasLanguages: Boolean = false,
-    val availableLanguages: List<Language> = emptyList(),
-    val availableLanguageMap: Map<String, Boolean> = emptyMap(),
-    val isChecking: Boolean = true
+  val hasLanguages: Boolean = false,
+  val availableLanguages: List<Language> = emptyList(),
+  val availableLanguageMap: Map<String, Boolean> = emptyMap(),
+  val isChecking: Boolean = true,
 )
 
 class LanguageStateManager(
-    private val context: Context,
-    private val scope: CoroutineScope
+  private val context: Context,
+  private val scope: CoroutineScope,
 ) {
-    private val _languageState = MutableStateFlow(LanguageAvailabilityState())
-    val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
+  private val _languageState = MutableStateFlow(LanguageAvailabilityState())
+  val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
 
-    init {
-        refreshLanguageAvailability()
-    }
+  init {
+    refreshLanguageAvailability()
+  }
 
-    fun refreshLanguageAvailability() {
-        scope.launch {
-            _languageState.value = _languageState.value.copy(isChecking = true)
-            
-            val availabilityMap = withContext(Dispatchers.IO) {
-                buildMap {
-                    // English is always available
-                    put(Language.ENGLISH.code, true)
-                    
-                    Language.entries.forEach { fromLang ->
-                        val toLang = Language.ENGLISH
-                        if (fromLang != toLang) {
-                            val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
-                            put(fromLang.code, isAvailable)
-                        }
-                    }
-                }
+  fun refreshLanguageAvailability() {
+    scope.launch {
+      _languageState.value = _languageState.value.copy(isChecking = true)
+
+      val availabilityMap =
+        withContext(Dispatchers.IO) {
+          buildMap {
+            // English is always available
+            put(Language.ENGLISH.code, true)
+
+            Language.entries.forEach { fromLang ->
+              val toLang = Language.ENGLISH
+              if (fromLang != toLang) {
+                val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
+                put(fromLang.code, isAvailable)
+              }
             }
-            
-            val availableLanguages = Language.entries.filter { language ->
-                availabilityMap[language.code] == true
-            }
-            
-            val hasLanguages = availableLanguages.any { it != Language.ENGLISH }
-            
-            _languageState.value = LanguageAvailabilityState(
-                hasLanguages = hasLanguages,
-                availableLanguages = availableLanguages,
-                availableLanguageMap = availabilityMap,
-                isChecking = false
-            )
+          }
         }
-    }
 
-    fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {
-        val state = _languageState.value
-        return state.availableLanguages
-            .filterNot { it == excluding || it == Language.ENGLISH }
-            .firstOrNull()
-    }
+      val availableLanguages =
+        Language.entries.filter { language ->
+          availabilityMap[language.code] == true
+        }
 
+      val hasLanguages = availableLanguages.any { it != Language.ENGLISH }
+
+      _languageState.value =
+        LanguageAvailabilityState(
+          hasLanguages = hasLanguages,
+          availableLanguages = availableLanguages,
+          availableLanguageMap = availabilityMap,
+          isChecking = false,
+        )
+    }
+  }
+
+  fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {
+    val state = _languageState.value
+    return state.availableLanguages
+      .filterNot { it == excluding || it == Language.ENGLISH }
+      .firstOrNull()
+  }
 }

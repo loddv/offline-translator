@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.ui.components.DetectedLanguageToast
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.Language
@@ -32,89 +31,92 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun DetectedLanguageSection(
-    detectedLanguage: Language?,
-    from: Language,
-    availableLanguages: Map<String, Boolean>,
-    onMessage: (TranslatorMessage) -> Unit,
-    onDownloadLanguage: (Language) -> Unit,
-    downloadService: DownloadService?,
-    downloadStates: Map<Language, DownloadState>
+  detectedLanguage: Language?,
+  from: Language,
+  availableLanguages: Map<String, Boolean>,
+  onMessage: (TranslatorMessage) -> Unit,
+  onDownloadLanguage: (Language) -> Unit,
+  downloadService: DownloadService?,
+  downloadStates: Map<Language, DownloadState>,
 ) {
-    if (detectedLanguage != null && detectedLanguage != from) {
-        DetectedLanguageToast(
-            detectedLanguage = detectedLanguage,
-            availableLanguages = availableLanguages,
-            onSwitchClick = {
-                onMessage(TranslatorMessage.FromLang(detectedLanguage))
-            },
-            onDownloadLanguage = onDownloadLanguage,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-            downloadService = downloadService,
-            downloadStates = downloadStates
-        )
-    }
+  if (detectedLanguage != null && detectedLanguage != from) {
+    DetectedLanguageToast(
+      detectedLanguage = detectedLanguage,
+      availableLanguages = availableLanguages,
+      onSwitchClick = {
+        onMessage(TranslatorMessage.FromLang(detectedLanguage))
+      },
+      onDownloadLanguage = onDownloadLanguage,
+      modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+      downloadService = downloadService,
+      downloadStates = downloadStates,
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DetectedLanguageSectionPreview() {
-    TranslatorTheme {
-        DetectedLanguageSection(
-            detectedLanguage = Language.FRENCH,
-            from = Language.ENGLISH,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.FRENCH.code to true,
-                Language.GERMAN.code to false
-            ),
-            onMessage = {},
-            onDownloadLanguage = {},
-            downloadService = null,
-            downloadStates = emptyMap()
-        )
-    }
+  TranslatorTheme {
+    DetectedLanguageSection(
+      detectedLanguage = Language.FRENCH,
+      from = Language.ENGLISH,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+          Language.GERMAN.code to false,
+        ),
+      onMessage = {},
+      onDownloadLanguage = {},
+      downloadService = null,
+      downloadStates = emptyMap(),
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DetectedLanguageSectionNoDetectionPreview() {
-    TranslatorTheme {
-        DetectedLanguageSection(
-            detectedLanguage = null,
-            from = Language.ENGLISH,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.FRENCH.code to true
-            ),
-            onMessage = {},
-            onDownloadLanguage = {},
-            downloadService = null,
-            downloadStates = emptyMap()
-        )
-    }
+  TranslatorTheme {
+    DetectedLanguageSection(
+      detectedLanguage = null,
+      from = Language.ENGLISH,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+        ),
+      onMessage = {},
+      onDownloadLanguage = {},
+      downloadService = null,
+      downloadStates = emptyMap(),
+    )
+  }
 }
 
 @Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun DetectedLanguageSectionDarkPreview() {
-    TranslatorTheme {
-        DetectedLanguageSection(
-            detectedLanguage = Language.GERMAN,
-            from = Language.SPANISH,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.GERMAN.code to true
-            ),
-            onMessage = {},
-            onDownloadLanguage = {},
-            downloadService = null,
-            downloadStates = emptyMap()
-        )
-    }
+  TranslatorTheme {
+    DetectedLanguageSection(
+      detectedLanguage = Language.GERMAN,
+      from = Language.SPANISH,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.GERMAN.code to true,
+        ),
+      onMessage = {},
+      onDownloadLanguage = {},
+      downloadService = null,
+      downloadStates = emptyMap(),
+    )
+  }
 }

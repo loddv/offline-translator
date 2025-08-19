@@ -42,50 +42,51 @@ import dev.davidv.translator.Language
 
 @Composable
 fun LanguageSelector(
-    selectedLanguage: Language,
-    availableLanguages: List<Language>,
-    onLanguageSelected: (Language) -> Unit,
-    modifier: Modifier = Modifier
+  selectedLanguage: Language,
+  availableLanguages: List<Language>,
+  onLanguageSelected: (Language) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
+  var expanded by remember { mutableStateOf(false) }
+  val interactionSource = remember { MutableInteractionSource() }
 
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
+  Box(
+    modifier = modifier,
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(
+      modifier =
+        Modifier
+          .basicMarquee()
+          .clip(RoundedCornerShape(10.dp))
+          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+          .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+          ) {
+            expanded = true
+          }
+          .padding(vertical = 12.dp, horizontal = 16.dp),
+      text = selectedLanguage.displayName,
+      textAlign = TextAlign.Center,
+      maxLines = 1,
+      style = MaterialTheme.typography.bodyMedium,
+      color = MaterialTheme.colorScheme.onSurface,
+    )
+
+    DropdownMenu(
+      expanded = expanded,
+      onDismissRequest = { expanded = false },
     ) {
-        Text(
-            modifier = Modifier
-                .basicMarquee()
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null
-                ) {
-                    expanded = true
-                }
-                .padding(vertical = 12.dp, horizontal = 16.dp),
-            text = selectedLanguage.displayName,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+      availableLanguages.forEach { language ->
+        DropdownMenuItem(
+          text = { Text(language.displayName) },
+          onClick = {
+            onLanguageSelected(language)
+            expanded = false
+          },
         )
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            availableLanguages.forEach { language ->
-                DropdownMenuItem(
-                    text = { Text(language.displayName) },
-                    onClick = {
-                        onLanguageSelected(language)
-                        expanded = false
-                    }
-                )
-            }
-        }
+      }
     }
+  }
 }

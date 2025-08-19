@@ -31,47 +31,48 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun StyledTextField(
-    text: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String? = null,
-    readOnly: Boolean = false,
-    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+  text: String,
+  onValueChange: (String) -> Unit,
+  modifier: Modifier = Modifier,
+  placeholder: String? = null,
+  readOnly: Boolean = false,
+  textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
-    TextField(
-        value = text,
-        onValueChange = onValueChange,
-        modifier =
-            modifier.fillMaxWidth(),
-        textStyle = textStyle,
-        placeholder = placeholder?.let { { Text(it, style = textStyle) } },
-        readOnly = readOnly,
-        colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent,
-            unfocusedContainerColor = Color.Transparent,
-            disabledContainerColor = Color.Transparent,
-            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-            cursorColor = MaterialTheme.colorScheme.primary,
-            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    )
+  TextField(
+    value = text,
+    onValueChange = onValueChange,
+    modifier =
+      modifier.fillMaxWidth(),
+    textStyle = textStyle,
+    placeholder = placeholder?.let { { Text(it, style = textStyle) } },
+    readOnly = readOnly,
+    colors =
+      TextFieldDefaults.colors(
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent,
+        disabledIndicatorColor = Color.Transparent,
+        focusedContainerColor = Color.Transparent,
+        unfocusedContainerColor = Color.Transparent,
+        disabledContainerColor = Color.Transparent,
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+        cursorColor = MaterialTheme.colorScheme.primary,
+        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+      ),
+  )
 }
 
 @Preview(showBackground = true)
 @Composable
 fun StyledTextFieldWeightedPreview() {
-    TranslatorTheme {
-        StyledTextField(
-            text = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
-            onValueChange = {},
-            placeholder = "Enter text",
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
+  TranslatorTheme {
+    StyledTextField(
+      text = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+      onValueChange = {},
+      placeholder = "Enter text",
+      modifier = Modifier.fillMaxWidth(),
+    )
+  }
 }

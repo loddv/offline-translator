@@ -86,426 +86,429 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
 class MainActivity : ComponentActivity() {
-    private var textToTranslate: String = ""
-    private var sharedImageUri: Uri? = null
-    private lateinit var ocrService: OCRService
-    private lateinit var translationCoordinator: TranslationCoordinator
+  private var textToTranslate: String = ""
+  private var sharedImageUri: Uri? = null
+  private lateinit var ocrService: OCRService
+  private lateinit var translationCoordinator: TranslationCoordinator
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        handleIntent(intent)
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    handleIntent(intent)
 
-        ocrService = OCRService(this)
-        val imageProcessor = ImageProcessor(this, ocrService)
-        val settingsManager = SettingsManager(this)
-        val translationService = TranslationService(this, settingsManager)
-        val languageDetector = LanguageDetector()
-        translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager)
+    ocrService = OCRService(this)
+    val imageProcessor = ImageProcessor(this, ocrService)
+    val settingsManager = SettingsManager(this)
+    val translationService = TranslationService(this, settingsManager)
+    val languageDetector = LanguageDetector()
+    translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager)
 
-        setContent {
-            TranslatorTheme {
-                MaterialTheme {
-                    TranslatorApp(
-                        initialText = textToTranslate,
-                        sharedImageUri = sharedImageUri,
-                        translationCoordinator = translationCoordinator,
-                        settingsManager = settingsManager
-                    )
-                }
-            }
+    setContent {
+      TranslatorTheme {
+        MaterialTheme {
+          TranslatorApp(
+            initialText = textToTranslate,
+            sharedImageUri = sharedImageUri,
+            translationCoordinator = translationCoordinator,
+            settingsManager = settingsManager,
+          )
         }
+      }
     }
+  }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        ocrService.cleanup()
-        TranslationService.cleanup()
-        println("cleaning up main activity")
-    }
+  override fun onDestroy() {
+    super.onDestroy()
+    ocrService.cleanup()
+    TranslationService.cleanup()
+    println("cleaning up main activity")
+  }
 
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
-    }
+  override fun onNewIntent(intent: Intent?) {
+    super.onNewIntent(intent)
+    handleIntent(intent)
+  }
 
-    private fun handleIntent(intent: Intent?) {
-        when (intent?.action) {
-            Intent.ACTION_PROCESS_TEXT -> {
-                val text = if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT)) {
-                    intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-                } else {
-                    intent.getStringExtra(Intent.EXTRA_TEXT)
-                }
-                textToTranslate = text ?: ""
-            }
+  private fun handleIntent(intent: Intent?) {
+    when (intent?.action) {
+      Intent.ACTION_PROCESS_TEXT -> {
+        val text =
+          if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT)) {
+            intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+          } else {
+            intent.getStringExtra(Intent.EXTRA_TEXT)
+          }
+        textToTranslate = text ?: ""
+      }
 
-            Intent.ACTION_SEND -> {
-                // Check if it's text or image
-                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                val imageUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
-                }
+      Intent.ACTION_SEND -> {
+        // Check if it's text or image
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val imageUri =
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+          } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(Intent.EXTRA_STREAM)
+          }
 
-                if (text != null) {
-                    textToTranslate = text
-                } else if (imageUri != null) {
-                    sharedImageUri = imageUri
-                    textToTranslate = "" // Clear any existing text
-                }
-            }
+        if (text != null) {
+          textToTranslate = text
+        } else if (imageUri != null) {
+          sharedImageUri = imageUri
+          textToTranslate = "" // Clear any existing text
         }
+      }
     }
+  }
 }
-
-
-
-
 
 @Composable
 fun Greeting(
-    // Navigation
-    onSettings: () -> Unit,
-    onDownloadLanguage: (Language) -> Unit,
-    
-    // Current state (read-only)
-    input: String,
-    output: TranslatedText?,
-    from: Language,
-    to: Language,
-    detectedLanguage: Language?,
-    displayImage: Bitmap?,
-    isTranslating: StateFlow<Boolean>,
-    isOcrInProgress: StateFlow<Boolean>,
-    
-    // Action requests
-    onMessage: (TranslatorMessage) -> Unit,
-    
-    // System integration
-    sharedImageUri: Uri? = null,
-    availableLanguages: Map<String, Boolean>,
-    downloadService: DownloadService? = null,
-    downloadStates: Map<Language, DownloadState> = emptyMap(),
-    settings: AppSettings,
+  // Navigation
+  onSettings: () -> Unit,
+  onDownloadLanguage: (Language) -> Unit,
+  // Current state (read-only)
+  input: String,
+  output: TranslatedText?,
+  from: Language,
+  to: Language,
+  detectedLanguage: Language?,
+  displayImage: Bitmap?,
+  isTranslating: StateFlow<Boolean>,
+  isOcrInProgress: StateFlow<Boolean>,
+  // Action requests
+  onMessage: (TranslatorMessage) -> Unit,
+  // System integration
+  sharedImageUri: Uri? = null,
+  availableLanguages: Map<String, Boolean>,
+  downloadService: DownloadService? = null,
+  downloadStates: Map<Language, DownloadState> = emptyMap(),
+  settings: AppSettings,
 ) {
-    var showFullScreenImage by remember { mutableStateOf(false) }
-    var showImageSourceSheet by remember { mutableStateOf(false) }
-    val translating by isTranslating.collectAsState()
+  var showFullScreenImage by remember { mutableStateOf(false) }
+  var showImageSourceSheet by remember { mutableStateOf(false) }
+  val translating by isTranslating.collectAsState()
 
-    // Process shared image when component loads
-    LaunchedEffect(sharedImageUri) {
-        if (sharedImageUri != null) {
-            Log.d("SharedImage", "Processing shared image: $sharedImageUri")
-            onMessage(TranslatorMessage.SetImageUri(sharedImageUri))
-        }
+  // Process shared image when component loads
+  LaunchedEffect(sharedImageUri) {
+    if (sharedImageUri != null) {
+      Log.d("SharedImage", "Processing shared image: $sharedImageUri")
+      onMessage(TranslatorMessage.SetImageUri(sharedImageUri))
     }
-    val context = LocalContext.current
+  }
+  val context = LocalContext.current
 
-    // Create temporary file for camera capture
-    val cameraImageUri = remember {
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val imageFile = File(context.cacheDir, "camera_image_$timeStamp.jpg")
-        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
+  // Create temporary file for camera capture
+  val cameraImageUri =
+    remember {
+      val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+      val imageFile = File(context.cacheDir, "camera_image_$timeStamp.jpg")
+      FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
     }
-    // Camera launcher using MediaStore intent with EXTRA_OUTPUT
-    val takePictureIntent = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+  // Camera launcher using MediaStore intent with EXTRA_OUTPUT
+  val takePictureIntent =
+    rememberLauncherForActivityResult(
+      ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            // When using EXTRA_OUTPUT, the full image is saved to the URI we provided
-            Log.d("Camera", "Photo captured: $cameraImageUri")
-            onMessage(TranslatorMessage.SetImageUri(cameraImageUri))
+      if (result.resultCode == android.app.Activity.RESULT_OK) {
+        // When using EXTRA_OUTPUT, the full image is saved to the URI we provided
+        Log.d("Camera", "Photo captured: $cameraImageUri")
+        onMessage(TranslatorMessage.SetImageUri(cameraImageUri))
+      } else {
+        Log.d("Camera", "Photo capture cancelled or failed")
+      }
+    }
+
+  val pickMedia =
+    rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+      if (uri != null) {
+        Log.d("PhotoPicker", "Selected URI: $uri")
+        onMessage(TranslatorMessage.SetImageUri(uri))
+      } else {
+        Log.d("PhotoPicker", "No media selected")
+      }
+    }
+
+  val pickFromGallery =
+    rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+      if (result.resultCode == android.app.Activity.RESULT_OK) {
+        val imageUri = result.data?.data
+        if (imageUri != null) {
+          Log.d("Gallery", "Selected URI: $imageUri")
+          onMessage(TranslatorMessage.SetImageUri(imageUri))
         } else {
-            Log.d("Camera", "Photo capture cancelled or failed")
+          Log.d("Gallery", "No image selected")
         }
+      }
     }
 
-    val pickMedia =
-        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
-            if (uri != null) {
-                Log.d("PhotoPicker", "Selected URI: $uri")
-                onMessage(TranslatorMessage.SetImageUri(uri))
-            } else {
-                Log.d("PhotoPicker", "No media selected")
-            }
+  Scaffold(
+    modifier = Modifier.fillMaxSize(),
+    floatingActionButton = {
+      if (!settings.disableOcr) {
+        FloatingActionButton(onClick = {
+          showImageSourceSheet = true
+        }) {
+          Icon(
+            painterResource(id = R.drawable.add_photo),
+            contentDescription = "Translate image",
+          )
         }
-    
-    val pickFromGallery =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val imageUri = result.data?.data
-                if (imageUri != null) {
-                    Log.d("Gallery", "Selected URI: $imageUri")
-                    onMessage(TranslatorMessage.SetImageUri(imageUri))
-                } else {
-                    Log.d("Gallery", "No image selected")
-                }
-            }
-        }
+      }
+    },
+  ) { paddingValues ->
+    Box(
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .navigationBarsPadding()
+          .imePadding()
+          .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp),
+    ) {
+      Column(
+        modifier =
+          Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
+            .verticalScroll(rememberScrollState()),
+      ) {
+        LanguageSelectionRow(
+          from = from,
+          to = to,
+          availableLanguages = availableLanguages,
+          translating = translating,
+          onMessage = onMessage,
+          onSettings = onSettings,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        floatingActionButton = {
-            if (!settings.disableOcr) {
-                FloatingActionButton(onClick = {
-                    showImageSourceSheet = true
-                }) {
-                    Icon(
-                        painterResource(id = R.drawable.add_photo),
-                        contentDescription = "Translate image",
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                LanguageSelectionRow(
-                    from = from,
-                    to = to,
-                    availableLanguages = availableLanguages,
-                    translating = translating,
-                    onMessage = onMessage,
-                    onSettings = onSettings
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+        InputSection(
+          displayImage = displayImage,
+          input = input,
+          isOcrInProgress = isOcrInProgress,
+          isTranslating = isTranslating,
+          onMessage = onMessage,
+          onShowFullScreenImage = { showFullScreenImage = true },
+        )
 
+        DetectedLanguageSection(
+          detectedLanguage = detectedLanguage,
+          from = from,
+          availableLanguages = availableLanguages,
+          onMessage = onMessage,
+          onDownloadLanguage = onDownloadLanguage,
+          downloadService = downloadService,
+          downloadStates = downloadStates,
+        )
 
-                InputSection(
-                    displayImage = displayImage,
-                    input = input,
-                    isOcrInProgress = isOcrInProgress,
-                    isTranslating = isTranslating,
-                    onMessage = onMessage,
-                    onShowFullScreenImage = { showFullScreenImage = true }
-                )
+        TranslationOutputSection(
+          output = output,
+        )
 
-                DetectedLanguageSection(
-                    detectedLanguage = detectedLanguage,
-                    from = from,
-                    availableLanguages = availableLanguages,
-                    onMessage = onMessage,
-                    onDownloadLanguage = onDownloadLanguage,
-                    downloadService = downloadService,
-                    downloadStates = downloadStates
-                )
-
-                TranslationOutputSection(
-                    output = output
-                )
-            
-            // Add extra padding at bottom to ensure content can be scrolled fully into view
-            Spacer(modifier = Modifier.height(100.dp))
-            }
-        }
-        
-        // Image source selection bottom sheet
-        if (showImageSourceSheet) {
-            ImageSourceBottomSheet(
-                onDismiss = { showImageSourceSheet = false },
-                onCameraClick = {
-                    showImageSourceSheet = false
-                    val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                        putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri)
-                    }
-                    takePictureIntent.launch(cameraIntent)
-                },
-                onMediaPickerClick = {
-                    showImageSourceSheet = false
-                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                onGalleryClick = {
-                    showImageSourceSheet = false
-                    val galleryIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                    pickFromGallery.launch(galleryIntent)
-                }
-            )
-        }
-
-        // Full screen image viewer
-        if (showFullScreenImage && displayImage != null) {
-            ZoomableImageViewer(
-                bitmap = displayImage,
-                onDismiss = { showFullScreenImage = false }
-            )
-        }
+        // Add extra padding at bottom to ensure content can be scrolled fully into view
+        Spacer(modifier = Modifier.height(100.dp))
+      }
     }
+
+    // Image source selection bottom sheet
+    if (showImageSourceSheet) {
+      ImageSourceBottomSheet(
+        onDismiss = { showImageSourceSheet = false },
+        onCameraClick = {
+          showImageSourceSheet = false
+          val cameraIntent =
+            Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+              putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri)
+            }
+          takePictureIntent.launch(cameraIntent)
+        },
+        onMediaPickerClick = {
+          showImageSourceSheet = false
+          pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        },
+        onGalleryClick = {
+          showImageSourceSheet = false
+          val galleryIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+          pickFromGallery.launch(galleryIntent)
+        },
+      )
+    }
+
+    // Full screen image viewer
+    if (showFullScreenImage && displayImage != null) {
+      ZoomableImageViewer(
+        bitmap = displayImage,
+        onDismiss = { showFullScreenImage = false },
+      )
+    }
+  }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageSourceBottomSheet(
-    onDismiss: () -> Unit,
-    onCameraClick: () -> Unit,
-    onMediaPickerClick: () -> Unit,
-    onGalleryClick: () -> Unit
+  onDismiss: () -> Unit,
+  onCameraClick: () -> Unit,
+  onMediaPickerClick: () -> Unit,
+  onGalleryClick: () -> Unit,
 ) {
-    val bottomSheetState = rememberModalBottomSheetState()
-    
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = bottomSheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+  val bottomSheetState = rememberModalBottomSheetState()
+
+  ModalBottomSheet(
+    onDismissRequest = onDismiss,
+    sheetState = bottomSheetState,
+    dragHandle = { BottomSheetDefaults.DragHandle() },
+  ) {
+    Column(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp)
+          .padding(bottom = 16.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+      ) {
+        // Camera (always present)
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .padding(bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.clickable { onCameraClick() },
         ) {
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                // Camera (always present)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { onCameraClick() }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.camera),
-                        contentDescription = "Camera",
-                        modifier = Modifier
-                            .size(48.dp)
-                            .padding(bottom = 8.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Camera",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                
-                // Conditional: Photos (Android 13+) or Gallery (older versions)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    // Modern Photos picker for Android 13+
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { onMediaPickerClick() }
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.gallery),
-                            contentDescription = "Photos",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .padding(bottom = 8.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Photos",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    // Traditional Gallery for older Android versions
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { onGalleryClick() }
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.gallery),
-                            contentDescription = "Gallery",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .padding(bottom = 8.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Gallery",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
+          Icon(
+            painter = painterResource(id = R.drawable.camera),
+            contentDescription = "Camera",
+            modifier =
+              Modifier
+                .size(48.dp)
+                .padding(bottom = 8.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
+          )
+          Text(
+            text = "Camera",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+          )
         }
+
+        // Conditional: Photos (Android 13+) or Gallery (older versions)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          // Modern Photos picker for Android 13+
+          Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable { onMediaPickerClick() },
+          ) {
+            Icon(
+              painter = painterResource(id = R.drawable.gallery),
+              contentDescription = "Photos",
+              modifier =
+                Modifier
+                  .size(48.dp)
+                  .padding(bottom = 8.dp),
+              tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+              text = "Photos",
+              style = MaterialTheme.typography.bodyMedium,
+              textAlign = TextAlign.Center,
+            )
+          }
+        } else {
+          // Traditional Gallery for older Android versions
+          Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable { onGalleryClick() },
+          ) {
+            Icon(
+              painter = painterResource(id = R.drawable.gallery),
+              contentDescription = "Gallery",
+              modifier =
+                Modifier
+                  .size(48.dp)
+                  .padding(bottom = 8.dp),
+              tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+              text = "Gallery",
+              style = MaterialTheme.typography.bodyMedium,
+              textAlign = TextAlign.Center,
+            )
+          }
+        }
+      }
     }
+  }
 }
 
-
 @Preview(
-    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun GreetingPreview() {
-    TranslatorTheme {
-        Greeting(
-            onSettings = {  },
-            onDownloadLanguage = {  },
-            input = "Example input",
-            output = TranslatedText("Example output", null),
-            from = Language.ENGLISH,
-            to = Language.SPANISH,
-            detectedLanguage = Language.FRENCH,
-            displayImage = null,
-            isTranslating = MutableStateFlow(false).asStateFlow(),
-            isOcrInProgress = MutableStateFlow(false).asStateFlow(),
-            onMessage = {},
-            sharedImageUri = null,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.FRENCH.code to true
-            ),
-            downloadService = null,
-            downloadStates = emptyMap(),
-            settings = AppSettings(),
-        )
-    }
+  TranslatorTheme {
+    Greeting(
+      onSettings = { },
+      onDownloadLanguage = { },
+      input = "Example input",
+      output = TranslatedText("Example output", null),
+      from = Language.ENGLISH,
+      to = Language.SPANISH,
+      detectedLanguage = Language.FRENCH,
+      displayImage = null,
+      isTranslating = MutableStateFlow(false).asStateFlow(),
+      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      onMessage = {},
+      sharedImageUri = null,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+        ),
+      downloadService = null,
+      downloadStates = emptyMap(),
+      settings = AppSettings(),
+    )
+  }
 }
 
-
 @Preview(
-    showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun PreviewVeryLongText() {
-    TranslatorTheme {
-        Greeting(
-            onSettings = {  },
-            onDownloadLanguage = {  },
-            input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
-            output = TranslatedText(
-                "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
-                null
-            ),
-            from = Language.ENGLISH,
-            to = Language.ENGLISH,
-            detectedLanguage = null,
-            displayImage = null,
-            isTranslating = MutableStateFlow(false).asStateFlow(),
-            isOcrInProgress = MutableStateFlow(false).asStateFlow(),
-            onMessage = {},
-            sharedImageUri = null,
-            availableLanguages = mapOf(
-                Language.ENGLISH.code to true,
-                Language.SPANISH.code to true,
-                Language.FRENCH.code to true
-            ),
-            downloadService = null,
-            downloadStates = emptyMap(),
-            settings = AppSettings(),
-        )
-    }
+  TranslatorTheme {
+    Greeting(
+      onSettings = { },
+      onDownloadLanguage = { },
+      input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+      output =
+        TranslatedText(
+          "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+          null,
+        ),
+      from = Language.ENGLISH,
+      to = Language.ENGLISH,
+      detectedLanguage = null,
+      displayImage = null,
+      isTranslating = MutableStateFlow(false).asStateFlow(),
+      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      onMessage = {},
+      sharedImageUri = null,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+        ),
+      downloadService = null,
+      downloadStates = emptyMap(),
+      settings = AppSettings(),
+    )
+  }
 }

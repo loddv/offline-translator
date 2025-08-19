@@ -49,106 +49,111 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun TranslationField(
-    text: TranslatedText,
-    modifier: Modifier = Modifier,
-    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+  text: TranslatedText,
+  modifier: Modifier = Modifier,
+  textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
-    val context = LocalContext.current
+  val context = LocalContext.current
 
-    if (text.translated.isEmpty()) {
-        return
+  if (text.translated.isEmpty()) {
+    return
+  }
+  Column(modifier = modifier) {
+    Box(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .fillMaxHeight()
+          .padding(12.dp),
+    ) {
+      SelectionContainer(
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            // Leave space for copy button
+            .padding(end = 22.dp),
+      ) {
+        Column {
+          Text(
+            text = text.translated,
+            style = textStyle,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          if (text.transliterated != null) {
+            Text(
+              modifier = Modifier.padding(top = 5.dp),
+              text = text.transliterated,
+              style = textStyle.copy(fontSize = textStyle.fontSize.times(0.7)),
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+          }
+        }
+      }
+
+      // Copy button positioned sticky to the right
+      IconButton(
+        onClick = {
+          val clipboard =
+            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+          val clip = ClipData.newPlainText("Translation", text.translated)
+          clipboard.setPrimaryClip(clip)
+        },
+        modifier =
+          Modifier
+            .align(Alignment.TopEnd)
+            .padding(8.dp)
+            .size(24.dp),
+      ) {
+        Icon(
+          painterResource(id = R.drawable.copy),
+          contentDescription = "Copy translation",
+          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
+      }
     }
-    Column(modifier = modifier) {
-            Box(
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .padding(12.dp)
-
-            ) {
-                    SelectionContainer(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(end = 22.dp) // Leave space for copy button
-                    ) {
-                        Column {
-
-                        Text(
-                            text = text.translated,
-                            style = textStyle,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        if (text.transliterated != null) {
-                            Text(
-                                modifier = Modifier.padding(top = 5.dp),
-                                text = text.transliterated,
-                                style = textStyle.copy(fontSize = textStyle.fontSize.times(0.7)),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                // Copy button positioned sticky to the right
-                IconButton(
-                    onClick = {
-                        val clipboard =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Translation", text.translated)
-                        clipboard.setPrimaryClip(clip)
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(24.dp)
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.copy),
-                        contentDescription = "Copy translation",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                }
-            }
-    }
+  }
 }
 
-
-@Preview(showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+@Preview(
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun TranslationFieldBothWeightedPreview() {
-    TranslatorTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TranslationField(
-                text = TranslatedText(
-                    "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
-                    null
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
-        }
+  TranslatorTheme {
+    Column(modifier = Modifier.fillMaxSize()) {
+      TranslationField(
+        text =
+          TranslatedText(
+            "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+            null,
+          ),
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .weight(1f),
+      )
     }
+  }
 }
 
-@Preview(showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+@Preview(
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun WithTransliteration() {
-    TranslatorTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TranslationField(
-                text = TranslatedText("some words", "transliterated"),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
-        }
+  TranslatorTheme {
+    Column(modifier = Modifier.fillMaxSize()) {
+      TranslationField(
+        text = TranslatedText("some words", "transliterated"),
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .weight(1f),
+      )
     }
+  }
 }

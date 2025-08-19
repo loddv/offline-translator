@@ -40,119 +40,123 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.ui.theme.TranslatorTheme
-import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.R
+import dev.davidv.translator.TranslatorMessage
+import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun InputSection(
-    displayImage: Bitmap?,
-    input: String,
-    isOcrInProgress: StateFlow<Boolean>,
-    isTranslating: StateFlow<Boolean>,
-    onMessage: (TranslatorMessage) -> Unit,
-    onShowFullScreenImage: () -> Unit
+  displayImage: Bitmap?,
+  input: String,
+  isOcrInProgress: StateFlow<Boolean>,
+  isTranslating: StateFlow<Boolean>,
+  onMessage: (TranslatorMessage) -> Unit,
+  onShowFullScreenImage: () -> Unit,
 ) {
-    if (displayImage != null) {
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                val isOcrInProgressState by isOcrInProgress.collectAsState()
-                val isTranslatingState by isTranslating.collectAsState()
-                val isProcessing = isOcrInProgressState || isTranslatingState
-                
-                if (isProcessing) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-                
-                Image(
-                    bitmap = displayImage.asImageBitmap(),
-                    contentDescription = "Image to translate",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onShowFullScreenImage() }
-                )
-            }
+  if (displayImage != null) {
+    Box(
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      Column {
+        val isOcrInProgressState by isOcrInProgress.collectAsState()
+        val isTranslatingState by isTranslating.collectAsState()
+        val isProcessing = isOcrInProgressState || isTranslatingState
 
-            IconButton(
-                onClick = { onMessage(TranslatorMessage.ClearImage) },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(32.dp)
-            ) {
-                Icon(
-                    painterResource(id = R.drawable.cancel),
-                    contentDescription = "Remove image",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                )
-            }
-        }
-    } else {
-        StyledTextField(
-            text = input,
-            onValueChange = { newInput ->
-                onMessage(TranslatorMessage.TextInput(newInput))
-            },
-            placeholder = "Enter text",
-            modifier = Modifier
+        if (isProcessing) {
+          LinearProgressIndicator(
+            modifier =
+              Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+          )
+        }
+
+        Image(
+          bitmap = displayImage.asImageBitmap(),
+          contentDescription = "Image to translate",
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .clickable { onShowFullScreenImage() },
         )
+      }
+
+      IconButton(
+        onClick = { onMessage(TranslatorMessage.ClearImage) },
+        modifier =
+          Modifier
+            .align(Alignment.TopEnd)
+            .padding(8.dp)
+            .size(32.dp),
+      ) {
+        Icon(
+          painterResource(id = R.drawable.cancel),
+          contentDescription = "Remove image",
+          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+        )
+      }
     }
+  } else {
+    StyledTextField(
+      text = input,
+      onValueChange = { newInput ->
+        onMessage(TranslatorMessage.TextInput(newInput))
+      },
+      placeholder = "Enter text",
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .height(200.dp),
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun InputSectionTextPreview() {
-    TranslatorTheme {
-        InputSection(
-            displayImage = null,
-            input = "Hello, this is some sample text for translation",
-            isOcrInProgress = MutableStateFlow(false),
-            isTranslating = MutableStateFlow(false),
-            onMessage = {},
-            onShowFullScreenImage = {}
-        )
-    }
+  TranslatorTheme {
+    InputSection(
+      displayImage = null,
+      input = "Hello, this is some sample text for translation",
+      isOcrInProgress = MutableStateFlow(false),
+      isTranslating = MutableStateFlow(false),
+      onMessage = {},
+      onShowFullScreenImage = {},
+    )
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun InputSectionProcessingTextPreview() {
-    TranslatorTheme {
-        InputSection(
-            displayImage = null,
-            input = "Processing translation...",
-            isOcrInProgress = MutableStateFlow(false),
-            isTranslating = MutableStateFlow(true),
-            onMessage = {},
-            onShowFullScreenImage = {}
-        )
-    }
+  TranslatorTheme {
+    InputSection(
+      displayImage = null,
+      input = "Processing translation...",
+      isOcrInProgress = MutableStateFlow(false),
+      isTranslating = MutableStateFlow(true),
+      onMessage = {},
+      onShowFullScreenImage = {},
+    )
+  }
 }
 
 @Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun InputSectionDarkPreview() {
-    TranslatorTheme {
-        InputSection(
-            displayImage = null,
-            input = "Dark mode text input",
-            isOcrInProgress = MutableStateFlow(false),
-            isTranslating = MutableStateFlow(false),
-            onMessage = {},
-            onShowFullScreenImage = {}
-        )
-    }
+  TranslatorTheme {
+    InputSection(
+      displayImage = null,
+      input = "Dark mode text input",
+      isOcrInProgress = MutableStateFlow(false),
+      isTranslating = MutableStateFlow(false),
+      onMessage = {},
+      onShowFullScreenImage = {},
+    )
+  }
 }

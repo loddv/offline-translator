@@ -57,381 +57,390 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    settings: AppSettings,
-    availableLanguages: List<Language>,
-    onSettingsChange: (AppSettings) -> Unit,
-    onManageLanguages: () -> Unit,
+  settings: AppSettings,
+  availableLanguages: List<Language>,
+  onSettingsChange: (AppSettings) -> Unit,
+  onManageLanguages: () -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") }
-            )
-        }
-    ) { paddingValues ->
+  println("hi")
+  Scaffold(
+    topBar = {
+      TopAppBar(
+        title = { Text("Settings") },
+      )
+    },
+  ) { paddingValues ->
+    Column(
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .padding(paddingValues)
+          .padding(16.dp)
+          .verticalScroll(rememberScrollState()),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+      // Languages Section
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Languages Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
+          Text(
+            text = "Languages",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+
+          // Manage Languages Button
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Text(
+              text = "Language Packs",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            OutlinedButton(
+              onClick = onManageLanguages,
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Languages",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    // Manage Languages Button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Language Packs",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        OutlinedButton(
-                            onClick = onManageLanguages
-                        ) {
-                            Text("Manage Languages")
-                        }
-                    }
-                }
+              Text("Manage Languages")
             }
-
-            // General Settings Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "General",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    // Default Target Language
-                    var languageExpanded by remember { mutableStateOf(false) }
-                    
-                    Text(
-                        text = "Default Target Language",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    ExposedDropdownMenuBox(
-                        expanded = languageExpanded,
-                        onExpandedChange = { languageExpanded = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = settings.defaultTargetLanguage.displayName,
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = languageExpanded,
-                            onDismissRequest = { languageExpanded = false }
-                        ) {
-                            availableLanguages.forEach { language ->
-                                DropdownMenuItem(
-                                    text = { Text(language.displayName) },
-                                    onClick = {
-                                        onSettingsChange(settings.copy(defaultTargetLanguage = language))
-                                        languageExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // OCR Settings Section - Only show if OCR is not disabled
-            if (!settings.disableOcr) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "OCR",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    // Background Mode
-                    var backgroundModeExpanded by remember { mutableStateOf(false) }
-                    
-                    Text(
-                        text = "Background Mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    ExposedDropdownMenuBox(
-                        expanded = backgroundModeExpanded,
-                        onExpandedChange = { backgroundModeExpanded = it },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = settings.backgroundMode.displayName,
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = backgroundModeExpanded) },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = backgroundModeExpanded,
-                            onDismissRequest = { backgroundModeExpanded = false }
-                        ) {
-                            BackgroundMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    text = { Text(mode.displayName) },
-                                    onClick = {
-                                        onSettingsChange(settings.copy(backgroundMode = mode))
-                                        backgroundModeExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    
-                    // Min Confidence Slider
-                    Text(
-                        text = "Min Confidence: ${settings.minConfidence}%",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Slider(
-                        value = settings.minConfidence.toFloat(),
-                        onValueChange = { value ->
-                            onSettingsChange(settings.copy(minConfidence = value.toInt()))
-                        },
-                        valueRange = 50f..100f,
-                        steps = 9,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    // Max Image Size Slider
-                    Text(
-                        text = "Max Image Size: ${settings.maxImageSize}px",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Slider(
-                        value = settings.maxImageSize.toFloat(),
-                        onValueChange = { value ->
-                            onSettingsChange(settings.copy(maxImageSize = value.toInt()))
-                        },
-                        valueRange = 1500f..4000f,
-                        steps = 24,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-            }
-            // Advanced Settings Section
-            var advancedExpanded by remember { mutableStateOf(false) }
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Clickable header
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { advancedExpanded = !advancedExpanded },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Advanced Settings",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Icon(
-                            painter = painterResource(
-                                id = if (advancedExpanded) R.drawable.expandless else R.drawable.expandmore
-                            ),
-                            contentDescription = if (advancedExpanded) "Collapse" else "Expand",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    // Expandable content
-                    if (advancedExpanded) {
-                        // Translation Models Base URL
-                        Text(
-                            text = "Base URL for Translation Models",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        OutlinedTextField(
-                            value = settings.translationModelsBaseUrl,
-                            onValueChange = {
-                                onSettingsChange(settings.copy(translationModelsBaseUrl = it))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        // Tesseract Models Base URL
-                        Text(
-                            text = "Base URL for Tesseract Models",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        OutlinedTextField(
-                            value = settings.tesseractModelsBaseUrl,
-                            onValueChange = {
-                                onSettingsChange(settings.copy(tesseractModelsBaseUrl = it))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        // Disable OCR Toggle
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Disable OCR",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Switch(
-                                checked = settings.disableOcr,
-                                onCheckedChange = { checked ->
-                                    onSettingsChange(settings.copy(disableOcr = checked))
-                                }
-                            )
-                        }
-
-                        // Disable CLD Toggle
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Disable automatic language detection",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Switch(
-                                checked = settings.disableCLD,
-                                onCheckedChange = { checked ->
-                                    onSettingsChange(settings.copy(disableCLD = checked))
-                                }
-                            )
-                        }
-
-                        // Disable Transliteration Toggle
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Disable transliteration",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Switch(
-                                checked = settings.disableTransliteration,
-                                onCheckedChange = { checked ->
-                                    onSettingsChange(settings.copy(disableTransliteration = checked))
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+          }
         }
+      }
+
+      // General Settings Section
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          Text(
+            text = "General",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+
+          // Default Target Language
+          var languageExpanded by remember { mutableStateOf(false) }
+
+          Text(
+            text = "Default Target Language",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          ExposedDropdownMenuBox(
+            expanded = languageExpanded,
+            onExpandedChange = { languageExpanded = it },
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            OutlinedTextField(
+              value = settings.defaultTargetLanguage.displayName,
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
+              modifier =
+                Modifier
+                  .menuAnchor()
+                  .fillMaxWidth(),
+              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            )
+            ExposedDropdownMenu(
+              expanded = languageExpanded,
+              onDismissRequest = { languageExpanded = false },
+            ) {
+              availableLanguages.forEach { language ->
+                DropdownMenuItem(
+                  text = { Text(language.displayName) },
+                  onClick = {
+                    onSettingsChange(settings.copy(defaultTargetLanguage = language))
+                    languageExpanded = false
+                  },
+                )
+              }
+            }
+          }
+        }
+      }
+
+      // OCR Settings Section - Only show if OCR is not disabled
+      if (!settings.disableOcr) {
+        Card(
+          modifier = Modifier.fillMaxWidth(),
+          colors =
+            CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            ),
+        ) {
+          Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+          ) {
+            Text(
+              text = "OCR",
+              style = MaterialTheme.typography.headlineSmall,
+              color = MaterialTheme.colorScheme.primary,
+            )
+
+            // Background Mode
+            var backgroundModeExpanded by remember { mutableStateOf(false) }
+
+            Text(
+              text = "Background Mode",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            ExposedDropdownMenuBox(
+              expanded = backgroundModeExpanded,
+              onExpandedChange = { backgroundModeExpanded = it },
+              modifier = Modifier.fillMaxWidth(),
+            ) {
+              OutlinedTextField(
+                value = settings.backgroundMode.displayName,
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = backgroundModeExpanded) },
+                modifier =
+                  Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+              )
+              ExposedDropdownMenu(
+                expanded = backgroundModeExpanded,
+                onDismissRequest = { backgroundModeExpanded = false },
+              ) {
+                BackgroundMode.entries.forEach { mode ->
+                  DropdownMenuItem(
+                    text = { Text(mode.displayName) },
+                    onClick = {
+                      onSettingsChange(settings.copy(backgroundMode = mode))
+                      backgroundModeExpanded = false
+                    },
+                  )
+                }
+              }
+            }
+
+            // Min Confidence Slider
+            Text(
+              text = "Min Confidence: ${settings.minConfidence}%",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Slider(
+              value = settings.minConfidence.toFloat(),
+              onValueChange = { value ->
+                onSettingsChange(settings.copy(minConfidence = value.toInt()))
+              },
+              valueRange = 50f..100f,
+              steps = 9,
+              modifier = Modifier.fillMaxWidth(),
+            )
+
+            // Max Image Size Slider
+            Text(
+              text = "Max Image Size: ${settings.maxImageSize}px",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Slider(
+              value = settings.maxImageSize.toFloat(),
+              onValueChange = { value ->
+                onSettingsChange(settings.copy(maxImageSize = value.toInt()))
+              },
+              valueRange = 1500f..4000f,
+              steps = 24,
+              modifier = Modifier.fillMaxWidth(),
+            )
+          }
+        }
+      }
+      // Advanced Settings Section
+      var advancedExpanded by remember { mutableStateOf(false) }
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          // Clickable header
+          Row(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .clickable { advancedExpanded = !advancedExpanded },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Text(
+              text = "Advanced Settings",
+              style = MaterialTheme.typography.headlineSmall,
+              color = MaterialTheme.colorScheme.primary,
+            )
+
+            Icon(
+              painter =
+                painterResource(
+                  id = if (advancedExpanded) R.drawable.expandless else R.drawable.expandmore,
+                ),
+              contentDescription = if (advancedExpanded) "Collapse" else "Expand",
+              tint = MaterialTheme.colorScheme.primary,
+            )
+          }
+
+          // Expandable content
+          if (advancedExpanded) {
+            // Translation Models Base URL
+            Text(
+              text = "Base URL for Translation Models",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            OutlinedTextField(
+              value = settings.translationModelsBaseUrl,
+              onValueChange = {
+                onSettingsChange(settings.copy(translationModelsBaseUrl = it))
+              },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+            )
+
+            // Tesseract Models Base URL
+            Text(
+              text = "Base URL for Tesseract Models",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            OutlinedTextField(
+              value = settings.tesseractModelsBaseUrl,
+              onValueChange = {
+                onSettingsChange(settings.copy(tesseractModelsBaseUrl = it))
+              },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+            )
+
+            // Disable OCR Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Disable OCR",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.disableOcr,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(disableOcr = checked))
+                },
+              )
+            }
+
+            // Disable CLD Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Disable automatic language detection",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.disableCLD,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(disableCLD = checked))
+                },
+              )
+            }
+
+            // Disable Transliteration Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Disable transliteration",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.disableTransliteration,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(disableTransliteration = checked))
+                },
+              )
+            }
+          }
+        }
+      }
     }
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
-    TranslatorTheme {
-        SettingsScreen(
-            settings = AppSettings(),
-            availableLanguages = Language.entries,
-            onSettingsChange = {},
-            onManageLanguages = {}
-        )
-    }
+  TranslatorTheme {
+    SettingsScreen(
+      settings = AppSettings(),
+      availableLanguages = Language.entries,
+      onSettingsChange = {},
+      onManageLanguages = {},
+    )
+  }
 }
 
 @Preview(
-    showBackground = true,
-    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+  showBackground = true,
+  uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 fun SettingsScreenDarkPreview() {
-    TranslatorTheme {
-        SettingsScreen(
-            settings = AppSettings(),
-            availableLanguages = Language.entries,
-            onSettingsChange = {},
-            onManageLanguages = {}
-        )
-    }
+  TranslatorTheme {
+    SettingsScreen(
+      settings = AppSettings(),
+      availableLanguages = Language.entries,
+      onSettingsChange = {},
+      onManageLanguages = {},
+    )
+  }
 }

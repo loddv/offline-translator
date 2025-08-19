@@ -380,6 +380,26 @@ fun SettingsScreen(
                                 }
                             )
                         }
+
+                        // Disable Transliteration Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Disable transliteration",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Switch(
+                                checked = settings.disableTransliteration,
+                                onCheckedChange = { checked ->
+                                    onSettingsChange(settings.copy(disableTransliteration = checked))
+                                }
+                            )
+                        }
                     }
                 }
             }

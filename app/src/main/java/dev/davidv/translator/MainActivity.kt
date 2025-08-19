@@ -75,6 +75,7 @@ import dev.davidv.translator.ui.components.InputSection
 import dev.davidv.translator.ui.components.LanguageSelectionRow
 import dev.davidv.translator.ui.components.TranslationOutputSection
 import dev.davidv.translator.ui.components.ZoomableImageViewer
+import dev.davidv.translator.ui.screens.TranslatedText
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,9 +100,9 @@ class MainActivity : ComponentActivity() {
 
         ocrService = OCRService(this)
         val imageProcessor = ImageProcessor(this, ocrService)
-        val translationService = TranslationService(this)
-        val languageDetector = LanguageDetector()
         val settingsManager = SettingsManager(this)
+        val translationService = TranslationService(this, settingsManager)
+        val languageDetector = LanguageDetector()
         translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager)
 
         setContent {
@@ -174,7 +175,7 @@ fun Greeting(
     
     // Current state (read-only)
     input: String,
-    output: String,
+    output: TranslatedText?,
     from: Language,
     to: Language,
     detectedLanguage: Language?,
@@ -453,7 +454,7 @@ fun GreetingPreview() {
             onSettings = {  },
             onDownloadLanguage = {  },
             input = "Example input",
-            output = "Example output",
+            output = TranslatedText("Example output", null),
             from = Language.ENGLISH,
             to = Language.SPANISH,
             detectedLanguage = Language.FRENCH,
@@ -485,7 +486,10 @@ fun PreviewVeryLongText() {
             onSettings = {  },
             onDownloadLanguage = {  },
             input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
-            output = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+            output = TranslatedText(
+                "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+                null
+            ),
             from = Language.ENGLISH,
             to = Language.ENGLISH,
             detectedLanguage = null,

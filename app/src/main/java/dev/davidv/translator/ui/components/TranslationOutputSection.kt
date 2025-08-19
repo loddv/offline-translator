@@ -29,11 +29,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.davidv.translator.ui.screens.TranslatedText
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun TranslationOutputSection(
-    output: String
+    output: TranslatedText?
 ) {
     Box(
         modifier = Modifier
@@ -48,12 +49,14 @@ fun TranslationOutputSection(
         )
     }
 
-    TranslationField(
-        text = output,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp)
-    )
+    if (output != null) {
+        TranslationField(
+            text = output,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+        )
+    }
 }
 
 @Preview(showBackground = true)
@@ -61,7 +64,10 @@ fun TranslationOutputSection(
 fun TranslationOutputSectionPreview() {
     TranslatorTheme {
         TranslationOutputSection(
-            output = "This is the translated text output that appears in the translation field below the divider."
+            output = TranslatedText(
+                "This is the translated text output that appears in the translation field below the divider.",
+                null
+            )
         )
     }
 }
@@ -71,7 +77,7 @@ fun TranslationOutputSectionPreview() {
 fun TranslationOutputSectionEmptyPreview() {
     TranslatorTheme {
         TranslationOutputSection(
-            output = ""
+            output = TranslatedText("", null)
         )
     }
 }
@@ -84,7 +90,10 @@ fun TranslationOutputSectionEmptyPreview() {
 fun TranslationOutputSectionDarkPreview() {
     TranslatorTheme {
         TranslationOutputSection(
-            output = "Translated text in dark mode with proper theming and contrast."
+            output = TranslatedText(
+                "Translated text in dark mode with proper theming and contrast.",
+                null
+            )
         )
     }
 }
@@ -94,7 +103,10 @@ fun TranslationOutputSectionDarkPreview() {
 fun TranslationOutputSectionLongTextPreview() {
     TranslatorTheme {
         TranslationOutputSection(
-            output = "This is a very long translation that demonstrates how the component handles multiple lines of text. It should wrap properly and maintain good readability throughout the entire text content. The translation field should scroll if the content exceeds the available space."
+            output = TranslatedText(
+                "This is a very long translation that demonstrates how the component handles multiple lines of text. It should wrap properly and maintain good readability throughout the entire text content. The translation field should scroll if the content exceeds the available space.",
+                null
+            )
         )
     }
 }

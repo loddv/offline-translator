@@ -25,5 +25,6 @@ data class AppSettings(
     val minConfidence: Int = 75,
     val maxImageSize: Int = 1500,
     val disableOcr: Boolean = false,
-    val disableCLD: Boolean = false
+    val disableCLD: Boolean = false,
+    val disableTransliteration: Boolean = false
 )

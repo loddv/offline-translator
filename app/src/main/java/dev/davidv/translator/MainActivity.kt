@@ -205,7 +205,12 @@ fun Greeting(
     remember {
       val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
       val imageFile = File(context.cacheDir, "camera_image_$timeStamp.jpg")
-      FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
+      try {
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
+      } catch (e: IllegalArgumentException) {
+        // This can happen during previews when the FileProvider isn't available
+        Uri.EMPTY
+      }
     }
   // Camera launcher using MediaStore intent with EXTRA_OUTPUT
   val takePictureIntent =

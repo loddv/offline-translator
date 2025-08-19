@@ -1,0 +1,3 @@
+- Added transliteration for non-Latin scripts
+- Fixed downloads for Chinese & Japanese
+- Fixed some language files being downloaded twice

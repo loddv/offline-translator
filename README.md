@@ -38,7 +38,7 @@ $ANDROID_SDK/emulator/qemu/linux-x86_64/qemu-system-x86_64 -netdelay none -netsp
 
 If you don't do this, you will just get a `SIGILL` when trying to load the library.
 
-## Building & signing
+## Building
 
 ```sh
 bash build.sh
@@ -46,6 +46,15 @@ bash build.sh
 
 will trigger a build in a docker container, matching the CI environment.
 
+## Releasing
+
+- Bump `app/build.gradle.kts` versionName and versionCode
+- Create a changelog in `fastlane/metadata/android/en-US/changelogs` as `${versionCode}.txt`
+- Create a tag that is `v${versionName}` (eg: `v0.1.0`)
+- Create a Github release named `v${versionName}` (eg: `v0.1.0`)
+  - Upload the _signed_ APK to the release
+
+## Signing APK
 ```sh
 bash sign-apk.sh keystore.jks keystorepass pass alias
 ```

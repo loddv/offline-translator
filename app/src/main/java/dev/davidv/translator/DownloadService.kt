@@ -38,8 +38,52 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 import java.net.URL
 import java.util.zip.GZIPInputStream
+
+class TrackingInputStream(
+  private val inputStream: InputStream,
+  private val size: Long,
+  private val onProgress: (Float) -> Unit
+) : InputStream() {
+  private var totalBytesRead = 0L
+  private var lastReportedProgress = 0f
+
+  override fun read(): Int {
+    val byte = inputStream.read()
+    if (byte != -1) {
+      totalBytesRead++
+      checkProgress()
+    }
+    return byte
+  }
+
+  override fun read(b: ByteArray, off: Int, len: Int): Int {
+    val bytesRead = inputStream.read(b, off, len)
+    if (bytesRead > 0) {
+      totalBytesRead += bytesRead
+      checkProgress()
+    }
+    return bytesRead
+  }
+
+  private fun checkProgress() {
+    if (size > 0) {
+      val currentProgress = totalBytesRead.toFloat() / size.toFloat()
+      val incrementalProgress = currentProgress - lastReportedProgress
+      if (incrementalProgress > 0.05f) {
+        onProgress(incrementalProgress)
+        lastReportedProgress = currentProgress
+      }
+    }
+  }
+
+  override fun close() {
+    onProgress(1.0f - lastReportedProgress)
+    inputStream.close()
+  }
+}
 
 class DownloadService : Service() {
   private val binder = DownloadBinder()
@@ -139,16 +183,6 @@ class DownloadService : Service() {
     // Don't start if already downloading
     if (_downloadStates.value[language]?.isDownloading == true) return
 
-    updateDownloadState(language) {
-      it.copy(
-        isDownloading = true,
-        // show _something_
-        progress = 0.01f,
-        error = null,
-        isCancelled = false,
-      )
-    }
-
     val job =
       serviceScope.launch {
         try {
@@ -158,51 +192,33 @@ class DownloadService : Service() {
 
           // Prepare download tasks
           if (!checkLanguagePairFiles(this@DownloadService, language, Language.ENGLISH)) {
-            downloadTasks.add {
-              downloadLanguagePair(this@DownloadService, language, Language.ENGLISH)
-            }
+            downloadTasks.addAll(downloadLanguagePair(this@DownloadService, language, Language.ENGLISH))
           }
 
           if (!checkLanguagePairFiles(this@DownloadService, Language.ENGLISH, language)) {
-            downloadTasks.add {
-              downloadLanguagePair(this@DownloadService, Language.ENGLISH, language)
-            }
+            downloadTasks.addAll(downloadLanguagePair(this@DownloadService, Language.ENGLISH, language))
           }
 
           if (!checkTessDataFile(this@DownloadService, language)) {
-            downloadTasks.add {
-              downloadTessData(this@DownloadService, language)
-            }
+            downloadTasks.add { downloadTessData(this@DownloadService, language) }
           }
 
           // Always ensure English OCR is available
           if (!checkTessDataFile(this@DownloadService, Language.ENGLISH)) {
-            downloadTasks.add {
-              downloadTessData(this@DownloadService, Language.ENGLISH)
-            }
+            downloadTasks.add { downloadTessData(this@DownloadService, Language.ENGLISH) }
           }
 
           // Execute all downloads in parallel
           var success = true
           if (downloadTasks.isNotEmpty()) {
-            updateProgress(
-              language,
-              0f,
-              "Downloading ${downloadTasks.size} files in parallel...",
-            )
-
-            val downloadJobs =
-              downloadTasks.mapIndexed { index, task ->
-                async {
-                  val ret = task()
-                  updateProgress(
-                    language,
-                    1f / downloadTasks.size,
-                    "Downloaded index $index out of ${downloadTasks.size} files",
-                  )
-                  return@async ret
-                }
-              }
+            updateDownloadState(language) {
+              it.copy(
+                isDownloading = true,
+                progress = 0.01f, taskCount = downloadTasks.count()
+              )
+            }
+            Log.i("DownloadService", "Starting ${downloadTasks.count()} download jobs")
+            val downloadJobs = downloadTasks.map { task -> async { task() } }
             success = downloadJobs.awaitAll().all { it }
           }
 
@@ -216,6 +232,8 @@ class DownloadService : Service() {
           }
           if (success) {
             showNotification("Download Complete", "${language.displayName} is ready to use")
+          } else {
+            showNotification("Download failed", "${language.displayName} download failed")
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "Download failed for ${language.displayName}", e)
@@ -305,15 +323,6 @@ class DownloadService : Service() {
     }
   }
 
-  private fun updateProgress(
-    language: Language,
-    progress: Float,
-    message: String,
-  ) {
-    updateDownloadState(language) { it.copy(progress = progress + it.progress) }
-    showNotification("Downloading ${language.displayName}", message)
-  }
-
   private fun updateDownloadState(
     language: Language,
     update: (DownloadState) -> DownloadState,
@@ -324,11 +333,11 @@ class DownloadService : Service() {
     _downloadStates.value = currentStates
   }
 
-  private suspend fun downloadLanguagePair(
+  private fun downloadLanguagePair(
     context: Context,
     from: Language,
     to: Language,
-  ): Boolean {
+  ): List<suspend () -> Boolean> {
     val f = filesFor(from, to)
     val files = listOf(f.model, f.lex) + f.vocab
     val lang = "${from.code}${to.code}"
@@ -345,27 +354,25 @@ class DownloadService : Service() {
 
     if (modelQuality == null) {
       Log.w("DownloadService", "Could not find model quality for $from -> $to")
-      return false
+      return emptyList()
     }
 
-    return withContext(Dispatchers.IO) {
       // prevent duplicated files (vocab are listed twice)
       val downloadJobs =
-        files.toSet().map { fileName ->
-          async {
-            val file = File(dataPath, fileName)
-            if (!file.exists()) {
+        files.toSet().mapNotNull { fileName ->
+          val file = File(dataPath, fileName)
+          if (!file.exists()) {
+            suspend {
               val url = "$base/$modelQuality/$lang/$fileName.gz"
-              val success = downloadAndDecompress(url, file)
+              val success = downloadAndDecompress(url, file, from)
               Log.i("DownloadService", "Downloaded $url to $file = $success")
               success
-            } else {
-              true
             }
+          } else {
+            null
           }
         }
-      return@withContext downloadJobs.awaitAll().all { it }
-    }
+    return downloadJobs
   }
 
   private suspend fun downloadTessData(
@@ -383,19 +390,20 @@ class DownloadService : Service() {
     if (tessFile.exists()) {
       return true
     }
-    withContext(Dispatchers.IO) {
-      val success = download(url, tessFile)
+    return withContext(Dispatchers.IO) {
+      val success = download(url, tessFile, language)
       Log.i(
         "DownloadService",
         "Downloaded tessdata for ${language.displayName} = $url: $success",
       )
+      return@withContext success
     }
-    return true
   }
 
   private suspend fun download(
     url: String,
     outputFile: File,
+    language: Language,
     decompress: Boolean = false,
   ) = withContext(Dispatchers.IO) {
     val tempFile = File(outputFile.parentFile, "${outputFile.name}.tmp")
@@ -403,11 +411,18 @@ class DownloadService : Service() {
     try {
       outputFile.parentFile?.mkdirs()
 
-      URL(url).openStream().use { input ->
-        val processedInput = if (decompress) GZIPInputStream(input) else input
-        processedInput.use { stream ->
-          tempFile.outputStream().use { output ->
-            val buffer = ByteArray(8192)
+      val conn = URL(url).openConnection()
+      val size = conn.contentLengthLong
+      Log.i("DownloadService", "URL $url has size $size (${size / 1024 / 1024f}MB)")
+      conn.getInputStream().use { rawInputStream ->
+        val trackingStream = TrackingInputStream(rawInputStream, size) { incrementalProgress ->
+          updateDownloadState(language) { it.copy(progress = it.progress + (incrementalProgress / it.taskCount.toFloat())) }
+        }
+
+        tempFile.outputStream().use { output ->
+          val processedInput = if (decompress) GZIPInputStream(trackingStream) else trackingStream
+          processedInput.use { stream ->
+            val buffer = ByteArray(16384)
             var bytesRead: Int
             while (stream.read(buffer).also { bytesRead = it } != -1) {
               output.write(buffer, 0, bytesRead)
@@ -442,7 +457,8 @@ class DownloadService : Service() {
   private suspend fun downloadAndDecompress(
     url: String,
     outputFile: File,
-  ) = download(url, outputFile, decompress = true)
+    language: Language,
+  ) = download(url, outputFile, language, decompress = true)
 
   private fun createNotificationChannel() {
     val channel =
@@ -510,5 +526,6 @@ data class DownloadState(
   val isCompleted: Boolean = false,
   val isCancelled: Boolean = false,
   val progress: Float = 0f,
+  val taskCount: Int = 1,
   val error: String? = null,
 )

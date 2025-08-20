@@ -65,7 +65,6 @@ fun SettingsScreen(
   onSettingsChange: (AppSettings) -> Unit,
   onManageLanguages: () -> Unit,
 ) {
-  println("hi")
   Scaffold(
     topBar = {
       TopAppBar(

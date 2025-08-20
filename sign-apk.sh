@@ -19,7 +19,14 @@ KEY_PASSWORD="$3"
 KEY_ALIAS="$4"
 
 # Find the unsigned APK
-unsigned_apk=$(find app/build/outputs/apk -name "*-release-unsigned.apk" | head -1)
+if [ -n "${SIGN_DEBUG:-}" ]; then
+  echo "Signing debug APK"
+  unsigned_apk=$(find app/build/outputs/apk -name "*-debug.apk" | head -1)
+else
+  echo "Signing release APK"
+  unsigned_apk=$(find app/build/outputs/apk -name "*-release-unsigned.apk" | head -1)
+fi
+
 if [ -z "$unsigned_apk" ]; then
     echo "No APK found to sign"
     exit 1

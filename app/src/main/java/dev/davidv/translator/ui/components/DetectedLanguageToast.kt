@@ -39,7 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.Language
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -49,9 +48,7 @@ fun DetectedLanguageToast(
   detectedLanguage: Language,
   availableLanguages: Map<String, Boolean>,
   onSwitchClick: () -> Unit,
-  onDownloadLanguage: (Language) -> Unit,
   modifier: Modifier = Modifier,
-  downloadService: DownloadService? = null,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
 ) {
   Row(
@@ -118,8 +115,6 @@ fun DetectedLanguageToastPreview() {
       detectedLanguage = Language.SPANISH,
       availableLanguages = mapOf(Language.SPANISH.code to true),
       onSwitchClick = {},
-      onDownloadLanguage = {},
-      downloadService = null,
       downloadStates = emptyMap(),
     )
   }
@@ -136,8 +131,6 @@ fun DetectedLanguageToastDarkPreview() {
       detectedLanguage = Language.FRENCH,
       availableLanguages = mapOf(Language.FRENCH.code to true),
       onSwitchClick = {},
-      onDownloadLanguage = {},
-      downloadService = null,
       downloadStates = emptyMap(),
     )
   }
@@ -154,8 +147,6 @@ fun MissingLanguage() {
       detectedLanguage = Language.SPANISH,
       availableLanguages = mapOf(Language.FRENCH.code to false),
       onSwitchClick = {},
-      onDownloadLanguage = {},
-      downloadService = null,
       downloadStates = emptyMap(),
     )
   }

@@ -46,9 +46,7 @@ object TransliterationService {
   private fun shouldTransliterate(
     language: Language,
     targetScript: String = "Latin",
-  ): Boolean {
-    return language.script != targetScript && scriptComponents.containsKey(language.script)
-  }
+  ): Boolean = language.script != targetScript && scriptComponents.containsKey(language.script)
 
   private fun getTransliterationRule(
     fromScript: String,
@@ -78,19 +76,9 @@ object TransliterationService {
     }
   }
 
-  // Debug function to see generated transliteration rules
-  private fun getGeneratedRuleForScript(
-    script: String,
-    targetScript: String = "Latin",
-  ): String? {
-    return getTransliterationRule(script, targetScript)?.also { rule ->
-      Log.d("TransliterationService", "Generated rule for $script -> $targetScript: $rule")
-    }
-  }
-
   @RequiresApi(Build.VERSION_CODES.Q)
-  private fun getTransliterator(rule: String): Transliterator? {
-    return transliterators.getOrPut(rule) {
+  private fun getTransliterator(rule: String): Transliterator? =
+    transliterators.getOrPut(rule) {
       try {
         Transliterator.getInstance(rule)
       } catch (e: Exception) {
@@ -98,5 +86,4 @@ object TransliterationService {
         null
       }
     }
-  }
 }

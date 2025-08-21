@@ -52,11 +52,12 @@ class TranslationCoordinator(
       when (val result = translationService.translate(from, to, text)) {
         is TranslationResult.Success -> result
         is TranslationResult.Error -> {
-          Toast.makeText(
-            context,
-            "Translation error: ${result.message}",
-            Toast.LENGTH_SHORT,
-          ).show()
+          Toast
+            .makeText(
+              context,
+              "Translation error: ${result.message}",
+              Toast.LENGTH_SHORT,
+            ).show()
           null
         }
       }
@@ -65,9 +66,7 @@ class TranslationCoordinator(
     }
   }
 
-  suspend fun detectLanguage(text: String): Language? {
-    return languageDetector.detectLanguage(text)
-  }
+  suspend fun detectLanguage(text: String): Language? = languageDetector.detectLanguage(text)
 
   suspend fun translateImageWithOverlay(
     from: Language,
@@ -102,26 +101,28 @@ class TranslationCoordinator(
       _isOcrInProgress.value = false
 
       // Create translation function for overlay
-      suspend fun translateFn(text: String): String {
-        return when (val result = translationService.translate(from, to, text)) {
+      suspend fun translateFn(text: String): String =
+        when (val result = translationService.translate(from, to, text)) {
           is TranslationResult.Success -> result.result.translated
           is TranslationResult.Error -> {
-            Toast.makeText(
-              context,
-              "Translation error: ${result.message}",
-              Toast.LENGTH_SHORT,
-            ).show()
+            Toast
+              .makeText(
+                context,
+                "Translation error: ${result.message}",
+                Toast.LENGTH_SHORT,
+              ).show()
             "Error"
           }
         }
-      }
 
       Log.d("OCR", "complete, result ${processedImage.textBlocks}")
 
       val extractedText =
-        processedImage.textBlocks.map { block ->
-          block.lines.map { line -> line.text }
-        }.flatten().joinToString("\n")
+        processedImage.textBlocks
+          .map { block ->
+            block.lines.map { line -> line.text }
+          }.flatten()
+          .joinToString("\n")
 
       onMessage(TranslatorMessage.ImageTextDetected(extractedText))
 
@@ -150,7 +151,8 @@ class TranslationCoordinator(
       )
     } catch (e: Exception) {
       Log.e("TranslationCoordinator", "Exception ${e.stackTrace}")
-      Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT)
+      Toast
+        .makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT)
         .show()
       null
     } finally {

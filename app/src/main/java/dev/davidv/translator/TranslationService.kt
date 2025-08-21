@@ -20,21 +20,22 @@ package dev.davidv.translator
 import android.content.Context
 import android.util.Log
 import dev.davidv.bergamot.NativeLib
-import dev.davidv.translator.ui.screens.TranslatedText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class TranslationService(private val context: Context, private val settingsManager: SettingsManager) {
+class TranslationService(
+  private val context: Context,
+  private val settingsManager: SettingsManager,
+) {
   companion object {
     @Volatile
     private var nativeLibInstance: NativeLib? = null
 
-    private fun getNativeLib(): NativeLib {
-      return nativeLibInstance ?: synchronized(this) {
+    private fun getNativeLib(): NativeLib =
+      nativeLibInstance ?: synchronized(this) {
         nativeLibInstance ?: NativeLib().also { nativeLibInstance = it }
       }
-    }
 
     fun cleanup() {
       synchronized(this) {
@@ -113,14 +114,13 @@ class TranslationService(private val context: Context, private val settingsManag
   private fun getTranslationPairs(
     from: Language,
     to: Language,
-  ): List<Pair<Language, Language>> {
-    return when {
+  ): List<Pair<Language, Language>> =
+    when {
       from == Language.ENGLISH && to == Language.ENGLISH -> emptyList()
       from == Language.ENGLISH -> listOf(from to to)
       to == Language.ENGLISH -> listOf(from to to)
       else -> listOf(from to Language.ENGLISH, Language.ENGLISH to to) // Pivot through English
     }
-  }
 
   private fun performTranslation(
     pairs: List<Pair<Language, Language>>,
@@ -168,7 +168,11 @@ alignment: soft
 }
 
 sealed class TranslationResult {
-  data class Success(val result: TranslatedText) : TranslationResult()
+  data class Success(
+    val result: TranslatedText,
+  ) : TranslationResult()
 
-  data class Error(val message: String) : TranslationResult()
+  data class Error(
+    val message: String,
+  ) : TranslationResult()
 }

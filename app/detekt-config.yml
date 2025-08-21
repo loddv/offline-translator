@@ -12,8 +12,10 @@ style:
   ForbiddenComment:
     active: false
   MaxLineLength:
+    active: false
+  ReturnCount:
     active: true
-    excludeRawStrings: true
+    max: 3
 
 exceptions:
   active: true
@@ -36,9 +38,14 @@ naming:
 
 complexity:
   active: true
-  LongMethod:
+  LongMethod:  # TODO
     active: false
-  LongParameterList:
+  LongParameterList:  # TODO
     active: false
-  CyclomaticComplexMethod:
+  CyclomaticComplexMethod:  # TODO
     active: false
+  TooManyFunctions:
+    active: false
+  NestedBlockDepth:
+    active: true
+    threshold: 5

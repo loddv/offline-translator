@@ -17,7 +17,9 @@
 
 package dev.davidv.translator
 
-enum class ModelType(private val pathName: String) {
+enum class ModelType(
+  private val pathName: String,
+) {
   BASE("base"),
   BASE_MEMORY("base-memory"),
   TINY("tiny"),
@@ -26,7 +28,12 @@ enum class ModelType(private val pathName: String) {
   override fun toString(): String = pathName
 }
 
-enum class Language(val code: String, val tessName: String, val displayName: String, val script: String) {
+enum class Language(
+  val code: String,
+  val tessName: String,
+  val displayName: String,
+  val script: String,
+) {
   ALBANIAN("sq", "sqi", "Albanian", "Latin"),
   ARABIC("ar", "ara", "Arabic", "Arabic"),
   AZERBAIJANI("az", "aze", "Azerbaijani", "Latin"),

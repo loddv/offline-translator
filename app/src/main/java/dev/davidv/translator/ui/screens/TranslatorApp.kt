@@ -47,16 +47,12 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.SettingsManager
+import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-
-data class TranslatedText(
-  val translated: String,
-  val transliterated: String?,
-)
 
 @Composable
 fun TranslatorApp(
@@ -410,9 +406,6 @@ fun TranslatorApp(
         Greeting(
           // Navigation
           onSettings = { navController.navigate("settings") },
-          onDownloadLanguage = { language ->
-            navController.navigate("language_manager")
-          },
           // Current state (read-only)
           input = input,
           output = output,
@@ -427,7 +420,6 @@ fun TranslatorApp(
           // System integration
           sharedImageUri = sharedImageUri,
           availableLanguages = languageState.availableLanguageMap,
-          downloadService = downloadService,
           downloadStates = downloadStates,
           settings = settings,
         )

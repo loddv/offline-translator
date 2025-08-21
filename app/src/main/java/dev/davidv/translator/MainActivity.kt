@@ -74,7 +74,6 @@ import dev.davidv.translator.ui.components.InputSection
 import dev.davidv.translator.ui.components.LanguageSelectionRow
 import dev.davidv.translator.ui.components.TranslationField
 import dev.davidv.translator.ui.components.ZoomableImageViewer
-import dev.davidv.translator.ui.screens.TranslatedText
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -167,7 +166,6 @@ class MainActivity : ComponentActivity() {
 fun Greeting(
   // Navigation
   onSettings: () -> Unit,
-  onDownloadLanguage: (Language) -> Unit,
   // Current state (read-only)
   input: String,
   output: TranslatedText?,
@@ -182,7 +180,6 @@ fun Greeting(
   // System integration
   sharedImageUri: Uri? = null,
   availableLanguages: Map<String, Boolean>,
-  downloadService: DownloadService? = null,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
   settings: AppSettings,
 ) {
@@ -207,6 +204,7 @@ fun Greeting(
       try {
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
       } catch (e: IllegalArgumentException) {
+        Log.e("MainActivity", "Failed to find FAB image. Should only happen during development")
         // This can happen during previews when the FileProvider isn't available
         Uri.EMPTY
       }
@@ -308,8 +306,6 @@ fun Greeting(
           from = from,
           availableLanguages = availableLanguages,
           onMessage = onMessage,
-          onDownloadLanguage = onDownloadLanguage,
-          downloadService = downloadService,
           downloadStates = downloadStates,
         )
         Box(
@@ -480,7 +476,6 @@ fun GreetingPreview() {
   TranslatorTheme {
     Greeting(
       onSettings = { },
-      onDownloadLanguage = { },
       input = "Example input",
       output = TranslatedText("Example output", null),
       from = Language.ENGLISH,
@@ -497,7 +492,6 @@ fun GreetingPreview() {
           Language.SPANISH.code to true,
           Language.FRENCH.code to true,
         ),
-      downloadService = null,
       downloadStates = emptyMap(),
       settings = AppSettings(),
     )
@@ -513,7 +507,6 @@ fun PreviewVeryLongText() {
   TranslatorTheme {
     Greeting(
       onSettings = { },
-      onDownloadLanguage = { },
       input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
       output =
         TranslatedText(
@@ -534,7 +527,6 @@ fun PreviewVeryLongText() {
           Language.SPANISH.code to true,
           Language.FRENCH.code to true,
         ),
-      downloadService = null,
       downloadStates = emptyMap(),
       settings = AppSettings(),
     )

@@ -35,9 +35,15 @@ import kotlin.io.path.pathString
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
 
-data class TextLine(var text: String, var boundingBox: Rect, var wordRects: Array<Rect>)
+data class TextLine(
+  var text: String,
+  var boundingBox: Rect,
+  var wordRects: Array<Rect>,
+)
 
-data class TextBlock(val lines: Array<TextLine>)
+data class TextBlock(
+  val lines: Array<TextLine>,
+)
 
 data class WordInfo(
   val text: String,

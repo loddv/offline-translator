@@ -138,11 +138,12 @@ fun LanguageManagerScreen(
   LaunchedEffect(downloadStates) {
     downloadStates.values.forEach { downloadState ->
       if (downloadState.error != null) {
-        Toast.makeText(
-          context,
-          "Download failed: ${downloadState.error}",
-          Toast.LENGTH_LONG,
-        ).show()
+        Toast
+          .makeText(
+            context,
+            "Download failed: ${downloadState.error}",
+            Toast.LENGTH_LONG,
+          ).show()
       }
     }
   }
@@ -153,16 +154,14 @@ fun LanguageManagerScreen(
       val language = downloadState.language
 
       // Refresh status when download completes or when state is reset (indicating deletion)
-      if (downloadState.isCompleted ||
-        (!downloadState.isDownloading && !downloadState.isCancelled && downloadState.error == null)
-      ) {
+      if (downloadState.isCompleted) {
         withContext(Dispatchers.IO) {
           val toEnglishDownloaded =
             checkLanguagePairFiles(context, language, Language.ENGLISH)
           val fromEnglishDownloaded =
             checkLanguagePairFiles(context, Language.ENGLISH, language)
           val tessDownloaded = checkTessDataFile(context, language)
-
+          val downloadedAnything = toEnglishDownloaded || fromEnglishDownloaded || tessDownloaded
           languageStates[language] =
             LanguageStatus(
               language = language,
@@ -172,14 +171,12 @@ fun LanguageManagerScreen(
             )
 
           // Notify when first language is downloaded
-          if (downloadState.isCompleted && (toEnglishDownloaded || fromEnglishDownloaded)) {
+          if (toEnglishDownloaded || fromEnglishDownloaded) {
             onLanguageDownloaded()
           }
 
           // Notify when language is deleted (state reset and no files)
-          if (!downloadState.isDownloading && !downloadState.isCompleted &&
-            !toEnglishDownloaded && !fromEnglishDownloaded && !tessDownloaded
-          ) {
+          if (!downloadState.isDownloading && !downloadedAnything) {
             // Check if ALL languages are now deleted
             val allLanguagesDeleted =
               languageStates.values.all { status ->
@@ -239,7 +236,11 @@ fun LanguageManagerScreen(
       }
 
       // Separate languages into installed and available
-      val allLanguages = languageStates.values.toList().filterNot { it.language == Language.ENGLISH }.sortedBy { it.language.displayName }
+      val allLanguages =
+        languageStates.values
+          .toList()
+          .filterNot { it.language == Language.ENGLISH }
+          .sortedBy { it.language.displayName }
       val installedLanguages =
         allLanguages.filter { status ->
           status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
@@ -266,7 +267,6 @@ fun LanguageManagerScreen(
             LanguageItem(
               status = status,
               downloadState = downloadStates[status.language],
-              downloadService = downloadService,
               context = context,
             )
           }
@@ -288,7 +288,6 @@ fun LanguageManagerScreen(
             LanguageItem(
               status = status,
               downloadState = downloadStates[status.language],
-              downloadService = downloadService,
               context = context,
             )
           }
@@ -302,7 +301,6 @@ fun LanguageManagerScreen(
 private fun LanguageItem(
   status: LanguageStatus,
   downloadState: DownloadState?,
-  downloadService: DownloadService?,
   context: Context,
 ) {
   val isFullyDownloaded =
@@ -338,7 +336,8 @@ fun checkLanguagePairFiles(
         files.vocab[1],
       ).exists() &&
       File(
-        dataPath, files.lex,
+        dataPath,
+        files.lex,
       ).exists()
   return hasAll
 }
@@ -355,9 +354,10 @@ fun checkTessDataFile(
 
 fun getAvailableTessLanguages(context: Context): String {
   val availableLanguages =
-    Language.entries.filter { language ->
-      checkTessDataFile(context, language)
-    }.map { it.tessName }
+    Language.entries
+      .filter { language ->
+        checkTessDataFile(context, language)
+      }.map { it.tessName }
 
   val languageString = availableLanguages.joinToString("+")
   Log.i("LanguageManager", "Available tess languages: $languageString")

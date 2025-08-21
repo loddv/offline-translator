@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.Language
 import dev.davidv.translator.TranslatorMessage
@@ -35,8 +34,6 @@ fun DetectedLanguageSection(
   from: Language,
   availableLanguages: Map<String, Boolean>,
   onMessage: (TranslatorMessage) -> Unit,
-  onDownloadLanguage: (Language) -> Unit,
-  downloadService: DownloadService?,
   downloadStates: Map<Language, DownloadState>,
 ) {
   if (detectedLanguage != null && detectedLanguage != from) {
@@ -46,9 +43,7 @@ fun DetectedLanguageSection(
       onSwitchClick = {
         onMessage(TranslatorMessage.FromLang(detectedLanguage))
       },
-      onDownloadLanguage = onDownloadLanguage,
       modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-      downloadService = downloadService,
       downloadStates = downloadStates,
     )
   }
@@ -69,8 +64,6 @@ fun DetectedLanguageSectionPreview() {
           Language.GERMAN.code to false,
         ),
       onMessage = {},
-      onDownloadLanguage = {},
-      downloadService = null,
       downloadStates = emptyMap(),
     )
   }
@@ -90,8 +83,6 @@ fun DetectedLanguageSectionNoDetectionPreview() {
           Language.FRENCH.code to true,
         ),
       onMessage = {},
-      onDownloadLanguage = {},
-      downloadService = null,
       downloadStates = emptyMap(),
     )
   }
@@ -114,8 +105,6 @@ fun DetectedLanguageSectionDarkPreview() {
           Language.GERMAN.code to true,
         ),
       onMessage = {},
-      onDownloadLanguage = {},
-      downloadService = null,
       downloadStates = emptyMap(),
     )
   }

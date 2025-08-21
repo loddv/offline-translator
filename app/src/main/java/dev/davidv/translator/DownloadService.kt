@@ -483,9 +483,13 @@ class DownloadService : Service() {
     content: String,
   ) {
     val notification =
-      NotificationCompat.Builder(this, CHANNEL_ID).setContentTitle(title)
-        .setContentText(content).setSmallIcon(R.drawable.add) // You'll need to add an icon
-        .setOngoing(true).build()
+      NotificationCompat
+        .Builder(this, CHANNEL_ID)
+        .setContentTitle(title)
+        .setContentText(content)
+        .setSmallIcon(R.drawable.add) // You'll need to add an icon
+        .setOngoing(true)
+        .build()
 
     notificationManager.notify(NOTIFICATION_ID, notification)
   }
@@ -498,26 +502,22 @@ class DownloadService : Service() {
   }
 
   private fun cleanupTempFiles() {
-    try {
-      val binDir = File(filesDir, "bin")
-      if (binDir.exists()) {
-        binDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
-          if (tempFile.delete()) {
-            Log.d("DownloadService", "Cleaned up temp file: ${tempFile.name}")
-          }
+    val binDir = File(filesDir, "bin")
+    if (binDir.exists()) {
+      binDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
+        if (tempFile.delete()) {
+          Log.d("DownloadService", "Cleaned up temp file: ${tempFile.name}")
         }
       }
+    }
 
-      val tessDir = File(filesDir, "tesseract/tessdata")
-      if (tessDir.exists()) {
-        tessDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
-          if (tempFile.delete()) {
-            Log.d("DownloadService", "Cleaned up temp file: ${tempFile.name}")
-          }
+    val tessDir = File(filesDir, "tesseract/tessdata")
+    if (tessDir.exists()) {
+      tessDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
+        if (tempFile.delete()) {
+          Log.d("DownloadService", "Cleaned up temp file: ${tempFile.name}")
         }
       }
-    } catch (e: Exception) {
-      Log.w("DownloadService", "Error cleaning up temp files", e)
     }
   }
 

@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class SettingsManager(context: Context) {
+class SettingsManager(
+  context: Context,
+) {
   private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
   // Track which settings have been explicitly modified - initialize first
@@ -37,7 +39,7 @@ class SettingsManager(context: Context) {
 
     // Build set of modified settings from SharedPreferences
     modifiedSettings.clear()
-    prefs.all.keys?.forEach { key ->
+    prefs.all.keys.forEach { key ->
       modifiedSettings.add(key)
     }
 
@@ -62,7 +64,7 @@ class SettingsManager(context: Context) {
       if (backgroundModeName != null) {
         try {
           BackgroundMode.valueOf(backgroundModeName)
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
           defaults.backgroundMode
         }
       } else {

@@ -44,7 +44,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.R
-import dev.davidv.translator.ui.screens.TranslatedText
+import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable

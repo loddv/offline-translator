@@ -32,7 +32,6 @@ import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.pathString
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
 
@@ -164,23 +163,7 @@ fun getSentences(
         if (boundingBox.right < line.boundingBox.left) {
           Log.e("OCRService", "going to break $boundingBox ${line.boundingBox}")
         }
-        line.boundingBox =
-          Rect(
-            // left is immutable
-            line.boundingBox.left,
-            // top can be stretched upwards ('g' -> 'T')
-            min(
-              line.boundingBox.top,
-              boundingBox.top,
-            ),
-            // Right takes the right of the new word always
-            boundingBox.right,
-            // bottom can be stretched ('a' -> 'g')
-            max(
-              line.boundingBox.bottom,
-              boundingBox.bottom,
-            ),
-          )
+        line.boundingBox.union(boundingBox)
         if (line.boundingBox.width() < 0) {
           Log.e("OCRService", "Found a line with bbw < 0: ${line.boundingBox}")
         }

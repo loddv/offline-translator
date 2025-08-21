@@ -154,38 +154,35 @@ fun LanguageManagerScreen(
       val language = downloadState.language
 
       // Refresh status when download completes or when state is reset (indicating deletion)
-      if (downloadState.isCompleted) {
-        withContext(Dispatchers.IO) {
-          val toEnglishDownloaded =
-            checkLanguagePairFiles(context, language, Language.ENGLISH)
-          val fromEnglishDownloaded =
-            checkLanguagePairFiles(context, Language.ENGLISH, language)
-          val tessDownloaded = checkTessDataFile(context, language)
-          val downloadedAnything = toEnglishDownloaded || fromEnglishDownloaded || tessDownloaded
-          languageStates[language] =
-            LanguageStatus(
-              language = language,
-              toEnglishDownloaded = toEnglishDownloaded,
-              fromEnglishDownloaded = fromEnglishDownloaded,
-              tessDownloaded = tessDownloaded,
-            )
+      Log.i("LanguageManager", "$downloadState")
+      withContext(Dispatchers.IO) {
+        val toEnglishDownloaded = checkLanguagePairFiles(context, language, Language.ENGLISH)
+        val fromEnglishDownloaded = checkLanguagePairFiles(context, Language.ENGLISH, language)
+        val tessDownloaded = checkTessDataFile(context, language)
+        val downloadedAnything = toEnglishDownloaded || fromEnglishDownloaded || tessDownloaded
+        languageStates[language] =
+          LanguageStatus(
+            language = language,
+            toEnglishDownloaded = toEnglishDownloaded,
+            fromEnglishDownloaded = fromEnglishDownloaded,
+            tessDownloaded = tessDownloaded,
+          )
 
-          // Notify when first language is downloaded
-          if (toEnglishDownloaded || fromEnglishDownloaded) {
-            onLanguageDownloaded()
-          }
+        // Notify when first language is downloaded
+        if (toEnglishDownloaded || fromEnglishDownloaded) {
+          onLanguageDownloaded()
+        }
 
-          // Notify when language is deleted (state reset and no files)
-          if (!downloadState.isDownloading && !downloadedAnything) {
-            // Check if ALL languages are now deleted
-            val allLanguagesDeleted =
-              languageStates.values.all { status ->
-                !status.toEnglishDownloaded && !status.fromEnglishDownloaded && !status.tessDownloaded
-              }
-
-            if (allLanguagesDeleted) {
-              onLanguageDeleted()
+        // Notify when language is deleted (state reset and no files)
+        if (!downloadState.isDownloading && !downloadedAnything) {
+          // Check if ALL languages are now deleted
+          val allLanguagesDeleted =
+            languageStates.values.all { status ->
+              !status.toEnglishDownloaded && !status.fromEnglishDownloaded && !status.tessDownloaded
             }
+
+          if (allLanguagesDeleted) {
+            onLanguageDeleted()
           }
         }
       }

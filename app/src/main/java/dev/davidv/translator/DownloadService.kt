@@ -270,8 +270,6 @@ class DownloadService : Service() {
     serviceScope.launch {
       showNotification("Deleting ${language.displayName}", "Removing language files...")
 
-      var deletedFiles = 0
-
       withContext(Dispatchers.IO) {
         // Delete translation files (to and from English)
         val dataPath = File(this@DownloadService.filesDir, "bin")
@@ -281,7 +279,6 @@ class DownloadService : Service() {
         listOf(files.lex, files.model, files.vocab[0], files.vocab[1]).forEach { fileName ->
           val file = File(dataPath, fileName)
           if (file.exists() && file.delete()) {
-            deletedFiles++
             Log.i("DownloadService", "Deleted: $fileName")
           }
         }
@@ -291,7 +288,6 @@ class DownloadService : Service() {
         listOf(files.lex, files.model, files.vocab[0], files.vocab[1]).forEach { fileName ->
           val file = File(dataPath, fileName)
           if (file.exists() && file.delete()) {
-            deletedFiles++
             Log.i("DownloadService", "Deleted: $fileName")
           }
         }
@@ -300,7 +296,6 @@ class DownloadService : Service() {
         val tessDataPath = File(this@DownloadService.filesDir, "tesseract/tessdata")
         val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
         if (tessFile.exists() && tessFile.delete()) {
-          deletedFiles++
           Log.i("DownloadService", "Deleted: ${tessFile.name}")
         }
       }
@@ -319,11 +314,11 @@ class DownloadService : Service() {
 
       showNotification(
         "Deletion Complete",
-        "${language.displayName} files removed ($deletedFiles files)",
+        "${language.displayName} files removed",
       )
       Log.i(
         "DownloadService",
-        "Deleted ${language.displayName} - $deletedFiles files removed",
+        "Deleted ${language.displayName}",
       )
     }
   }

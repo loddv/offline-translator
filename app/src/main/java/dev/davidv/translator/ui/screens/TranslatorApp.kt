@@ -22,6 +22,7 @@ import android.content.ServiceConnection
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.IBinder
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -218,6 +219,10 @@ fun TranslatorApp(
 
   // Centralized message handler
   val handleMessage: (TranslatorMessage) -> Unit = { message ->
+    if (message !is TranslatorMessage.TextInput) {
+      Log.d("HandleMessage", "Handle: $message")
+    }
+
     when (message) {
       is TranslatorMessage.TextInput -> {
         input = message.text
@@ -230,16 +235,18 @@ fun TranslatorApp(
               } else {
                 null
               }
+            Log.d("HandleMessage", "Detected $currentDetectedLanguage")
           }
           // Auto-translate with current languages
           scope.launch {
             val translated =
               translationCoordinator.translateText(from!!, to, message.text)
             translated?.let {
-              when (it) {
-                is TranslationResult.Success -> output = it.result
-                is TranslationResult.Error -> output = null
-              }
+              output =
+                when (it) {
+                  is TranslationResult.Success -> it.result
+                  is TranslationResult.Error -> null
+                }
             }
           }
         } else {

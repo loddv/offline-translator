@@ -239,7 +239,7 @@ fun LanguageManagerScreen(
       }
 
       // Separate languages into installed and available
-      val allLanguages = languageStates.values.toList().sortedBy { it.language.displayName }
+      val allLanguages = languageStates.values.toList().filterNot { it.language == Language.ENGLISH }.sortedBy { it.language.displayName }
       val installedLanguages =
         allLanguages.filter { status ->
           status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded

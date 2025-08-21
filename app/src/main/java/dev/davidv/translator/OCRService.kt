@@ -61,7 +61,7 @@ fun getSentences(
 
   val iter = tessInstance.resultIterator
   if (iter == null) {
-    println("NULL  ITERATOR")
+    Log.e("OCRService", "Got Null iterator from Tesseract")
     return emptyArray()
   }
 
@@ -136,9 +136,6 @@ fun getSentences(
     }
     val boundingBox = wordInfo.boundingBox
     val skippedFirstWord = boundingBox.right < line.boundingBox.left
-    if (skippedFirstWord) {
-      println(wordInfo)
-    }
     val firstWordInLine = wordInfo.isFirstInLine || skippedFirstWord
     val lastWordInLine = wordInfo.isLastInLine
     val lastWordInPara = wordInfo.isLastInPara
@@ -185,7 +182,7 @@ fun getSentences(
             ),
           )
         if (line.boundingBox.width() < 0) {
-          println("WTF?")
+          Log.e("OCRService", "Found a line with bbw < 0: ${line.boundingBox}")
         }
       }
     }

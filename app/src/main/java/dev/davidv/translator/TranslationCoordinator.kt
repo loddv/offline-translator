@@ -141,7 +141,7 @@ class TranslationCoordinator(
           allTranslatedText = pair.second
         }
 
-      println("Translating and overpainting took ${translatePaint}ms")
+      Log.i("TranslationCoordinator", "Translating and overpainting took ${translatePaint}ms")
 
       ProcessedImageResult(
         correctedBitmap = overlayBitmap,
@@ -149,7 +149,7 @@ class TranslationCoordinator(
         translatedText = allTranslatedText,
       )
     } catch (e: Exception) {
-      println(e.stackTrace)
+      Log.e("TranslationCoordinator", "Exception ${e.stackTrace}")
       Toast.makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT)
         .show()
       null

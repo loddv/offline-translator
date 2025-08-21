@@ -265,17 +265,17 @@ fun Greeting(
   ) { paddingValues ->
     Box(
       modifier =
-      Modifier
-        .fillMaxSize()
-        .navigationBarsPadding()
-        .imePadding()
-        .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp),
+        Modifier
+          .fillMaxSize()
+          .navigationBarsPadding()
+          .imePadding()
+          .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp),
     ) {
       Column(
         modifier =
-        Modifier
-          .fillMaxSize()
-          .padding(horizontal = 8.dp),
+          Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp),
       ) {
         LanguageSelectionRow(
           from = from,
@@ -288,9 +288,10 @@ fun Greeting(
         Spacer(modifier = Modifier.height(8.dp))
 
         Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .weight(0.4f)
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .weight(0.4f),
         ) {
           InputSection(
             displayImage = displayImage,
@@ -313,9 +314,9 @@ fun Greeting(
         )
         Box(
           modifier =
-          Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            Modifier
+              .fillMaxWidth()
+              .padding(vertical = 4.dp),
           contentAlignment = Alignment.Center,
         ) {
           HorizontalDivider(
@@ -325,9 +326,10 @@ fun Greeting(
           )
         }
         Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .weight(0.5f)
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .weight(0.5f),
         ) {
           if (output != null) {
             TranslationField(
@@ -389,10 +391,10 @@ fun ImageSourceBottomSheet(
   ) {
     Column(
       modifier =
-      Modifier
-        .fillMaxWidth()
-        .padding(16.dp)
-        .padding(bottom = 16.dp),
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp)
+          .padding(bottom = 16.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Row(
@@ -408,9 +410,9 @@ fun ImageSourceBottomSheet(
             painter = painterResource(id = R.drawable.camera),
             contentDescription = "Camera",
             modifier =
-            Modifier
-              .size(48.dp)
-              .padding(bottom = 8.dp),
+              Modifier
+                .size(48.dp)
+                .padding(bottom = 8.dp),
             tint = MaterialTheme.colorScheme.onSurface,
           )
           Text(
@@ -431,9 +433,9 @@ fun ImageSourceBottomSheet(
               painter = painterResource(id = R.drawable.gallery),
               contentDescription = "Photos",
               modifier =
-              Modifier
-                .size(48.dp)
-                .padding(bottom = 8.dp),
+                Modifier
+                  .size(48.dp)
+                  .padding(bottom = 8.dp),
               tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -452,9 +454,9 @@ fun ImageSourceBottomSheet(
               painter = painterResource(id = R.drawable.gallery),
               contentDescription = "Gallery",
               modifier =
-              Modifier
-                .size(48.dp)
-                .padding(bottom = 8.dp),
+                Modifier
+                  .size(48.dp)
+                  .padding(bottom = 8.dp),
               tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(

@@ -45,7 +45,7 @@ import java.util.zip.GZIPInputStream
 class TrackingInputStream(
   private val inputStream: InputStream,
   private val size: Long,
-  private val onProgress: (Float) -> Unit
+  private val onProgress: (Float) -> Unit,
 ) : InputStream() {
   private var totalBytesRead = 0L
   private var lastReportedProgress = 0f
@@ -59,7 +59,11 @@ class TrackingInputStream(
     return byte
   }
 
-  override fun read(b: ByteArray, off: Int, len: Int): Int {
+  override fun read(
+    b: ByteArray,
+    off: Int,
+    len: Int,
+  ): Int {
     val bytesRead = inputStream.read(b, off, len)
     if (bytesRead > 0) {
       totalBytesRead += bytesRead
@@ -214,7 +218,8 @@ class DownloadService : Service() {
             updateDownloadState(language) {
               it.copy(
                 isDownloading = true,
-                progress = 0.01f, taskCount = downloadTasks.count()
+                progress = 0.01f,
+                taskCount = downloadTasks.count(),
               )
             }
             Log.i("DownloadService", "Starting ${downloadTasks.count()} download jobs")
@@ -357,21 +362,21 @@ class DownloadService : Service() {
       return emptyList()
     }
 
-      // prevent duplicated files (vocab are listed twice)
-      val downloadJobs =
-        files.toSet().mapNotNull { fileName ->
-          val file = File(dataPath, fileName)
-          if (!file.exists()) {
-            suspend {
-              val url = "$base/$modelQuality/$lang/$fileName.gz"
-              val success = downloadAndDecompress(url, file, from)
-              Log.i("DownloadService", "Downloaded $url to $file = $success")
-              success
-            }
-          } else {
-            null
+    // prevent duplicated files (vocab are listed twice)
+    val downloadJobs =
+      files.toSet().mapNotNull { fileName ->
+        val file = File(dataPath, fileName)
+        if (!file.exists()) {
+          suspend {
+            val url = "$base/$modelQuality/$lang/$fileName.gz"
+            val success = downloadAndDecompress(url, file, from)
+            Log.i("DownloadService", "Downloaded $url to $file = $success")
+            success
           }
+        } else {
+          null
         }
+      }
     return downloadJobs
   }
 
@@ -415,9 +420,10 @@ class DownloadService : Service() {
       val size = conn.contentLengthLong
       Log.i("DownloadService", "URL $url has size $size (${size / 1024 / 1024f}MB)")
       conn.getInputStream().use { rawInputStream ->
-        val trackingStream = TrackingInputStream(rawInputStream, size) { incrementalProgress ->
-          updateDownloadState(language) { it.copy(progress = it.progress + (incrementalProgress / it.taskCount.toFloat())) }
-        }
+        val trackingStream =
+          TrackingInputStream(rawInputStream, size) { incrementalProgress ->
+            updateDownloadState(language) { it.copy(progress = it.progress + (incrementalProgress / it.taskCount.toFloat())) }
+          }
 
         tempFile.outputStream().use { output ->
           val processedInput = if (decompress) GZIPInputStream(trackingStream) else trackingStream

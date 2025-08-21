@@ -225,10 +225,10 @@ fun LanguageManagerScreen(
 
     Column(
       modifier =
-      Modifier
-        .fillMaxSize()
-        .then(if (!embedded) Modifier.padding(paddingValues) else Modifier)
-        .padding(horizontal = 16.dp, vertical = if (embedded) 0.dp else 16.dp),
+        Modifier
+          .fillMaxSize()
+          .then(if (!embedded) Modifier.padding(paddingValues) else Modifier)
+          .padding(horizontal = 16.dp, vertical = if (embedded) 0.dp else 16.dp),
     ) {
       if (!embedded) {
         Text(
@@ -310,9 +310,9 @@ private fun LanguageItem(
 
   Row(
     modifier =
-    Modifier
-      .padding(0.dp)
-      .fillMaxWidth(),
+      Modifier
+        .padding(0.dp)
+        .fillMaxWidth(),
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {

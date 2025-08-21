@@ -159,17 +159,19 @@ fun TranslatorApp(
           translated = null
         }
       } else {
-        translated = if (from != null) {
-          translationCoordinator.translateText(from, to, initialText)
-        } else {
-          null
-        }
+        translated =
+          if (from != null) {
+            translationCoordinator.translateText(from, to, initialText)
+          } else {
+            null
+          }
       }
       translated?.let {
-        output = when (it) {
-          is TranslationResult.Success -> it.result
-          is TranslationResult.Error -> null
-        }
+        output =
+          when (it) {
+            is TranslationResult.Success -> it.result
+            is TranslationResult.Error -> null
+          }
       }
     }
   }

@@ -59,25 +59,25 @@ fun TranslationField(
   }
   Box(
     modifier =
-    Modifier
-      .fillMaxWidth()
-      .fillMaxHeight()
-      .padding(16.dp),
+      Modifier
+        .fillMaxWidth()
+        .fillMaxHeight()
+        .padding(16.dp),
   ) {
     SelectionContainer(
       modifier =
-      Modifier
-        .fillMaxWidth()
-        .verticalScroll(rememberScrollState())
-        // Leave space for copy button
-        .padding(end = 22.dp),
+        Modifier
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState())
+          // Leave space for copy button
+          .padding(end = 22.dp),
     ) {
       Column {
         Text(
           text = text.translated,
           style = textStyle,
           color = MaterialTheme.colorScheme.onSurface,
-          modifier = Modifier.fillMaxSize()
+          modifier = Modifier.fillMaxSize(),
         )
 
         if (text.transliterated != null) {
@@ -100,10 +100,10 @@ fun TranslationField(
         clipboard.setPrimaryClip(clip)
       },
       modifier =
-      Modifier
-        .align(Alignment.TopEnd)
-        .padding(8.dp)
-        .size(24.dp),
+        Modifier
+          .align(Alignment.TopEnd)
+          .padding(8.dp)
+          .size(24.dp),
     ) {
       Icon(
         painterResource(id = R.drawable.copy),
@@ -112,7 +112,6 @@ fun TranslationField(
       )
     }
   }
-
 }
 
 @Preview(

@@ -77,7 +77,6 @@ enum class Language(val code: String, val tessName: String, val displayName: Str
   TELUGU("te", "tel", "Telugu", "Telugu"),
   TURKISH("tr", "tur", "Turkish", "Latin"),
   UKRAINIAN("uk", "ukr", "Ukrainian", "Cyrillic"),
-  VIETNAMESE("vi", "vie", "Vietnamese", "Latin"),
 }
 
 val fromEnglish =

@@ -226,7 +226,6 @@ class DownloadService : Service() {
             val downloadJobs = downloadTasks.map { task -> async { task() } }
             success = downloadJobs.awaitAll().all { it }
           }
-
           updateDownloadState(language) {
             DownloadState(
               language = language,

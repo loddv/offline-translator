@@ -73,7 +73,7 @@ std::string func(const char* cfg, const char *input, const char* key) {
     return response.target.text;
 }
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
 Java_dev_davidv_bergamot_NativeLib_initializeService(
         JNIEnv* env,
         jobject /* this */) {
@@ -85,7 +85,7 @@ Java_dev_davidv_bergamot_NativeLib_initializeService(
     }
 }
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
 Java_dev_davidv_bergamot_NativeLib_loadModelIntoCache(
         JNIEnv* env,
         jobject /* this */,
@@ -108,7 +108,7 @@ Java_dev_davidv_bergamot_NativeLib_loadModelIntoCache(
     env->ReleaseStringUTFChars(key, c_key);
 }
 
-extern "C" JNIEXPORT jstring JNICALL
+extern "C" __attribute__((visibility("default"))) JNIEXPORT jstring JNICALL
 Java_dev_davidv_bergamot_NativeLib_stringFromJNI(
         JNIEnv* env,
         jobject /* this */,
@@ -137,7 +137,7 @@ Java_dev_davidv_bergamot_NativeLib_stringFromJNI(
 }
 
 // Cleanup function to be called when the library is unloaded
-extern "C" JNIEXPORT void JNICALL
+extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
 Java_dev_davidv_bergamot_NativeLib_cleanup(JNIEnv* env, jobject /* this */) {
     std::lock_guard<std::mutex> lock(service_mutex);
     global_service.reset();
@@ -185,7 +185,7 @@ DetectionResult detectLanguage(const char* text) {
 
 
 
-extern "C" JNIEXPORT jobject JNICALL
+extern "C" __attribute__((visibility("default"))) JNIEXPORT jobject JNICALL
 Java_dev_davidv_bergamot_LangDetect_detectLanguage(
         JNIEnv* env,
         jobject /* this */,

@@ -16,6 +16,31 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: Generate cache key for CMake build
+      id: cmake-cache-key
+      run: |
+        # Get hash of bergamot.cpp
+        BERGAMOT_HASH=$(sha256sum app/bergamot/src/main/cpp/bergamot.cpp | cut -d' ' -f1)
+        # Get submodule commit hash
+        SUBMODULE_COMMIT=$(git submodule status app/bergamot/src/main/cpp/bergamot-translator | cut -d' ' -f2)
+        # Combine into cache key
+        CACHE_KEY="cmake-build-${BERGAMOT_HASH}-${SUBMODULE_COMMIT}"
+        echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+        echo "bergamot-hash=${BERGAMOT_HASH}" >> $GITHUB_OUTPUT
+        echo "submodule-commit=${SUBMODULE_COMMIT}" >> $GITHUB_OUTPUT
+
+    - name: Cache CMake build artifacts
+      uses: actions/cache@v4
+      id: cmake-cache
+      with:
+        path: |
+          app/bergamot/.cxx
+          app/bergamot/build
+        key: ${{ steps.cmake-cache-key.outputs.cache-key }}
+        restore-keys: |
+          cmake-build-${{ steps.cmake-cache-key.outputs.bergamot-hash }}-
+          cmake-build-
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     

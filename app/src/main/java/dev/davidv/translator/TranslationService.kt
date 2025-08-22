@@ -23,6 +23,7 @@ import dev.davidv.bergamot.NativeLib
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.system.measureTimeMillis
 
 class TranslationService(
   private val context: Context,
@@ -87,17 +88,22 @@ class TranslationService(
         return@withContext TranslationResult.Success(TranslatedText("", null))
       }
 
-      try {
-        val translationPairs = getTranslationPairs(from, to)
+      val translationPairs = getTranslationPairs(from, to)
 
-        // Validate all required language pairs are available
-        for (pair in translationPairs) {
-          if (!checkLanguagePairFiles(context, pair.first, pair.second)) {
-            return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
-          }
+      // Validate all required language pairs are available
+      for (pair in translationPairs) {
+        if (!checkLanguagePairFiles(context, pair.first, pair.second)) {
+          return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }
+      }
 
-        val result = performTranslation(translationPairs, text)
+      try {
+        val result: String
+        val elapsed =
+          measureTimeMillis {
+            result = performTranslation(translationPairs, text)
+          }
+        Log.d("TranslationService", "Translation took ${elapsed}ms")
         val transliterated =
           if (!settingsManager.settings.value.disableTransliteration) {
             TransliterationService.transliterate(result, to)

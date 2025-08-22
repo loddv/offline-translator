@@ -48,21 +48,27 @@ class TranslationCoordinator(
     if (text.isBlank()) return null
 
     _isTranslating.value = true
-    return try {
-      when (val result = translationService.translate(from, to, text)) {
-        is TranslationResult.Success -> result
-        is TranslationResult.Error -> {
-          Toast
-            .makeText(
-              context,
-              "Translation error: ${result.message}",
-              Toast.LENGTH_SHORT,
-            ).show()
-          null
+    val result: TranslationResult
+    try {
+      val elapsed =
+        measureTimeMillis {
+          result = translationService.translate(from, to, text)
         }
-      }
+      Log.d("TranslationCoordinator", "Translating ${text.length} chars from ${from.displayName} to ${to.displayName} took ${elapsed}ms")
     } finally {
       _isTranslating.value = false
+    }
+    return when (result) {
+      is TranslationResult.Success -> result
+      is TranslationResult.Error -> {
+        Toast
+          .makeText(
+            context,
+            "Translation error: ${result.message}",
+            Toast.LENGTH_SHORT,
+          ).show()
+        null
+      }
     }
   }
 

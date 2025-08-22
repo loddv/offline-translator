@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// TODO: remove either the list or the map
 data class LanguageAvailabilityState(
   val hasLanguages: Boolean = false,
   val availableLanguages: List<Language> = emptyList(),
@@ -82,6 +83,50 @@ class LanguageStateManager(
           isChecking = false,
         )
     }
+  }
+
+  fun addLanguage(language: Language) {
+    val currentState = _languageState.value
+    val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
+    updatedLanguageMap[language.code] = true
+
+    val updatedAvailableLanguages =
+      Language.entries.filter { lang ->
+        updatedLanguageMap[lang.code] == true
+      }
+
+    val hasLanguages = updatedAvailableLanguages.any { it != Language.ENGLISH }
+
+    _languageState.value =
+      currentState.copy(
+        hasLanguages = hasLanguages,
+        availableLanguages = updatedAvailableLanguages,
+        availableLanguageMap = updatedLanguageMap,
+      )
+
+    Log.i("LanguageStateManager", "Added language: ${language.displayName}")
+  }
+
+  fun deleteLanguage(language: Language) {
+    val currentState = _languageState.value
+    val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
+    updatedLanguageMap[language.code] = false
+
+    val updatedAvailableLanguages =
+      Language.entries.filter { lang ->
+        updatedLanguageMap[lang.code] == true
+      }
+
+    val hasLanguages = updatedAvailableLanguages.any { it != Language.ENGLISH }
+
+    _languageState.value =
+      currentState.copy(
+        hasLanguages = hasLanguages,
+        availableLanguages = updatedAvailableLanguages,
+        availableLanguageMap = updatedLanguageMap,
+      )
+
+    Log.i("LanguageStateManager", "Removed language: ${language.displayName}")
   }
 
   fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {

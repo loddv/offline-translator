@@ -42,8 +42,6 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoLanguagesScreen(
-  onLanguageDownloaded: () -> Unit,
-  onLanguageDeleted: () -> Unit,
   onDone: () -> Unit,
   onSettings: () -> Unit,
   hasLanguages: Boolean = false,
@@ -91,8 +89,6 @@ fun NoLanguagesScreen(
       )
 
       LanguageManagerScreen(
-        onLanguageDownloaded = onLanguageDownloaded,
-        onLanguageDeleted = onLanguageDeleted,
         embedded = true,
       )
     }
@@ -104,8 +100,6 @@ fun NoLanguagesScreen(
 fun NoLanguagesScreenPreview() {
   TranslatorTheme {
     NoLanguagesScreen(
-      onLanguageDownloaded = {},
-      onLanguageDeleted = {},
       onDone = {},
       onSettings = {},
       hasLanguages = false,

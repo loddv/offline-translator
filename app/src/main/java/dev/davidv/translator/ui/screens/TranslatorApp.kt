@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.Greeting
 import dev.davidv.translator.InputType
@@ -105,10 +106,19 @@ fun TranslatorApp(
   val downloadStates by downloadService?.downloadStates?.collectAsState()
     ?: remember { mutableStateOf(emptyMap()) }
 
-  // Refresh language availability when download states change
-  LaunchedEffect(downloadStates) {
-    // Refresh whenever download states change (covers downloads, deletions, etc.)
-    languageStateManager.refreshLanguageAvailability()
+  // Handle download events
+  LaunchedEffect(downloadService) {
+    downloadService?.downloadEvents?.collect { event ->
+      when (event) {
+        is DownloadEvent.NewLanguageAvailable -> {
+          languageStateManager.addLanguage(event.language)
+        }
+
+        is DownloadEvent.LanguageDeleted -> {
+          languageStateManager.deleteLanguage(event.language)
+        }
+      }
+    }
   }
 
   // Move all persistent state to this level so it survives navigation
@@ -376,14 +386,6 @@ fun TranslatorApp(
 
     composable("no_languages") {
       NoLanguagesScreen(
-        onLanguageDownloaded = {
-          // Refresh available languages after download
-          languageStateManager.refreshLanguageAvailability()
-        },
-        onLanguageDeleted = {
-          // Refresh available languages after deletion
-          languageStateManager.refreshLanguageAvailability()
-        },
         onDone = {
           // Only navigate if languages are available
           if (languageState.hasLanguages) {
@@ -433,13 +435,7 @@ fun TranslatorApp(
       }
     }
     composable("language_manager") {
-      LanguageManagerScreen(onLanguageDownloaded = {
-        // Refresh available languages after download
-        languageStateManager.refreshLanguageAvailability()
-      }, onLanguageDeleted = {
-        // Refresh available languages after deletion
-        languageStateManager.refreshLanguageAvailability()
-      })
+      LanguageManagerScreen()
     }
     composable("settings") {
       SettingsScreen(

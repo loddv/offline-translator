@@ -79,11 +79,7 @@ fun LanguageManagerPreview() {
 }
 
 @Composable
-fun LanguageManagerScreen(
-  onLanguageDownloaded: () -> Unit = {},
-  onLanguageDeleted: () -> Unit = {},
-  embedded: Boolean = false,
-) {
+fun LanguageManagerScreen(embedded: Boolean = false) {
   val context = LocalContext.current
   var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
@@ -148,42 +144,30 @@ fun LanguageManagerScreen(
     }
   }
 
-  // Refresh local status when downloads complete or when states change
-  LaunchedEffect(downloadStates) {
-    downloadStates.values.forEach { downloadState ->
-      val language = downloadState.language
-
-      // Refresh status when download completes or when state is reset (indicating deletion)
-      Log.i("LanguageManager", "$downloadState")
-      withContext(Dispatchers.IO) {
-        val toEnglishDownloaded = checkLanguagePairFiles(context, language, Language.ENGLISH)
-        val fromEnglishDownloaded = checkLanguagePairFiles(context, Language.ENGLISH, language)
-        val tessDownloaded = checkTessDataFile(context, language)
-        val downloadedAnything = toEnglishDownloaded || fromEnglishDownloaded || tessDownloaded
-        languageStates[language] =
-          LanguageStatus(
-            language = language,
-            toEnglishDownloaded = toEnglishDownloaded,
-            fromEnglishDownloaded = fromEnglishDownloaded,
-            tessDownloaded = tessDownloaded,
-          )
-
-        // Notify when first language is downloaded
-        if (toEnglishDownloaded || fromEnglishDownloaded) {
-          onLanguageDownloaded()
+  // Handle download events
+  LaunchedEffect(downloadService) {
+    downloadService?.downloadEvents?.collect { event ->
+      when (event) {
+        is DownloadEvent.NewLanguageAvailable -> {
+          val language = event.language
+          languageStates[language] =
+            LanguageStatus(
+              language = language,
+              toEnglishDownloaded = true,
+              fromEnglishDownloaded = true,
+              tessDownloaded = true,
+            )
         }
 
-        // Notify when language is deleted (state reset and no files)
-        if (!downloadState.isDownloading && !downloadedAnything) {
-          // Check if ALL languages are now deleted
-          val allLanguagesDeleted =
-            languageStates.values.all { status ->
-              !status.toEnglishDownloaded && !status.fromEnglishDownloaded && !status.tessDownloaded
-            }
-
-          if (allLanguagesDeleted) {
-            onLanguageDeleted()
-          }
+        is DownloadEvent.LanguageDeleted -> {
+          val language = event.language
+          languageStates[language] =
+            LanguageStatus(
+              language = language,
+              toEnglishDownloaded = false,
+              fromEnglishDownloaded = false,
+              tessDownloaded = false,
+            )
         }
       }
     }

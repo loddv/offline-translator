@@ -46,7 +46,6 @@ class ExampleInstrumentedTest {
     val context = InstrumentationRegistry.getInstrumentation().context
     val appContext = InstrumentationRegistry.getInstrumentation().targetContext
 
-    context.assets.list("").let { item -> println("xxitem ${item.contentToString()}") }
     // Load PNG from assets
     val inputStream = context.assets.open("screen.png")
     val bitmap = BitmapFactory.decodeStream(inputStream)

@@ -383,8 +383,7 @@ class DownloadService : Service() {
       tessDataPath.mkdirs()
     }
     val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-    val url =
-      "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
+    val url = "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
 
     if (tessFile.exists()) {
       return true

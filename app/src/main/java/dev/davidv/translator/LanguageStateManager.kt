@@ -18,6 +18,7 @@
 package dev.davidv.translator
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +49,7 @@ class LanguageStateManager(
     scope.launch {
       _languageState.value = _languageState.value.copy(isChecking = true)
 
+      Log.i("LanguageStateManager", "Refreshing language availability")
       val availabilityMap =
         withContext(Dispatchers.IO) {
           buildMap {
@@ -58,6 +60,7 @@ class LanguageStateManager(
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
                 val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
+                Log.d("LanguageStateManager", "Language available ${fromLang.displayName}->${toLang.displayName}=$isAvailable")
                 put(fromLang.code, isAvailable)
               }
             }
@@ -70,7 +73,7 @@ class LanguageStateManager(
         }
 
       val hasLanguages = availableLanguages.any { it != Language.ENGLISH }
-
+      Log.i("LanguageStateManager", "hasLanguages = $hasLanguages")
       _languageState.value =
         LanguageAvailabilityState(
           hasLanguages = hasLanguages,

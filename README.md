@@ -1,26 +1,30 @@
-A basic Android translator app that combines [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/tree/main) with [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android),
-to perform on-device translation of text and images.
+<h1><center>Translator</center></h1>
 
-There's automatic language detection as well, with [cld2](https://github.com/CLD2Owners/cld2).
+An Android translator app that uses on-device models to perform translation of text and images.
 
-The translation models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator).
-
-<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/new-ui.png" width="400px">
-
-## Image translation overlay
-
-The app also translates images directly on top of the previous content, similar to Google Translate:
-
-<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/new-ui-pic.png" width="400px">
-
-It tries to detect background and foreground colors to blend in better with the original text, but it's not perfect.
+[<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid"
+    height="80">](https://f-droid.org/packages/dev.davidv.translator)
 
 
-## Transliteration
+## Features
 
-<img src="https://raw.github.com/davidventura/firefox-translator/master/screenshots/transliteration.jpg" width="400px">
+- Image translation by overlaying on top of the original content
+- Automatic language detection
+- Transliteration for non-latin scripts
 
+## Screenshots
 
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.jpg" width="360px">](fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.jpg)
+
+## Tech
+
+- Translation models are [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/tree/main)
+  - The translation models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator)
+- OCR models are [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
+- Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
 
 ## Running on x86-64 emulator
 

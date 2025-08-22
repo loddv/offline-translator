@@ -33,8 +33,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -98,6 +101,10 @@ class DownloadService : Service() {
   // Track download status for each language
   private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
   val downloadStates: StateFlow<Map<Language, DownloadState>> = _downloadStates
+
+  // Event emission for download lifecycle changes
+  private val _downloadEvents = MutableSharedFlow<DownloadEvent>()
+  val downloadEvents: SharedFlow<DownloadEvent> = _downloadEvents.asSharedFlow()
 
   // Track download jobs for cancellation
   private val downloadJobs = mutableMapOf<Language, Job>()
@@ -236,6 +243,7 @@ class DownloadService : Service() {
           }
           if (success) {
             showNotification("Download Complete", "${language.displayName} is ready to use")
+            _downloadEvents.emit(DownloadEvent.NewLanguageAvailable(language))
           } else {
             showNotification("Download failed", "${language.displayName} download failed")
           }
@@ -315,6 +323,7 @@ class DownloadService : Service() {
         "Deletion Complete",
         "${language.displayName} files removed",
       )
+      _downloadEvents.emit(DownloadEvent.LanguageDeleted(language))
       Log.i(
         "DownloadService",
         "Deleted ${language.displayName}",
@@ -415,7 +424,10 @@ class DownloadService : Service() {
       conn.getInputStream().use { rawInputStream ->
         val trackingStream =
           TrackingInputStream(rawInputStream, size) { incrementalProgress ->
-            updateDownloadState(language) { it.copy(progress = it.progress + (incrementalProgress / it.taskCount.toFloat())) }
+            updateDownloadState(language) {
+              val newProgress = it.progress + (incrementalProgress / it.taskCount.toFloat())
+              it.copy(progress = newProgress)
+            }
           }
 
         tempFile.outputStream().use { output ->

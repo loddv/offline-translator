@@ -1,5 +1,12 @@
-A basic Android translator app that combines [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/tree/main) with [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android),
-to perform on-device translation of text and images.
+# Translator
+
+A basic Android translator app that combines [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/tree/main) with [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android), to perform on-device translation of text and images.
+
+---
+
+[<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid"
+    height="80">](https://f-droid.org/packages/dev.davidv.translator)
+
 
 There's automatic language detection as well, with [cld2](https://github.com/CLD2Owners/cld2).
 

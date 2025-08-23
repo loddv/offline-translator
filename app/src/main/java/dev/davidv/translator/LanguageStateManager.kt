@@ -61,7 +61,6 @@ class LanguageStateManager(
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
                 val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
-                Log.d("LanguageStateManager", "Language available ${fromLang.displayName}->${toLang.displayName}=$isAvailable")
                 put(fromLang.code, isAvailable)
               }
             }

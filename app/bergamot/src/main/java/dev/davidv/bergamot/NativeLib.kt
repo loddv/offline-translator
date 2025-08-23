@@ -17,33 +17,46 @@
 
 package dev.davidv.bergamot
 
-class NativeLib() {
+import android.util.Log
+
+class NativeLib {
+  init {
+    Log.d("NativeLib", "Initializing bergamot library")
+    initializeService()
+  }
+
+  external fun stringFromJNI(
+    cfg: String,
+    data: String,
+    key: String,
+  ): String
+
+  external fun loadModelIntoCache(
+    cfg: String,
+    key: String,
+  )
+
+  private external fun initializeService()
+
+  external fun cleanup()
+
+  companion object {
+    // Used to load the 'bergamot' library on application startup.
     init {
-        initializeService()
-    }
+      Log.d("NativeLib", "Loading bergamot library")
 
-    external fun stringFromJNI(cfg: String, data: String, key: String): String
-    external fun loadModelIntoCache(cfg: String, key: String)
-    private external fun initializeService()
-
-    external fun cleanup()
-    
-    companion object {
-        // Used to load the 'bergamot' library on application startup.
-        init {
 //            Debug.waitForDebugger()
-            System.loadLibrary("bergamot-sys")
-        }
+      System.loadLibrary("bergamot-sys")
     }
+  }
 }
 
-
 data class DetectionResult(
-    val language: String,
-    val isReliable: Boolean,
-    val confidence: Int
+  val language: String,
+  val isReliable: Boolean,
+  val confidence: Int,
 )
 
 class LangDetect {
-    external fun detectLanguage(text: String): DetectionResult
+  external fun detectLanguage(text: String): DetectionResult
 }

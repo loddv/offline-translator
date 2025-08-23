@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.InputSection
 import dev.davidv.translator.ui.components.LanguageSelectionRow
@@ -79,6 +80,7 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -98,9 +100,13 @@ class MainActivity : ComponentActivity() {
     ocrService = OCRService(this)
     val imageProcessor = ImageProcessor(this, ocrService)
     val settingsManager = SettingsManager(this)
-    val translationService = TranslationService(this, settingsManager)
-    val languageDetector = LanguageDetector()
-    translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager)
+    val ctx = this
+    lifecycleScope.launch {
+      Log.d("MainActivity", "Initializing translation service")
+      val translationService = TranslationService(ctx, settingsManager)
+      val languageDetector = LanguageDetector()
+      translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
+    }
 
     setContent {
       TranslatorTheme {

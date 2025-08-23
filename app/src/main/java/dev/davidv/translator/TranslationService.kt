@@ -35,7 +35,10 @@ class TranslationService(
 
     private fun getNativeLib(): NativeLib =
       nativeLibInstance ?: synchronized(this) {
-        nativeLibInstance ?: NativeLib().also { nativeLibInstance = it }
+        nativeLibInstance ?: NativeLib().also {
+          Log.d("TranslationService", "Initialized bergamot")
+          nativeLibInstance = it
+        }
       }
 
     fun cleanup() {

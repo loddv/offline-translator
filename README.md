@@ -26,6 +26,11 @@ An Android translator app that uses on-device models to perform translation of t
 - OCR models are [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
 - Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
 
+## Using on airgapped devices
+
+If you want to use this app on a device with no internet access, you can put the language files on `Documents/dev.davidv.translator`. Check
+`OFFLINE_SETUP.md` for details.
+
 ## Running on x86-64 emulator
 
 This app works fine on aarch64, and it "works" on x86-64 -- in quotes because it currently requires `AVX2`, which is not available on the standard emulator, nor in the ABI.

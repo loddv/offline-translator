@@ -106,6 +106,13 @@ class SettingsManager(
         defaults.disableTransliteration
       }
 
+    val useExternalStorage =
+      if (prefs.contains("use_external_storage")) {
+        prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
+      } else {
+        defaults.useExternalStorage
+      }
+
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
       translationModelsBaseUrl = translationModelsBaseUrl,
@@ -116,6 +123,7 @@ class SettingsManager(
       disableOcr = disableOcr,
       disableCLD = disableCLD,
       disableTransliteration = disableTransliteration,
+      useExternalStorage = useExternalStorage,
     )
   }
 
@@ -159,6 +167,10 @@ class SettingsManager(
       if (newSettings.disableTransliteration != currentSettings.disableTransliteration) {
         putBoolean("disable_transliteration", newSettings.disableTransliteration)
         modifiedSettings.add("disable_transliteration")
+      }
+      if (newSettings.useExternalStorage != currentSettings.useExternalStorage) {
+        putBoolean("use_external_storage", newSettings.useExternalStorage)
+        modifiedSettings.add("use_external_storage")
       }
       apply()
     }

@@ -97,14 +97,14 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
     handleIntent(intent)
 
-    val filePathManager = FilePathManager(this)
+    val settingsManager = SettingsManager(this)
+    val filePathManager = FilePathManager(this, settingsManager.settings)
     ocrService = OCRService(filePathManager)
     val imageProcessor = ImageProcessor(this, ocrService)
-    val settingsManager = SettingsManager(this)
     val ctx = this
     lifecycleScope.launch {
       Log.d("MainActivity", "Initializing translation service")
-      val translationService = TranslationService(ctx, settingsManager, filePathManager)
+      val translationService = TranslationService(settingsManager, filePathManager)
       val languageDetector = LanguageDetector()
       translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
     }

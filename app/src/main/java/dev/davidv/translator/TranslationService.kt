@@ -17,7 +17,6 @@
 
 package dev.davidv.translator
 
-import android.content.Context
 import android.util.Log
 import dev.davidv.bergamot.NativeLib
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +24,6 @@ import kotlinx.coroutines.withContext
 import kotlin.system.measureTimeMillis
 
 class TranslationService(
-  private val context: Context,
   private val settingsManager: SettingsManager,
   private val filePathManager: FilePathManager,
 ) {
@@ -148,7 +146,7 @@ class TranslationService(
     fromLang: Language,
     toLang: Language,
   ): String {
-    val dataPath = FilePathManager(context).getDataDir()
+    val dataPath = filePathManager.getDataDir()
     val languageFiles =
       if (fromLang == Language.ENGLISH) {
         fromEnglishFiles[toLang]

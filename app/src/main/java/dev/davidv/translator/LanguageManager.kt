@@ -60,7 +60,8 @@ import java.io.File
 fun LanguageManagerPreview() {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
-  val filePathManager = FilePathManager(context)
+  val settingsManager = SettingsManager(context)
+  val filePathManager = FilePathManager(context, settingsManager.settings)
   LanguageManagerScreen(languageStateManager = LanguageStateManager(scope, filePathManager))
 }
 

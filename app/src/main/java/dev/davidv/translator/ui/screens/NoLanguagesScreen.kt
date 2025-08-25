@@ -105,7 +105,8 @@ fun NoLanguagesScreen(
 fun NoLanguagesScreenPreview() {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
-  val filePathManager = dev.davidv.translator.FilePathManager(context)
+  val settingsManager = dev.davidv.translator.SettingsManager(context)
+  val filePathManager = dev.davidv.translator.FilePathManager(context, settingsManager.settings)
   TranslatorTheme {
     NoLanguagesScreen(
       onDone = {},

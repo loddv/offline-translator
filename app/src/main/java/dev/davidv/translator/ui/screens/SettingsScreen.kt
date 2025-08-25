@@ -17,6 +17,8 @@
 
 package dev.davidv.translator.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,12 +52,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
 import dev.davidv.translator.Language
+import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
@@ -65,6 +71,28 @@ fun SettingsScreen(
   onSettingsChange: (AppSettings) -> Unit,
   onManageLanguages: () -> Unit,
 ) {
+  val context = LocalContext.current
+  var showPermissionDialog by remember { mutableStateOf(false) }
+
+  val permissionLauncher =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permissions ->
+      val allGranted = permissions.values.all { it }
+      if (allGranted) {
+        onSettingsChange(settings.copy(useExternalStorage = true))
+      } else {
+        onSettingsChange(settings.copy(useExternalStorage = false))
+      }
+    }
+
+  val manageStorageLauncher =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.StartActivityForResult(),
+    ) { _ ->
+      val gotPerms = PermissionHelper.hasExternalStoragePermission(context)
+      onSettingsChange(settings.copy(useExternalStorage = gotPerms))
+    }
   Scaffold(
     topBar = {
       TopAppBar(
@@ -408,10 +436,84 @@ fun SettingsScreen(
                 },
               )
             }
+
+            // External Storage Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Use external storage",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.useExternalStorage,
+                onCheckedChange = { checked ->
+                  if (checked) {
+                    if (PermissionHelper.hasExternalStoragePermission(context)) {
+                      onSettingsChange(settings.copy(useExternalStorage = true))
+                    } else if (PermissionHelper.needsSpecialPermissionIntent()) {
+                      // Android 11+ - Show dialog first, then launch Settings
+                      showPermissionDialog = true
+                    } else {
+                      // Android 10 and below - Request runtime permissions
+                      val permissions = PermissionHelper.getExternalStoragePermissions()
+                      if (permissions.isNotEmpty()) {
+                        permissionLauncher.launch(permissions)
+                      } else {
+                        onSettingsChange(settings.copy(useExternalStorage = true))
+                      }
+                    }
+                  } else {
+                    onSettingsChange(settings.copy(useExternalStorage = false))
+                  }
+                },
+              )
+            }
           }
         }
       }
     }
+  }
+
+  // Permission explanation dialog
+  if (showPermissionDialog) {
+    AlertDialog(
+      onDismissRequest = {
+        showPermissionDialog = false
+      },
+      title = { Text("External Storage Permission") },
+      text = {
+        Text(
+          "To store translation files in your Documents folder, " +
+            "this app needs access to manage all files.\nYou'll be taken to Settings where you can grant " +
+            "'Allow access to manage all files' permission.",
+        )
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showPermissionDialog = false
+            val intent = PermissionHelper.createManageStorageIntent(context)
+            manageStorageLauncher.launch(intent)
+          },
+        ) {
+          Text("OK")
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = {
+            showPermissionDialog = false
+          },
+        ) {
+          Text("Cancel")
+        }
+      },
+    )
   }
 }
 

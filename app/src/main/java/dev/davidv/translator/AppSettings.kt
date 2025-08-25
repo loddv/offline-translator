@@ -27,4 +27,5 @@ data class AppSettings(
   val disableOcr: Boolean = false,
   val disableCLD: Boolean = false,
   val disableTransliteration: Boolean = false,
+  val useExternalStorage: Boolean = false,
 )

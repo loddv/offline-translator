@@ -99,7 +99,7 @@ class DownloadService : Service() {
   private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
   private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
   private val settingsManager by lazy { SettingsManager(this) }
-  private val filePathManager by lazy { FilePathManager(this) }
+  private val filePathManager by lazy { FilePathManager(this, settingsManager.settings) }
 
   // Track download status for each language
   private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
@@ -261,6 +261,7 @@ class DownloadService : Service() {
           }
           if (success) {
             showNotification("Download Complete", "${language.displayName} is ready to use")
+            Log.i("DownloadService", "Download complete: ${language.displayName}")
             _downloadEvents.emit(DownloadEvent.NewLanguageAvailable(language))
           } else {
             showNotification("Download failed", "${language.displayName} download failed")

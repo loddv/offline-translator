@@ -41,7 +41,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Greeting
@@ -107,21 +106,6 @@ fun TranslatorApp(
   // Get download states from service
   val downloadStates by downloadService?.downloadStates?.collectAsState()
     ?: remember { mutableStateOf(emptyMap()) }
-
-  // Handle download events
-  LaunchedEffect(downloadService) {
-    downloadService?.downloadEvents?.collect { event ->
-      when (event) {
-        is DownloadEvent.NewLanguageAvailable -> {
-          languageStateManager.addLanguage(event.language)
-        }
-
-        is DownloadEvent.LanguageDeleted -> {
-          languageStateManager.deleteLanguage(event.language)
-        }
-      }
-    }
-  }
 
   // Move all persistent state to this level so it survives navigation
   var input by remember { mutableStateOf(initialText) }
@@ -454,6 +438,10 @@ fun TranslatorApp(
           // Update current target language if it changed
           if (newSettings.defaultTargetLanguage != settings.defaultTargetLanguage) {
             setTo(newSettings.defaultTargetLanguage)
+          }
+          // Refresh language availability if storage location changed
+          if (newSettings.useExternalStorage != settings.useExternalStorage) {
+            languageStateManager.refreshLanguageAvailability()
           }
         },
         onManageLanguages = {

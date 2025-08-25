@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 // TODO: remove either the list or the map
 data class LanguageAvailabilityState(
@@ -40,6 +39,7 @@ class LanguageStateManager(
   private val context: Context,
   private val scope: CoroutineScope,
 ) {
+  private var downloadService: DownloadService? = null
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
   val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
 
@@ -61,7 +61,7 @@ class LanguageStateManager(
             Language.entries.forEach { fromLang ->
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
-                val dataPath = File(context.filesDir, "bin")
+                val dataPath = FilePathManager(context).getDataDir()
                 val isAvailable = missingFiles(dataPath, fromLang).isEmpty()
                 put(fromLang.code, isAvailable)
               }
@@ -128,6 +128,26 @@ class LanguageStateManager(
       )
 
     Log.i("LanguageStateManager", "Removed language: ${language.displayName}")
+  }
+
+  fun setDownloadService(service: DownloadService?) {
+    downloadService = service
+    service?.let { observeDownloadEvents(it) }
+  }
+
+  private fun observeDownloadEvents(service: DownloadService) {
+    scope.launch {
+      service.downloadEvents.collect { event ->
+        when (event) {
+          is DownloadEvent.NewLanguageAvailable -> {
+            addLanguage(event.language)
+          }
+          is DownloadEvent.LanguageDeleted -> {
+            deleteLanguage(event.language)
+          }
+        }
+      }
+    }
   }
 
   fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {

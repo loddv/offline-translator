@@ -22,7 +22,6 @@ import android.util.Log
 import dev.davidv.bergamot.NativeLib
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import kotlin.system.measureTimeMillis
 
 class TranslationService(
@@ -51,32 +50,18 @@ class TranslationService(
 
   private val nativeLib = getNativeLib()
 
+  // / Requires the translation pairs to be available
   suspend fun preloadModel(
     from: Language,
     to: Language,
   ) = withContext(Dispatchers.IO) {
-    try {
-      val translationPairs = getTranslationPairs(from, to)
-
-      for (pair in translationPairs) {
-        val lang =
-          if (pair.first == Language.ENGLISH) {
-            pair.second
-          } else {
-            pair.first
-          }
-        val dataPath = File(context.filesDir, "bin")
-        if (missingFilesFrom(dataPath, lang).isNotEmpty()) {
-          val config = generateConfig(pair.first, pair.second)
-          val languageCode = "${pair.first.code}${pair.second.code}"
-          Log.d("TranslationService", "Preloading model with key: $languageCode")
-//                    nativeLib.loadModelIntoCache(config, languageCode)
-          nativeLib.stringFromJNI(config, ".", languageCode) // translate empty string to load the model
-          Log.d("TranslationService", "Preloaded model for ${pair.first} -> ${pair.second} with key: $languageCode")
-        }
-      }
-    } catch (e: Exception) {
-      Log.w("TranslationService", "Failed to preload model for $from -> $to", e)
+    val translationPairs = getTranslationPairs(from, to)
+    for (pair in translationPairs) {
+      val config = generateConfig(pair.first, pair.second)
+      val languageCode = "${pair.first.code}${pair.second.code}"
+      Log.d("TranslationService", "Preloading model with key: $languageCode")
+      nativeLib.stringFromJNI(config, ".", languageCode) // translate empty string to load the model
+      Log.d("TranslationService", "Preloaded model for ${pair.first} -> ${pair.second} with key: $languageCode")
     }
   }
 
@@ -108,7 +93,7 @@ class TranslationService(
           } else {
             pair.first
           }
-        val dataPath = File(context.filesDir, "bin")
+        val dataPath = FilePathManager(context).getDataDir()
         if (missingFilesFrom(dataPath, lang).isNotEmpty()) {
           return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }
@@ -162,7 +147,7 @@ class TranslationService(
     fromLang: Language,
     toLang: Language,
   ): String {
-    val dataPath = File(context.filesDir, "bin")
+    val dataPath = FilePathManager(context).getDataDir()
     val languageFiles =
       if (fromLang == Language.ENGLISH) {
         fromEnglishFiles[toLang]

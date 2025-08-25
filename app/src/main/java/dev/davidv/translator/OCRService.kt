@@ -27,7 +27,6 @@ import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_TEXTLI
 import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_WORD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
@@ -202,7 +201,7 @@ class OCRService(
       if (isInitialized) return@withContext true
 
       try {
-        val p = File(context.filesDir, "tesseract").toPath()
+        val p = FilePathManager(context).getTesseractDir().toPath()
         val tessdata = Path(p.pathString, "tessdata")
         val dataPath: String = p.absolutePathString()
         tessdata.createDirectories()

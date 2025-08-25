@@ -40,9 +40,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,8 +50,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
@@ -66,6 +64,8 @@ fun LanguageManagerPreview() {
 @Composable
 fun LanguageManagerScreen(embedded: Boolean = false) {
   val context = LocalContext.current
+  val scope = rememberCoroutineScope()
+  val languageStateManager = remember { LanguageStateManager(context, scope) }
   var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
   val serviceConnection =
@@ -95,22 +95,8 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
     }
   }
 
-  // Track status for each language
-  // TODO: split this availability to be feature-based:
-  // OCR, translation, audio, dictionary
-  val languageStates =
-    remember {
-      mutableStateMapOf<Language, Boolean>().apply {
-        Language.entries.forEach { lang ->
-          // fromEnglish and toEnglish are symmetrical by construction
-          // (generate.py); so filter languages down to whichever has
-          // translations available
-          if (fromEnglishFiles[lang] != null) {
-            put(lang, false)
-          }
-        }
-      }
-    }
+  // Get language availability from centralized state manager
+  val languageAvailabilityState by languageStateManager.languageState.collectAsState()
 
   // Get download states from service
   val downloadStates by downloadService?.downloadStates?.collectAsState()
@@ -130,33 +116,11 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
     }
   }
 
-  // Handle download events
+  // Connect download service to language state manager
   LaunchedEffect(downloadService) {
-    downloadService?.downloadEvents?.collect { event ->
-      when (event) {
-        is DownloadEvent.NewLanguageAvailable -> {
-          val language = event.language
-          languageStates[language] = true
-        }
-
-        is DownloadEvent.LanguageDeleted -> {
-          val language = event.language
-          languageStates[language] = false
-        }
-      }
-    }
+    languageStateManager.setDownloadService(downloadService)
   }
 
-  // Check which language pairs are already downloaded
-  val dataDir = File(context.filesDir, "bin")
-  val tessDir = File(context.filesDir, "tesseract/tessdata")
-  LaunchedEffect(Unit) {
-    languageStates.keys.filter { it != Language.ENGLISH }.forEach { language ->
-      withContext(Dispatchers.IO) {
-        languageStates[language] = missingFiles(dataDir, language).isEmpty()
-      }
-    }
-  }
   Scaffold(
     modifier = Modifier.fillMaxSize(),
   ) { paddingValues ->
@@ -177,8 +141,11 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
       }
 
       // Separate languages into installed and available
-      val installedLanguages = languageStates.mapNotNull { if (it.value) it.key else null }.sortedBy { it.displayName }
-      val availableLanguages = languageStates.mapNotNull { if (!it.value) it.key else null }.sortedBy { it.displayName }
+      val installedLanguages = languageAvailabilityState.availableLanguages.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+      val availableLanguages =
+        Language.entries.filter { lang ->
+          fromEnglishFiles[lang] != null && !languageAvailabilityState.availableLanguages.contains(lang) && lang != Language.ENGLISH
+        }.sortedBy { it.displayName }
 
       LazyColumn(
         verticalArrangement = Arrangement.spacedBy(0.dp),

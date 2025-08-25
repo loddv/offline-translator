@@ -203,8 +203,9 @@ class DownloadService : Service() {
 
           val downloadTasks = mutableListOf<suspend () -> Boolean>()
           val context = this@DownloadService
-          val dataDir = File(context.filesDir, "bin")
-          val tessDir = File(context.filesDir, "tesseract/tessdata")
+          val filePathManager = FilePathManager(context)
+          val dataDir = filePathManager.getDataDir()
+          val tessDir = filePathManager.getTesseractDataDir()
           Path(tessDir.absolutePath).createDirectories()
           val missingFrom = missingFilesFrom(dataDir, language)
           val missingTo = missingFilesTo(dataDir, language)
@@ -296,7 +297,7 @@ class DownloadService : Service() {
 
       withContext(Dispatchers.IO) {
         // Delete translation files (to and from English)
-        val dataPath = File(this@DownloadService.filesDir, "bin")
+        val dataPath = FilePathManager(this@DownloadService).getDataDir()
 
         // Delete to English files
         val toEnglishFiles = toEnglishFiles[language]
@@ -317,7 +318,7 @@ class DownloadService : Service() {
         }
 
         // Delete tessdata file
-        val tessDataPath = File(this@DownloadService.filesDir, "tesseract/tessdata")
+        val tessDataPath = FilePathManager(this@DownloadService).getTesseractDataDir()
         val tessFile = File(tessDataPath, language.tessFilename)
         if (tessFile.exists() && tessFile.delete()) {
           Log.i("DownloadService", "Deleted: ${tessFile.name}")
@@ -387,7 +388,7 @@ class DownloadService : Service() {
     context: Context,
     language: Language,
   ): Boolean {
-    val tessDataPath = File(context.filesDir, "tesseract/tessdata")
+    val tessDataPath = FilePathManager(context).getTesseractDataDir()
     if (!tessDataPath.isDirectory) {
       tessDataPath.mkdirs()
     }
@@ -507,7 +508,7 @@ class DownloadService : Service() {
   }
 
   private fun cleanupTempFiles() {
-    val binDir = File(filesDir, "bin")
+    val binDir = FilePathManager(this).getDataDir()
     if (binDir.exists()) {
       binDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
         if (tempFile.delete()) {
@@ -516,7 +517,7 @@ class DownloadService : Service() {
       }
     }
 
-    val tessDir = File(filesDir, "tesseract/tessdata")
+    val tessDir = FilePathManager(this).getTesseractDataDir()
     if (tessDir.exists()) {
       tessDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
         if (tempFile.delete()) {

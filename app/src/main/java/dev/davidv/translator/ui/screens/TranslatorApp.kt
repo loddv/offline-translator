@@ -17,17 +17,13 @@
 
 package dev.davidv.translator.ui.screens
 
-import android.content.ComponentName
-import android.content.ServiceConnection
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.IBinder
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,10 +33,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Greeting
@@ -63,59 +59,51 @@ fun TranslatorApp(
   translationCoordinator: TranslationCoordinator,
   settingsManager: SettingsManager,
   filePathManager: FilePathManager,
+  downloadService: DownloadService,
 ) {
   val navController = rememberNavController()
-  val context = LocalContext.current
   val scope = rememberCoroutineScope()
 
-  // Settings management
   val settings by settingsManager.settings.collectAsState()
-
-  // Centralized language state management
-  val languageStateManager = remember { LanguageStateManager(scope, filePathManager) }
+  val languageStateManager = remember { LanguageStateManager(scope, filePathManager, downloadService) }
   val languageState by languageStateManager.languageState.collectAsState()
-
-  // Download service management
-  var downloadService by remember { mutableStateOf<DownloadService?>(null) }
-  val serviceConnection =
-    remember {
-      object : ServiceConnection {
-        override fun onServiceConnected(
-          name: ComponentName?,
-          service: IBinder?,
-        ) {
-          val binder = service as DownloadService.DownloadBinder
-          downloadService = binder.getService()
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-          downloadService = null
-        }
-      }
-    }
-
-  // Bind to download service
-  DisposableEffect(context) {
-    val intent = android.content.Intent(context, DownloadService::class.java)
-    context.bindService(intent, serviceConnection, android.content.Context.BIND_AUTO_CREATE)
-    onDispose {
-      context.unbindService(serviceConnection)
-    }
-  }
-
-  // Get download states from service
-  val downloadStates by downloadService?.downloadStates?.collectAsState()
-    ?: remember { mutableStateOf(emptyMap()) }
+  val downloadStates by downloadService.downloadStates.collectAsState()
 
   // Move all persistent state to this level so it survives navigation
   var input by remember { mutableStateOf(initialText) }
   var output by remember { mutableStateOf<TranslatedText?>(null) }
-  val (from, setFrom) = remember { mutableStateOf<Language?>(null) }
-  val (to, setTo) = remember { mutableStateOf(settings.defaultTargetLanguage) }
+  val fromState = remember { mutableStateOf<Language?>(null) }
+  val from by fromState
+  val setFrom = { lang: Language? -> fromState.value = lang }
+
+  val toState = remember { mutableStateOf(settings.defaultTargetLanguage) }
+  val to by toState
+  val setTo = { lang: Language -> toState.value = lang }
   var displayImage by remember { mutableStateOf<Bitmap?>(null) }
   var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
   var inputType by remember { mutableStateOf(InputType.TEXT) }
   var originalImageUri by remember { mutableStateOf<Uri?>(null) }
+
+  LaunchedEffect(downloadService) {
+    downloadService.downloadEvents.collect { event ->
+      when (event) {
+        is DownloadEvent.LanguageDeleted -> {
+          val langs = languageStateManager.languageState.value.availableLanguages
+          val validLangs = langs.filter { it != event.language }
+          val currentFrom = fromState.value
+          val currentTo = toState.value
+          if (currentFrom == event.language || currentFrom == null) {
+            setFrom(validLangs.filterNot { it == currentTo }.firstOrNull())
+          }
+          if (currentTo == event.language) {
+            setTo(validLangs.filterNot { it == currentFrom }.firstOrNull() ?: Language.ENGLISH)
+          }
+        }
+
+        is DownloadEvent.NewLanguageAvailable -> {}
+      }
+    }
+  }
 
   // Initialize from language when languages become available
   LaunchedEffect(languageState.availableLanguages, settings.defaultTargetLanguage) {
@@ -154,7 +142,7 @@ fun TranslatorApp(
       } else {
         translated =
           if (from != null) {
-            translationCoordinator.translateText(from, to, initialText)
+            translationCoordinator.translateText(from!!, to, initialText)
           } else {
             null
           }
@@ -385,8 +373,8 @@ fun TranslatorApp(
         onSettings = {
           navController.navigate("settings")
         },
-        hasLanguages = languageState.hasLanguages,
         languageStateManager = languageStateManager,
+        downloadService = downloadService,
       )
     }
 
@@ -405,7 +393,7 @@ fun TranslatorApp(
           // Current state (read-only)
           input = input,
           output = output,
-          from = from,
+          from = from!!,
           to = to,
           detectedLanguage = currentDetectedLanguage,
           displayImage = displayImage,
@@ -422,7 +410,7 @@ fun TranslatorApp(
       }
     }
     composable("language_manager") {
-      LanguageManagerScreen(languageStateManager = languageStateManager)
+      LanguageManagerScreen(languageStateManager = languageStateManager, downloadStates_ = downloadService.downloadStates)
     }
     composable("settings") {
       SettingsScreen(

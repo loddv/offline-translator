@@ -17,12 +17,16 @@
 
 package dev.davidv.translator
 
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -91,6 +95,8 @@ class MainActivity : ComponentActivity() {
   private var sharedImageUri: Uri? = null
   private lateinit var ocrService: OCRService
   private lateinit var translationCoordinator: TranslationCoordinator
+  private lateinit var downloadService: DownloadService
+  private lateinit var serviceConnection: ServiceConnection
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -102,32 +108,58 @@ class MainActivity : ComponentActivity() {
     ocrService = OCRService(filePathManager)
     val imageProcessor = ImageProcessor(this, ocrService)
     val ctx = this
-    lifecycleScope.launch {
-      Log.d("MainActivity", "Initializing translation service")
-      val translationService = TranslationService(settingsManager, filePathManager)
-      val languageDetector = LanguageDetector()
-      translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
-    }
 
-    setContent {
-      TranslatorTheme {
-        MaterialTheme {
-          TranslatorApp(
-            initialText = textToTranslate,
-            sharedImageUri = sharedImageUri,
-            translationCoordinator = translationCoordinator,
-            settingsManager = settingsManager,
-            filePathManager = filePathManager,
-          )
+    // Create service connection for download service
+    serviceConnection =
+      object : ServiceConnection {
+        override fun onServiceConnected(
+          name: ComponentName?,
+          service: IBinder?,
+        ) {
+          val binder = service as DownloadService.DownloadBinder
+          downloadService = binder.getService()
+
+          // Initialize UI only after service is connected
+          lifecycleScope.launch {
+            Log.d("MainActivity", "Initializing translation service")
+            val translationService = TranslationService(settingsManager, filePathManager)
+            val languageDetector = LanguageDetector()
+            translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
+
+            setContent {
+              TranslatorTheme {
+                MaterialTheme {
+                  TranslatorApp(
+                    initialText = textToTranslate,
+                    sharedImageUri = sharedImageUri,
+                    translationCoordinator = translationCoordinator,
+                    settingsManager = settingsManager,
+                    filePathManager = filePathManager,
+                    downloadService = downloadService,
+                  )
+                }
+              }
+            }
+          }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+          // Handle service disconnection if needed
         }
       }
-    }
+
+    // Bind to download service
+    val intent = Intent(this, DownloadService::class.java)
+    bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
   }
 
   override fun onDestroy() {
     super.onDestroy()
     ocrService.cleanup()
     TranslationService.cleanup()
+    if (::serviceConnection.isInitialized) {
+      unbindService(serviceConnection)
+    }
     Log.i("MainActivity", "cleaning up")
   }
 

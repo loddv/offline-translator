@@ -200,10 +200,7 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-//          showNotification("Downloading ${language.displayName}", "Starting download...")
-
           val downloadTasks = mutableListOf<suspend () -> Boolean>()
-          val context = this@DownloadService
           val dataDir = filePathManager.getDataDir()
           val tessDir = filePathManager.getTesseractDataDir()
           Path(tessDir.absolutePath).createDirectories()

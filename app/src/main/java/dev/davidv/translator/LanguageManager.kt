@@ -17,13 +17,8 @@
 
 package dev.davidv.translator
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
 import android.content.res.Configuration
-import android.os.IBinder
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,20 +31,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
+import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 
 @Composable
@@ -62,69 +55,20 @@ fun LanguageManagerPreview() {
   val scope = rememberCoroutineScope()
   val settingsManager = SettingsManager(context)
   val filePathManager = FilePathManager(context, settingsManager.settings)
-  LanguageManagerScreen(languageStateManager = LanguageStateManager(scope, filePathManager))
+  val downloadService = DownloadService()
+  LanguageManagerScreen(languageStateManager = LanguageStateManager(scope, filePathManager, downloadService), downloadStates_ = null)
 }
 
 @Composable
 fun LanguageManagerScreen(
   embedded: Boolean = false,
   languageStateManager: LanguageStateManager,
+  downloadStates_: StateFlow<Map<Language, DownloadState>>?,
 ) {
   val context = LocalContext.current
-  var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
-  val serviceConnection =
-    remember {
-      object : ServiceConnection {
-        override fun onServiceConnected(
-          name: ComponentName?,
-          service: IBinder?,
-        ) {
-          val binder = service as DownloadService.DownloadBinder
-          downloadService = binder.getService()
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-          downloadService = null
-        }
-      }
-    }
-
-  // Bind to service
-  DisposableEffect(context) {
-    val intent = Intent(context, DownloadService::class.java)
-    context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-
-    onDispose {
-      context.unbindService(serviceConnection)
-    }
-  }
-
-  // Get language availability from centralized state manager
   val languageAvailabilityState by languageStateManager.languageState.collectAsState()
-
-  // Get download states from service
-  val downloadStates by downloadService?.downloadStates?.collectAsState()
-    ?: remember { mutableStateOf(emptyMap()) }
-
-  // Show toast for download errors
-  LaunchedEffect(downloadStates) {
-    downloadStates.values.forEach { downloadState ->
-      if (downloadState.error != null) {
-        Toast
-          .makeText(
-            context,
-            "Download failed: ${downloadState.error}",
-            Toast.LENGTH_LONG,
-          ).show()
-      }
-    }
-  }
-
-  // Connect download service to language state manager
-  LaunchedEffect(downloadService) {
-    languageStateManager.setDownloadService(downloadService)
-  }
+  val downloadStates by downloadStates_?.collectAsState() ?: remember { mutableStateOf(emptyMap()) }
 
   Scaffold(
     modifier = Modifier.fillMaxSize(),

@@ -37,12 +37,25 @@ data class LanguageAvailabilityState(
 class LanguageStateManager(
   private val scope: CoroutineScope,
   private val filePathManager: FilePathManager,
+  private val downloadService: DownloadService,
 ) {
-  private var downloadService: DownloadService? = null
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
   val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
 
   init {
+    scope.launch {
+      downloadService.downloadEvents.collect { event ->
+        when (event) {
+          is DownloadEvent.NewLanguageAvailable -> {
+            addLanguage(event.language)
+          }
+
+          is DownloadEvent.LanguageDeleted -> {
+            deleteLanguage(event.language)
+          }
+        }
+      }
+    }
     refreshLanguageAvailability()
   }
 
@@ -85,7 +98,7 @@ class LanguageStateManager(
     }
   }
 
-  fun addLanguage(language: Language) {
+  private fun addLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
     updatedLanguageMap[language.code] = true
@@ -107,7 +120,7 @@ class LanguageStateManager(
     Log.i("LanguageStateManager", "Added language: ${language.displayName}")
   }
 
-  fun deleteLanguage(language: Language) {
+  private fun deleteLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
     updatedLanguageMap[language.code] = false
@@ -127,26 +140,6 @@ class LanguageStateManager(
       )
 
     Log.i("LanguageStateManager", "Removed language: ${language.displayName}")
-  }
-
-  fun setDownloadService(service: DownloadService?) {
-    downloadService = service
-    service?.let { observeDownloadEvents(it) }
-  }
-
-  private fun observeDownloadEvents(service: DownloadService) {
-    scope.launch {
-      service.downloadEvents.collect { event ->
-        when (event) {
-          is DownloadEvent.NewLanguageAvailable -> {
-            addLanguage(event.language)
-          }
-          is DownloadEvent.LanguageDeleted -> {
-            deleteLanguage(event.language)
-          }
-        }
-      }
-    }
   }
 
   fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {

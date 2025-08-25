@@ -252,6 +252,33 @@ def get_best_model_type(model_types: Set[str]) -> str:
     else:
         raise ValueError(f"No valid model type found in {model_types}")
 
+def generate_files_for_language(from_code: str, to_code: str) -> Dict[str, str]:
+    """
+    Generate file paths for a language pair based on the Kotlin filesFor logic.
+    Returns dict with keys: model, lex, srcVocab, tgtVocab
+    """
+    lang_pair = f"{from_code}{to_code}"
+    model = f"model.{lang_pair}.intgemm.alphas.bin"
+    lex = f"lex.50.50.{lang_pair}.s2t.bin"
+
+    # Split vocab for Chinese and Japanese
+    split_vocab_langs = {'zh', 'ja'}
+
+    if to_code in split_vocab_langs:
+        src_vocab = f"srcvocab.{from_code}{to_code}.spm"
+        tgt_vocab = f"trgvocab.{from_code}{to_code}.spm"
+    else:
+        vocab_file = f"vocab.{lang_pair}.spm"
+        src_vocab = vocab_file
+        tgt_vocab = vocab_file
+
+    return {
+        'model': model,
+        'lex': lex,
+        'srcVocab': src_vocab,
+        'tgtVocab': tgt_vocab
+    }
+
 def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
     """
     Generate Kotlin enum classes for Language and LanguagePair.
@@ -265,17 +292,6 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
             all_languages.add(tgt_code)
 
     all_languages.add("en")
-
-    # Generate Language enum entries
-    language_entries = []
-    for lang_code in sorted(all_languages):
-        lang_name = LANGUAGE_NAMES[lang_code]
-        tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
-        script = LANGUAGE_SCRIPTS[lang_code]
-        enum_name = lang_name.upper().replace(' ', '_').replace('Å', 'A')
-        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}")')
-
-    language_entries = sorted(language_entries)
 
     # Collect all unique language pairs with their model types
     pairs_data = {}  # pair -> (src_code, tgt_code, model_types)
@@ -312,21 +328,37 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]]) -> str:
     from_english = {k: v for k, v in from_english.items() if k in to_english}
     to_english = {k: v for k, v in to_english.items() if k in from_english}
 
-    # Generate fromEnglish map entries
-    from_english_entries = []
+    # Generate Language enum entries
+    language_entries = []
+    for lang_code in sorted(all_languages):
+        # from_english is bidirectional with to_english
+        if lang_code not in from_english and lang_code != 'en':
+          continue
+        lang_name = LANGUAGE_NAMES[lang_code]
+        tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
+        script = LANGUAGE_SCRIPTS[lang_code]
+        enum_name = lang_name.upper().replace(' ', '_').replace('Å', 'A')
+        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}")')
+
+    language_entries = sorted(language_entries)
+
+    # Generate fromEnglishFiles map entries
+    from_english_files_entries = []
     for lang_code in sorted(from_english.keys()):
         lang_name = LANGUAGE_NAMES[lang_code]
         lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
         model_type_enum = f'ModelType.{from_english[lang_code].upper().replace("-", "_")}'
-        from_english_entries.append(f'    {lang_enum} to {model_type_enum}')
+        files = generate_files_for_language('en', lang_code)
+        from_english_files_entries.append(f'    {lang_enum} to LanguageFiles("{files["model"]}", "{files["srcVocab"]}", "{files["tgtVocab"]}", "{files["lex"]}", {model_type_enum})')
 
-    # Generate toEnglish map entries
-    to_english_entries = []
+    # Generate toEnglishFiles map entries
+    to_english_files_entries = []
     for lang_code in sorted(to_english.keys()):
         lang_name = LANGUAGE_NAMES[lang_code]
         lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
         model_type_enum = f'ModelType.{to_english[lang_code].upper().replace("-", "_")}'
-        to_english_entries.append(f'    {lang_enum} to {model_type_enum}')
+        files = generate_files_for_language(lang_code, 'en')
+        to_english_files_entries.append(f'    {lang_enum} to LanguageFiles("{files["model"]}", "{files["srcVocab"]}", "{files["tgtVocab"]}", "{files["lex"]}", {model_type_enum})')
 
     # Generate the complete enum classes and maps
     kotlin_code = f"""/*
@@ -357,15 +389,28 @@ enum class ModelType(private val pathName: String) {{
 }}
 
 enum class Language(val code: String, val tessName: String, val displayName: String, val script: String) {{
-{',\n'.join(language_entries)}
+{',\n'.join(language_entries)};
+
+    val tessFilename: String
+        get() = "$tessName.traineddata"
 }}
 
-val fromEnglish = mapOf(
-{',\n'.join(from_english_entries)}
+data class LanguageFiles(
+    val model: String,
+    val srcVocab: String,
+    val tgtVocab: String,
+    val lex: String,
+    val quality: ModelType
+) {{
+    fun allFiles(): List<String> = listOf(model, srcVocab, tgtVocab, lex).distinct()
+}}
+
+val fromEnglishFiles = mapOf(
+{',\n'.join(from_english_files_entries)}
 )
 
-val toEnglish = mapOf(
-{',\n'.join(to_english_entries)}
+val toEnglishFiles = mapOf(
+{',\n'.join(to_english_files_entries)}
 )"""
 
     return kotlin_code

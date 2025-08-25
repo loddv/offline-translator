@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 // TODO: remove either the list or the map
 data class LanguageAvailabilityState(
@@ -60,7 +61,8 @@ class LanguageStateManager(
             Language.entries.forEach { fromLang ->
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
-                val isAvailable = checkLanguagePairFiles(context, fromLang, toLang)
+                val dataPath = File(context.filesDir, "bin")
+                val isAvailable = missingFiles(dataPath, fromLang).isEmpty()
                 put(fromLang.code, isAvailable)
               }
             }

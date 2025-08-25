@@ -208,7 +208,7 @@ class OCRService(
         tessdata.createDirectories()
 
         // Get available language data
-        val availableLanguages = getAvailableTessLanguages(context)
+        val availableLanguages = getAvailableTessLanguages(tessdata.toFile()).map { it.tessName }
         if (availableLanguages.isEmpty()) {
           Log.w("OCRService", "No tessdata language files found")
           return@withContext false
@@ -216,10 +216,13 @@ class OCRService(
 
         tess = TessBaseAPI()
 
-        val initialized = tess?.init(dataPath, availableLanguages) ?: false
+        val langs = availableLanguages.joinToString("+")
+        Log.i("OCRService", "Initializing tesseract to path $dataPath, languages $langs")
+        val initialized = tess?.init(dataPath, langs) ?: false
         if (!initialized) {
           tess?.recycle()
           tess = null
+          // TODO popup
           Log.e(
             "OCRService",
             "Failed to initialize Tesseract with languages: $availableLanguages",

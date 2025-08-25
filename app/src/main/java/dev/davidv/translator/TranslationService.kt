@@ -59,7 +59,14 @@ class TranslationService(
       val translationPairs = getTranslationPairs(from, to)
 
       for (pair in translationPairs) {
-        if (checkLanguagePairFiles(context, pair.first, pair.second)) {
+        val lang =
+          if (pair.first == Language.ENGLISH) {
+            pair.second
+          } else {
+            pair.first
+          }
+        val dataPath = File(context.filesDir, "bin")
+        if (missingFilesFrom(dataPath, lang).isNotEmpty()) {
           val config = generateConfig(pair.first, pair.second)
           val languageCode = "${pair.first.code}${pair.second.code}"
           Log.d("TranslationService", "Preloading model with key: $languageCode")
@@ -95,7 +102,14 @@ class TranslationService(
 
       // Validate all required language pairs are available
       for (pair in translationPairs) {
-        if (!checkLanguagePairFiles(context, pair.first, pair.second)) {
+        val lang =
+          if (pair.first == Language.ENGLISH) {
+            pair.second
+          } else {
+            pair.first
+          }
+        val dataPath = File(context.filesDir, "bin")
+        if (missingFilesFrom(dataPath, lang).isNotEmpty()) {
           return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }
       }
@@ -149,15 +163,21 @@ class TranslationService(
     toLang: Language,
   ): String {
     val dataPath = File(context.filesDir, "bin")
-    val files = filesFor(fromLang, toLang)
+    val languageFiles =
+      if (fromLang == Language.ENGLISH) {
+        fromEnglishFiles[toLang]
+      } else {
+        toEnglishFiles[fromLang]
+      } ?: throw IllegalArgumentException("No language files found for $fromLang -> $toLang")
+
     return """
 models:
-  - $dataPath/${files.model}
+  - $dataPath/${languageFiles.model}
 vocabs:
-  - $dataPath/${files.vocab[0]}
-  - $dataPath/${files.vocab[1]}
+  - $dataPath/${languageFiles.srcVocab}
+  - $dataPath/${languageFiles.tgtVocab}
 shortlist:
-    - $dataPath/${files.lex}
+    - $dataPath/${languageFiles.lex}
     - false
 beam-size: 1
 normalize: 1.0

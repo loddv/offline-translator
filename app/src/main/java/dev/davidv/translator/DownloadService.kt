@@ -44,6 +44,8 @@ import java.io.File
 import java.io.InputStream
 import java.net.URL
 import java.util.zip.GZIPInputStream
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
 
 class TrackingInputStream(
   private val inputStream: InputStream,
@@ -197,25 +199,40 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-          showNotification("Downloading ${language.displayName}", "Starting download...")
+//          showNotification("Downloading ${language.displayName}", "Starting download...")
 
           val downloadTasks = mutableListOf<suspend () -> Boolean>()
+          val context = this@DownloadService
+          val dataDir = File(context.filesDir, "bin")
+          val tessDir = File(context.filesDir, "tesseract/tessdata")
+          Path(tessDir.absolutePath).createDirectories()
+          val missingFrom = missingFilesFrom(dataDir, language)
+          val missingTo = missingFilesTo(dataDir, language)
+          val tessFile = File(tessDir, language.tessFilename)
+          val engTessFile = File(tessDir, Language.ENGLISH.tessFilename)
 
-          // Prepare download tasks
-          if (!checkLanguagePairFiles(this@DownloadService, language, Language.ENGLISH)) {
-            downloadTasks.addAll(downloadLanguagePair(this@DownloadService, language, Language.ENGLISH))
+          if (missingTo.isNotEmpty()) {
+            downloadTasks.addAll(downloadLanguageFiles(dataDir, language, Language.ENGLISH, toEnglishFiles[language]!!.quality, missingTo))
           }
 
-          if (!checkLanguagePairFiles(this@DownloadService, Language.ENGLISH, language)) {
-            downloadTasks.addAll(downloadLanguagePair(this@DownloadService, Language.ENGLISH, language))
+          if (missingFrom.isNotEmpty()) {
+            downloadTasks.addAll(
+              downloadLanguageFiles(
+                dataDir,
+                Language.ENGLISH,
+                language,
+                fromEnglishFiles[language]!!.quality,
+                missingFrom,
+              ),
+            )
           }
 
-          if (!checkTessDataFile(this@DownloadService, language)) {
+          if (!tessFile.exists()) {
             downloadTasks.add { downloadTessData(this@DownloadService, language) }
           }
 
           // Always ensure English OCR is available
-          if (!checkTessDataFile(this@DownloadService, Language.ENGLISH)) {
+          if (!engTessFile.exists()) {
             downloadTasks.add { downloadTessData(this@DownloadService, Language.ENGLISH) }
           }
 
@@ -282,8 +299,8 @@ class DownloadService : Service() {
         val dataPath = File(this@DownloadService.filesDir, "bin")
 
         // Delete to English files
-        val files = filesFor(language, Language.ENGLISH)
-        listOf(files.lex, files.model, files.vocab[0], files.vocab[1]).forEach { fileName ->
+        val toEnglishFiles = toEnglishFiles[language]
+        toEnglishFiles?.allFiles()?.forEach { fileName ->
           val file = File(dataPath, fileName)
           if (file.exists() && file.delete()) {
             Log.i("DownloadService", "Deleted: $fileName")
@@ -291,8 +308,8 @@ class DownloadService : Service() {
         }
 
         // Delete from English files
-        val (fromModel, fromVocab, fromLex) = filesFor(Language.ENGLISH, language)
-        listOf(files.lex, files.model, files.vocab[0], files.vocab[1]).forEach { fileName ->
+        val fromEnglishFiles = fromEnglishFiles[language]
+        fromEnglishFiles?.allFiles()?.forEach { fileName ->
           val file = File(dataPath, fileName)
           if (file.exists() && file.delete()) {
             Log.i("DownloadService", "Deleted: $fileName")
@@ -301,7 +318,7 @@ class DownloadService : Service() {
 
         // Delete tessdata file
         val tessDataPath = File(this@DownloadService.filesDir, "tesseract/tessdata")
-        val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
+        val tessFile = File(tessDataPath, language.tessFilename)
         if (tessFile.exists() && tessFile.delete()) {
           Log.i("DownloadService", "Deleted: ${tessFile.name}")
         }
@@ -341,38 +358,21 @@ class DownloadService : Service() {
     _downloadStates.value = currentStates
   }
 
-  private fun downloadLanguagePair(
-    context: Context,
+  private fun downloadLanguageFiles(
+    dataPath: File,
     from: Language,
     to: Language,
+    modelType: ModelType,
+    files: List<String>,
   ): List<suspend () -> Boolean> {
-    val f = filesFor(from, to)
-    val files = listOf(f.model, f.lex) + f.vocab
-    val lang = "${from.code}${to.code}"
-    val dataPath = File(context.filesDir, "bin")
-    dataPath.mkdirs()
     val base = settingsManager.settings.value.translationModelsBaseUrl
-
-    val modelQuality =
-      if (from == Language.ENGLISH) {
-        fromEnglish[to]
-      } else {
-        toEnglish[from]
-      }
-
-    if (modelQuality == null) {
-      Log.w("DownloadService", "Could not find model quality for $from -> $to")
-      return emptyList()
-    }
-
-    // prevent duplicated files (vocab are listed twice)
     val downloadJobs =
-      files.toSet().mapNotNull { fileName ->
+      files.mapNotNull { fileName ->
         val file = File(dataPath, fileName)
         if (!file.exists()) {
           suspend {
-            val url = "$base/$modelQuality/$lang/$fileName.gz"
-            val success = downloadAndDecompress(url, file, from)
+            val url = "$base/$modelType/${from.code}${to.code}/$fileName.gz"
+            val success = downloadAndDecompress(url, file, to)
             Log.i("DownloadService", "Downloaded $url to $file = $success")
             success
           }
@@ -401,7 +401,7 @@ class DownloadService : Service() {
       val success = download(url, tessFile, language)
       Log.i(
         "DownloadService",
-        "Downloaded tessdata for ${language.displayName} = $url: $success",
+        "Downloaded tessdata for ${language.displayName} = $url to $tessFile: $success",
       )
       return@withContext success
     }

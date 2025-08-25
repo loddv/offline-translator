@@ -23,7 +23,6 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.res.Configuration
 import android.os.IBinder
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,20 +54,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-data class LanguageStatus(
-  val language: Language,
-  var toEnglishDownloaded: Boolean = false,
-  var fromEnglishDownloaded: Boolean = false,
-  var tessDownloaded: Boolean = false,
-  var isDownloading: Boolean = false,
-)
-
-data class FilesForLang(
-  val model: String,
-  val lex: String,
-  val vocab: List<String>,
-)
-
 @Composable
 @Preview(
   showBackground = true,
@@ -83,7 +68,6 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
   val context = LocalContext.current
   var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
-  // Service connection
   val serviceConnection =
     remember {
       object : ServiceConnection {
@@ -112,15 +96,17 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
   }
 
   // Track status for each language
+  // TODO: split this availability to be feature-based:
+  // OCR, translation, audio, dictionary
   val languageStates =
     remember {
-      mutableStateMapOf<Language, LanguageStatus>().apply {
+      mutableStateMapOf<Language, Boolean>().apply {
         Language.entries.forEach { lang ->
           // fromEnglish and toEnglish are symmetrical by construction
           // (generate.py); so filter languages down to whichever has
           // translations available
-          if (fromEnglish[lang] != null) {
-            put(lang, LanguageStatus(lang))
+          if (fromEnglishFiles[lang] != null) {
+            put(lang, false)
           }
         }
       }
@@ -150,51 +136,25 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
       when (event) {
         is DownloadEvent.NewLanguageAvailable -> {
           val language = event.language
-          languageStates[language] =
-            LanguageStatus(
-              language = language,
-              toEnglishDownloaded = true,
-              fromEnglishDownloaded = true,
-              tessDownloaded = true,
-            )
+          languageStates[language] = true
         }
 
         is DownloadEvent.LanguageDeleted -> {
           val language = event.language
-          languageStates[language] =
-            LanguageStatus(
-              language = language,
-              toEnglishDownloaded = false,
-              fromEnglishDownloaded = false,
-              tessDownloaded = false,
-            )
+          languageStates[language] = false
         }
       }
     }
   }
 
   // Check which language pairs are already downloaded
+  val dataDir = File(context.filesDir, "bin")
+  val tessDir = File(context.filesDir, "tesseract/tessdata")
   LaunchedEffect(Unit) {
-    languageStates.keys.forEach { language ->
-      val toEnglishDownloaded =
-        withContext(Dispatchers.IO) {
-          checkLanguagePairFiles(context, language, Language.ENGLISH)
-        }
-      val fromEnglishDownloaded =
-        withContext(Dispatchers.IO) {
-          checkLanguagePairFiles(context, Language.ENGLISH, language)
-        }
-      val tessDownloaded =
-        withContext(Dispatchers.IO) {
-          checkTessDataFile(context, language)
-        }
-      languageStates[language] =
-        LanguageStatus(
-          language = language,
-          toEnglishDownloaded = toEnglishDownloaded,
-          fromEnglishDownloaded = fromEnglishDownloaded,
-          tessDownloaded = tessDownloaded,
-        )
+    languageStates.keys.filter { it != Language.ENGLISH }.forEach { language ->
+      withContext(Dispatchers.IO) {
+        languageStates[language] = missingFiles(dataDir, language).isEmpty()
+      }
     }
   }
   Scaffold(
@@ -217,19 +177,8 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
       }
 
       // Separate languages into installed and available
-      val allLanguages =
-        languageStates.values
-          .toList()
-          .filterNot { it.language == Language.ENGLISH }
-          .sortedBy { it.language.displayName }
-      val installedLanguages =
-        allLanguages.filter { status ->
-          status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
-        }
-      val availableLanguages =
-        allLanguages.filterNot { status ->
-          status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
-        }
+      val installedLanguages = languageStates.mapNotNull { if (it.value) it.key else null }.sortedBy { it.displayName }
+      val availableLanguages = languageStates.mapNotNull { if (!it.value) it.key else null }.sortedBy { it.displayName }
 
       LazyColumn(
         verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -244,10 +193,11 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
             )
           }
 
-          items(installedLanguages) { status ->
+          items(installedLanguages) { lang ->
             LanguageItem(
-              status = status,
-              downloadState = downloadStates[status.language],
+              lang = lang,
+              fullyDownloaded = true,
+              downloadState = downloadStates[lang],
               context = context,
             )
           }
@@ -265,10 +215,11 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
             }
           }
 
-          items(availableLanguages) { status ->
+          items(availableLanguages) { lang ->
             LanguageItem(
-              status = status,
-              downloadState = downloadStates[status.language],
+              fullyDownloaded = false,
+              lang = lang,
+              downloadState = downloadStates[lang],
               context = context,
             )
           }
@@ -280,13 +231,11 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
 
 @Composable
 private fun LanguageItem(
-  status: LanguageStatus,
+  lang: Language,
+  fullyDownloaded: Boolean,
   downloadState: DownloadState?,
   context: Context,
 ) {
-  val isFullyDownloaded =
-    status.toEnglishDownloaded && status.fromEnglishDownloaded && status.tessDownloaded
-
   Row(
     modifier =
       Modifier
@@ -296,67 +245,34 @@ private fun LanguageItem(
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Text(
-      text = status.language.displayName,
+      text = lang.displayName,
       style = MaterialTheme.typography.titleMedium,
     )
-    LanguageDownloadButton(status.language, downloadState, context, isFullyDownloaded)
+    LanguageDownloadButton(lang, downloadState, context, fullyDownloaded)
   }
 }
 
-fun checkLanguagePairFiles(
-  context: Context,
-  from: Language,
-  to: Language,
-): Boolean {
-  val dataPath = File(context.filesDir, "bin")
-  val files = filesFor(from, to)
-  val hasAll =
-    File(dataPath, files.model).exists() && File(dataPath, files.vocab[0]).exists() &&
-      File(dataPath, files.vocab[1]).exists() &&
-      File(dataPath, files.lex).exists()
+fun missingFiles(
+  dataPath: File,
+  lang: Language,
+): List<String> = missingFilesTo(dataPath, lang).plus(missingFilesFrom(dataPath, lang))
 
-  return hasAll
+fun missingFilesFrom(
+  dataPath: File,
+  lang: Language,
+): List<String> {
+  val allPaths = fromEnglishFiles[lang]!!.allFiles().map { File(dataPath, it) }
+  val presentPaths = allPaths.filter { !it.exists() }.map { it.name }
+  return presentPaths
 }
 
-fun checkTessDataFile(
-  context: Context,
-  language: Language,
-): Boolean {
-  val tessDataPath = File(context.filesDir, "tesseract/tessdata")
-  val tessFile = File(tessDataPath, "${language.tessName}.traineddata")
-  val exists = tessFile.exists()
-  return exists
+fun missingFilesTo(
+  dataPath: File,
+  lang: Language,
+): List<String> {
+  val allPaths = toEnglishFiles[lang]!!.allFiles().map { File(dataPath, it) }
+  val presentPaths = allPaths.filter { !it.exists() }.map { it.name }
+  return presentPaths
 }
 
-fun getAvailableTessLanguages(context: Context): String {
-  val availableLanguages =
-    Language.entries
-      .filter { language ->
-        checkTessDataFile(context, language)
-      }.map { it.tessName }
-
-  val languageString = availableLanguages.joinToString("+")
-  Log.i("LanguageManager", "Available tess languages: $languageString")
-  return languageString
-}
-
-fun filesFor(
-  from: Language,
-  to: Language,
-): FilesForLang {
-  val lang = "${from.code}${to.code}"
-  val model = "model.$lang.intgemm.alphas.bin"
-  val lex = "lex.50.50.$lang.s2t.bin"
-  val vocabLang = "${from.code}${to.code}"
-
-  val splitVocab = arrayListOf(Language.CHINESE, Language.JAPANESE)
-  val vocab = arrayListOf<String>()
-  if (splitVocab.contains(to)) {
-    vocab.add("srcvocab.${from.code}${to.code}.spm")
-    vocab.add("trgvocab.${from.code}${to.code}.spm")
-  } else {
-    vocab.add("vocab.$vocabLang.spm")
-    vocab.add("vocab.$vocabLang.spm")
-  }
-  return FilesForLang(model, lex, vocab)
-}
+fun getAvailableTessLanguages(tessData: File): List<Language> = Language.entries.filter { File(tessData, it.tessFilename).exists() }

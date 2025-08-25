@@ -58,14 +58,18 @@ import java.io.File
   uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 fun LanguageManagerPreview() {
-  LanguageManagerScreen()
+  val context = LocalContext.current
+  val scope = rememberCoroutineScope()
+  val filePathManager = FilePathManager(context)
+  LanguageManagerScreen(languageStateManager = LanguageStateManager(scope, filePathManager))
 }
 
 @Composable
-fun LanguageManagerScreen(embedded: Boolean = false) {
+fun LanguageManagerScreen(
+  embedded: Boolean = false,
+  languageStateManager: LanguageStateManager,
+) {
   val context = LocalContext.current
-  val scope = rememberCoroutineScope()
-  val languageStateManager = remember { LanguageStateManager(context, scope) }
   var downloadService by remember { mutableStateOf<DownloadService?>(null) }
 
   val serviceConnection =
@@ -143,9 +147,10 @@ fun LanguageManagerScreen(embedded: Boolean = false) {
       // Separate languages into installed and available
       val installedLanguages = languageAvailabilityState.availableLanguages.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
       val availableLanguages =
-        Language.entries.filter { lang ->
-          fromEnglishFiles[lang] != null && !languageAvailabilityState.availableLanguages.contains(lang) && lang != Language.ENGLISH
-        }.sortedBy { it.displayName }
+        Language.entries
+          .filter { lang ->
+            fromEnglishFiles[lang] != null && !languageAvailabilityState.availableLanguages.contains(lang) && lang != Language.ENGLISH
+          }.sortedBy { it.displayName }
 
       LazyColumn(
         verticalArrangement = Arrangement.spacedBy(0.dp),

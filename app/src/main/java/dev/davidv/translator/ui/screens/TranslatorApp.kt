@@ -43,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
+import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Greeting
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
@@ -62,6 +63,7 @@ fun TranslatorApp(
   sharedImageUri: Uri? = null,
   translationCoordinator: TranslationCoordinator,
   settingsManager: SettingsManager,
+  filePathManager: FilePathManager,
 ) {
   val navController = rememberNavController()
   val context = LocalContext.current
@@ -71,7 +73,7 @@ fun TranslatorApp(
   val settings by settingsManager.settings.collectAsState()
 
   // Centralized language state management
-  val languageStateManager = remember { LanguageStateManager(context, scope) }
+  val languageStateManager = remember { LanguageStateManager(scope, filePathManager) }
   val languageState by languageStateManager.languageState.collectAsState()
 
   // Download service management
@@ -400,6 +402,7 @@ fun TranslatorApp(
           navController.navigate("settings")
         },
         hasLanguages = languageState.hasLanguages,
+        languageStateManager = languageStateManager,
       )
     }
 
@@ -435,7 +438,7 @@ fun TranslatorApp(
       }
     }
     composable("language_manager") {
-      LanguageManagerScreen()
+      LanguageManagerScreen(languageStateManager = languageStateManager)
     }
     composable("settings") {
       SettingsScreen(

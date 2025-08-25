@@ -99,6 +99,7 @@ class DownloadService : Service() {
   private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
   private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
   private val settingsManager by lazy { SettingsManager(this) }
+  private val filePathManager by lazy { FilePathManager(this) }
 
   // Track download status for each language
   private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
@@ -203,7 +204,6 @@ class DownloadService : Service() {
 
           val downloadTasks = mutableListOf<suspend () -> Boolean>()
           val context = this@DownloadService
-          val filePathManager = FilePathManager(context)
           val dataDir = filePathManager.getDataDir()
           val tessDir = filePathManager.getTesseractDataDir()
           Path(tessDir.absolutePath).createDirectories()
@@ -229,12 +229,12 @@ class DownloadService : Service() {
           }
 
           if (!tessFile.exists()) {
-            downloadTasks.add { downloadTessData(this@DownloadService, language) }
+            downloadTasks.add { downloadTessData(language) }
           }
 
           // Always ensure English OCR is available
           if (!engTessFile.exists()) {
-            downloadTasks.add { downloadTessData(this@DownloadService, Language.ENGLISH) }
+            downloadTasks.add { downloadTessData(Language.ENGLISH) }
           }
 
           // Execute all downloads in parallel
@@ -297,7 +297,7 @@ class DownloadService : Service() {
 
       withContext(Dispatchers.IO) {
         // Delete translation files (to and from English)
-        val dataPath = FilePathManager(this@DownloadService).getDataDir()
+        val dataPath = filePathManager.getDataDir()
 
         // Delete to English files
         val toEnglishFiles = toEnglishFiles[language]
@@ -318,7 +318,7 @@ class DownloadService : Service() {
         }
 
         // Delete tessdata file
-        val tessDataPath = FilePathManager(this@DownloadService).getTesseractDataDir()
+        val tessDataPath = filePathManager.getTesseractDataDir()
         val tessFile = File(tessDataPath, language.tessFilename)
         if (tessFile.exists() && tessFile.delete()) {
           Log.i("DownloadService", "Deleted: ${tessFile.name}")
@@ -384,11 +384,8 @@ class DownloadService : Service() {
     return downloadJobs
   }
 
-  private suspend fun downloadTessData(
-    context: Context,
-    language: Language,
-  ): Boolean {
-    val tessDataPath = FilePathManager(context).getTesseractDataDir()
+  private suspend fun downloadTessData(language: Language): Boolean {
+    val tessDataPath = filePathManager.getTesseractDataDir()
     if (!tessDataPath.isDirectory) {
       tessDataPath.mkdirs()
     }
@@ -508,7 +505,7 @@ class DownloadService : Service() {
   }
 
   private fun cleanupTempFiles() {
-    val binDir = FilePathManager(this).getDataDir()
+    val binDir = filePathManager.getDataDir()
     if (binDir.exists()) {
       binDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
         if (tempFile.delete()) {
@@ -517,7 +514,7 @@ class DownloadService : Service() {
       }
     }
 
-    val tessDir = FilePathManager(this).getTesseractDataDir()
+    val tessDir = filePathManager.getTesseractDataDir()
     if (tessDir.exists()) {
       tessDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { tempFile ->
         if (tempFile.delete()) {

@@ -27,6 +27,7 @@ import kotlin.system.measureTimeMillis
 class TranslationService(
   private val context: Context,
   private val settingsManager: SettingsManager,
+  private val filePathManager: FilePathManager,
 ) {
   companion object {
     @Volatile
@@ -93,7 +94,7 @@ class TranslationService(
           } else {
             pair.first
           }
-        val dataPath = FilePathManager(context).getDataDir()
+        val dataPath = filePathManager.getDataDir()
         if (missingFilesFrom(dataPath, lang).isNotEmpty()) {
           return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }

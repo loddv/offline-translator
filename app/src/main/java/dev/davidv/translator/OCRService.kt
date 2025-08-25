@@ -17,7 +17,6 @@
 
 package dev.davidv.translator
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.util.Log
@@ -191,7 +190,7 @@ fun getSentences(
 }
 
 class OCRService(
-  private val context: Context,
+  private val filePathManager: FilePathManager,
 ) {
   private var tess: TessBaseAPI? = null
   private var isInitialized = false
@@ -201,7 +200,7 @@ class OCRService(
       if (isInitialized) return@withContext true
 
       try {
-        val p = FilePathManager(context).getTesseractDir().toPath()
+        val p = filePathManager.getTesseractDir().toPath()
         val tessdata = Path(p.pathString, "tessdata")
         val dataPath: String = p.absolutePathString()
         tessdata.createDirectories()

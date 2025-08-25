@@ -17,7 +17,6 @@
 
 package dev.davidv.translator
 
-import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,8 +35,8 @@ data class LanguageAvailabilityState(
 )
 
 class LanguageStateManager(
-  private val context: Context,
   private val scope: CoroutineScope,
+  private val filePathManager: FilePathManager,
 ) {
   private var downloadService: DownloadService? = null
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
@@ -61,7 +60,7 @@ class LanguageStateManager(
             Language.entries.forEach { fromLang ->
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
-                val dataPath = FilePathManager(context).getDataDir()
+                val dataPath = filePathManager.getDataDir()
                 val isAvailable = missingFiles(dataPath, fromLang).isEmpty()
                 put(fromLang.code, isAvailable)
               }

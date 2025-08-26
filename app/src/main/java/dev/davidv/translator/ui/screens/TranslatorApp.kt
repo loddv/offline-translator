@@ -410,7 +410,7 @@ fun TranslatorApp(
       }
     }
     composable("language_manager") {
-      LanguageManagerScreen(languageStateManager = languageStateManager, downloadStates_ = downloadService.downloadStates)
+      LanguageManagerScreen(languageState = languageStateManager.languageState, downloadStates_ = downloadService.downloadStates)
     }
     composable("settings") {
       SettingsScreen(

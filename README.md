@@ -17,6 +17,7 @@ An Android translator app that uses on-device models to perform translation of t
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png)
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png)
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png)
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.jpg" width="360px">](fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.jpg)
 
 ## Tech

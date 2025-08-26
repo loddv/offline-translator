@@ -101,7 +101,7 @@ fun NoLanguagesScreen(
 
       LanguageManagerScreen(
         embedded = true,
-        languageStateManager = languageStateManager,
+        languageState = languageStateManager.languageState,
         downloadStates_ = downloadService?.downloadStates,
       )
     }

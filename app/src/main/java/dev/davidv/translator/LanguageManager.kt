@@ -35,13 +35,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
+import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 
@@ -51,23 +51,34 @@ import java.io.File
   uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 fun LanguageManagerPreview() {
-  val context = LocalContext.current
-  val scope = rememberCoroutineScope()
-  val settingsManager = SettingsManager(context)
-  val filePathManager = FilePathManager(context, settingsManager.settings)
-  val downloadService = DownloadService()
-  LanguageManagerScreen(languageStateManager = LanguageStateManager(scope, filePathManager, downloadService), downloadStates_ = null)
+  TranslatorTheme {
+    LanguageManagerScreen(
+      languageState =
+        kotlinx.coroutines.flow.MutableStateFlow(
+          LanguageAvailabilityState(
+            availableLanguages = listOf(Language.ENGLISH, Language.FRENCH, Language.SPANISH),
+          ),
+        ),
+      downloadStates_ =
+        kotlinx.coroutines.flow.MutableStateFlow(
+          mapOf(
+            Language.ARABIC to DownloadState(language = Language.ARABIC, isDownloading = true, progress = 0.5f),
+            Language.ALBANIAN to DownloadState(language = Language.ALBANIAN, isCancelled = true),
+          ),
+        ),
+    )
+  }
 }
 
 @Composable
 fun LanguageManagerScreen(
   embedded: Boolean = false,
-  languageStateManager: LanguageStateManager,
+  languageState: StateFlow<LanguageAvailabilityState>,
   downloadStates_: StateFlow<Map<Language, DownloadState>>?,
 ) {
   val context = LocalContext.current
 
-  val languageAvailabilityState by languageStateManager.languageState.collectAsState()
+  val languageAvailabilityState by languageState.collectAsState()
   val downloadStates by downloadStates_?.collectAsState() ?: remember { mutableStateOf(emptyMap()) }
 
   Scaffold(
@@ -161,10 +172,16 @@ private fun LanguageItem(
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(
-      text = lang.displayName,
-      style = MaterialTheme.typography.titleMedium,
-    )
+    Column {
+      Text(
+        text = lang.displayName,
+        style = MaterialTheme.typography.titleMedium,
+      )
+      Text(
+        text = "${(lang.sizeBytes / (1024 * 1024))} MB",
+        style = MaterialTheme.typography.labelMedium,
+      )
+    }
     LanguageDownloadButton(lang, downloadState, context, fullyDownloaded)
   }
 }

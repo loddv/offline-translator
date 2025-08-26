@@ -50,10 +50,10 @@ import kotlin.io.path.createDirectories
 class TrackingInputStream(
   private val inputStream: InputStream,
   private val size: Long,
-  private val onProgress: (Float) -> Unit,
+  private val onProgress: (Long) -> Unit,
 ) : InputStream() {
   private var totalBytesRead = 0L
-  private var lastReportedProgress = 0f
+  private var lastReportedBytes = 0L
 
   override fun read(): Int {
     val byte = inputStream.read()
@@ -79,17 +79,17 @@ class TrackingInputStream(
 
   private fun checkProgress() {
     if (size > 0) {
-      val currentProgress = totalBytesRead.toFloat() / size.toFloat()
-      val incrementalProgress = currentProgress - lastReportedProgress
-      if (incrementalProgress > 0.05f) {
+      val currentProgress = totalBytesRead
+      val incrementalProgress = currentProgress - lastReportedBytes
+      if (incrementalProgress > (128 * 1024)) {
         onProgress(incrementalProgress)
-        lastReportedProgress = currentProgress
+        lastReportedBytes = currentProgress
       }
     }
   }
 
   override fun close() {
-    onProgress(1.0f - lastReportedProgress)
+    onProgress(size - lastReportedBytes)
     inputStream.close()
   }
 }
@@ -196,7 +196,13 @@ class DownloadService : Service() {
   private fun startLanguageDownload(language: Language) {
     // Don't start if already downloading
     if (_downloadStates.value[language]?.isDownloading == true) return
-
+    updateDownloadState(language) {
+      DownloadState(
+        isDownloading = true,
+        isCompleted = false,
+        downloaded = 1,
+      )
+    }
     val job =
       serviceScope.launch {
         try {
@@ -204,34 +210,42 @@ class DownloadService : Service() {
           val dataDir = filePathManager.getDataDir()
           val tessDir = filePathManager.getTesseractDataDir()
           Path(tessDir.absolutePath).createDirectories()
-          val missingFrom = missingFilesFrom(dataDir, language)
-          val missingTo = missingFilesTo(dataDir, language)
+          val (fromSize, missingFrom) = missingFilesFrom(dataDir, language)
+          val (toSize, missingTo) = missingFilesTo(dataDir, language)
           val tessFile = File(tessDir, language.tessFilename)
           val engTessFile = File(tessDir, Language.ENGLISH.tessFilename)
-
+          var toDownload = (fromSize + toSize).toLong()
           if (missingTo.isNotEmpty()) {
-            downloadTasks.addAll(downloadLanguageFiles(dataDir, language, Language.ENGLISH, toEnglishFiles[language]!!.quality, missingTo))
+            val tasks = downloadLanguageFiles(dataDir, language, Language.ENGLISH, toEnglishFiles[language]!!.quality, missingTo, language)
+            downloadTasks.addAll(tasks)
           }
 
           if (missingFrom.isNotEmpty()) {
-            downloadTasks.addAll(
+            val tasks =
               downloadLanguageFiles(
                 dataDir,
                 Language.ENGLISH,
                 language,
                 fromEnglishFiles[language]!!.quality,
                 missingFrom,
-              ),
+                language,
+              )
+            downloadTasks.addAll(
+              tasks,
             )
           }
 
           if (!tessFile.exists()) {
-            downloadTasks.add { downloadTessData(language) }
+            val task = downloadTessData(language)
+            toDownload += language.tessdataSizeBytes
+            downloadTasks.add(task)
           }
 
           // Always ensure English OCR is available
           if (!engTessFile.exists()) {
-            downloadTasks.add { downloadTessData(Language.ENGLISH) }
+            val task = downloadTessData(Language.ENGLISH)
+            toDownload += Language.ENGLISH.tessdataSizeBytes
+            downloadTasks.add(task)
           }
 
           // Execute all downloads in parallel
@@ -240,8 +254,8 @@ class DownloadService : Service() {
             updateDownloadState(language) {
               it.copy(
                 isDownloading = true,
-                progress = 0.01f,
-                taskCount = downloadTasks.count(),
+                downloaded = 1,
+                totalSize = toDownload,
               )
             }
             Log.i("DownloadService", "Starting ${downloadTasks.count()} download jobs")
@@ -252,7 +266,7 @@ class DownloadService : Service() {
             DownloadState(
               isDownloading = false,
               isCompleted = success,
-              progress = 1f,
+              downloaded = toDownload,
             )
           }
           if (success) {
@@ -328,7 +342,7 @@ class DownloadService : Service() {
           isDownloading = false,
           isCompleted = false,
           isCancelled = false,
-          progress = 0f,
+          downloaded = 0,
           error = null,
         )
       }
@@ -349,10 +363,37 @@ class DownloadService : Service() {
     language: Language,
     update: (DownloadState) -> DownloadState,
   ) {
-    val currentStates = _downloadStates.value.toMutableMap()
-    val currentState = currentStates[language] ?: DownloadState()
-    currentStates[language] = update(currentState)
-    _downloadStates.value = currentStates
+    synchronized(this) {
+      val currentStates = _downloadStates.value.toMutableMap()
+      val currentState = currentStates[language] ?: DownloadState()
+      val newState = update(currentState)
+      Log.d(
+        "DownloadService",
+        "updateDownloadState: ${language.code} thread=${Thread.currentThread().name} before=${currentState.downloaded} after=${newState.downloaded} isDownloading=${newState.isDownloading}",
+      )
+      currentStates[language] = newState
+      _downloadStates.value = currentStates
+    }
+  }
+
+  private fun incrementDownloadBytes(
+    language: Language,
+    incrementalBytes: Long,
+  ) {
+    synchronized(this) {
+      val currentStates = _downloadStates.value.toMutableMap()
+      val currentState = currentStates[language] ?: DownloadState()
+      val newDownloaded = currentState.downloaded + incrementalBytes
+      Log.d(
+        "DownloadService",
+        "incrementDownloadBytes: ${language.code} thread=${Thread.currentThread().name} before=${currentState.downloaded} increment=$incrementalBytes after=$newDownloaded totalStates=${currentStates.size}",
+      )
+      currentStates[language] =
+        currentState.copy(
+          downloaded = newDownloaded,
+        )
+      _downloadStates.value = currentStates
+    }
   }
 
   private fun downloadLanguageFiles(
@@ -361,15 +402,18 @@ class DownloadService : Service() {
     to: Language,
     modelType: ModelType,
     files: List<String>,
+    targetLanguage: Language,
   ): List<suspend () -> Boolean> {
     val base = settingsManager.settings.value.translationModelsBaseUrl
     val downloadJobs =
       files.mapNotNull { fileName ->
         val file = File(dataPath, fileName)
         if (!file.exists()) {
+          val url = "$base/$modelType/${from.code}${to.code}/$fileName.gz"
           suspend {
-            val url = "$base/$modelType/${from.code}${to.code}/$fileName.gz"
-            val success = downloadAndDecompress(url, file, to)
+            val conn = URL(url).openConnection()
+            val size = conn.contentLengthLong
+            val success = downloadAndDecompress(conn.getInputStream(), size, file, targetLanguage)
             Log.i("DownloadService", "Downloaded $url to $file = $success")
             success
           }
@@ -380,7 +424,7 @@ class DownloadService : Service() {
     return downloadJobs
   }
 
-  private suspend fun downloadTessData(language: Language): Boolean {
+  private fun downloadTessData(language: Language): suspend () -> Boolean {
     val tessDataPath = filePathManager.getTesseractDataDir()
     if (!tessDataPath.isDirectory) {
       tessDataPath.mkdirs()
@@ -389,20 +433,24 @@ class DownloadService : Service() {
     val url = "${settingsManager.settings.value.tesseractModelsBaseUrl}/${language.tessName}.traineddata"
 
     if (tessFile.exists()) {
-      return true
+      return suspend { true }
     }
-    return withContext(Dispatchers.IO) {
-      val success = download(url, tessFile, language)
+
+    return suspend {
+      val conn = URL(url).openConnection()
+      val size = conn.contentLengthLong
+      val success = download(conn.getInputStream(), size, tessFile, language)
       Log.i(
         "DownloadService",
         "Downloaded tessdata for ${language.displayName} = $url to $tessFile: $success",
       )
-      return@withContext success
+      success
     }
   }
 
   private suspend fun download(
-    url: String,
+    inputStream: InputStream,
+    size: Long,
     outputFile: File,
     language: Language,
     decompress: Boolean = false,
@@ -411,17 +459,10 @@ class DownloadService : Service() {
 
     try {
       outputFile.parentFile?.mkdirs()
-
-      val conn = URL(url).openConnection()
-      val size = conn.contentLengthLong
-      Log.i("DownloadService", "URL $url has size $size (${size / 1024 / 1024f}MB)")
-      conn.getInputStream().use { rawInputStream ->
+      inputStream.use { rawInputStream ->
         val trackingStream =
           TrackingInputStream(rawInputStream, size) { incrementalProgress ->
-            updateDownloadState(language) {
-              val newProgress = it.progress + (incrementalProgress / it.taskCount.toFloat())
-              it.copy(progress = newProgress)
-            }
+            incrementDownloadBytes(language, incrementalProgress)
           }
 
         tempFile.outputStream().use { output ->
@@ -460,10 +501,11 @@ class DownloadService : Service() {
   }
 
   private suspend fun downloadAndDecompress(
-    url: String,
+    inputStream: InputStream,
+    size: Long,
     outputFile: File,
     language: Language,
-  ) = download(url, outputFile, language, decompress = true)
+  ) = download(inputStream, size, outputFile, language, decompress = true)
 
   private fun createNotificationChannel() {
     val channel =
@@ -529,7 +571,7 @@ data class DownloadState(
   val isDownloading: Boolean = false,
   val isCompleted: Boolean = false,
   val isCancelled: Boolean = false,
-  val progress: Float = 0f,
-  val taskCount: Int = 1,
+  val downloaded: Long = 0,
+  val totalSize: Long = 1,
   val error: String? = null,
 )

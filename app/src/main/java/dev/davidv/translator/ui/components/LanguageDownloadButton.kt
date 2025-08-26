@@ -53,7 +53,9 @@ fun LanguageDownloadButton(
       contentAlignment = Alignment.Center,
       modifier = modifier.size(48.dp),
     ) {
-      val targetProgress = downloadState?.progress ?: 1f
+      val targetProgress =
+        downloadState!!.downloaded.toFloat() / downloadState.totalSize.toFloat()
+
       val animatedProgress by animateFloatAsState(
         targetValue = targetProgress,
         animationSpec = tween(durationMillis = 300),

@@ -80,6 +80,9 @@
     "vocab.elen.spm": 419174,
     "vocab.enel.spm": 419275
   },
+  "en": {
+    "eng.traineddata": 4113088
+  },
   "es": {
     "lex.50.50.enes.s2t.bin": 1720700,
     "lex.50.50.esen.s2t.bin": 1978538,

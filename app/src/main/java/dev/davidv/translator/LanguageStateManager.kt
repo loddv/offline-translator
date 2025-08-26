@@ -74,7 +74,7 @@ class LanguageStateManager(
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
                 val dataPath = filePathManager.getDataDir()
-                val isAvailable = missingFiles(dataPath, fromLang).isEmpty()
+                val isAvailable = missingFiles(dataPath, fromLang).second.isEmpty()
                 put(fromLang.code, isAvailable)
               }
             }

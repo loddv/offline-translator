@@ -62,7 +62,7 @@ fun LanguageManagerPreview() {
       downloadStates_ =
         kotlinx.coroutines.flow.MutableStateFlow(
           mapOf(
-            Language.ARABIC to DownloadState(isDownloading = true, progress = 0.5f),
+            Language.ARABIC to DownloadState(isDownloading = true, totalSize = 10, downloaded = 5),
             Language.ALBANIAN to DownloadState(isCancelled = true),
           ),
         ),
@@ -189,24 +189,34 @@ private fun LanguageItem(
 fun missingFiles(
   dataPath: File,
   lang: Language,
-): List<String> = missingFilesTo(dataPath, lang).plus(missingFilesFrom(dataPath, lang))
+): Pair<Int, List<String>> {
+  val (toSize, toFiles) = missingFilesTo(dataPath, lang)
+  val (fromSize, fromFiles) = missingFilesFrom(dataPath, lang)
+  return Pair(toSize + fromSize, toFiles + fromFiles)
+}
 
 fun missingFilesFrom(
   dataPath: File,
   lang: Language,
-): List<String> {
-  val allPaths = fromEnglishFiles[lang]!!.allFiles().map { File(dataPath, it) }
-  val presentPaths = allPaths.filter { !it.exists() }.map { it.name }
-  return presentPaths
+): Pair<Int, List<String>> {
+  val languageFiles = fromEnglishFiles[lang]!!
+  val fileSizePairs = listOf(languageFiles.model, languageFiles.srcVocab, languageFiles.tgtVocab, languageFiles.lex).distinct()
+  val missingFiles = fileSizePairs.filter { (filename, _) -> !File(dataPath, filename).exists() }
+  val totalSize = missingFiles.sumOf { (_, size) -> size }
+  val filenames = missingFiles.map { (filename, _) -> filename }
+  return Pair(totalSize, filenames)
 }
 
 fun missingFilesTo(
   dataPath: File,
   lang: Language,
-): List<String> {
-  val allPaths = toEnglishFiles[lang]!!.allFiles().map { File(dataPath, it) }
-  val presentPaths = allPaths.filter { !it.exists() }.map { it.name }
-  return presentPaths
+): Pair<Int, List<String>> {
+  val languageFiles = toEnglishFiles[lang]!!
+  val fileSizePairs = listOf(languageFiles.model, languageFiles.srcVocab, languageFiles.tgtVocab, languageFiles.lex).distinct()
+  val missingFiles = fileSizePairs.filter { (filename, _) -> !File(dataPath, filename).exists() }
+  val totalSize = missingFiles.sumOf { (_, size) -> size }
+  val filenames = missingFiles.map { (filename, _) -> filename }
+  return Pair(totalSize, filenames)
 }
 
 fun getAvailableTessLanguages(tessData: File): List<Language> = Language.entries.filter { File(tessData, it.tessFilename).exists() }

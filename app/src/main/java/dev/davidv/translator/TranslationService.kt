@@ -93,7 +93,7 @@ class TranslationService(
             pair.first
           }
         val dataPath = filePathManager.getDataDir()
-        if (missingFilesFrom(dataPath, lang).isNotEmpty()) {
+        if (missingFilesFrom(dataPath, lang).second.isNotEmpty()) {
           return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }
       }
@@ -156,12 +156,12 @@ class TranslationService(
 
     return """
 models:
-  - $dataPath/${languageFiles.model}
+  - $dataPath/${languageFiles.model.first}
 vocabs:
-  - $dataPath/${languageFiles.srcVocab}
-  - $dataPath/${languageFiles.tgtVocab}
+  - $dataPath/${languageFiles.srcVocab.first}
+  - $dataPath/${languageFiles.tgtVocab.first}
 shortlist:
-    - $dataPath/${languageFiles.lex}
+    - $dataPath/${languageFiles.lex.first}
     - false
 beam-size: 1
 normalize: 1.0

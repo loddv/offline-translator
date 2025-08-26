@@ -333,7 +333,10 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]], existing_sizes: di
     to_english = {k: v for k, v in to_english.items() if k in from_english}
 
     # Get sizes
-    for lang_code in sorted(from_english.keys()):
+    all_lang_codes = set(from_english.keys())
+    all_lang_codes.add('en')
+
+    for lang_code in sorted(all_lang_codes):
         if lang_code not in existing_sizes:
             print(f"Fetching size for {lang_code}")
             existing_sizes[lang_code] = asyncio.run(get_language_sizes(lang_code, language_pairs))
@@ -349,8 +352,15 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]], existing_sizes: di
         tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
         script = LANGUAGE_SCRIPTS[lang_code]
         enum_name = lang_name.upper().replace(' ', '_').replace('Å', 'A')
-        size_bytes = sum(v for v in existing_sizes[lang_code].values()) if lang_code != 'en' else 0
-        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}", {size_bytes})')
+
+        sizes = existing_sizes[lang_code]
+        tess_filename = f"{tess_name}.traineddata"
+        tessdata_size = sizes[tess_filename]
+
+        # full, including tessdata
+        translation_size = sum(v for v in sizes.values())
+
+        language_entries.append(f'    {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}", {translation_size}, {tessdata_size})')
 
     language_entries = sorted(language_entries)
 
@@ -361,7 +371,14 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]], existing_sizes: di
         lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
         model_type_enum = f'ModelType.{from_english[lang_code].upper().replace("-", "_")}'
         files = generate_files_for_language('en', lang_code)
-        from_english_files_entries.append(f'    {lang_enum} to LanguageFiles("{files["model"]}", "{files["srcVocab"]}", "{files["tgtVocab"]}", "{files["lex"]}", {model_type_enum})')
+        sizes = existing_sizes[lang_code]
+
+        model_size = sizes[files["model"]]
+        src_vocab_size = sizes[files["srcVocab"]]
+        tgt_vocab_size = sizes[files["tgtVocab"]]
+        lex_size = sizes[files["lex"]]
+
+        from_english_files_entries.append(f'    {lang_enum} to LanguageFiles(Pair("{files["model"]}", {model_size}), Pair("{files["srcVocab"]}", {src_vocab_size}), Pair("{files["tgtVocab"]}", {tgt_vocab_size}), Pair("{files["lex"]}", {lex_size}), {model_type_enum})')
 
     # Generate toEnglishFiles map entries
     to_english_files_entries = []
@@ -370,7 +387,14 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]], existing_sizes: di
         lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
         model_type_enum = f'ModelType.{to_english[lang_code].upper().replace("-", "_")}'
         files = generate_files_for_language(lang_code, 'en')
-        to_english_files_entries.append(f'    {lang_enum} to LanguageFiles("{files["model"]}", "{files["srcVocab"]}", "{files["tgtVocab"]}", "{files["lex"]}", {model_type_enum})')
+        sizes = existing_sizes[lang_code]
+
+        model_size = sizes[files["model"]]
+        src_vocab_size = sizes[files["srcVocab"]]
+        tgt_vocab_size = sizes[files["tgtVocab"]]
+        lex_size = sizes[files["lex"]]
+
+        to_english_files_entries.append(f'    {lang_enum} to LanguageFiles(Pair("{files["model"]}", {model_size}), Pair("{files["srcVocab"]}", {src_vocab_size}), Pair("{files["tgtVocab"]}", {tgt_vocab_size}), Pair("{files["lex"]}", {lex_size}), {model_type_enum})')
 
     to_english_lines = ",\n".join(to_english_files_entries)
     from_english_lines = ",\n".join(from_english_files_entries)
@@ -411,7 +435,7 @@ enum class ModelType(private val pathName: String) {{
     override fun toString(): String = pathName
 }}
 
-enum class Language(val code: String, val tessName: String, val displayName: String, val script: String, val sizeBytes: Int) {{
+enum class Language(val code: String, val tessName: String, val displayName: String, val script: String, val sizeBytes: Int, val tessdataSizeBytes: Int) {{
 {language_lines};
 
     val tessFilename: String
@@ -419,13 +443,13 @@ enum class Language(val code: String, val tessName: String, val displayName: Str
 }}
 
 data class LanguageFiles(
-    val model: String,
-    val srcVocab: String,
-    val tgtVocab: String,
-    val lex: String,
+    val model: Pair<String, Int>,
+    val srcVocab: Pair<String, Int>,
+    val tgtVocab: Pair<String, Int>,
+    val lex: Pair<String, Int>,
     val quality: ModelType
 ) {{
-    fun allFiles(): List<String> = listOf(model, srcVocab, tgtVocab, lex).distinct()
+    fun allFiles(): List<String> = listOf(model.first, srcVocab.first, tgtVocab.first, lex.first).distinct()
 }}
 
 val fromEnglishFiles = mapOf(

@@ -250,7 +250,6 @@ class DownloadService : Service() {
           }
           updateDownloadState(language) {
             DownloadState(
-              language = language,
               isDownloading = false,
               isCompleted = success,
               progress = 1f,
@@ -326,7 +325,6 @@ class DownloadService : Service() {
       // Clear the download state
       updateDownloadState(language) {
         DownloadState(
-          language = language,
           isDownloading = false,
           isCompleted = false,
           isCancelled = false,
@@ -352,7 +350,7 @@ class DownloadService : Service() {
     update: (DownloadState) -> DownloadState,
   ) {
     val currentStates = _downloadStates.value.toMutableMap()
-    val currentState = currentStates[language] ?: DownloadState(language)
+    val currentState = currentStates[language] ?: DownloadState()
     currentStates[language] = update(currentState)
     _downloadStates.value = currentStates
   }
@@ -528,7 +526,6 @@ class DownloadService : Service() {
 }
 
 data class DownloadState(
-  val language: Language,
   val isDownloading: Boolean = false,
   val isCompleted: Boolean = false,
   val isCancelled: Boolean = false,

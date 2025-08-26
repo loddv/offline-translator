@@ -62,8 +62,8 @@ fun LanguageManagerPreview() {
       downloadStates_ =
         kotlinx.coroutines.flow.MutableStateFlow(
           mapOf(
-            Language.ARABIC to DownloadState(language = Language.ARABIC, isDownloading = true, progress = 0.5f),
-            Language.ALBANIAN to DownloadState(language = Language.ALBANIAN, isCancelled = true),
+            Language.ARABIC to DownloadState(isDownloading = true, progress = 0.5f),
+            Language.ALBANIAN to DownloadState(isCancelled = true),
           ),
         ),
     )

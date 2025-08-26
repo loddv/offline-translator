@@ -54,6 +54,12 @@ android {
         }
         dimension = "architecture"
       }
+      create("armeabi-v7a") {
+        ndk {
+          abiFilters += listOf("armeabi-v7a")
+        }
+        dimension = "architecture"
+      }
     }
   }
   compileOptions {

@@ -1,0 +1,3 @@
+- Allow storing languages on external storage
+- Show download size on languages page
+- Improve native libraries build & startup code

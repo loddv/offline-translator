@@ -292,7 +292,7 @@ fun TranslatorApp(
         }
       }
 
-      TranslatorMessage.ClearImage -> {
+      TranslatorMessage.ClearInput -> {
         displayImage = null
         output = null
         input = ""

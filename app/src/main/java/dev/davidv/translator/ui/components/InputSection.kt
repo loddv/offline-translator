@@ -55,10 +55,10 @@ fun InputSection(
   onMessage: (TranslatorMessage) -> Unit,
   onShowFullScreenImage: () -> Unit,
 ) {
-  if (displayImage != null) {
-    Box(
-      modifier = Modifier.fillMaxWidth(),
-    ) {
+  Box(
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    if (displayImage != null) {
       Column {
         val isOcrInProgressState by isOcrInProgress.collectAsState()
         val isTranslatingState by isTranslating.collectAsState()
@@ -81,9 +81,22 @@ fun InputSection(
               .clickable { onShowFullScreenImage() },
         )
       }
+    } else {
+      StyledTextField(
+        text = input,
+        onValueChange = { newInput ->
+          onMessage(TranslatorMessage.TextInput(newInput))
+        },
+        placeholder = "Enter text",
+        modifier =
+          Modifier
+            .fillMaxSize(),
+      )
+    }
 
+    if (displayImage != null || input.isNotEmpty()) {
       IconButton(
-        onClick = { onMessage(TranslatorMessage.ClearImage) },
+        onClick = { onMessage(TranslatorMessage.ClearInput) },
         modifier =
           Modifier
             .align(Alignment.TopEnd)
@@ -92,22 +105,11 @@ fun InputSection(
       ) {
         Icon(
           painterResource(id = R.drawable.cancel),
-          contentDescription = "Remove image",
+          contentDescription = "Clear input",
           tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
         )
       }
     }
-  } else {
-    StyledTextField(
-      text = input,
-      onValueChange = { newInput ->
-        onMessage(TranslatorMessage.TextInput(newInput))
-      },
-      placeholder = "Enter text",
-      modifier =
-        Modifier
-          .fillMaxSize(),
-    )
   }
 }
 

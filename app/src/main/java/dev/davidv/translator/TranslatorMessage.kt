@@ -38,7 +38,7 @@ sealed class TranslatorMessage {
 
   data object SwapLanguages : TranslatorMessage()
 
-  data object ClearImage : TranslatorMessage()
+  data object ClearInput : TranslatorMessage()
 
   data class InitializeLanguages(
     val from: Language,

@@ -46,6 +46,7 @@ import java.net.URL
 import java.util.zip.GZIPInputStream
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
+import kotlin.math.max
 
 class TrackingInputStream(
   private val inputStream: InputStream,
@@ -81,7 +82,7 @@ class TrackingInputStream(
     if (size > 0) {
       val currentProgress = totalBytesRead
       val incrementalProgress = currentProgress - lastReportedBytes
-      if (incrementalProgress > (128 * 1024)) {
+      if (incrementalProgress > max(128 * 1024, size / 20)) { // 128KiB or 5%
         onProgress(incrementalProgress)
         lastReportedBytes = currentProgress
       }
@@ -266,7 +267,6 @@ class DownloadService : Service() {
             DownloadState(
               isDownloading = false,
               isCompleted = success,
-              downloaded = toDownload,
             )
           }
           if (success) {
@@ -384,10 +384,6 @@ class DownloadService : Service() {
       val currentStates = _downloadStates.value.toMutableMap()
       val currentState = currentStates[language] ?: DownloadState()
       val newDownloaded = currentState.downloaded + incrementalBytes
-      Log.d(
-        "DownloadService",
-        "incrementDownloadBytes: ${language.code} thread=${Thread.currentThread().name} before=${currentState.downloaded} increment=$incrementalBytes after=$newDownloaded totalStates=${currentStates.size}",
-      )
       currentStates[language] =
         currentState.copy(
           downloaded = newDownloaded,

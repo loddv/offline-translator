@@ -20,21 +20,30 @@ package dev.davidv.translator.ui.components
 import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.Language
 import dev.davidv.translator.R
+import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun LanguageDownloadButton(
@@ -63,7 +72,7 @@ fun LanguageDownloadButton(
       )
       CircularProgressIndicator(
         progress = { animatedProgress },
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier.size(40.dp),
       )
       IconButton(
         onClick = {
@@ -112,6 +121,51 @@ fun LanguageDownloadButton(
             contentDescription = "Download",
           )
         }
+      }
+    }
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LanguageDownloadButtonPreview() {
+  TranslatorTheme {
+    Surface(
+      modifier = Modifier.padding(16.dp),
+      color = MaterialTheme.colorScheme.background,
+    ) {
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+      ) {
+        LanguageDownloadButton(
+          language = Language.FRENCH,
+          downloadState = null,
+          context = LocalContext.current,
+          isLanguageAvailable = false,
+        )
+
+        LanguageDownloadButton(
+          language = Language.FRENCH,
+          downloadState = DownloadState(isDownloading = true, totalSize = 100, downloaded = 50),
+          context = LocalContext.current,
+          isLanguageAvailable = false,
+        )
+
+        LanguageDownloadButton(
+          language = Language.FRENCH,
+          downloadState = null,
+          context = LocalContext.current,
+          isLanguageAvailable = true,
+        )
+
+        LanguageDownloadButton(
+          language = Language.FRENCH,
+          downloadState = DownloadState(error = "Failed"),
+          context = LocalContext.current,
+          isLanguageAvailable = false,
+        )
       }
     }
   }

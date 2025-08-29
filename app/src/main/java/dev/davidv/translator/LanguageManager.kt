@@ -18,23 +18,28 @@
 package dev.davidv.translator
 
 import android.content.Context
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,30 +47,70 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 
-@Composable
-@Preview(
-  showBackground = true,
-  uiMode = Configuration.UI_MODE_NIGHT_YES,
+data class PreviewStates(
+  val languageState: StateFlow<LanguageAvailabilityState>,
+  val downloadStates: StateFlow<Map<Language, DownloadState>>,
 )
+
+fun createPreviewStates(): PreviewStates =
+  PreviewStates(
+    languageState =
+      MutableStateFlow(
+        LanguageAvailabilityState(
+          availableLanguages = listOf(Language.ENGLISH, Language.FRENCH, Language.SPANISH),
+        ),
+      ),
+    downloadStates =
+      MutableStateFlow(
+        mapOf(
+          Language.ARABIC to DownloadState(isDownloading = true, totalSize = 10, downloaded = 5),
+          Language.ALBANIAN to DownloadState(isCancelled = true),
+        ),
+      ),
+  )
+
+@Composable
+@Preview
 fun LanguageManagerPreview() {
+  val states = createPreviewStates()
+  TranslatorTheme {
+    LanguageManagerScreen(
+      languageState = states.languageState,
+      downloadStates_ = states.downloadStates,
+    )
+  }
+}
+
+@Composable
+@Preview
+fun LanguageManagerPreviewEmbedded() {
   TranslatorTheme {
     LanguageManagerScreen(
       languageState =
-        kotlinx.coroutines.flow.MutableStateFlow(
+        MutableStateFlow(
           LanguageAvailabilityState(
-            availableLanguages = listOf(Language.ENGLISH, Language.FRENCH, Language.SPANISH),
+            availableLanguages = emptyList(),
           ),
         ),
-      downloadStates_ =
-        kotlinx.coroutines.flow.MutableStateFlow(
-          mapOf(
-            Language.ARABIC to DownloadState(isDownloading = true, totalSize = 10, downloaded = 5),
-            Language.ALBANIAN to DownloadState(isCancelled = true),
-          ),
-        ),
+      downloadStates_ = MutableStateFlow(emptyMap()),
+      embedded = true,
+    )
+  }
+}
+
+@Composable
+@Preview
+fun LanguageManagerDialogPreview() {
+  val states = createPreviewStates()
+  TranslatorTheme {
+    LanguageManagerScreen(
+      languageState = states.languageState,
+      downloadStates_ = states.downloadStates,
+      openDialog = true,
     )
   }
 }
@@ -75,11 +120,21 @@ fun LanguageManagerScreen(
   embedded: Boolean = false,
   languageState: StateFlow<LanguageAvailabilityState>,
   downloadStates_: StateFlow<Map<Language, DownloadState>>?,
+  openDialog: Boolean = false,
 ) {
   val context = LocalContext.current
 
   val languageAvailabilityState by languageState.collectAsState()
   val downloadStates by downloadStates_?.collectAsState() ?: remember { mutableStateOf(emptyMap()) }
+  // Separate languages into installed and available
+  val installedLanguages = languageAvailabilityState.availableLanguages.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !languageAvailabilityState.availableLanguages.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+
+  var showDownloadAllDialog by remember { mutableStateOf(openDialog) }
 
   Scaffold(
     modifier = Modifier.fillMaxSize(),
@@ -99,14 +154,6 @@ fun LanguageManagerScreen(
           modifier = Modifier.padding(bottom = 16.dp),
         )
       }
-
-      // Separate languages into installed and available
-      val installedLanguages = languageAvailabilityState.availableLanguages.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
-      val availableLanguages =
-        Language.entries
-          .filter { lang ->
-            fromEnglishFiles[lang] != null && !languageAvailabilityState.availableLanguages.contains(lang) && lang != Language.ENGLISH
-          }.sortedBy { it.displayName }
 
       LazyColumn(
         verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -133,13 +180,30 @@ fun LanguageManagerScreen(
 
         // Available Languages Section
         if (availableLanguages.isNotEmpty()) {
-          if (!embedded || installedLanguages.isNotEmpty()) {
-            item {
+          item {
+            Row(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 8.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
               Text(
                 text = "Available",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(vertical = 8.dp),
               )
+              Button(
+                onClick = { showDownloadAllDialog = true },
+                shape = ButtonDefaults.outlinedShape,
+                contentPadding = ButtonDefaults.TextButtonContentPadding,
+                colors = ButtonDefaults.textButtonColors(),
+              ) {
+                Text(
+                  text = "Download all",
+                  style = MaterialTheme.typography.labelMedium,
+                )
+              }
             }
           }
 
@@ -154,6 +218,46 @@ fun LanguageManagerScreen(
         }
       }
     }
+  }
+
+  if (showDownloadAllDialog) {
+    val totalSizeBytes = availableLanguages.sumOf { it.sizeBytes }
+    val totalSizeGiB = totalSizeBytes / (1024.0 * 1024.0 * 1024.0)
+
+    AlertDialog(
+      onDismissRequest = { showDownloadAllDialog = false },
+      title = {
+        Text(
+          "Download ${availableLanguages.size} languages?",
+          style = MaterialTheme.typography.titleLarge,
+        )
+      },
+      text = {
+        Text(
+          "Download size: %.2f GiB\n\n".format(totalSizeGiB) +
+            "Make sure you've configured your storage location (internal/external) in settings first.",
+        )
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            availableLanguages.forEach { language ->
+              DownloadService.startDownload(context, language)
+            }
+            showDownloadAllDialog = false
+          },
+        ) {
+          Text("Download")
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = { showDownloadAllDialog = false },
+        ) {
+          Text("Cancel")
+        }
+      },
+    )
   }
 }
 

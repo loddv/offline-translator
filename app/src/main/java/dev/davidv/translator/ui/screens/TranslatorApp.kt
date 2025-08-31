@@ -21,7 +21,10 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +36,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -354,99 +359,108 @@ fun TranslatorApp(
     }
   }
 
-  NavHost(
-    navController = navController,
-    startDestination = startDestination,
+  Box(
+    modifier =
+      when (launchMode) {
+        LaunchMode.Normal -> Modifier.fillMaxHeight()
+        LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
+          Modifier.height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
+      }.fillMaxWidth(),
   ) {
-    composable("loading") {
-      // Simple loading screen while checking languages
-      Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-      ) {
-        CircularProgressIndicator()
+    NavHost(
+      navController = navController,
+      startDestination = startDestination,
+    ) {
+      composable("loading") {
+        // Simple loading screen while checking languages
+        Box(
+          modifier = Modifier.fillMaxSize(),
+          contentAlignment = Alignment.Center,
+        ) {
+          CircularProgressIndicator()
+        }
       }
-    }
 
-    composable("no_languages") {
-      NoLanguagesScreen(
-        onDone = {
-          // Only navigate if languages are available
-          if (languageState.hasLanguages) {
-            MainScope().launch {
-              navController.navigate("main") {
-                popUpTo("no_languages") { inclusive = true }
+      composable("no_languages") {
+        NoLanguagesScreen(
+          onDone = {
+            // Only navigate if languages are available
+            if (languageState.hasLanguages) {
+              MainScope().launch {
+                navController.navigate("main") {
+                  popUpTo("no_languages") { inclusive = true }
+                }
               }
             }
-          }
-        },
-        onSettings = {
-          navController.navigate("settings")
-        },
-        languageStateManager = languageStateManager,
-        downloadService = downloadService,
-      )
-    }
-
-    composable("main") {
-      // Guard: redirect to no_languages if no languages available (only on initial load)
-      if (!languageState.hasLanguages && !languageState.isChecking) {
-        LaunchedEffect(Unit) {
-          navController.navigate("no_languages") {
-            popUpTo("main") { inclusive = true }
-          }
-        }
-      } else if (from != null) {
-        Greeting(
-          // Navigation
-          onSettings = { navController.navigate("settings") },
-          // Current state (read-only)
-          input = input,
-          output = output,
-          from = from!!,
-          to = to,
-          detectedLanguage = currentDetectedLanguage,
-          displayImage = displayImage,
-          isTranslating = translationCoordinator.isTranslating,
-          isOcrInProgress = translationCoordinator.isOcrInProgress,
-          // Action requests
-          onMessage = handleMessage,
-          // System integration
-          sharedImageUri = sharedImageUri,
-          availableLanguages = languageState.availableLanguageMap,
-          downloadStates = downloadStates,
-          settings = settings,
-          launchMode = launchMode,
+          },
+          onSettings = {
+            navController.navigate("settings")
+          },
+          languageStateManager = languageStateManager,
+          downloadService = downloadService,
         )
       }
-    }
-    composable("language_manager") {
-      LanguageManagerScreen(languageState = languageStateManager.languageState, downloadStates_ = downloadService.downloadStates)
-    }
-    composable("settings") {
-      SettingsScreen(
-        settings = settings,
-        availableLanguages =
-          if (languageState.availableLanguages.contains(Language.ENGLISH)) {
-            languageState.availableLanguages
-          } else {
-            languageState.availableLanguages + Language.ENGLISH
+
+      composable("main") {
+        // Guard: redirect to no_languages if no languages available (only on initial load)
+        if (!languageState.hasLanguages && !languageState.isChecking) {
+          LaunchedEffect(Unit) {
+            navController.navigate("no_languages") {
+              popUpTo("main") { inclusive = true }
+            }
+          }
+        } else if (from != null) {
+          Greeting(
+            // Navigation
+            onSettings = { navController.navigate("settings") },
+            // Current state (read-only)
+            input = input,
+            output = output,
+            from = from!!,
+            to = to,
+            detectedLanguage = currentDetectedLanguage,
+            displayImage = displayImage,
+            isTranslating = translationCoordinator.isTranslating,
+            isOcrInProgress = translationCoordinator.isOcrInProgress,
+            // Action requests
+            onMessage = handleMessage,
+            // System integration
+            sharedImageUri = sharedImageUri,
+            availableLanguages = languageState.availableLanguageMap,
+            downloadStates = downloadStates,
+            settings = settings,
+            launchMode = launchMode,
+          )
+        }
+      }
+      composable("language_manager") {
+        LanguageManagerScreen(languageState = languageStateManager.languageState, downloadStates_ = downloadService.downloadStates)
+      }
+      composable("settings") {
+        SettingsScreen(
+          settings = settings,
+          availableLanguages =
+            if (languageState.availableLanguages.contains(Language.ENGLISH)) {
+              languageState.availableLanguages
+            } else {
+              languageState.availableLanguages + Language.ENGLISH
+            },
+          onSettingsChange = { newSettings ->
+            settingsManager.updateSettings(newSettings)
+            // Update current target language if it changed
+            if (newSettings.defaultTargetLanguage != settings.defaultTargetLanguage) {
+              setTo(newSettings.defaultTargetLanguage)
+            }
+            // Refresh language availability if storage location changed
+            if (newSettings.useExternalStorage != settings.useExternalStorage) {
+              languageStateManager.refreshLanguageAvailability()
+            }
           },
-        onSettingsChange = { newSettings ->
-          settingsManager.updateSettings(newSettings)
-          // Update current target language if it changed
-          if (newSettings.defaultTargetLanguage != settings.defaultTargetLanguage) {
-            setTo(newSettings.defaultTargetLanguage)
-          }
-          // Refresh language availability if storage location changed
-          if (newSettings.useExternalStorage != settings.useExternalStorage) {
-            languageStateManager.refreshLanguageAvailability()
-          }
-        },
-        onManageLanguages = {
-          navController.navigate("language_manager")
-        },
-      )
+          onManageLanguages = {
+            navController.navigate("language_manager")
+          },
+        )
+      }
     }
   }
 }

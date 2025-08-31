@@ -38,11 +38,12 @@
         </provider>
       <!--      android:theme="@style/WideDialogTheme"-->
 
-      <activity-alias
-        android:name=".SharedActivity"
+      <activity
+        android:name=".ProcessTextActivity"
         android:exported="true"
         android:windowSoftInputMode="adjustResize"
-        android:targetActivity=".MainActivity">
+        android:excludeFromRecents="true"
+        android:theme="@style/WideDialogTheme">
         <!-- via popup 'translate' button -->
         <intent-filter
           android:icon="@mipmap/ic_launcher"
@@ -53,8 +54,12 @@
           <category android:name="android.intent.category.DEFAULT" />
           <data android:mimeType="text/plain" />
         </intent-filter>
-      </activity-alias>
-      <!--        android:theme="@style/WideDialogTheme"-->
+
+        <intent-filter>
+          <category android:name="android.intent.category.DEFAULT" />
+          <action android:name="android.intent.action.TRANSLATE" />
+        </intent-filter>
+      </activity>
 
       <activity
         android:name=".MainActivity"

@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,7 +68,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -103,7 +101,6 @@ class MainActivity : ComponentActivity() {
   private lateinit var serviceConnection: ServiceConnection
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    setTheme(R.style.WideDialogTheme)
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     handleIntent(intent)
@@ -173,29 +170,7 @@ class MainActivity : ComponentActivity() {
   }
 
   private fun handleIntent(intent: Intent?) {
-    val replyModalIntent = { text: String ->
-      Log.i("IntentMessage", "sending response '$text' to intent")
-      val respIntent = Intent()
-      respIntent.putExtra(Intent.EXTRA_PROCESS_TEXT, text)
-      setResult(RESULT_OK, respIntent)
-      finish()
-    }
-
     when (intent?.action) {
-      Intent.ACTION_PROCESS_TEXT -> {
-        setTheme(R.style.WideDialogTheme)
-        val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
-        Log.i("IntentMessage", "is RO: $isReadonly")
-        launchMode = if (isReadonly) LaunchMode.ReadonlyModal else LaunchMode.ReadWriteModal(replyModalIntent)
-        val text =
-          if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT)) {
-            intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-          } else {
-            intent.getStringExtra(Intent.EXTRA_TEXT)
-          }
-        textToTranslate = text ?: ""
-      }
-
       Intent.ACTION_SEND -> {
         // Check if it's text or image
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)
@@ -213,9 +188,6 @@ class MainActivity : ComponentActivity() {
           sharedImageUri = imageUri
           textToTranslate = "" // Clear any existing text
         }
-      }
-      else -> {
-        setTheme(R.style.Theme_Translator)
       }
     }
   }
@@ -307,13 +279,6 @@ fun Greeting(
     }
 
   Scaffold(
-    modifier =
-      when (launchMode) {
-        LaunchMode.Normal -> Modifier.fillMaxHeight()
-        LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
-          Modifier
-            .height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
-      }.fillMaxWidth(),
     floatingActionButton = {
       when (launchMode) {
         LaunchMode.Normal -> {

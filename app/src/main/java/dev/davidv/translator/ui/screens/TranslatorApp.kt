@@ -44,6 +44,7 @@ import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
+import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslationCoordinator
@@ -60,6 +61,7 @@ fun TranslatorApp(
   settingsManager: SettingsManager,
   filePathManager: FilePathManager,
   downloadService: DownloadService,
+  launchMode: LaunchMode,
 ) {
   val navController = rememberNavController()
   val scope = rememberCoroutineScope()
@@ -118,7 +120,7 @@ fun TranslatorApp(
   }
 
   // Auto-translate initial text if provided
-  LaunchedEffect(initialText) {
+  LaunchedEffect(initialText, languageState.availableLanguages) {
     if (initialText.isNotBlank()) {
       currentDetectedLanguage =
         if (!settings.disableCLD) {
@@ -130,10 +132,18 @@ fun TranslatorApp(
       if (currentDetectedLanguage != null) {
         if (languageState.availableLanguageMap[currentDetectedLanguage!!.code] == true) {
           setFrom(currentDetectedLanguage!!)
+          var actualTo = to
+          if (to == currentDetectedLanguage!!) {
+            val other = languageState.availableLanguages.firstOrNull { it != currentDetectedLanguage!! }
+            if (other != null) {
+              setTo(other)
+              actualTo = other
+            }
+          }
           translated =
             translationCoordinator.translateText(
               currentDetectedLanguage!!,
-              to,
+              actualTo,
               initialText,
             )
         } else {
@@ -406,6 +416,7 @@ fun TranslatorApp(
           availableLanguages = languageState.availableLanguageMap,
           downloadStates = downloadStates,
           settings = settings,
+          launchMode = launchMode,
         )
       }
     }

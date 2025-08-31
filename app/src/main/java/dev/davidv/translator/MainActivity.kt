@@ -30,6 +30,7 @@ import android.os.IBinder
 import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.ComponentActivity.RESULT_OK
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -67,6 +69,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -92,6 +95,7 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
   private var textToTranslate: String = ""
+  private var launchMode: LaunchMode = LaunchMode.Normal
   private var sharedImageUri: Uri? = null
   private lateinit var ocrService: OCRService
   private lateinit var translationCoordinator: TranslationCoordinator
@@ -99,6 +103,7 @@ class MainActivity : ComponentActivity() {
   private lateinit var serviceConnection: ServiceConnection
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    setTheme(R.style.WideDialogTheme)
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     handleIntent(intent)
@@ -128,16 +133,15 @@ class MainActivity : ComponentActivity() {
 
             setContent {
               TranslatorTheme {
-                MaterialTheme {
-                  TranslatorApp(
-                    initialText = textToTranslate,
-                    sharedImageUri = sharedImageUri,
-                    translationCoordinator = translationCoordinator,
-                    settingsManager = settingsManager,
-                    filePathManager = filePathManager,
-                    downloadService = downloadService,
-                  )
-                }
+                TranslatorApp(
+                  initialText = textToTranslate,
+                  sharedImageUri = sharedImageUri,
+                  translationCoordinator = translationCoordinator,
+                  settingsManager = settingsManager,
+                  filePathManager = filePathManager,
+                  downloadService = downloadService,
+                  launchMode = launchMode,
+                )
               }
             }
           }
@@ -169,8 +173,20 @@ class MainActivity : ComponentActivity() {
   }
 
   private fun handleIntent(intent: Intent?) {
+    val replyModalIntent = { text: String ->
+      Log.i("IntentMessage", "sending response '$text' to intent")
+      val respIntent = Intent()
+      respIntent.putExtra(Intent.EXTRA_PROCESS_TEXT, text)
+      setResult(RESULT_OK, respIntent)
+      finish()
+    }
+
     when (intent?.action) {
       Intent.ACTION_PROCESS_TEXT -> {
+        setTheme(R.style.WideDialogTheme)
+        val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
+        Log.i("IntentMessage", "is RO: $isReadonly")
+        launchMode = if (isReadonly) LaunchMode.ReadonlyModal else LaunchMode.ReadWriteModal(replyModalIntent)
         val text =
           if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT)) {
             intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
@@ -198,6 +214,9 @@ class MainActivity : ComponentActivity() {
           textToTranslate = "" // Clear any existing text
         }
       }
+      else -> {
+        setTheme(R.style.Theme_Translator)
+      }
     }
   }
 }
@@ -215,6 +234,7 @@ fun Greeting(
   displayImage: Bitmap?,
   isTranslating: StateFlow<Boolean>,
   isOcrInProgress: StateFlow<Boolean>,
+  launchMode: LaunchMode,
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
   // System integration
@@ -287,16 +307,42 @@ fun Greeting(
     }
 
   Scaffold(
-    modifier = Modifier.fillMaxSize(),
+    modifier =
+      when (launchMode) {
+        LaunchMode.Normal -> Modifier.fillMaxHeight()
+        LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
+          Modifier
+            .height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
+      }.fillMaxWidth(),
     floatingActionButton = {
-      if (!settings.disableOcr) {
-        FloatingActionButton(onClick = {
-          showImageSourceSheet = true
-        }) {
-          Icon(
-            painterResource(id = R.drawable.add_photo),
-            contentDescription = "Translate image",
-          )
+      when (launchMode) {
+        LaunchMode.Normal -> {
+          if (!settings.disableOcr) {
+            FloatingActionButton(onClick = {
+              showImageSourceSheet = true
+            }) {
+              Icon(
+                painterResource(id = R.drawable.add_photo),
+                contentDescription = "Translate image",
+              )
+            }
+          }
+        }
+
+        LaunchMode.ReadonlyModal -> {
+        }
+
+        is LaunchMode.ReadWriteModal -> {
+          if (output != null) {
+            FloatingActionButton(onClick = {
+              launchMode.reply(output.translated)
+            }) {
+              Icon(
+                painterResource(id = R.drawable.check),
+                contentDescription = "Replace text",
+              )
+            }
+          }
         }
       }
     },
@@ -534,6 +580,7 @@ fun GreetingPreview() {
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
+      launchMode = LaunchMode.Normal,
     )
   }
 }
@@ -569,6 +616,7 @@ fun PreviewVeryLongText() {
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
+      launchMode = LaunchMode.Normal,
     )
   }
 }

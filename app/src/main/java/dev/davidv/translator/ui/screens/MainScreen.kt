@@ -54,7 +54,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -109,7 +108,6 @@ fun MainScreen(
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
   // System integration
-  sharedImageUri: Uri? = null,
   availableLanguages: Map<String, Boolean>,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
   settings: AppSettings,
@@ -118,13 +116,7 @@ fun MainScreen(
   var showImageSourceSheet by remember { mutableStateOf(false) }
   val translating by isTranslating.collectAsState()
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
-  // Process shared image when component loads
-  LaunchedEffect(sharedImageUri) {
-    if (sharedImageUri != null) {
-      Log.d("SharedImage", "Processing shared image: $sharedImageUri")
-      onMessage(TranslatorMessage.SetImageUri(sharedImageUri))
-    }
-  }
+
   val context = LocalContext.current
 
   // Create temporary file for camera capture
@@ -463,7 +455,6 @@ fun PopupMode() {
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
       onMessage = {},
-      sharedImageUri = null,
       availableLanguages =
         mapOf(
           Language.ENGLISH.code to true,
@@ -495,7 +486,6 @@ fun MainScreenPreview() {
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
       onMessage = {},
-      sharedImageUri = null,
       availableLanguages =
         mapOf(
           Language.ENGLISH.code to true,
@@ -531,7 +521,6 @@ fun PreviewVeryLongText() {
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
       onMessage = {},
-      sharedImageUri = null,
       availableLanguages =
         mapOf(
           Language.ENGLISH.code to true,

@@ -60,7 +60,8 @@ fun getSentences(
   tessInstance.setImage(bitmap)
   tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
 
-  tessInstance.getHOCRText(0)
+  // calling utf8text is required to create iterator
+  tessInstance.utF8Text
 
   val iter = tessInstance.resultIterator
   if (iter == null) {

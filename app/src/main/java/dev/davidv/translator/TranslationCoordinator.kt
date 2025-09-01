@@ -74,33 +74,34 @@ class TranslationCoordinator(
 
   suspend fun detectLanguage(text: String): Language? = languageDetector.detectLanguage(text)
 
+  fun correctBitmap(uri: Uri): Bitmap {
+    val originalBitmap = imageProcessor.loadBitmapFromUri(uri)
+    val correctedBitmap = imageProcessor.correctImageOrientation(uri, originalBitmap)
+
+    // Recycle original if it's different from corrected
+    if (correctedBitmap !== originalBitmap && !originalBitmap.isRecycled) {
+      originalBitmap.recycle()
+    }
+
+    val maxImageSize = settingsManager.settings.value.maxImageSize
+    val finalBitmap = imageProcessor.downscaleImage(correctedBitmap, maxImageSize)
+
+    // Recycle corrected if it's different from final
+    if (finalBitmap !== correctedBitmap && !correctedBitmap.isRecycled) {
+      correctedBitmap.recycle()
+    }
+
+    return finalBitmap
+  }
+
   suspend fun translateImageWithOverlay(
     from: Language,
     to: Language,
-    uri: Uri,
-    onImageLoaded: (Bitmap) -> Unit,
+    finalBitmap: Bitmap,
     onMessage: (TranslatorMessage.ImageTextDetected) -> Unit,
   ): ProcessedImageResult? {
     _isTranslating.value = true
     return try {
-      val originalBitmap = imageProcessor.loadBitmapFromUri(uri)
-      val correctedBitmap = imageProcessor.correctImageOrientation(uri, originalBitmap)
-
-      // Recycle original if it's different from corrected
-      if (correctedBitmap !== originalBitmap && !originalBitmap.isRecycled) {
-        originalBitmap.recycle()
-      }
-
-      val maxImageSize = settingsManager.settings.value.maxImageSize
-      val finalBitmap = imageProcessor.downscaleImage(correctedBitmap, maxImageSize)
-
-      // Recycle corrected if it's different from final
-      if (finalBitmap !== correctedBitmap && !correctedBitmap.isRecycled) {
-        correctedBitmap.recycle()
-      }
-
-      onImageLoaded(finalBitmap)
-
       _isOcrInProgress.value = true
       val minConfidence = settingsManager.settings.value.minConfidence
       val processedImage = imageProcessor.processImage(finalBitmap, minConfidence)

@@ -103,7 +103,7 @@ fun TranslatorApp(
   var displayImage by remember { mutableStateOf<Bitmap?>(null) }
   var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
   var inputType by remember { mutableStateOf(InputType.TEXT) }
-  var originalImageUri by remember { mutableStateOf<Uri?>(null) }
+  var originalImage by remember { mutableStateOf<Bitmap?>(null) }
 
   LaunchedEffect(downloadService) {
     downloadService?.downloadEvents?.collect { event ->
@@ -193,23 +193,21 @@ fun TranslatorApp(
         InputType.TEXT -> {
           val result = translationCoordinator.translateText(fromLang, toLang, input)
           result?.let {
-            when (it) {
-              is TranslationResult.Success -> output = it.result
-              is TranslationResult.Error -> output = null
-            }
+            output =
+              when (it) {
+                is TranslationResult.Success -> it.result
+                is TranslationResult.Error -> null
+              }
           }
         }
 
         InputType.IMAGE -> {
-          originalImageUri?.let { uri ->
+          originalImage?.let { bm ->
             val result =
               translationCoordinator.translateImageWithOverlay(
                 fromLang,
                 toLang,
-                uri,
-                { originalBitmap ->
-                  displayImage = originalBitmap
-                },
+                bm,
               ) { imageTextDetected ->
                 scope.launch {
                   currentDetectedLanguage =
@@ -270,42 +268,40 @@ fun TranslatorApp(
 
       is TranslatorMessage.FromLang -> {
         setFrom(message.language)
-        translateWithLanguages(message.language, to)
       }
 
       is TranslatorMessage.ToLang -> {
         setTo(message.language)
-        translateWithLanguages(from!!, message.language)
       }
 
       is TranslatorMessage.SetImageUri -> {
-        // Store the original image URI and set input type
-        originalImageUri = message.uri
+        val bm = translationCoordinator.correctBitmap(message.uri)
+        originalImage = bm
+        displayImage = bm
         inputType = InputType.IMAGE
         currentDetectedLanguage = null
         output = null
-        scope.launch {
-          val result =
-            translationCoordinator.translateImageWithOverlay(
-              from!!,
-              to,
-              message.uri,
-              { originalBitmap ->
-                displayImage = originalBitmap
-              },
-            ) { imageTextDetected ->
-              scope.launch {
-                currentDetectedLanguage =
-                  if (!settings.disableCLD) {
-                    translationCoordinator.detectLanguage(imageTextDetected.extractedText)
-                  } else {
-                    null
-                  }
+        if (from != null) {
+          scope.launch {
+            val result =
+              translationCoordinator.translateImageWithOverlay(
+                from!!,
+                to,
+                bm,
+              ) { imageTextDetected ->
+                scope.launch {
+                  currentDetectedLanguage =
+                    if (!settings.disableCLD) {
+                      translationCoordinator.detectLanguage(imageTextDetected.extractedText)
+                    } else {
+                      null
+                    }
+                }
               }
+            result?.let {
+              displayImage = it.correctedBitmap
+              output = TranslatedText(it.translatedText, null)
             }
-          result?.let {
-            displayImage = it.correctedBitmap
-            output = TranslatedText(it.translatedText, null)
           }
         }
       }
@@ -315,10 +311,6 @@ fun TranslatorApp(
         val oldTo = to
         setFrom(oldTo)
         setTo(oldFrom)
-        scope.launch {
-          translationCoordinator.translationService.preloadModel(oldTo, oldFrom)
-          translateWithLanguages(oldTo, oldFrom)
-        }
       }
 
       TranslatorMessage.ClearInput -> {
@@ -326,7 +318,7 @@ fun TranslatorApp(
         output = null
         input = ""
         inputType = InputType.TEXT
-        originalImageUri = null
+        originalImage = null
         currentDetectedLanguage = null
       }
 
@@ -348,6 +340,21 @@ fun TranslatorApp(
     }
   }
 
+  LaunchedEffect(from, to) {
+    if (from != null) {
+      scope.launch {
+        translateWithLanguages(from!!, to)
+      }
+    }
+  }
+
+  // Process shared image when component loads
+  LaunchedEffect(sharedImageUri) {
+    if (sharedImageUri != null) {
+      Log.d("SharedImage", "Processing shared image: $sharedImageUri")
+      handleMessage(TranslatorMessage.SetImageUri(sharedImageUri))
+    }
+  }
   // Determine start destination based on initial language availability (fixed at first composition)
   val startDestination =
     remember {
@@ -443,7 +450,6 @@ fun TranslatorApp(
             // Action requests
             onMessage = handleMessage,
             // System integration
-            sharedImageUri = sharedImageUri,
             availableLanguages = languageState.availableLanguageMap,
             downloadStates = downloadStates,
             settings = settings,

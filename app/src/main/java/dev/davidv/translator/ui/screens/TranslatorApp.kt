@@ -44,7 +44,6 @@ import androidx.navigation.compose.rememberNavController
 import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FilePathManager
-import dev.davidv.translator.Greeting
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
@@ -429,7 +428,7 @@ fun TranslatorApp(
             }
           }
         } else if (from != null) {
-          Greeting(
+          MainScreen(
             // Navigation
             onSettings = { navController.navigate("settings") },
             // Current state (read-only)

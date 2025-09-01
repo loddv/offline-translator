@@ -139,7 +139,7 @@ fun MainScreen(
           .fillMaxSize()
           .navigationBarsPadding()
           .imePadding()
-          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = 0.dp),
+          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = 8.dp),
     ) {
       Column(
         modifier =

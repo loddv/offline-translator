@@ -23,21 +23,23 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -60,9 +62,7 @@ fun TranslationField(
   Box(
     modifier =
       Modifier
-        .fillMaxWidth()
-        .fillMaxHeight()
-        .padding(16.dp),
+        .fillMaxSize(),
   ) {
     SelectionContainer(
       modifier =
@@ -73,19 +73,27 @@ fun TranslationField(
           .padding(end = 22.dp),
     ) {
       Column {
-        Text(
-          text = text.translated,
-          style = textStyle,
-          color = MaterialTheme.colorScheme.onSurface,
+        BasicTextField(
+          value = text.translated,
+          onValueChange = { },
+          textStyle = textStyle.copy(color = MaterialTheme.colorScheme.onSurface),
+          cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
           modifier = Modifier.fillMaxSize(),
+          readOnly = true,
         )
 
         if (text.transliterated != null) {
-          Text(
+          BasicTextField(
+            value = text.transliterated,
+            onValueChange = { },
+            textStyle =
+              textStyle.copy(
+                fontSize = textStyle.fontSize.times(0.7),
+                color = MaterialTheme.colorScheme.onSurface,
+              ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier.padding(top = 5.dp),
-            text = text.transliterated,
-            style = textStyle.copy(fontSize = textStyle.fontSize.times(0.7)),
-            color = MaterialTheme.colorScheme.onSurface,
+            readOnly = true,
           )
         }
       }
@@ -102,7 +110,6 @@ fun TranslationField(
       modifier =
         Modifier
           .align(Alignment.TopEnd)
-          .padding(8.dp)
           .size(24.dp),
     ) {
       Icon(

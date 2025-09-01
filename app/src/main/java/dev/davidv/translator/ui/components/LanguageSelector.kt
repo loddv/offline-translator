@@ -17,11 +17,11 @@
 
 package dev.davidv.translator.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -37,8 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.Language
+import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun LanguageSelector(
@@ -59,14 +61,14 @@ fun LanguageSelector(
         Modifier
           .basicMarquee()
           .clip(RoundedCornerShape(10.dp))
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
           .clickable(
             interactionSource = interactionSource,
             indication = null,
           ) {
             expanded = true
           }
-          .padding(vertical = 12.dp, horizontal = 16.dp),
+          .fillMaxWidth()
+          .padding(vertical = 8.dp, horizontal = 4.dp),
       text = selectedLanguage.displayName,
       textAlign = TextAlign.Center,
       maxLines = 1,
@@ -88,5 +90,43 @@ fun LanguageSelector(
         )
       }
     }
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LanguageSelectorAzerbaijaniPreview() {
+  TranslatorTheme {
+    LanguageSelector(
+      selectedLanguage = Language.AZERBAIJANI,
+      availableLanguages =
+        listOf(
+          Language.ENGLISH,
+          Language.SPANISH,
+          Language.FRENCH,
+          Language.AZERBAIJANI,
+          Language.GERMAN,
+        ),
+      onLanguageSelected = { },
+    )
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LanguageSelectorSpanishPreview() {
+  TranslatorTheme {
+    LanguageSelector(
+      selectedLanguage = Language.SPANISH,
+      availableLanguages =
+        listOf(
+          Language.ENGLISH,
+          Language.SPANISH,
+          Language.FRENCH,
+          Language.AZERBAIJANI,
+          Language.GERMAN,
+        ),
+      onLanguageSelected = { },
+    )
   }
 }

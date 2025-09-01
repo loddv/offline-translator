@@ -36,12 +36,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,14 +49,17 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -68,6 +71,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -218,7 +224,7 @@ fun Greeting(
   var showFullScreenImage by remember { mutableStateOf(false) }
   var showImageSourceSheet by remember { mutableStateOf(false) }
   val translating by isTranslating.collectAsState()
-
+  val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
   // Process shared image when component loads
   LaunchedEffect(sharedImageUri) {
     if (sharedImageUri != null) {
@@ -299,12 +305,16 @@ fun Greeting(
 
         is LaunchMode.ReadWriteModal -> {
           if (output != null) {
-            FloatingActionButton(onClick = {
-              launchMode.reply(output.translated)
-            }) {
+            FloatingActionButton(
+              onClick = {
+                launchMode.reply(output.translated)
+              },
+              shape = FloatingActionButtonDefaults.largeShape,
+            ) {
               Icon(
                 painterResource(id = R.drawable.check),
                 contentDescription = "Replace text",
+                modifier = Modifier.size(30.dp),
               )
             }
           }
@@ -318,13 +328,13 @@ fun Greeting(
           .fillMaxSize()
           .navigationBarsPadding()
           .imePadding()
-          .padding(top = paddingValues.calculateTopPadding(), bottom = 0.dp),
+          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = 0.dp),
     ) {
       Column(
         modifier =
           Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 16.dp),
       ) {
         LanguageSelectionRow(
           from = from,
@@ -332,9 +342,8 @@ fun Greeting(
           availableLanguages = availableLanguages,
           translating = translating,
           onMessage = onMessage,
-          onSettings = onSettings,
+          onSettings = if (launchMode == LaunchMode.Normal) onSettings else null,
         )
-        Spacer(modifier = Modifier.height(8.dp))
 
         Box(
           modifier =
@@ -363,7 +372,7 @@ fun Greeting(
           modifier =
             Modifier
               .fillMaxWidth()
-              .padding(vertical = 4.dp),
+              .padding(vertical = 16.dp),
           contentAlignment = Alignment.Center,
         ) {
           HorizontalDivider(
@@ -515,6 +524,63 @@ fun ImageSourceBottomSheet(
         }
       }
     }
+  }
+}
+
+@Composable
+fun WideDialogTheme(content: @Composable () -> Unit) {
+  TranslatorTheme {
+    Box(
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .background(Color.Transparent),
+      contentAlignment = Alignment.Center,
+    ) {
+      Surface(
+        modifier =
+          Modifier
+            .fillMaxWidth(0.9f)
+            .height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
+            .clip(RoundedCornerShape(16.dp)),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp,
+      ) {
+        content()
+      }
+    }
+  }
+}
+
+@Preview(
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun PopupMode() {
+  WideDialogTheme {
+    Greeting(
+      onSettings = { },
+      input = "Example input",
+      output = TranslatedText("Example output", null),
+      from = Language.AZERBAIJANI,
+      to = Language.SPANISH,
+      detectedLanguage = Language.FRENCH,
+      displayImage = null,
+      isTranslating = MutableStateFlow(false).asStateFlow(),
+      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      onMessage = {},
+      sharedImageUri = null,
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+        ),
+      downloadStates = emptyMap(),
+      settings = AppSettings(),
+      launchMode = LaunchMode.ReadWriteModal {},
+    )
   }
 }
 

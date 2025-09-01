@@ -1,0 +1,1 @@
+- Open as a popup when using the 'translate' context menu entry

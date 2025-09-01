@@ -47,6 +47,7 @@ import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Greeting
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
@@ -56,6 +57,7 @@ import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -65,16 +67,29 @@ fun TranslatorApp(
   translationCoordinator: TranslationCoordinator,
   settingsManager: SettingsManager,
   filePathManager: FilePathManager,
-  downloadService: DownloadService,
+  downloadServiceState: StateFlow<DownloadService?>,
   launchMode: LaunchMode,
 ) {
   val navController = rememberNavController()
   val scope = rememberCoroutineScope()
 
   val settings by settingsManager.settings.collectAsState()
-  val languageStateManager = remember { LanguageStateManager(scope, filePathManager, downloadService) }
-  val languageState by languageStateManager.languageState.collectAsState()
-  val downloadStates by downloadService.downloadStates.collectAsState()
+  val downloadService by downloadServiceState.collectAsState()
+  val languageStateManager =
+    remember(downloadService) {
+      val currentDownloadService = downloadService
+      if (currentDownloadService != null) {
+        LanguageStateManager(scope, filePathManager, currentDownloadService)
+      } else {
+        null
+      }
+    }
+  val languageState by languageStateManager?.languageState?.collectAsState() ?: remember {
+    mutableStateOf(LanguageAvailabilityState(isChecking = true, hasLanguages = false))
+  }
+  val downloadStates by downloadService?.downloadStates?.collectAsState() ?: remember {
+    mutableStateOf(emptyMap())
+  }
 
   // Move all persistent state to this level so it survives navigation
   var input by remember { mutableStateOf(initialText) }
@@ -92,10 +107,10 @@ fun TranslatorApp(
   var originalImageUri by remember { mutableStateOf<Uri?>(null) }
 
   LaunchedEffect(downloadService) {
-    downloadService.downloadEvents.collect { event ->
+    downloadService?.downloadEvents?.collect { event ->
       when (event) {
         is DownloadEvent.LanguageDeleted -> {
-          val langs = languageStateManager.languageState.value.availableLanguages
+          val langs = languageStateManager?.languageState?.value?.availableLanguages ?: emptyList()
           val validLangs = langs.filter { it != event.language }
           val currentFrom = fromState.value
           val currentTo = toState.value
@@ -116,7 +131,7 @@ fun TranslatorApp(
   LaunchedEffect(languageState.availableLanguages, settings.defaultTargetLanguage) {
     if (from == null && languageState.availableLanguages.isNotEmpty()) {
       val firstAvailable =
-        languageStateManager.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
+        languageStateManager?.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
       if (firstAvailable != null) {
         setFrom(firstAvailable)
         translationCoordinator.translationService.preloadModel(firstAvailable, to)
@@ -382,23 +397,27 @@ fun TranslatorApp(
       }
 
       composable("no_languages") {
-        NoLanguagesScreen(
-          onDone = {
-            // Only navigate if languages are available
-            if (languageState.hasLanguages) {
-              MainScope().launch {
-                navController.navigate("main") {
-                  popUpTo("no_languages") { inclusive = true }
+        val currentLanguageStateManager = languageStateManager
+        val currentDownloadService = downloadService
+        if (currentLanguageStateManager != null && currentDownloadService != null) {
+          NoLanguagesScreen(
+            onDone = {
+              // Only navigate if languages are available
+              if (languageState.hasLanguages) {
+                MainScope().launch {
+                  navController.navigate("main") {
+                    popUpTo("no_languages") { inclusive = true }
+                  }
                 }
               }
-            }
-          },
-          onSettings = {
-            navController.navigate("settings")
-          },
-          languageStateManager = languageStateManager,
-          downloadService = downloadService,
-        )
+            },
+            onSettings = {
+              navController.navigate("settings")
+            },
+            languageStateManager = currentLanguageStateManager,
+            downloadService = currentDownloadService,
+          )
+        }
       }
 
       composable("main") {
@@ -434,7 +453,14 @@ fun TranslatorApp(
         }
       }
       composable("language_manager") {
-        LanguageManagerScreen(languageState = languageStateManager.languageState, downloadStates_ = downloadService.downloadStates)
+        val currentLanguageStateManager = languageStateManager
+        val currentDownloadService = downloadService
+        if (currentLanguageStateManager != null && currentDownloadService != null) {
+          LanguageManagerScreen(
+            languageState = currentLanguageStateManager.languageState,
+            downloadStates_ = currentDownloadService.downloadStates,
+          )
+        }
       }
       composable("settings") {
         SettingsScreen(
@@ -453,7 +479,7 @@ fun TranslatorApp(
             }
             // Refresh language availability if storage location changed
             if (newSettings.useExternalStorage != settings.useExternalStorage) {
-              languageStateManager.refreshLanguageAvailability()
+              languageStateManager?.refreshLanguageAvailability()
             }
           },
           onManageLanguages = {

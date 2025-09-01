@@ -30,7 +30,6 @@ import android.os.IBinder
 import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.activity.ComponentActivity.RESULT_OK
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -80,7 +79,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import androidx.lifecycle.lifecycleScope
 import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.InputSection
 import dev.davidv.translator.ui.components.LanguageSelectionRow
@@ -91,7 +89,6 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -103,8 +100,10 @@ class MainActivity : ComponentActivity() {
   private var sharedImageUri: Uri? = null
   private lateinit var ocrService: OCRService
   private lateinit var translationCoordinator: TranslationCoordinator
-  private lateinit var downloadService: DownloadService
+  private var downloadService: DownloadService? = null
   private lateinit var serviceConnection: ServiceConnection
+  private val _downloadServiceState = MutableStateFlow<DownloadService?>(null)
+  private val downloadServiceState: StateFlow<DownloadService?> = _downloadServiceState.asStateFlow()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -117,6 +116,25 @@ class MainActivity : ComponentActivity() {
     val imageProcessor = ImageProcessor(this, ocrService)
     val ctx = this
 
+    Log.d("MainActivity", "Initializing translation service")
+    val translationService = TranslationService(settingsManager, filePathManager)
+    val languageDetector = LanguageDetector()
+    translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
+
+    setContent {
+      TranslatorTheme {
+        TranslatorApp(
+          initialText = textToTranslate,
+          sharedImageUri = sharedImageUri,
+          translationCoordinator = translationCoordinator,
+          settingsManager = settingsManager,
+          filePathManager = filePathManager,
+          downloadServiceState = downloadServiceState,
+          launchMode = launchMode,
+        )
+      }
+    }
+
     // Create service connection for download service
     serviceConnection =
       object : ServiceConnection {
@@ -126,32 +144,12 @@ class MainActivity : ComponentActivity() {
         ) {
           val binder = service as DownloadService.DownloadBinder
           downloadService = binder.getService()
-
-          // Initialize UI only after service is connected
-          lifecycleScope.launch {
-            Log.d("MainActivity", "Initializing translation service")
-            val translationService = TranslationService(settingsManager, filePathManager)
-            val languageDetector = LanguageDetector()
-            translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
-
-            setContent {
-              TranslatorTheme {
-                TranslatorApp(
-                  initialText = textToTranslate,
-                  sharedImageUri = sharedImageUri,
-                  translationCoordinator = translationCoordinator,
-                  settingsManager = settingsManager,
-                  filePathManager = filePathManager,
-                  downloadService = downloadService,
-                  launchMode = launchMode,
-                )
-              }
-            }
-          }
+          _downloadServiceState.value = downloadService
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-          // Handle service disconnection if needed
+          downloadService = null
+          _downloadServiceState.value = null
         }
       }
 

@@ -30,6 +30,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ProcessTextActivity : ComponentActivity() {
@@ -37,8 +40,10 @@ class ProcessTextActivity : ComponentActivity() {
   private var launchMode: LaunchMode = LaunchMode.Normal
   private lateinit var ocrService: OCRService
   private lateinit var translationCoordinator: TranslationCoordinator
-  private lateinit var downloadService: DownloadService
+  private var downloadService: DownloadService? = null
   private lateinit var serviceConnection: ServiceConnection
+  private val _downloadServiceState = MutableStateFlow<DownloadService?>(null)
+  val downloadServiceState: StateFlow<DownloadService?> = _downloadServiceState.asStateFlow()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -51,6 +56,29 @@ class ProcessTextActivity : ComponentActivity() {
     val imageProcessor = ImageProcessor(this, ocrService)
     val ctx = this
 
+    // Initialize translation components immediately
+    lifecycleScope.launch {
+      Log.d("ProcessTextActivity", "Initializing translation service")
+      val translationService = TranslationService(settingsManager, filePathManager)
+      val languageDetector = LanguageDetector()
+      translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
+
+      // Initialize UI immediately
+      setContent {
+        TranslatorTheme {
+          TranslatorApp(
+            initialText = textToTranslate,
+            sharedImageUri = null,
+            translationCoordinator = translationCoordinator,
+            settingsManager = settingsManager,
+            filePathManager = filePathManager,
+            downloadServiceState = downloadServiceState,
+            launchMode = launchMode,
+          )
+        }
+      }
+    }
+
     serviceConnection =
       object : ServiceConnection {
         override fun onServiceConnected(
@@ -59,30 +87,12 @@ class ProcessTextActivity : ComponentActivity() {
         ) {
           val binder = service as DownloadService.DownloadBinder
           downloadService = binder.getService()
-
-          lifecycleScope.launch {
-            Log.d("ProcessTextActivity", "Initializing translation service")
-            val translationService = TranslationService(settingsManager, filePathManager)
-            val languageDetector = LanguageDetector()
-            translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
-
-            setContent {
-              TranslatorTheme {
-                TranslatorApp(
-                  initialText = textToTranslate,
-                  sharedImageUri = null,
-                  translationCoordinator = translationCoordinator,
-                  settingsManager = settingsManager,
-                  filePathManager = filePathManager,
-                  downloadService = downloadService,
-                  launchMode = launchMode,
-                )
-              }
-            }
-          }
+          _downloadServiceState.value = downloadService
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+          downloadService = null
+          _downloadServiceState.value = null
         }
       }
 

@@ -41,7 +41,7 @@ fun LanguageSelectionRow(
   availableLanguages: Map<String, Boolean>,
   translating: Boolean,
   onMessage: (TranslatorMessage) -> Unit,
-  onSettings: () -> Unit,
+  onSettings: (() -> Unit)?,
 ) {
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -82,11 +82,13 @@ fun LanguageSelectionRow(
       modifier = Modifier.weight(1f),
     )
 
-    IconButton(onClick = onSettings) {
-      Icon(
-        painterResource(id = R.drawable.settings),
-        contentDescription = "Settings",
-      )
+    if (onSettings != null) {
+      IconButton(onClick = onSettings) {
+        Icon(
+          painterResource(id = R.drawable.settings),
+          contentDescription = "Settings",
+        )
+      }
     }
   }
 }

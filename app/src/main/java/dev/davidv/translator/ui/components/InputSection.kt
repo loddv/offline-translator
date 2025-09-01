@@ -90,7 +90,8 @@ fun InputSection(
         placeholder = "Enter text",
         modifier =
           Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .padding(end = 24.dp),
       )
     }
 
@@ -100,7 +101,6 @@ fun InputSection(
         modifier =
           Modifier
             .align(Alignment.TopEnd)
-            .padding(8.dp)
             .size(32.dp),
       ) {
         Icon(

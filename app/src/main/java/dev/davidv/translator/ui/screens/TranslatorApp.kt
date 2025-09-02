@@ -140,49 +140,50 @@ fun TranslatorApp(
 
   // Auto-translate initial text if provided
   LaunchedEffect(initialText, languageState.availableLanguages) {
-    if (initialText.isNotBlank()) {
-      currentDetectedLanguage =
-        if (!settings.disableCLD) {
-          translationCoordinator.detectLanguage(initialText, from)
+    if (initialText.isBlank()) {
+      return@LaunchedEffect
+    }
+    currentDetectedLanguage =
+      if (!settings.disableCLD) {
+        translationCoordinator.detectLanguage(initialText, from)
+      } else {
+        null
+      }
+    val translated: TranslationResult?
+    if (currentDetectedLanguage != null) {
+      if (languageState.availableLanguageMap[currentDetectedLanguage!!.code] == true) {
+        setFrom(currentDetectedLanguage!!)
+        var actualTo = to
+        if (to == currentDetectedLanguage!!) {
+          val other = languageState.availableLanguages.firstOrNull { it != currentDetectedLanguage!! }
+          if (other != null) {
+            setTo(other)
+            actualTo = other
+          }
+        }
+        translated =
+          translationCoordinator.translateText(
+            currentDetectedLanguage!!,
+            actualTo,
+            initialText,
+          )
+      } else {
+        translated = null
+      }
+    } else {
+      translated =
+        if (from != null) {
+          translationCoordinator.translateText(from!!, to, initialText)
         } else {
           null
         }
-      val translated: TranslationResult?
-      if (currentDetectedLanguage != null) {
-        if (languageState.availableLanguageMap[currentDetectedLanguage!!.code] == true) {
-          setFrom(currentDetectedLanguage!!)
-          var actualTo = to
-          if (to == currentDetectedLanguage!!) {
-            val other = languageState.availableLanguages.firstOrNull { it != currentDetectedLanguage!! }
-            if (other != null) {
-              setTo(other)
-              actualTo = other
-            }
-          }
-          translated =
-            translationCoordinator.translateText(
-              currentDetectedLanguage!!,
-              actualTo,
-              initialText,
-            )
-        } else {
-          translated = null
+    }
+    translated?.let {
+      output =
+        when (it) {
+          is TranslationResult.Success -> it.result
+          is TranslationResult.Error -> null
         }
-      } else {
-        translated =
-          if (from != null) {
-            translationCoordinator.translateText(from!!, to, initialText)
-          } else {
-            null
-          }
-      }
-      translated?.let {
-        output =
-          when (it) {
-            is TranslationResult.Success -> it.result
-            is TranslationResult.Error -> null
-          }
-      }
     }
   }
 
@@ -230,23 +231,6 @@ fun TranslatorApp(
     when (message) {
       is TranslatorMessage.TextInput -> {
         input = message.text
-        // Detect language in background for auto-suggest button
-        if (message.text.isNotBlank()) {
-          // Auto-translate with current languages
-          scope.launch {
-            val translated =
-              translationCoordinator.translateText(from!!, to, message.text)
-            translated?.let {
-              output =
-                when (it) {
-                  is TranslationResult.Success -> it.result
-                  is TranslationResult.Error -> null
-                }
-            }
-          }
-        } else {
-          output = null
-        }
       }
 
       is TranslatorMessage.FromLang -> {
@@ -309,6 +293,23 @@ fun TranslatorApp(
     }
   }
 
+  LaunchedEffect(input) {
+    if (input.isNotBlank()) {
+      scope.launch {
+        val translated =
+          translationCoordinator.translateText(from!!, to, input)
+        translated?.let {
+          output =
+            when (it) {
+              is TranslationResult.Success -> it.result
+              is TranslationResult.Error -> null
+            }
+        }
+      }
+    } else {
+      output = null
+    }
+  }
   LaunchedEffect(from, input) {
     scope.launch {
       currentDetectedLanguage =

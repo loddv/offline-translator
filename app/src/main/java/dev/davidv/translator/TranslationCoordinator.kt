@@ -72,7 +72,10 @@ class TranslationCoordinator(
     }
   }
 
-  suspend fun detectLanguage(text: String): Language? = languageDetector.detectLanguage(text)
+  suspend fun detectLanguage(
+    text: String,
+    hint: Language?,
+  ): Language? = languageDetector.detectLanguage(text, hint)
 
   fun correctBitmap(uri: Uri): Bitmap {
     val originalBitmap = imageProcessor.loadBitmapFromUri(uri)

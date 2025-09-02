@@ -58,5 +58,8 @@ data class DetectionResult(
 )
 
 class LangDetect {
-  external fun detectLanguage(text: String): DetectionResult
+  external fun detectLanguage(
+    text: String,
+    langCode: String?,
+  ): DetectionResult
 }

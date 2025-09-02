@@ -143,7 +143,7 @@ fun TranslatorApp(
     if (initialText.isNotBlank()) {
       currentDetectedLanguage =
         if (!settings.disableCLD) {
-          translationCoordinator.detectLanguage(initialText)
+          translationCoordinator.detectLanguage(initialText, from)
         } else {
           null
         }
@@ -212,7 +212,7 @@ fun TranslatorApp(
                 scope.launch {
                   currentDetectedLanguage =
                     if (!settings.disableCLD) {
-                      translationCoordinator.detectLanguage(imageTextDetected.extractedText)
+                      translationCoordinator.detectLanguage(imageTextDetected.extractedText, from)
                     } else {
                       null
                     }
@@ -242,7 +242,7 @@ fun TranslatorApp(
           scope.launch {
             currentDetectedLanguage =
               if (!settings.disableCLD) {
-                translationCoordinator.detectLanguage(message.text)
+                translationCoordinator.detectLanguage(message.text, from)
               } else {
                 null
               }
@@ -292,7 +292,7 @@ fun TranslatorApp(
                 scope.launch {
                   currentDetectedLanguage =
                     if (!settings.disableCLD) {
-                      translationCoordinator.detectLanguage(imageTextDetected.extractedText)
+                      translationCoordinator.detectLanguage(imageTextDetected.extractedText, from)
                     } else {
                       null
                     }
@@ -331,7 +331,7 @@ fun TranslatorApp(
         scope.launch {
           currentDetectedLanguage =
             if (!settings.disableCLD) {
-              translationCoordinator.detectLanguage(message.extractedText)
+              translationCoordinator.detectLanguage(message.extractedText, from)
             } else {
               null
             }

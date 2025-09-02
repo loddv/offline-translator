@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <string>
+#include <android/log.h>
 #include "translator/byte_array_util.h"
 #include "translator/parser.h"
 #include "translator/response.h"
@@ -18,7 +19,7 @@ static std::mutex service_mutex;
 
 void initializeService() {
     std::lock_guard<std::mutex> lock(service_mutex);
-    
+
     if (global_service == nullptr) {
         ConfigParser<AsyncService> configParser("Bergamot CLI", false);
         auto &config = configParser.getConfig();
@@ -28,10 +29,10 @@ void initializeService() {
 
 void loadModelIntoCache(const std::string& cfg, const std::string& key) {
     std::lock_guard<std::mutex> lock(service_mutex);
-    
+
     auto validate = true;
     auto pathsDir = "";
-    
+
     if (model_cache.find(key) == model_cache.end()) {
         auto options = parseOptionsFromString(cfg, validate, pathsDir);
         model_cache[key] = global_service->createCompatibleModel(options);
@@ -103,7 +104,7 @@ Java_dev_davidv_bergamot_NativeLib_loadModelIntoCache(
         jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
         env->ThrowNew(exceptionClass, e.what());
     }
-    
+
     env->ReleaseStringUTFChars(cfg, c_cfg);
     env->ReleaseStringUTFChars(key, c_key);
 }
@@ -151,12 +152,17 @@ struct DetectionResult {
     int confidence;
 };
 
-DetectionResult detectLanguage(const char* text) {
+DetectionResult detectLanguage(const char *text, const char *language_hint = nullptr) {
     bool is_reliable;
     int text_bytes = strlen(text);
     bool is_plain_text = true;
 
-    CLD2::CLDHints hints = {NULL, NULL, 0, CLD2::UNKNOWN_LANGUAGE};
+    CLD2::Language hint_lang = CLD2::UNKNOWN_LANGUAGE;
+    if (language_hint != nullptr && strlen(language_hint) > 0) {
+        hint_lang = CLD2::GetLanguageFromName(language_hint);
+    }
+
+    CLD2::CLDHints hints = {NULL, NULL, 0, hint_lang};
     CLD2::Language language3[3];
     int percent3[3];
     double normalized_score3[3];
@@ -176,6 +182,15 @@ DetectionResult detectLanguage(const char* text) {
             &is_reliable
     );
 
+    __android_log_print(ANDROID_LOG_DEBUG, "Bergamot", "Language detection results:");
+    for (int i = 0; i < 3; i++) {
+        __android_log_print(ANDROID_LOG_DEBUG, "Bergamot", "  %d: %s - %d%% (score: %.3f)",
+                            i + 1,
+                            CLD2::LanguageCode(language3[i]),
+                            percent3[i],
+                            normalized_score3[i]);
+    }
+
     return DetectionResult{
             CLD2::LanguageCode(language3[0]),
             is_reliable,
@@ -189,9 +204,14 @@ extern "C" __attribute__((visibility("default"))) JNIEXPORT jobject JNICALL
 Java_dev_davidv_bergamot_LangDetect_detectLanguage(
         JNIEnv* env,
         jobject /* this */,
-        jstring text) {
+        jstring text,
+        jstring hint) {
 
     const char* c_text = env->GetStringUTFChars(text, nullptr);
+    const char *c_hint = nullptr;
+    if (hint != nullptr) {
+        c_hint = env->GetStringUTFChars(hint, nullptr);
+    }
 
     // Find the Result class and its constructor
     jclass resultClass = env->FindClass("dev/davidv/bergamot/DetectionResult");
@@ -199,7 +219,7 @@ Java_dev_davidv_bergamot_LangDetect_detectLanguage(
                                              "(Ljava/lang/String;ZI)V");
 
     try {
-        DetectionResult result = detectLanguage(c_text);
+        DetectionResult result = detectLanguage(c_text, c_hint);
 
         // Convert C++ string to jstring
         jstring j_language = env->NewStringUTF(result.language.c_str());
@@ -211,10 +231,16 @@ Java_dev_davidv_bergamot_LangDetect_detectLanguage(
                                           result.confidence);
 
         env->ReleaseStringUTFChars(text, c_text);
+        if (c_hint != nullptr) {
+            env->ReleaseStringUTFChars(hint, c_hint);
+        }
         return j_result;
 
     } catch(const std::exception &e) {
         env->ReleaseStringUTFChars(text, c_text);
+        if (c_hint != nullptr) {
+            env->ReleaseStringUTFChars(hint, c_hint);
+        }
         // Handle error
         jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
         env->ThrowNew(exceptionClass, e.what());

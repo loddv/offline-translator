@@ -515,6 +515,26 @@ fun SettingsScreen(
                 },
               )
             }
+
+            // Show OCR Detection Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Show OCR detection",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.showOCRDetection,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(showOCRDetection = checked))
+                },
+              )
+            }
           }
         }
       }

@@ -174,6 +174,7 @@ fun MainScreen(
                 fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
                 lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
               ),
+            showOCRInput = settings.showOCRDetection,
           )
         }
 

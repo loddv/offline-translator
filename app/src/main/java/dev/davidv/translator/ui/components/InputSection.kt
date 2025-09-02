@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -37,10 +39,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -56,12 +61,15 @@ fun InputSection(
   onMessage: (TranslatorMessage) -> Unit,
   onShowFullScreenImage: () -> Unit,
   textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+  showOCRInput: Boolean = false,
 ) {
   Box(
     modifier = Modifier.fillMaxWidth(),
   ) {
-    if (displayImage != null) {
-      Column {
+    Column(
+      modifier = Modifier.verticalScroll(rememberScrollState()),
+    ) {
+      if (displayImage != null) {
         val isOcrInProgressState by isOcrInProgress.collectAsState()
         val isTranslatingState by isTranslating.collectAsState()
         val isProcessing = isOcrInProgressState || isTranslatingState
@@ -83,21 +91,23 @@ fun InputSection(
               .clickable { onShowFullScreenImage() },
         )
       }
-    } else {
-      StyledTextField(
-        text = input,
-        onValueChange = { newInput ->
-          onMessage(TranslatorMessage.TextInput(newInput))
-        },
-        placeholder = "Enter text",
-        textStyle = textStyle,
-        modifier =
-          Modifier
-            .fillMaxSize()
-            .padding(end = 24.dp),
-      )
+      if (displayImage == null || showOCRInput) {
+        StyledTextField(
+          text = input,
+          onValueChange = { newInput ->
+            onMessage(TranslatorMessage.TextInput(newInput))
+          },
+          readOnly = displayImage != null,
+          placeholder = if (displayImage == null) "Enter text" else null,
+          modifier =
+            Modifier
+              .fillMaxSize()
+              .padding(end = 24.dp),
+        )
+      }
     }
 
+    // TODO: make this clearinput shared with StyledTextField
     if (displayImage != null || input.isNotEmpty()) {
       IconButton(
         onClick = { onMessage(TranslatorMessage.ClearInput) },
@@ -134,14 +144,19 @@ fun InputSectionTextPreview() {
 @Preview(showBackground = true)
 @Composable
 fun InputSectionProcessingTextPreview() {
+  val context = LocalContext.current
+  val drawable = ContextCompat.getDrawable(context, R.drawable.example)
+  val bitmap = drawable?.toBitmap()
+
   TranslatorTheme {
     InputSection(
-      displayImage = null,
-      input = "Processing translation...",
+      displayImage = bitmap,
+      input = "this text was taken from the image",
       isOcrInProgress = MutableStateFlow(false),
       isTranslating = MutableStateFlow(true),
       onMessage = {},
       onShowFullScreenImage = {},
+      showOCRInput = true,
     )
   }
 }
@@ -152,6 +167,23 @@ fun InputSectionProcessingTextPreview() {
 )
 @Composable
 fun InputSectionDarkPreview() {
+  TranslatorTheme {
+    InputSection(
+      displayImage = null,
+      input = "Dark mode text input",
+      isOcrInProgress = MutableStateFlow(false),
+      isTranslating = MutableStateFlow(false),
+      onMessage = {},
+      onShowFullScreenImage = {},
+    )
+  }
+}
+
+@Preview(
+  showBackground = true,
+)
+@Composable
+fun InputWithTextAndImage() {
   TranslatorTheme {
     InputSection(
       displayImage = null,

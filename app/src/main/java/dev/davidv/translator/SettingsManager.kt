@@ -77,7 +77,9 @@ class SettingsManager(
     val disableCLD = prefs.getBoolean("disable_cld", defaults.disableCLD)
     val disableTransliteration = prefs.getBoolean("disable_transliteration", defaults.disableTransliteration)
     val useExternalStorage = prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
-    val fontSize = prefs.getFloat("font_factor", defaults.fontFactor)
+    val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
+    val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
+
 
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
@@ -91,6 +93,7 @@ class SettingsManager(
       disableTransliteration = disableTransliteration,
       useExternalStorage = useExternalStorage,
       fontFactor = fontSize,
+      showOCRDetection = showOCRDetection,
     )
   }
 
@@ -138,6 +141,10 @@ class SettingsManager(
       if (newSettings.useExternalStorage != currentSettings.useExternalStorage) {
         putBoolean("use_external_storage", newSettings.useExternalStorage)
         modifiedSettings.add("use_external_storage")
+      }
+      if (newSettings.showOCRDetection != currentSettings.showOCRDetection) {
+        putBoolean("show_ocr_detection", newSettings.showOCRDetection)
+        modifiedSettings.add("show_ocr_detection")
       }
       if (newSettings.fontFactor != currentSettings.fontFactor) {
         putFloat("font_factor", newSettings.fontFactor)

@@ -42,9 +42,15 @@ android {
 
     flavorDimensions += listOf("architecture")
     productFlavors {
-      create("x86") {
+      create("x86_64") {
         ndk {
           abiFilters += listOf("x86_64") // armeabi-v7a arm64-v8a
+        }
+        dimension = "architecture"
+      }
+      create("x86") {
+        ndk {
+          abiFilters += listOf("x86")
         }
         dimension = "architecture"
       }

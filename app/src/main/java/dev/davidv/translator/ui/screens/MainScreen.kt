@@ -169,6 +169,7 @@ fun MainScreen(
             isTranslating = isTranslating,
             onMessage = onMessage,
             onShowFullScreenImage = { showFullScreenImage = true },
+            textStyle = settings.fontSize.getTextStyle(),
           )
         }
 
@@ -201,6 +202,7 @@ fun MainScreen(
           if (output != null) {
             TranslationField(
               text = output,
+              textStyle = settings.fontSize.getTextStyle(),
             )
           }
         }

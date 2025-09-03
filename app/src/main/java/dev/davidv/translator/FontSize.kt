@@ -17,16 +17,24 @@
 
 package dev.davidv.translator
 
-data class AppSettings(
-  val defaultTargetLanguage: Language = Language.ENGLISH,
-  val translationModelsBaseUrl: String = Constants.DEFAULT_TRANSLATION_MODELS_BASE_URL,
-  val tesseractModelsBaseUrl: String = Constants.DEFAULT_TESSERACT_MODELS_BASE_URL,
-  val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
-  val minConfidence: Int = 75,
-  val maxImageSize: Int = 1500,
-  val disableOcr: Boolean = false,
-  val disableCLD: Boolean = false,
-  val disableTransliteration: Boolean = false,
-  val useExternalStorage: Boolean = false,
-  val fontSize: FontSize = FontSize.SMALL,
-)
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+
+enum class FontSize(
+  val displayName: String,
+) {
+  SMALL("Small"),
+  MEDIUM("Medium"),
+  LARGE("Large"),
+  ;
+
+  @Composable
+  fun getTextStyle(): TextStyle =
+    when (this) {
+      SMALL -> MaterialTheme.typography.bodyLarge
+      MEDIUM -> MaterialTheme.typography.bodyLarge.copy(fontSize = 24.sp, lineHeight = 32.sp)
+      LARGE -> MaterialTheme.typography.bodyLarge.copy(fontSize = 32.sp, lineHeight = 40.sp)
+    }
+}

@@ -113,6 +113,18 @@ class SettingsManager(
         defaults.useExternalStorage
       }
 
+    val fontSizeName = prefs.getString("font_size", null)
+    val fontSize =
+      if (fontSizeName != null) {
+        try {
+          FontSize.valueOf(fontSizeName)
+        } catch (_: IllegalArgumentException) {
+          defaults.fontSize
+        }
+      } else {
+        defaults.fontSize
+      }
+
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
       translationModelsBaseUrl = translationModelsBaseUrl,
@@ -124,6 +136,7 @@ class SettingsManager(
       disableCLD = disableCLD,
       disableTransliteration = disableTransliteration,
       useExternalStorage = useExternalStorage,
+      fontSize = fontSize,
     )
   }
 
@@ -171,6 +184,10 @@ class SettingsManager(
       if (newSettings.useExternalStorage != currentSettings.useExternalStorage) {
         putBoolean("use_external_storage", newSettings.useExternalStorage)
         modifiedSettings.add("use_external_storage")
+      }
+      if (newSettings.fontSize != currentSettings.fontSize) {
+        putString("font_size", newSettings.fontSize.name)
+        modifiedSettings.add("font_size")
       }
       apply()
     }

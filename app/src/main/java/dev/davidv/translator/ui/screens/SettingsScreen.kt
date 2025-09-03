@@ -58,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
+import dev.davidv.translator.FontSize
 import dev.davidv.translator.Language
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
@@ -201,6 +202,47 @@ fun SettingsScreen(
                   onClick = {
                     onSettingsChange(settings.copy(defaultTargetLanguage = language))
                     languageExpanded = false
+                  },
+                )
+              }
+            }
+          }
+
+          // Font Size
+          var fontSizeExpanded by remember { mutableStateOf(false) }
+
+          Text(
+            text = "Font Size",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          ExposedDropdownMenuBox(
+            expanded = fontSizeExpanded,
+            onExpandedChange = { fontSizeExpanded = it },
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            OutlinedTextField(
+              value = settings.fontSize.displayName,
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fontSizeExpanded) },
+              modifier =
+                Modifier
+                  .menuAnchor()
+                  .fillMaxWidth(),
+              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            )
+            ExposedDropdownMenu(
+              expanded = fontSizeExpanded,
+              onDismissRequest = { fontSizeExpanded = false },
+            ) {
+              FontSize.entries.forEach { fontSize ->
+                DropdownMenuItem(
+                  text = { Text(fontSize.displayName) },
+                  onClick = {
+                    onSettingsChange(settings.copy(fontSize = fontSize))
+                    fontSizeExpanded = false
                   },
                 )
               }

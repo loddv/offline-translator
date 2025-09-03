@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.R
@@ -54,6 +55,7 @@ fun InputSection(
   isTranslating: StateFlow<Boolean>,
   onMessage: (TranslatorMessage) -> Unit,
   onShowFullScreenImage: () -> Unit,
+  textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
   Box(
     modifier = Modifier.fillMaxWidth(),
@@ -88,6 +90,7 @@ fun InputSection(
           onMessage(TranslatorMessage.TextInput(newInput))
         },
         placeholder = "Enter text",
+        textStyle = textStyle,
         modifier =
           Modifier
             .fillMaxSize()

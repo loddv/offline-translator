@@ -1,16 +1,18 @@
 <h1><center>Translator</center></h1>
 
-An Android translator app that uses on-device models to perform translation of text and images.
+An Android translator app that performs text and image translation completely offline using on-device models.
+
+Supports automatic language detection and transliteration for non-latin scripts.
 
 [<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid"
     height="80">](https://f-droid.org/packages/dev.davidv.translator)
 
 
-## Features
+## How It Works
 
-- Image translation by overlaying on top of the original content
-- Automatic language detection
-- Transliteration for non-latin scripts
+**Complete offline translation** - download language packs once, translate forever without internet.
+
+Language packs contain the full translation models, translation happens _on your device_, no requests are sent to external servers.
 
 ## Screenshots
 
@@ -27,7 +29,7 @@ An Android translator app that uses on-device models to perform translation of t
 - OCR models are [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
 - Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
 
-## Using on airgapped devices
+## Manual offline setup
 
 If you want to use this app on a device with no internet access, you can put the language files on `Documents/dev.davidv.translator`. Check
 `OFFLINE_SETUP.md` for details.

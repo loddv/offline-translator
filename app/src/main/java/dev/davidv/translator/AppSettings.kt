@@ -29,4 +29,5 @@ data class AppSettings(
   val disableTransliteration: Boolean = false,
   val useExternalStorage: Boolean = false,
   val fontFactor: Float = 1.0f,
+  val showOCRDetection: Boolean = false,
 )

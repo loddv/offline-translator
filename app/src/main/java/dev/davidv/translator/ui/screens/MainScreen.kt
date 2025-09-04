@@ -21,19 +21,25 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -48,9 +54,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.Language
@@ -60,8 +69,9 @@ import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.ImageCaptureHandler
-import dev.davidv.translator.ui.components.InputSection
+import dev.davidv.translator.ui.components.ImageDisplaySection
 import dev.davidv.translator.ui.components.LanguageSelectionRow
+import dev.davidv.translator.ui.components.StyledTextField
 import dev.davidv.translator.ui.components.TranslationField
 import dev.davidv.translator.ui.components.ZoomableImageViewer
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -156,63 +166,111 @@ fun MainScreen(
           onSettings = if (launchMode == LaunchMode.Normal) onSettings else null,
         )
 
-        Box(
+        BoxWithConstraints(
           modifier =
             Modifier
               .fillMaxWidth()
-              .weight(0.4f),
+              .weight(1f),
         ) {
-          InputSection(
-            displayImage = displayImage,
-            input = input,
-            isOcrInProgress = isOcrInProgress,
-            isTranslating = isTranslating,
-            onMessage = onMessage,
-            onShowFullScreenImage = { showFullScreenImage = true },
-            textStyle =
-              MaterialTheme.typography.bodyLarge.copy(
-                fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
-                lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
-              ),
-            showOCRInput = settings.showOCRDetection,
-          )
-        }
+          val parentHeight = maxHeight
 
-        DetectedLanguageSection(
-          detectedLanguage = detectedLanguage,
-          from = from,
-          availableLanguages = availableLanguages,
-          onMessage = onMessage,
-          downloadStates = downloadStates,
-        )
-        Box(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(vertical = 16.dp),
-          contentAlignment = Alignment.Center,
-        ) {
-          HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(0.5f),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-          )
-        }
-        Box(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .weight(0.5f),
-        ) {
-          if (output != null) {
-            TranslationField(
-              text = output,
-              textStyle =
-                MaterialTheme.typography.bodyLarge.copy(
-                  fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
-                  lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
-                ),
+          Column(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .let { modifier ->
+                  if (displayImage != null) {
+                    modifier.verticalScroll(rememberScrollState())
+                  } else {
+                    modifier
+                  }
+                },
+          ) {
+            if (displayImage != null) {
+              Box(
+                modifier =
+                  Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = parentHeight * 0.7f),
+              ) {
+                ImageDisplaySection(
+                  displayImage = displayImage,
+                  isOcrInProgress = isOcrInProgress,
+                  isTranslating = isTranslating,
+                  onShowFullScreenImage = { showFullScreenImage = true },
+                )
+                ClearInput(onMessage)
+              }
+            }
+
+            if (displayImage == null || settings.showOCRDetection) {
+              Box(
+                modifier =
+                  Modifier
+                    .fillMaxWidth()
+                    .height(parentHeight * 0.5f),
+              ) {
+                StyledTextField(
+                  text = input,
+                  onValueChange = { newInput ->
+                    onMessage(TranslatorMessage.TextInput(newInput))
+                  },
+                  placeholder = if (displayImage == null) "Enter text" else null,
+                  modifier =
+                    Modifier
+                      .fillMaxSize()
+                      .padding(end = if (displayImage == null) 24.dp else 0.dp),
+                  textStyle =
+                    MaterialTheme.typography.bodyLarge.copy(
+                      fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                      lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                    ),
+                )
+                if (displayImage == null && input.isNotEmpty()) {
+                  ClearInput(onMessage)
+                }
+              }
+            }
+
+            DetectedLanguageSection(
+              detectedLanguage = detectedLanguage,
+              from = from,
+              availableLanguages = availableLanguages,
+              onMessage = onMessage,
+              downloadStates = downloadStates,
             )
+
+            Box(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 16.dp),
+              contentAlignment = Alignment.Center,
+            ) {
+              HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(0.5f),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+              )
+            }
+
+            Box(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .height(parentHeight * 0.5f),
+            ) {
+              if (output != null) {
+                TranslationField(
+                  text = output,
+                  textStyle =
+                    MaterialTheme.typography.bodyLarge.copy(
+                      fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                      lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                    ),
+                )
+              }
+            }
           }
         }
       }
@@ -231,6 +289,23 @@ fun MainScreen(
     ZoomableImageViewer(
       bitmap = displayImage,
       onDismiss = { showFullScreenImage = false },
+    )
+  }
+}
+
+@Composable
+fun BoxScope.ClearInput(onMessage: (TranslatorMessage) -> Unit) {
+  IconButton(
+    onClick = { onMessage(TranslatorMessage.ClearInput) },
+    modifier =
+      Modifier
+        .align(Alignment.TopEnd)
+        .size(32.dp),
+  ) {
+    Icon(
+      painterResource(id = R.drawable.cancel),
+      contentDescription = "Clear input",
+      tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
     )
   }
 }
@@ -328,19 +403,60 @@ fun MainScreenPreview() {
 )
 @Composable
 fun PreviewVeryLongText() {
+  val vlong = "very long text. ".repeat(100)
   TranslatorTheme {
     MainScreen(
       onSettings = { },
-      input = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+      input = vlong,
       output =
         TranslatedText(
-          "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+          vlong,
           null,
         ),
       from = Language.ENGLISH,
       to = Language.ENGLISH,
       detectedLanguage = null,
       displayImage = null,
+      isTranslating = MutableStateFlow(false).asStateFlow(),
+      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      onMessage = {},
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH.code to true,
+          Language.SPANISH.code to true,
+          Language.FRENCH.code to true,
+        ),
+      downloadStates = emptyMap(),
+      settings = AppSettings(),
+      launchMode = LaunchMode.Normal,
+    )
+  }
+}
+
+@Preview(
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun PreviewVeryLongTextImage() {
+  val vlong = "very long text. ".repeat(100)
+  val context = LocalContext.current
+  val drawable = ContextCompat.getDrawable(context, R.drawable.example)
+  val bitmap = drawable?.toBitmap()
+
+  TranslatorTheme {
+    MainScreen(
+      onSettings = { },
+      input = vlong,
+      output =
+        TranslatedText(
+          vlong,
+          null,
+        ),
+      from = Language.ENGLISH,
+      to = Language.ENGLISH,
+      detectedLanguage = null,
+      displayImage = bitmap,
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
       onMessage = {},

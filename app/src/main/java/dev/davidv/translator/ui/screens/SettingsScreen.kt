@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,11 +59,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
-import dev.davidv.translator.FontSize
 import dev.davidv.translator.Language
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,7 +160,7 @@ fun SettingsScreen(
       ) {
         Column(
           modifier = Modifier.padding(16.dp),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
           Text(
             text = "General",
@@ -208,45 +209,44 @@ fun SettingsScreen(
             }
           }
 
-          // Font Size
-          var fontSizeExpanded by remember { mutableStateOf(false) }
-
           Text(
             text = "Font Size",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
           )
 
-          ExposedDropdownMenuBox(
-            expanded = fontSizeExpanded,
-            onExpandedChange = { fontSizeExpanded = it },
+          var showExampleText by remember { mutableStateOf(false) }
+
+          Slider(
+            value = settings.fontFactor,
+            onValueChange = { value ->
+              onSettingsChange(settings.copy(fontFactor = value))
+              showExampleText = true
+            },
+            valueRange = 1.0f..3.0f,
+            steps = 3,
             modifier = Modifier.fillMaxWidth(),
-          ) {
-            OutlinedTextField(
-              value = settings.fontSize.displayName,
-              onValueChange = {},
-              readOnly = true,
-              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fontSizeExpanded) },
-              modifier =
-                Modifier
-                  .menuAnchor()
-                  .fillMaxWidth(),
-              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            )
-            ExposedDropdownMenu(
-              expanded = fontSizeExpanded,
-              onDismissRequest = { fontSizeExpanded = false },
-            ) {
-              FontSize.entries.forEach { fontSize ->
-                DropdownMenuItem(
-                  text = { Text(fontSize.displayName) },
-                  onClick = {
-                    onSettingsChange(settings.copy(fontSize = fontSize))
-                    fontSizeExpanded = false
-                  },
-                )
-              }
+          )
+
+          LaunchedEffect(settings.fontFactor) {
+            if (showExampleText) {
+              delay(1500)
+              showExampleText = false
             }
+          }
+
+          if (showExampleText) {
+            Text(
+              text = "This is some example text",
+              style =
+                MaterialTheme.typography.bodyLarge.copy(
+                  fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                  lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                ),
+              color = MaterialTheme.colorScheme.onSurface,
+              maxLines = 1,
+              overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
           }
         }
       }
@@ -262,7 +262,7 @@ fun SettingsScreen(
         ) {
           Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
           ) {
             Text(
               text = "OCR",
@@ -358,7 +358,7 @@ fun SettingsScreen(
       ) {
         Column(
           modifier = Modifier.padding(16.dp),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
           // Clickable header
           Row(
@@ -580,7 +580,7 @@ fun SettingsScreenPreview() {
 fun SettingsScreenDarkPreview() {
   TranslatorTheme {
     SettingsScreen(
-      settings = AppSettings(),
+      settings = AppSettings(fontFactor = 3.0f),
       availableLanguages = Language.entries,
       onSettingsChange = {},
       onManageLanguages = {},

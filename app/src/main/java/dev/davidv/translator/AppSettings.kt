@@ -28,5 +28,5 @@ data class AppSettings(
   val disableCLD: Boolean = false,
   val disableTransliteration: Boolean = false,
   val useExternalStorage: Boolean = false,
-  val fontSize: FontSize = FontSize.SMALL,
+  val fontFactor: Float = 1.0f,
 )

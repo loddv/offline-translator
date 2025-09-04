@@ -169,7 +169,11 @@ fun MainScreen(
             isTranslating = isTranslating,
             onMessage = onMessage,
             onShowFullScreenImage = { showFullScreenImage = true },
-            textStyle = settings.fontSize.getTextStyle(),
+            textStyle =
+              MaterialTheme.typography.bodyLarge.copy(
+                fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+              ),
           )
         }
 
@@ -202,7 +206,11 @@ fun MainScreen(
           if (output != null) {
             TranslationField(
               text = output,
-              textStyle = settings.fontSize.getTextStyle(),
+              textStyle =
+                MaterialTheme.typography.bodyLarge.copy(
+                  fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                  lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                ),
             )
           }
         }

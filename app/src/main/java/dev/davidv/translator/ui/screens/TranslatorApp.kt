@@ -293,8 +293,16 @@ fun TranslatorApp(
     }
   }
 
-  LaunchedEffect(input) {
-    if (input.isNotBlank()) {
+  LaunchedEffect(from, input) {
+    scope.launch {
+      currentDetectedLanguage =
+        if (!settings.disableCLD) {
+          translationCoordinator.detectLanguage(input, from)
+        } else {
+          null
+        }
+    }
+    if (input.isNotBlank() && from != null) {
       scope.launch {
         val translated =
           translationCoordinator.translateText(from!!, to, input)
@@ -308,16 +316,6 @@ fun TranslatorApp(
       }
     } else {
       output = null
-    }
-  }
-  LaunchedEffect(from, input) {
-    scope.launch {
-      currentDetectedLanguage =
-        if (!settings.disableCLD) {
-          translationCoordinator.detectLanguage(input, from)
-        } else {
-          null
-        }
     }
   }
   LaunchedEffect(from, to) {

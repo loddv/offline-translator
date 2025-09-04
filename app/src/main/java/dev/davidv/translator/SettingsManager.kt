@@ -71,58 +71,13 @@ class SettingsManager(
         defaults.backgroundMode
       }
 
-    val minConfidence =
-      if (prefs.contains("min_confidence")) {
-        prefs.getInt("min_confidence", defaults.minConfidence)
-      } else {
-        defaults.minConfidence
-      }
-
-    val maxImageSize =
-      if (prefs.contains("max_image_size")) {
-        prefs.getInt("max_image_size", defaults.maxImageSize)
-      } else {
-        defaults.maxImageSize
-      }
-
-    val disableOcr =
-      if (prefs.contains("disable_ocr")) {
-        prefs.getBoolean("disable_ocr", defaults.disableOcr)
-      } else {
-        defaults.disableOcr
-      }
-
-    val disableCLD =
-      if (prefs.contains("disable_cld")) {
-        prefs.getBoolean("disable_cld", defaults.disableCLD)
-      } else {
-        defaults.disableCLD
-      }
-
-    val disableTransliteration =
-      if (prefs.contains("disable_transliteration")) {
-        prefs.getBoolean("disable_transliteration", defaults.disableTransliteration)
-      } else {
-        defaults.disableTransliteration
-      }
-
-    val useExternalStorage =
-      if (prefs.contains("use_external_storage")) {
-        prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
-      } else {
-        defaults.useExternalStorage
-      }
-
-    val fontSize =
-      if (prefs.contains("font_factor")) {
-        try {
-          prefs.getFloat("font_factor", defaults.fontFactor)
-        } catch (_: ClassCastException) {
-          defaults.fontFactor
-        }
-      } else {
-        defaults.fontFactor
-      }
+    val minConfidence = prefs.getInt("min_confidence", defaults.minConfidence)
+    val maxImageSize = prefs.getInt("max_image_size", defaults.maxImageSize)
+    val disableOcr = prefs.getBoolean("disable_ocr", defaults.disableOcr)
+    val disableCLD = prefs.getBoolean("disable_cld", defaults.disableCLD)
+    val disableTransliteration = prefs.getBoolean("disable_transliteration", defaults.disableTransliteration)
+    val useExternalStorage = prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
+    val fontSize = prefs.getFloat("font_factor", defaults.fontFactor)
 
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,

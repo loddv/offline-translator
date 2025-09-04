@@ -103,6 +103,7 @@ fun InputSection(
             Modifier
               .fillMaxSize()
               .padding(end = 24.dp),
+          textStyle = textStyle,
         )
       }
     }

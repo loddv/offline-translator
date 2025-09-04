@@ -80,7 +80,6 @@ class SettingsManager(
     val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
     val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
 
-
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
       translationModelsBaseUrl = translationModelsBaseUrl,
@@ -92,7 +91,7 @@ class SettingsManager(
       disableCLD = disableCLD,
       disableTransliteration = disableTransliteration,
       useExternalStorage = useExternalStorage,
-      fontFactor = fontSize,
+      fontFactor = fontFactor,
       showOCRDetection = showOCRDetection,
     )
   }

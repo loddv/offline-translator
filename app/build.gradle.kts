@@ -72,12 +72,73 @@ android {
   buildFeatures {
     compose = true
   }
+}
 
-  externalNativeBuild {
-    cmake {
-      path = file("src/main/cpp/CMakeLists.txt")
-      version = "3.22.1"
+val tarkkaRootDir = "/home/david/git/tarkka"
+val jniLibsDir = "src/main/jniLibs"
+
+tasks.register("buildTarkkaX86_64") {
+  group = "build"
+  description = "Build Tarkka Rust library for x86_64"
+
+  doLast {
+    exec {
+      workingDir = file(tarkkaRootDir)
+      environment("CC", "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang")
+      environment(
+        "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER",
+        "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
+      )
+      commandLine("cargo", "build", "--release", "--target", "x86_64-linux-android")
     }
+
+    val sourceFile = file("$tarkkaRootDir/target/x86_64-linux-android/release/libtarkka.so")
+    val targetDir = file("$jniLibsDir/x86_64")
+    val targetFile = file("$targetDir/libtarkka.so")
+
+    targetDir.mkdirs()
+    sourceFile.copyTo(targetFile, overwrite = true)
+    println("Copied $sourceFile to $targetFile")
+  }
+}
+
+tasks.register("buildTarkkaAarch64") {
+  group = "build"
+  description = "Build Tarkka Rust library for aarch64"
+
+  doLast {
+    exec {
+      workingDir = file(tarkkaRootDir)
+      environment("CC", "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang")
+      environment(
+        "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
+        "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+      )
+      commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android")
+    }
+
+    val sourceFile = file("$tarkkaRootDir/target/aarch64-linux-android/release/libtarkka.so")
+    val targetDir = file("$jniLibsDir/arm64-v8a")
+    val targetFile = file("$targetDir/libtarkka.so")
+
+    targetDir.mkdirs()
+    sourceFile.copyTo(targetFile, overwrite = true)
+    println("Copied $sourceFile to $targetFile")
+  }
+}
+
+tasks.register("buildTarkkaAll") {
+  group = "build"
+  description = "Build Tarkka Rust library for all architectures"
+  dependsOn("buildTarkkaX86_64", "buildTarkkaAarch64")
+}
+
+tasks.whenTaskAdded {
+  if (name.contains("preAarch64") && name.contains("Build")) {
+    dependsOn("buildTarkkaAarch64")
+  }
+  if (name.contains("preX86_64") && name.contains("Build")) {
+    dependsOn("buildTarkkaX86_64")
   }
 }
 

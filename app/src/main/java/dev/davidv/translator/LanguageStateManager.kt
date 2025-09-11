@@ -145,7 +145,7 @@ class LanguageStateManager(
   fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {
     val state = _languageState.value
     return state.availableLanguages
-      .filterNot { it == excluding || it == Language.ENGLISH }
+      .filterNot { it == excluding }
       .firstOrNull()
   }
 }

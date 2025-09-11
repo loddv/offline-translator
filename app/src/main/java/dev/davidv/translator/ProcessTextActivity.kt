@@ -125,8 +125,15 @@ class ProcessTextActivity : ComponentActivity() {
     }
 
     when (intent?.action) {
+      Intent.ACTION_TRANSLATE -> {
+        val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+        Log.i("IntentMessage", "is RO: $isReadonly")
+        launchMode = if (isReadonly) LaunchMode.ReadonlyModal else LaunchMode.ReadWriteModal(replyModalIntent)
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        textToTranslate = text ?: ""
+      }
       Intent.ACTION_PROCESS_TEXT -> {
-        val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
+        val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
         Log.i("IntentMessage", "is RO: $isReadonly")
         launchMode = if (isReadonly) LaunchMode.ReadonlyModal else LaunchMode.ReadWriteModal(replyModalIntent)
         val text =

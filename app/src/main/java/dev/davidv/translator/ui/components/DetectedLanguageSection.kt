@@ -21,9 +21,12 @@ import android.content.res.Configuration
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
+import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -32,10 +35,12 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 fun DetectedLanguageSection(
   detectedLanguage: Language?,
   from: Language,
-  availableLanguages: Map<Language, Boolean>,
+  availableLanguages: Map<Language, LangAvailability>,
   onMessage: (TranslatorMessage) -> Unit,
   downloadStates: Map<Language, DownloadState>,
 ) {
+  val context = LocalContext.current
+
   if (detectedLanguage != null && detectedLanguage != from) {
     DetectedLanguageToast(
       detectedLanguage = detectedLanguage,
@@ -45,6 +50,14 @@ fun DetectedLanguageSection(
       },
       modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
       downloadStates = downloadStates,
+      onEvent = { event ->
+        when (event) {
+          is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+          is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+          is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+          is LanguageEvent.Manage -> {}
+        }
+      },
     )
   }
 }
@@ -58,10 +71,10 @@ fun DetectedLanguageSectionPreview() {
       from = Language.ENGLISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH to true,
-          Language.SPANISH to true,
-          Language.FRENCH to true,
-          Language.GERMAN to false,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
+          Language.GERMAN to LangAvailability(false, true, true),
         ),
       onMessage = {},
       downloadStates = emptyMap(),
@@ -78,9 +91,9 @@ fun DetectedLanguageSectionNoDetectionPreview() {
       from = Language.ENGLISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH to true,
-          Language.SPANISH to true,
-          Language.FRENCH to true,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
         ),
       onMessage = {},
       downloadStates = emptyMap(),
@@ -100,9 +113,9 @@ fun DetectedLanguageSectionDarkPreview() {
       from = Language.SPANISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH to true,
-          Language.SPANISH to true,
-          Language.GERMAN to true,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.GERMAN to LangAvailability(true, true, true),
         ),
       onMessage = {},
       downloadStates = emptyMap(),

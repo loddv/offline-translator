@@ -246,7 +246,7 @@ fun MainScreen(
             DetectedLanguageSection(
               detectedLanguage = detectedLanguage,
               from = from,
-              availableLanguages = availableLanguages.mapValues { it.value.translatorFiles },
+              availableLanguages = availableLanguages,
               onMessage = onMessage,
               downloadStates = downloadStates,
             )

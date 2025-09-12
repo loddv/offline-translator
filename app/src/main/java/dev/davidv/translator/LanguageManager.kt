@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
+import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,7 +64,7 @@ fun createPreviewStates(): PreviewStates =
           availableLanguageMap =
             mapOf(
               Language.ENGLISH to LangAvailability(true, true, true),
-              Language.FRENCH to LangAvailability(true, true, true),
+              Language.FRENCH to LangAvailability(true, true, false),
               Language.SPANISH to LangAvailability(true, true, true),
             ),
         ),
@@ -174,7 +175,7 @@ fun LanguageManagerScreen(
           items(installedLanguages) { lang ->
             LanguageItem(
               lang = lang,
-              fullyDownloaded = true,
+              state = languageAvailabilityState.availableLanguageMap[lang]!!,
               downloadState = downloadStates[lang],
               context = context,
             )
@@ -212,7 +213,7 @@ fun LanguageManagerScreen(
 
           items(availableLanguages) { lang ->
             LanguageItem(
-              fullyDownloaded = false,
+              state = languageAvailabilityState.availableLanguageMap[lang] ?: LangAvailability(false, false, false),
               lang = lang,
               downloadState = downloadStates[lang],
               context = context,
@@ -267,7 +268,7 @@ fun LanguageManagerScreen(
 @Composable
 private fun LanguageItem(
   lang: Language,
-  fullyDownloaded: Boolean,
+  state: LangAvailability,
   downloadState: DownloadState?,
   context: Context,
 ) {
@@ -289,7 +290,19 @@ private fun LanguageItem(
         style = MaterialTheme.typography.labelMedium,
       )
     }
-    LanguageDownloadButton(lang, downloadState, context, fullyDownloaded)
+    LanguageDownloadButton(
+      language = lang,
+      downloadState = downloadState,
+      state = state,
+      onEvent = { event ->
+        when (event) {
+          is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+          is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+          is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+          is LanguageEvent.Manage -> {}
+        }
+      },
+    )
   }
 }
 

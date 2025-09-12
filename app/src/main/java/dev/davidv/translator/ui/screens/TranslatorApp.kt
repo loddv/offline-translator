@@ -59,6 +59,7 @@ import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.WordWithTaggedEntries
+import dev.davidv.translator.ui.components.LanguageEvent
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -149,12 +150,21 @@ fun TranslatorApp(
 
   // Initialize from language when languages become available
   LaunchedEffect(languageState.availableLanguageMap, settings.defaultTargetLanguage) {
-    if (from == null && languageState.hasLanguages) {
-      val firstAvailable =
-        languageStateManager?.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
-      if (firstAvailable != null) {
-        setFrom(firstAvailable)
-        translationCoordinator.translationService.preloadModel(firstAvailable, to)
+    var actualTo = settings.defaultTargetLanguage
+    if (languageState.hasLanguages) {
+      // Deleted default target
+      if (languageState.availableLanguageMap[settings.defaultTargetLanguage]?.translatorFiles == false) {
+        setTo(Language.ENGLISH)
+        actualTo = Language.ENGLISH
+        settingsManager.updateSettings(settings.copy(defaultTargetLanguage = Language.ENGLISH))
+      }
+      if (from == null) {
+        val firstAvailable =
+          languageStateManager?.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
+        if (firstAvailable != null) {
+          setFrom(firstAvailable)
+          translationCoordinator.translationService.preloadModel(firstAvailable, actualTo)
+        }
       }
     }
   }
@@ -525,6 +535,16 @@ fun TranslatorApp(
           LanguageManagerScreen(
             languageState = currentLanguageStateManager.languageState,
             downloadStates_ = currentDownloadService.downloadStates,
+            onEvent = { event ->
+              when (event) {
+                is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+                is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+                is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                is LanguageEvent.DownloadDictionary -> {} // TODO
+                is LanguageEvent.DeleteDictionary -> {}
+                is LanguageEvent.Manage -> {}
+              }
+            },
           )
         }
       }

@@ -33,7 +33,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -46,6 +49,8 @@ import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.SettingsManager
+import dev.davidv.translator.ui.components.LanguageEvent
+import dev.davidv.translator.ui.components.rememberLanguageManageDialog
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +62,24 @@ fun NoLanguagesScreen(
   downloadService: DownloadService?,
 ) {
   val state by languageStateManager.languageState.collectAsState()
+  val context = LocalContext.current
+  val downloadStates by (downloadService?.downloadStates?.collectAsState() ?: remember { mutableStateOf(emptyMap()) })
+
+  val dialogController =
+    rememberLanguageManageDialog(
+      languageState = state,
+      downloadStates = downloadStates,
+      onEvent = { event ->
+        when (event) {
+          is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+          is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+          is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+          is LanguageEvent.Manage -> {} // Should not happen since dialog handles this
+          is LanguageEvent.DeleteDictionary -> {}
+          is LanguageEvent.DownloadDictionary -> {} // TODO
+        }
+      },
+    )
 
   Scaffold(
     topBar = {
@@ -105,6 +128,7 @@ fun NoLanguagesScreen(
         embedded = true,
         languageState = languageStateManager.languageState,
         downloadStates_ = downloadService?.downloadStates,
+        onEvent = dialogController.handleEvent,
       )
     }
   }

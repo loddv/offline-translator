@@ -20,14 +20,16 @@ package dev.davidv.translator.ui.components
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
@@ -38,8 +40,21 @@ fun DetectedLanguageSection(
   availableLanguages: Map<Language, LangAvailability>,
   onMessage: (TranslatorMessage) -> Unit,
   downloadStates: Map<Language, DownloadState>,
+  onEvent: (LanguageEvent) -> Unit,
 ) {
   val context = LocalContext.current
+
+  val dialogController =
+    rememberLanguageManageDialog(
+      languageState =
+        LanguageAvailabilityState(
+          hasLanguages = availableLanguages.any { it.key != Language.ENGLISH && it.value.translatorFiles },
+          availableLanguageMap = availableLanguages,
+          isChecking = false,
+        ),
+      downloadStates = downloadStates,
+      onEvent = onEvent,
+    )
 
   if (detectedLanguage != null && detectedLanguage != from) {
     DetectedLanguageToast(
@@ -50,14 +65,7 @@ fun DetectedLanguageSection(
       },
       modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
       downloadStates = downloadStates,
-      onEvent = { event ->
-        when (event) {
-          is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-          is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
-          is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-          is LanguageEvent.Manage -> {}
-        }
-      },
+      onEvent = dialogController.handleEvent,
     )
   }
 }
@@ -78,6 +86,7 @@ fun DetectedLanguageSectionPreview() {
         ),
       onMessage = {},
       downloadStates = emptyMap(),
+      onEvent = {},
     )
   }
 }
@@ -97,6 +106,7 @@ fun DetectedLanguageSectionNoDetectionPreview() {
         ),
       onMessage = {},
       downloadStates = emptyMap(),
+      onEvent = {},
     )
   }
 }
@@ -119,6 +129,7 @@ fun DetectedLanguageSectionDarkPreview() {
         ),
       onMessage = {},
       downloadStates = emptyMap(),
+      onEvent = {},
     )
   }
 }

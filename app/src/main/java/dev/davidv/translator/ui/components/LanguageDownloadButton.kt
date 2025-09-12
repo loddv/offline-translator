@@ -45,7 +45,11 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 sealed class LanguageEvent {
   data class Download(val language: Language) : LanguageEvent()
 
+  data class DownloadDictionary(val language: Language) : LanguageEvent()
+
   data class Delete(val language: Language) : LanguageEvent()
+
+  data class DeleteDictionary(val language: Language) : LanguageEvent()
 
   data class Cancel(val language: Language) : LanguageEvent()
 

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
+import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
@@ -74,6 +75,7 @@ import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.DictionaryBottomSheet
 import dev.davidv.translator.ui.components.ImageCaptureHandler
 import dev.davidv.translator.ui.components.ImageDisplaySection
+import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.components.LanguageSelectionRow
 import dev.davidv.translator.ui.components.StyledTextField
 import dev.davidv.translator.ui.components.TranslationField
@@ -110,6 +112,7 @@ fun MainScreen(
   var showImageSourceSheet by remember { mutableStateOf(false) }
   val translating by isTranslating.collectAsState()
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
+  val context = LocalContext.current
 
   // Handle back button when dictionary is open
   BackHandler(enabled = dictionaryWord != null) {
@@ -249,6 +252,16 @@ fun MainScreen(
               availableLanguages = availableLanguages,
               onMessage = onMessage,
               downloadStates = downloadStates,
+              onEvent = { event ->
+                when (event) {
+                  is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+                  is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+                  is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                  is LanguageEvent.DeleteDictionary -> {} // TODO
+                  is LanguageEvent.DownloadDictionary -> {}
+                  is LanguageEvent.Manage -> {}
+                }
+              },
             )
 
             Box(

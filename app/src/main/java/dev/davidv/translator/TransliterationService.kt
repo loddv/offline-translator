@@ -66,7 +66,7 @@ object TransliterationService {
     }
 
     val rule = getTransliterationRule(language.script, targetScript) ?: return null
-
+    Log.d("Transliteration", "Using rule $rule")
     return try {
       val transliterator = getTransliterator(rule)
       transliterator?.transliterate(text)

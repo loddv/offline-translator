@@ -63,6 +63,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.DownloadState
+import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.R
@@ -100,7 +101,7 @@ fun MainScreen(
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
   // System integration
-  availableLanguages: Map<String, Boolean>,
+  availableLanguages: Map<Language, LangAvailability>,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
   settings: AppSettings,
   launchMode: LaunchMode,
@@ -170,7 +171,7 @@ fun MainScreen(
         LanguageSelectionRow(
           from = from,
           to = to,
-          availableLanguages = availableLanguages,
+          availableLanguages = availableLanguages.mapValues { it.value.translatorFiles },
           translating = translating,
           onMessage = onMessage,
           onSettings = if (launchMode == LaunchMode.Normal) onSettings else null,
@@ -245,7 +246,7 @@ fun MainScreen(
             DetectedLanguageSection(
               detectedLanguage = detectedLanguage,
               from = from,
-              availableLanguages = availableLanguages,
+              availableLanguages = availableLanguages.mapValues { it.value.translatorFiles },
               onMessage = onMessage,
               downloadStates = downloadStates,
             )
@@ -387,9 +388,9 @@ fun PopupMode() {
       onMessage = {},
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
@@ -420,9 +421,9 @@ fun MainScreenPreview() {
       onMessage = {},
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
@@ -458,9 +459,9 @@ fun PreviewVeryLongText() {
       onMessage = {},
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
@@ -500,9 +501,9 @@ fun PreviewVeryLongTextImage() {
       onMessage = {},
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),

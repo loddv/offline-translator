@@ -46,7 +46,7 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 @Composable
 fun DetectedLanguageToast(
   detectedLanguage: Language,
-  availableLanguages: Map<String, Boolean>,
+  availableLanguages: Map<Language, Boolean>,
   onSwitchClick: () -> Unit,
   modifier: Modifier = Modifier,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
@@ -64,7 +64,7 @@ fun DetectedLanguageToast(
     Column(
       modifier = Modifier.weight(1f),
     ) {
-      val isLanguageAvailable = availableLanguages[detectedLanguage.code] == true
+      val isLanguageAvailable = availableLanguages[detectedLanguage] == true
 
       Text(
         text = if (isLanguageAvailable) "Translate from" else "Missing language",
@@ -81,7 +81,7 @@ fun DetectedLanguageToast(
       )
     }
 
-    val isLanguageAvailable = availableLanguages[detectedLanguage.code] == true
+    val isLanguageAvailable = availableLanguages[detectedLanguage] == true
 
     val context = LocalContext.current
 
@@ -113,7 +113,7 @@ fun DetectedLanguageToastPreview() {
   TranslatorTheme {
     DetectedLanguageToast(
       detectedLanguage = Language.SPANISH,
-      availableLanguages = mapOf(Language.SPANISH.code to true),
+      availableLanguages = mapOf(Language.SPANISH to true),
       onSwitchClick = {},
       downloadStates = emptyMap(),
     )
@@ -129,7 +129,7 @@ fun DetectedLanguageToastDarkPreview() {
   TranslatorTheme {
     DetectedLanguageToast(
       detectedLanguage = Language.FRENCH,
-      availableLanguages = mapOf(Language.FRENCH.code to true),
+      availableLanguages = mapOf(Language.FRENCH to true),
       onSwitchClick = {},
       downloadStates = emptyMap(),
     )
@@ -145,7 +145,7 @@ fun MissingLanguage() {
   TranslatorTheme {
     DetectedLanguageToast(
       detectedLanguage = Language.SPANISH,
-      availableLanguages = mapOf(Language.FRENCH.code to false),
+      availableLanguages = mapOf(Language.FRENCH to false),
       onSwitchClick = {},
       downloadStates = emptyMap(),
     )

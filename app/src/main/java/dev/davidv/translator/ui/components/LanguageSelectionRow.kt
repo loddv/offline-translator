@@ -38,7 +38,7 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 fun LanguageSelectionRow(
   from: Language,
   to: Language,
-  availableLanguages: Map<String, Boolean>,
+  availableLanguages: Map<Language, Boolean>,
   translating: Boolean,
   onMessage: (TranslatorMessage) -> Unit,
   onSettings: (() -> Unit)?,
@@ -48,8 +48,8 @@ fun LanguageSelectionRow(
     horizontalArrangement = Arrangement.spacedBy(8.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    val fromLanguages = Language.entries.filter { x -> x != to && x != from && availableLanguages[x.code] == true }
-    val toLanguages = Language.entries.filter { x -> x != from && x != to && availableLanguages[x.code] == true }
+    val fromLanguages = Language.entries.filter { x -> x != to && x != from && availableLanguages[x] == true }
+    val toLanguages = Language.entries.filter { x -> x != from && x != to && availableLanguages[x] == true }
 
     LanguageSelector(
       selectedLanguage = from,
@@ -102,10 +102,10 @@ fun LanguageSelectionRowPreview() {
       to = Language.SPANISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
-          Language.GERMAN.code to true,
+          Language.ENGLISH to true,
+          Language.SPANISH to true,
+          Language.FRENCH to true,
+          Language.GERMAN to true,
         ),
       translating = false,
       onMessage = {},
@@ -126,10 +126,10 @@ fun LanguageSelectionRowDarkPreview() {
       to = Language.GERMAN,
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
-          Language.GERMAN.code to true,
+          Language.ENGLISH to true,
+          Language.SPANISH to true,
+          Language.FRENCH to true,
+          Language.GERMAN to true,
         ),
       translating = true,
       onMessage = {},

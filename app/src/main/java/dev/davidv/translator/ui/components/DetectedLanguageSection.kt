@@ -32,7 +32,7 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 fun DetectedLanguageSection(
   detectedLanguage: Language?,
   from: Language,
-  availableLanguages: Map<String, Boolean>,
+  availableLanguages: Map<Language, Boolean>,
   onMessage: (TranslatorMessage) -> Unit,
   downloadStates: Map<Language, DownloadState>,
 ) {
@@ -58,10 +58,10 @@ fun DetectedLanguageSectionPreview() {
       from = Language.ENGLISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
-          Language.GERMAN.code to false,
+          Language.ENGLISH to true,
+          Language.SPANISH to true,
+          Language.FRENCH to true,
+          Language.GERMAN to false,
         ),
       onMessage = {},
       downloadStates = emptyMap(),
@@ -78,9 +78,9 @@ fun DetectedLanguageSectionNoDetectionPreview() {
       from = Language.ENGLISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.FRENCH.code to true,
+          Language.ENGLISH to true,
+          Language.SPANISH to true,
+          Language.FRENCH to true,
         ),
       onMessage = {},
       downloadStates = emptyMap(),
@@ -100,9 +100,9 @@ fun DetectedLanguageSectionDarkPreview() {
       from = Language.SPANISH,
       availableLanguages =
         mapOf(
-          Language.ENGLISH.code to true,
-          Language.SPANISH.code to true,
-          Language.GERMAN.code to true,
+          Language.ENGLISH to true,
+          Language.SPANISH to true,
+          Language.GERMAN to true,
         ),
       onMessage = {},
       downloadStates = emptyMap(),

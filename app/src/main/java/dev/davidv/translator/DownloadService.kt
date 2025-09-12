@@ -272,7 +272,8 @@ class DownloadService : Service() {
           if (success) {
             showNotification("Download Complete", "${language.displayName} is ready to use")
             Log.i("DownloadService", "Download complete: ${language.displayName}")
-            _downloadEvents.emit(DownloadEvent.NewLanguageAvailable(language))
+            // FIXME
+            _downloadEvents.emit(DownloadEvent.NewTranslationAvailable(language))
           } else {
             showNotification("Download failed", "${language.displayName} download failed")
           }

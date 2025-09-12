@@ -26,11 +26,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// TODO: remove either the list or the map
+data class LangAvailability(
+  var translatorFiles: Boolean,
+  var ocrFiles: Boolean,
+  var dictionaryFiles: Boolean,
+)
+
 data class LanguageAvailabilityState(
   val hasLanguages: Boolean = false,
-  val availableLanguages: List<Language> = emptyList(),
-  val availableLanguageMap: Map<String, Boolean> = emptyMap(),
+  val availableLanguageMap: Map<Language, LangAvailability> = emptyMap(),
   val isChecking: Boolean = true,
 )
 
@@ -46,8 +50,12 @@ class LanguageStateManager(
     scope.launch {
       downloadService.downloadEvents.collect { event ->
         when (event) {
-          is DownloadEvent.NewLanguageAvailable -> {
-            addLanguage(event.language)
+          is DownloadEvent.NewTranslationAvailable -> {
+            addTranslationLanguage(event.language)
+          }
+
+          is DownloadEvent.NewDictionaryAvailable -> {
+            addDictionaryLanguage(event.language)
           }
 
           is DownloadEvent.LanguageDeleted -> {
@@ -67,75 +75,73 @@ class LanguageStateManager(
       val availabilityMap =
         withContext(Dispatchers.IO) {
           buildMap {
-            // English is always available
-            put(Language.ENGLISH.code, true)
+            // English is always available FIXME
+            put(Language.ENGLISH, LangAvailability(translatorFiles = true, ocrFiles = true, dictionaryFiles = false))
 
             Language.entries.forEach { fromLang ->
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
                 val dataPath = filePathManager.getDataDir()
                 val isAvailable = missingFiles(dataPath, fromLang).second.isEmpty()
-                put(fromLang.code, isAvailable)
+                put(fromLang, LangAvailability(translatorFiles = isAvailable, ocrFiles = isAvailable, dictionaryFiles = false))
               }
             }
           }
         }
 
-      val availableLanguages =
-        Language.entries.filter { language ->
-          availabilityMap[language.code] == true
-        }
-
-      val hasLanguages = availableLanguages.any { it != Language.ENGLISH }
+      val hasLanguages = availabilityMap.any { it.key != Language.ENGLISH && it.value.translatorFiles }
       Log.i("LanguageStateManager", "hasLanguages = $hasLanguages")
       _languageState.value =
         LanguageAvailabilityState(
           hasLanguages = hasLanguages,
-          availableLanguages = availableLanguages,
           availableLanguageMap = availabilityMap,
           isChecking = false,
         )
     }
   }
 
-  private fun addLanguage(language: Language) {
+  private fun addTranslationLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
-    updatedLanguageMap[language.code] = true
+    updatedLanguageMap[language]?.translatorFiles = true
+    updatedLanguageMap[language]?.ocrFiles = true
 
-    val updatedAvailableLanguages =
-      Language.entries.filter { lang ->
-        updatedLanguageMap[lang.code] == true
-      }
-
-    val hasLanguages = updatedAvailableLanguages.any { it != Language.ENGLISH }
+    // Only english doesn't count, so if it's non-english
+    // or we already had languages, then we still have them
+    val hasLanguages = _languageState.value.hasLanguages || language != Language.ENGLISH
 
     _languageState.value =
       currentState.copy(
         hasLanguages = hasLanguages,
-        availableLanguages = updatedAvailableLanguages,
         availableLanguageMap = updatedLanguageMap,
       )
 
-    Log.i("LanguageStateManager", "Added language: ${language.displayName}")
+    Log.i("LanguageStateManager", "Added translation language: ${language.displayName}")
+  }
+
+  private fun addDictionaryLanguage(language: Language) {
+    val currentState = _languageState.value
+    val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
+    updatedLanguageMap[language]?.dictionaryFiles = true
+
+    _languageState.value =
+      currentState.copy(
+        availableLanguageMap = updatedLanguageMap,
+      )
+
+    Log.i("LanguageStateManager", "Added dict language: ${language.displayName}")
   }
 
   private fun deleteLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
-    updatedLanguageMap[language.code] = false
+    updatedLanguageMap[language] = LangAvailability(translatorFiles = false, ocrFiles = false, dictionaryFiles = false)
 
-    val updatedAvailableLanguages =
-      Language.entries.filter { lang ->
-        updatedLanguageMap[lang.code] == true
-      }
-
-    val hasLanguages = updatedAvailableLanguages.any { it != Language.ENGLISH }
+    val hasLanguages = updatedLanguageMap.any { it.key != Language.ENGLISH && it.value.translatorFiles }
 
     _languageState.value =
       currentState.copy(
         hasLanguages = hasLanguages,
-        availableLanguages = updatedAvailableLanguages,
         availableLanguageMap = updatedLanguageMap,
       )
 
@@ -145,7 +151,9 @@ class LanguageStateManager(
   fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {
     val state = _languageState.value
     return state.availableLanguages
-      .filterNot { it == excluding }
+      .filterNot { it.key == excluding }
+      .filter { it.value.translatorFiles }
+      .keys
       .firstOrNull()
   }
 }

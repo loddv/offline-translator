@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -61,7 +60,12 @@ fun createPreviewStates(): PreviewStates =
     languageState =
       MutableStateFlow(
         LanguageAvailabilityState(
-          availableLanguages = listOf(Language.ENGLISH, Language.FRENCH, Language.SPANISH),
+          availableLanguageMap =
+            mapOf(
+              Language.ENGLISH to LangAvailability(true, true, true),
+              Language.FRENCH to LangAvailability(true, true, true),
+              Language.SPANISH to LangAvailability(true, true, true),
+            ),
         ),
       ),
     downloadStates =
@@ -92,9 +96,7 @@ fun LanguageManagerPreviewEmbedded() {
     LanguageManagerScreen(
       languageState =
         MutableStateFlow(
-          LanguageAvailabilityState(
-            availableLanguages = emptyList(),
-          ),
+          LanguageAvailabilityState(),
         ),
       downloadStates_ = MutableStateFlow(emptyMap()),
       embedded = true,
@@ -127,11 +129,12 @@ fun LanguageManagerScreen(
   val languageAvailabilityState by languageState.collectAsState()
   val downloadStates by downloadStates_?.collectAsState() ?: remember { mutableStateOf(emptyMap()) }
   // Separate languages into installed and available
-  val installedLanguages = languageAvailabilityState.availableLanguages.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
   val availableLanguages =
     Language.entries
       .filter { lang ->
-        fromEnglishFiles[lang] != null && !languageAvailabilityState.availableLanguages.contains(lang) && lang != Language.ENGLISH
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
       }.sortedBy { it.displayName }
 
   var showDownloadAllDialog by remember { mutableStateOf(openDialog) }

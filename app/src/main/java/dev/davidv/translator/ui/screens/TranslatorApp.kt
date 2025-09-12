@@ -127,26 +127,29 @@ fun TranslatorApp(
     downloadService?.downloadEvents?.collect { event ->
       when (event) {
         is DownloadEvent.LanguageDeleted -> {
-          val langs = languageStateManager?.languageState?.value?.availableLanguages ?: emptyList()
-          val validLangs = langs.filter { it != event.language }
+          val langs = languageStateManager?.languageState?.value?.availableLanguageMap
+          val validLangs = langs?.filter { it.key != event.language }
           val currentFrom = fromState.value
           val currentTo = toState.value
-          if (currentFrom == event.language || currentFrom == null) {
-            setFrom(validLangs.filterNot { it == currentTo }.firstOrNull())
-          }
-          if (currentTo == event.language) {
-            setTo(validLangs.filterNot { it == currentFrom }.firstOrNull() ?: Language.ENGLISH)
+          if (validLangs != null) {
+            if (currentFrom == event.language || currentFrom == null) {
+              setFrom(validLangs.filterNot { it.key == currentTo }.keys.firstOrNull())
+            }
+            if (currentTo == event.language) {
+              setTo(validLangs.filterNot { it.key == currentFrom }.keys.firstOrNull() ?: Language.ENGLISH)
+            }
           }
         }
 
-        is DownloadEvent.NewLanguageAvailable -> {}
+        is DownloadEvent.NewTranslationAvailable -> {}
+        is DownloadEvent.NewDictionaryAvailable -> {}
       }
     }
   }
 
   // Initialize from language when languages become available
-  LaunchedEffect(languageState.availableLanguages, settings.defaultTargetLanguage) {
-    if (from == null && languageState.availableLanguages.isNotEmpty()) {
+  LaunchedEffect(languageState.availableLanguageMap, settings.defaultTargetLanguage) {
+    if (from == null && languageState.hasLanguages) {
       val firstAvailable =
         languageStateManager?.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
       if (firstAvailable != null) {
@@ -157,7 +160,7 @@ fun TranslatorApp(
   }
 
   // Auto-translate initial text if provided
-  LaunchedEffect(initialText, languageState.availableLanguages) {
+  LaunchedEffect(initialText, languageState.availableLanguageMap) {
     if (initialText.isBlank()) {
       return@LaunchedEffect
     }
@@ -169,11 +172,11 @@ fun TranslatorApp(
       }
     val translated: TranslationResult?
     if (currentDetectedLanguage != null) {
-      if (languageState.availableLanguageMap[currentDetectedLanguage!!.code] == true) {
+      if (languageState.availableLanguageMap[currentDetectedLanguage!!]?.translatorFiles == true) {
         setFrom(currentDetectedLanguage!!)
         var actualTo = to
         if (to == currentDetectedLanguage!!) {
-          val other = languageState.availableLanguages.firstOrNull { it != currentDetectedLanguage!! }
+          val other = languageStateManager?.getFirstAvailableFromLanguage(currentDetectedLanguage!!)
           if (other != null) {
             setTo(other)
             actualTo = other
@@ -310,7 +313,7 @@ fun TranslatorApp(
       }
 
       is TranslatorMessage.DictionaryLookup -> {
-        var res = tb.lookup(message.str)
+        val res = tb.lookup(message.str)
         // Try both capitalizations if not found -- sometimes capitalization is
         // important, so, if there's a hit, return that
         // basic case is 'monday' (no result) -> 'Monday'
@@ -333,7 +336,7 @@ fun TranslatorApp(
       }
 
       is TranslatorMessage.PushDictionary -> {
-        var res = tb.lookup(message.word)
+        val res = tb.lookup(message.word)
         // Try both capitalizations if not found
         val foundWord =
           if (res == null) {
@@ -528,12 +531,7 @@ fun TranslatorApp(
       composable("settings") {
         SettingsScreen(
           settings = settings,
-          availableLanguages =
-            if (languageState.availableLanguages.contains(Language.ENGLISH)) {
-              languageState.availableLanguages
-            } else {
-              languageState.availableLanguages + Language.ENGLISH
-            },
+          availableLanguages = (languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys + Language.ENGLISH).toList(),
           onSettingsChange = { newSettings ->
             settingsManager.updateSettings(newSettings)
             // Update current target language if it changed

@@ -89,7 +89,7 @@ tasks.register("buildTarkkaX86_64") {
         "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER",
         "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
       )
-      commandLine("cargo", "build", "--release", "--target", "x86_64-linux-android")
+      commandLine("cargo", "build", "--release", "--target", "x86_64-linux-android", "--lib")
     }
 
     val sourceFile = file("$tarkkaRootDir/target/x86_64-linux-android/release/libtarkka.so")
@@ -114,7 +114,7 @@ tasks.register("buildTarkkaAarch64") {
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
         "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
       )
-      commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android")
+      commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android", "--lib")
     }
 
     val sourceFile = file("$tarkkaRootDir/target/aarch64-linux-android/release/libtarkka.so")

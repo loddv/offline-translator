@@ -34,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -54,7 +53,6 @@ fun DetectedLanguageToast(
   downloadStates: Map<Language, DownloadState> = emptyMap(),
 ) {
   val isLanguageAvailable = availableLanguages[detectedLanguage]?.translatorFiles == true
-  val context = LocalContext.current
 
   Row(
     modifier =
@@ -99,6 +97,7 @@ fun DetectedLanguageToast(
         state = availableLanguages[detectedLanguage]!!,
         language = detectedLanguage,
         downloadState = downloadStates[detectedLanguage],
+        isLanguageAvailable = availableLanguages[detectedLanguage]!!.translatorFiles,
         onEvent = onEvent,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
       )

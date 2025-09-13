@@ -23,13 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
@@ -42,20 +40,6 @@ fun DetectedLanguageSection(
   downloadStates: Map<Language, DownloadState>,
   onEvent: (LanguageEvent) -> Unit,
 ) {
-  val context = LocalContext.current
-
-  val dialogController =
-    rememberLanguageManageDialog(
-      languageState =
-        LanguageAvailabilityState(
-          hasLanguages = availableLanguages.any { it.key != Language.ENGLISH && it.value.translatorFiles },
-          availableLanguageMap = availableLanguages,
-          isChecking = false,
-        ),
-      downloadStates = downloadStates,
-      onEvent = onEvent,
-    )
-
   if (detectedLanguage != null && detectedLanguage != from) {
     DetectedLanguageToast(
       detectedLanguage = detectedLanguage,
@@ -65,7 +49,7 @@ fun DetectedLanguageSection(
       },
       modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
       downloadStates = downloadStates,
-      onEvent = dialogController.handleEvent,
+      onEvent = onEvent,
     )
   }
 }

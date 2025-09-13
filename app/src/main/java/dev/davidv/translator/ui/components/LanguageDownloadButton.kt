@@ -43,17 +43,29 @@ import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 sealed class LanguageEvent {
-  data class Download(val language: Language) : LanguageEvent()
+  data class Download(
+    val language: Language,
+  ) : LanguageEvent()
 
-  data class DownloadDictionary(val language: Language) : LanguageEvent()
+  data class DownloadDictionary(
+    val language: Language,
+  ) : LanguageEvent()
 
-  data class Delete(val language: Language) : LanguageEvent()
+  data class Delete(
+    val language: Language,
+  ) : LanguageEvent()
 
-  data class DeleteDictionary(val language: Language) : LanguageEvent()
+  data class DeleteDictionary(
+    val language: Language,
+  ) : LanguageEvent()
 
-  data class Cancel(val language: Language) : LanguageEvent()
+  data class Cancel(
+    val language: Language,
+  ) : LanguageEvent()
 
-  data class Manage(val language: Language) : LanguageEvent()
+  data class Manage(
+    val language: Language,
+  ) : LanguageEvent()
 }
 
 @Composable
@@ -61,12 +73,12 @@ fun LanguageDownloadButton(
   language: Language,
   downloadState: DownloadState?,
   state: LangAvailability,
+  isLanguageAvailable: Boolean,
   onEvent: (LanguageEvent) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val isDownloading = downloadState?.isDownloading == true
   val isCompleted = downloadState?.isCompleted == true
-  val isLanguageAvailable = state.translatorFiles
 
   if (isDownloading) {
     // Progress indicator with cancel button
@@ -99,31 +111,17 @@ fun LanguageDownloadButton(
       }
     }
   } else if (isLanguageAvailable || isCompleted) {
-    if (state.dictionaryFiles) {
-      // Delete button for available/completed languages
-      IconButton(
-        onClick = {
-          onEvent(LanguageEvent.Delete(language))
-        },
-        modifier = modifier,
-      ) {
-        Icon(
-          painterResource(id = R.drawable.delete),
-          contentDescription = "Delete Language",
-        )
-      }
-    } else {
-      IconButton(
-        onClick = {
-          onEvent(LanguageEvent.Manage(language))
-        },
-        modifier = modifier,
-      ) {
-        Icon(
-          painterResource(id = R.drawable.settings),
-          contentDescription = "Manage language",
-        )
-      }
+    // Delete button for available/completed languages
+    IconButton(
+      onClick = {
+        onEvent(LanguageEvent.Delete(language))
+      },
+      modifier = modifier,
+    ) {
+      Icon(
+        painterResource(id = R.drawable.delete),
+        contentDescription = "Delete Language",
+      )
     }
   } else {
     // Download/retry button
@@ -170,6 +168,7 @@ fun LanguageDownloadButtonPreview() {
           language = Language.FRENCH,
           downloadState = null,
           state = LangAvailability(false, true, true),
+          isLanguageAvailable = false,
           onEvent = {},
         )
 
@@ -178,6 +177,7 @@ fun LanguageDownloadButtonPreview() {
           language = Language.FRENCH,
           downloadState = DownloadState(isDownloading = true, totalSize = 100, downloaded = 50),
           state = LangAvailability(false, true, true),
+          isLanguageAvailable = false,
           onEvent = {},
         )
 
@@ -186,6 +186,7 @@ fun LanguageDownloadButtonPreview() {
           language = Language.FRENCH,
           downloadState = null,
           state = LangAvailability(true, true, true),
+          isLanguageAvailable = true,
           onEvent = {},
         )
         // Failed
@@ -193,6 +194,7 @@ fun LanguageDownloadButtonPreview() {
           language = Language.FRENCH,
           downloadState = DownloadState(error = "Failed"),
           state = LangAvailability(false, true, true),
+          isLanguageAvailable = false,
           onEvent = {},
         )
         // Missing partial
@@ -200,6 +202,7 @@ fun LanguageDownloadButtonPreview() {
           language = Language.FRENCH,
           downloadState = null,
           state = LangAvailability(true, true, false),
+          isLanguageAvailable = true,
           onEvent = {},
         )
       }

@@ -59,6 +59,7 @@ import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.WordWithTaggedEntries
+import dev.davidv.translator.fromEnglishFiles
 import dev.davidv.translator.ui.components.LanguageEvent
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.StateFlow
@@ -532,9 +533,22 @@ fun TranslatorApp(
         val currentLanguageStateManager = languageStateManager
         val currentDownloadService = downloadService
         if (currentLanguageStateManager != null && currentDownloadService != null) {
+          val languageState by currentLanguageStateManager.languageState.collectAsState()
+          val downloadStates by currentDownloadService.downloadStates.collectAsState()
+          val availLangs = languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+          val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+          val availableLanguages =
+            Language.entries
+              .filter { lang ->
+                fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+              }.sortedBy { it.displayName }
+
           LanguageManagerScreen(
-            languageState = currentLanguageStateManager.languageState,
-            downloadStates_ = currentDownloadService.downloadStates,
+            installedLanguages = installedLanguages,
+            availableLanguages = availableLanguages,
+            languageAvailabilityState = languageState,
+            downloadStates = downloadStates,
+            availabilityCheck = { it.translatorFiles },
             onEvent = { event ->
               when (event) {
                 is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)

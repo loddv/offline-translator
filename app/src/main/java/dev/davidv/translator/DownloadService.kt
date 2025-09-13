@@ -106,12 +106,17 @@ class DownloadService : Service() {
   private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
   val downloadStates: StateFlow<Map<Language, DownloadState>> = _downloadStates
 
+  // Track dictionary download status for each language
+  private val _dictionaryDownloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
+  val dictionaryDownloadStates: StateFlow<Map<Language, DownloadState>> = _dictionaryDownloadStates
+
   // Event emission for download lifecycle changes
   private val _downloadEvents = MutableSharedFlow<DownloadEvent>()
   val downloadEvents: SharedFlow<DownloadEvent> = _downloadEvents.asSharedFlow()
 
   // Track download jobs for cancellation
   private val downloadJobs = mutableMapOf<Language, Job>()
+  private val dictionaryDownloadJobs = mutableMapOf<Language, Job>()
 
   companion object {
     private const val CHANNEL_ID = "download_channel"
@@ -152,6 +157,30 @@ class DownloadService : Service() {
         }
       context.startService(intent)
     }
+
+    fun startDictDownload(
+      context: Context,
+      language: Language,
+    ) {
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "START_DICT_DOWNLOAD"
+          putExtra("language_code", language.code)
+        }
+      context.startService(intent)
+    }
+
+    fun cancelDictDownload(
+      context: Context,
+      language: Language,
+    ) {
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "CANCEL_DICT_DOWNLOAD"
+          putExtra("language_code", language.code)
+        }
+      context.startService(intent)
+    }
   }
 
   override fun onCreate() {
@@ -186,6 +215,22 @@ class DownloadService : Service() {
         val language = Language.entries.find { it.code == languageCode }
         if (language != null) {
           deleteLanguageFiles(language)
+        }
+      }
+
+      "START_DICT_DOWNLOAD" -> {
+        val languageCode = intent.getStringExtra("language_code")
+        val language = Language.entries.find { it.code == languageCode }
+        if (language != null) {
+          startDictionaryDownload(language)
+        }
+      }
+
+      "CANCEL_DICT_DOWNLOAD" -> {
+        val languageCode = intent.getStringExtra("language_code")
+        val language = Language.entries.find { it.code == languageCode }
+        if (language != null) {
+          cancelDictionaryDownload(language)
         }
       }
     }
@@ -291,6 +336,85 @@ class DownloadService : Service() {
     downloadJobs[language] = job
   }
 
+  private fun startDictionaryDownload(language: Language) {
+    if (_dictionaryDownloadStates.value[language]?.isDownloading == true) return
+    updateDictionaryDownloadState(language) {
+      DownloadState(
+        isDownloading = true,
+        isCompleted = false,
+        downloaded = 1,
+      )
+    }
+    val job =
+      serviceScope.launch {
+        try {
+          val downloadTasks = mutableListOf<suspend () -> Boolean>()
+          val dataDir = filePathManager.getDataDir()
+
+          val dictionaryFile = File(dataDir, "${language.code}.dict")
+          var toDownload = 0L
+
+          // TODO
+          if (!dictionaryFile.exists()) {
+            toDownload += 1000000L // Placeholder size for dictionary file
+            downloadTasks.add {
+              downloadDictionaryFile(language, dictionaryFile)
+            }
+          }
+
+          var success = true
+          if (downloadTasks.isNotEmpty()) {
+            updateDictionaryDownloadState(language) {
+              it.copy(
+                isDownloading = true,
+                downloaded = 1,
+                totalSize = toDownload,
+              )
+            }
+            Log.i("DownloadService", "Starting dictionary download for ${language.displayName}")
+            success = downloadTasks.all { task -> task() }
+          }
+
+          updateDictionaryDownloadState(language) {
+            DownloadState(
+              isDownloading = false,
+              isCompleted = success,
+            )
+          }
+
+          if (success) {
+            showNotification("Dictionary Download Complete", "${language.displayName} dictionary is ready to use")
+            Log.i("DownloadService", "Dictionary download complete: ${language.displayName}")
+            _downloadEvents.emit(DownloadEvent.NewDictionaryAvailable(language))
+          } else {
+            showNotification("Dictionary Download Failed", "${language.displayName} dictionary download failed")
+          }
+        } catch (e: Exception) {
+          Log.e("DownloadService", "Dictionary download failed for ${language.displayName}", e)
+          updateDictionaryDownloadState(language) {
+            it.copy(isDownloading = false, error = e.message)
+          }
+          showNotification("Dictionary Download Failed", "${language.displayName} dictionary download failed")
+        } finally {
+          dictionaryDownloadJobs.remove(language)
+        }
+      }
+
+    dictionaryDownloadJobs[language] = job
+  }
+
+  private fun cancelDictionaryDownload(language: Language) {
+    dictionaryDownloadJobs[language]?.cancel()
+    dictionaryDownloadJobs.remove(language)
+
+    updateDictionaryDownloadState(language) {
+      it.copy(isDownloading = false, isCancelled = true, error = null)
+    }
+
+    showNotification("Dictionary Download Cancelled", "${language.displayName} dictionary download was cancelled")
+    Log.i("DownloadService", "Cancelled dictionary download for ${language.displayName}")
+  }
+
   private fun cancelLanguageDownload(language: Language) {
     downloadJobs[language]?.cancel()
     downloadJobs.remove(language)
@@ -335,10 +459,26 @@ class DownloadService : Service() {
         if (tessFile.exists() && tessFile.delete()) {
           Log.i("DownloadService", "Deleted: ${tessFile.name}")
         }
+
+        // Delete dictionary file
+        val dictionaryFile = File(dataPath, "${language.code}_dictionary.bin")
+        if (dictionaryFile.exists() && dictionaryFile.delete()) {
+          Log.i("DownloadService", "Deleted: ${dictionaryFile.name}")
+        }
       }
 
-      // Clear the download state
+      // Clear the download states
       updateDownloadState(language) {
+        DownloadState(
+          isDownloading = false,
+          isCompleted = false,
+          isCancelled = false,
+          downloaded = 0,
+          error = null,
+        )
+      }
+
+      updateDictionaryDownloadState(language) {
         DownloadState(
           isDownloading = false,
           isCompleted = false,
@@ -390,6 +530,39 @@ class DownloadService : Service() {
           downloaded = newDownloaded,
         )
       _downloadStates.value = currentStates
+    }
+  }
+
+  private fun updateDictionaryDownloadState(
+    language: Language,
+    update: (DownloadState) -> DownloadState,
+  ) {
+    synchronized(this) {
+      val currentStates = _dictionaryDownloadStates.value.toMutableMap()
+      val currentState = currentStates[language] ?: DownloadState()
+      val newState = update(currentState)
+      Log.d(
+        "DownloadService",
+        "updateDictionaryDownloadState: ${language.code} thread=${Thread.currentThread().name} before=${currentState.downloaded} after=${newState.downloaded} isDownloading=${newState.isDownloading}",
+      )
+      currentStates[language] = newState
+      _dictionaryDownloadStates.value = currentStates
+    }
+  }
+
+  private fun incrementDictionaryDownloadBytes(
+    language: Language,
+    incrementalBytes: Long,
+  ) {
+    synchronized(this) {
+      val currentStates = _dictionaryDownloadStates.value.toMutableMap()
+      val currentState = currentStates[language] ?: DownloadState()
+      val newDownloaded = currentState.downloaded + incrementalBytes
+      currentStates[language] =
+        currentState.copy(
+          downloaded = newDownloaded,
+        )
+      _dictionaryDownloadStates.value = currentStates
     }
   }
 
@@ -503,6 +676,53 @@ class DownloadService : Service() {
     outputFile: File,
     language: Language,
   ) = download(inputStream, size, outputFile, language, decompress = true)
+
+  private suspend fun downloadDictionaryFile(
+    language: Language,
+    outputFile: File,
+  ): Boolean =
+    withContext(Dispatchers.IO) {
+      val url = "${settingsManager.settings.value.translationModelsBaseUrl}/dictionaries/${language.code}_dictionary.bin"
+
+      return@withContext try {
+        val conn = URL(url).openConnection()
+        val size = conn.contentLengthLong
+        val tempFile = File(outputFile.parentFile, "${outputFile.name}.tmp")
+
+        outputFile.parentFile?.mkdirs()
+        conn.getInputStream().use { rawInputStream ->
+          val trackingStream =
+            TrackingInputStream(rawInputStream, size) { incrementalProgress ->
+              incrementDictionaryDownloadBytes(language, incrementalProgress)
+            }
+
+          tempFile.outputStream().use { output ->
+            trackingStream.use { stream ->
+              val buffer = ByteArray(16384)
+              var bytesRead: Int
+              while (stream.read(buffer).also { bytesRead = it } != -1) {
+                output.write(buffer, 0, bytesRead)
+              }
+            }
+          }
+        }
+
+        if (tempFile.renameTo(outputFile)) {
+          Log.i("DownloadService", "Downloaded dictionary for ${language.displayName} from $url to $outputFile")
+          true
+        } else {
+          Log.e("DownloadService", "Failed to move temp dictionary file $tempFile to final location $outputFile")
+          tempFile.delete()
+          false
+        }
+      } catch (e: Exception) {
+        Log.e("DownloadService", "Error downloading dictionary file for ${language.displayName}", e)
+        if (outputFile.exists()) {
+          outputFile.delete()
+        }
+        false
+      }
+    }
 
   private fun createNotificationChannel() {
     val channel =

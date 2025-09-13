@@ -34,7 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +45,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
 import dev.davidv.translator.ui.components.LanguageEvent
-import dev.davidv.translator.ui.components.rememberLanguageManageDialog
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,10 +81,23 @@ fun createPreviewStates(): PreviewStates =
 @Preview
 fun LanguageManagerPreview() {
   val states = createPreviewStates()
+  val languageAvailabilityState by states.languageState.collectAsState()
+  val downloadStates by states.downloadStates.collectAsState()
+  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+
   TranslatorTheme {
     LanguageManagerScreen(
-      languageState = states.languageState,
-      downloadStates_ = states.downloadStates,
+      installedLanguages = installedLanguages,
+      availableLanguages = availableLanguages,
+      languageAvailabilityState = languageAvailabilityState,
+      downloadStates = downloadStates,
+      availabilityCheck = { it.translatorFiles },
       onEvent = {},
     )
   }
@@ -97,13 +108,13 @@ fun LanguageManagerPreview() {
 fun LanguageManagerPreviewEmbedded() {
   TranslatorTheme {
     LanguageManagerScreen(
-      languageState =
-        MutableStateFlow(
-          LanguageAvailabilityState(),
-        ),
-      downloadStates_ = MutableStateFlow(emptyMap()),
-      onEvent = {},
       embedded = true,
+      installedLanguages = emptyList(),
+      availableLanguages = emptyList(),
+      languageAvailabilityState = LanguageAvailabilityState(),
+      downloadStates = emptyMap(),
+      availabilityCheck = { it.translatorFiles },
+      onEvent = {},
     )
   }
 }
@@ -112,10 +123,23 @@ fun LanguageManagerPreviewEmbedded() {
 @Preview
 fun LanguageManagerDialogPreview() {
   val states = createPreviewStates()
+  val languageAvailabilityState by states.languageState.collectAsState()
+  val downloadStates by states.downloadStates.collectAsState()
+  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+
   TranslatorTheme {
     LanguageManagerScreen(
-      languageState = states.languageState,
-      downloadStates_ = states.downloadStates,
+      installedLanguages = installedLanguages,
+      availableLanguages = availableLanguages,
+      languageAvailabilityState = languageAvailabilityState,
+      downloadStates = downloadStates,
+      availabilityCheck = { it.translatorFiles },
       onEvent = {},
       openDialog = true,
     )
@@ -125,39 +149,18 @@ fun LanguageManagerDialogPreview() {
 @Composable
 fun LanguageManagerScreen(
   embedded: Boolean = false,
-  languageState: StateFlow<LanguageAvailabilityState>,
-  downloadStates_: StateFlow<Map<Language, DownloadState>>?,
+  title: String = "Language Packs",
+  installedLanguages: List<Language>,
+  availableLanguages: List<Language>,
+  languageAvailabilityState: LanguageAvailabilityState,
+  downloadStates: Map<Language, DownloadState>,
+  availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
   openDialog: Boolean = false,
 ) {
   val context = LocalContext.current
 
-  val languageAvailabilityState by languageState.collectAsState()
-  val downloadStates by downloadStates_?.collectAsState() ?: remember { mutableStateOf(emptyMap()) }
-  // Separate languages into installed and available
-  val availLangs by remember(languageAvailabilityState) {
-    derivedStateOf { languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys }
-  }
-  val installedLanguages by remember(availLangs) {
-    derivedStateOf { availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName } }
-  }
-  val availableLanguages by remember(availLangs) {
-    derivedStateOf {
-      Language.entries
-        .filter { lang ->
-          fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
-        }.sortedBy { it.displayName }
-    }
-  }
-
   var showDownloadAllDialog by remember { mutableStateOf(openDialog) }
-
-  val dialogController =
-    rememberLanguageManageDialog(
-      languageState = languageAvailabilityState,
-      downloadStates = downloadStates,
-      onEvent = onEvent,
-    )
 
   Scaffold(
     modifier = Modifier.fillMaxSize(),
@@ -172,7 +175,7 @@ fun LanguageManagerScreen(
     ) {
       if (!embedded) {
         Text(
-          text = "Language Packs",
+          text = title,
           style = MaterialTheme.typography.headlineMedium,
           modifier = Modifier.padding(bottom = 16.dp),
         )
@@ -196,7 +199,8 @@ fun LanguageManagerScreen(
               lang = lang,
               state = languageAvailabilityState.availableLanguageMap[lang]!!,
               downloadState = downloadStates[lang],
-              onEvent = dialogController.handleEvent,
+              availabilityCheck = availabilityCheck,
+              onEvent = onEvent,
             )
           }
         }
@@ -235,7 +239,8 @@ fun LanguageManagerScreen(
               state = languageAvailabilityState.availableLanguageMap[lang] ?: LangAvailability(false, false, false),
               lang = lang,
               downloadState = downloadStates[lang],
-              onEvent = dialogController.handleEvent,
+              availabilityCheck = availabilityCheck,
+              onEvent = onEvent,
             )
           }
         }
@@ -289,6 +294,7 @@ private fun LanguageItem(
   lang: Language,
   state: LangAvailability,
   downloadState: DownloadState?,
+  availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
 ) {
   Row(
@@ -313,6 +319,7 @@ private fun LanguageItem(
       language = lang,
       downloadState = downloadState,
       state = state,
+      isLanguageAvailable = availabilityCheck(state),
       onEvent = onEvent,
     )
   }

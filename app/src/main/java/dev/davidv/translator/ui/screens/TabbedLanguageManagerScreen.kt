@@ -59,11 +59,11 @@ fun TabbedLanguageManagerScreen(
   var selectedTabIndex by remember { mutableIntStateOf(0) }
 
   val installedDictionaries =
-    installedLanguages.filter { lang ->
+    (installedLanguages + Language.ENGLISH).filter { lang ->
       languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == true
     }
   val availableDictionaries =
-    installedLanguages.filter { lang ->
+    (installedLanguages + Language.ENGLISH).filter { lang ->
       languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == false
     }
 

@@ -229,6 +229,9 @@ fun MainScreen(
                   onValueChange = { newInput ->
                     onMessage(TranslatorMessage.TextInput(newInput))
                   },
+                  onDictionaryLookup = { word ->
+                    onMessage(TranslatorMessage.DictionaryLookup(word, from))
+                  },
                   placeholder = if (displayImage == null) "Enter text" else null,
                   modifier =
                     Modifier

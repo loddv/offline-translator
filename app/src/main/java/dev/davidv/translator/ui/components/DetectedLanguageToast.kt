@@ -94,7 +94,6 @@ fun DetectedLanguageToast(
       )
     } else {
       LanguageDownloadButton(
-        state = availableLanguages[detectedLanguage]!!,
         language = detectedLanguage,
         downloadState = downloadStates[detectedLanguage],
         isLanguageAvailable = availableLanguages[detectedLanguage]!!.translatorFiles,

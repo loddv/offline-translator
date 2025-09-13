@@ -37,7 +37,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.DownloadState
-import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -62,17 +61,12 @@ sealed class LanguageEvent {
   data class Cancel(
     val language: Language,
   ) : LanguageEvent()
-
-  data class Manage(
-    val language: Language,
-  ) : LanguageEvent()
 }
 
 @Composable
 fun LanguageDownloadButton(
   language: Language,
   downloadState: DownloadState?,
-  state: LangAvailability,
   isLanguageAvailable: Boolean,
   onEvent: (LanguageEvent) -> Unit,
   modifier: Modifier = Modifier,
@@ -167,7 +161,6 @@ fun LanguageDownloadButtonPreview() {
         LanguageDownloadButton(
           language = Language.FRENCH,
           downloadState = null,
-          state = LangAvailability(false, true, true),
           isLanguageAvailable = false,
           onEvent = {},
         )
@@ -176,7 +169,6 @@ fun LanguageDownloadButtonPreview() {
         LanguageDownloadButton(
           language = Language.FRENCH,
           downloadState = DownloadState(isDownloading = true, totalSize = 100, downloaded = 50),
-          state = LangAvailability(false, true, true),
           isLanguageAvailable = false,
           onEvent = {},
         )
@@ -185,7 +177,6 @@ fun LanguageDownloadButtonPreview() {
         LanguageDownloadButton(
           language = Language.FRENCH,
           downloadState = null,
-          state = LangAvailability(true, true, true),
           isLanguageAvailable = true,
           onEvent = {},
         )
@@ -193,7 +184,6 @@ fun LanguageDownloadButtonPreview() {
         LanguageDownloadButton(
           language = Language.FRENCH,
           downloadState = DownloadState(error = "Failed"),
-          state = LangAvailability(false, true, true),
           isLanguageAvailable = false,
           onEvent = {},
         )
@@ -201,7 +191,6 @@ fun LanguageDownloadButtonPreview() {
         LanguageDownloadButton(
           language = Language.FRENCH,
           downloadState = null,
-          state = LangAvailability(true, true, false),
           isLanguageAvailable = true,
           onEvent = {},
         )

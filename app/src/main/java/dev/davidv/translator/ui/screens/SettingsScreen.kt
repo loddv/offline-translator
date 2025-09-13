@@ -146,24 +146,6 @@ fun SettingsScreen(
               Text("Manage")
             }
           }
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
-            Text(
-              text = "Dictionaries",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            TextButton(
-              onClick = onManageLanguages,
-            ) {
-              Text("Manage")
-            }
-          }
         }
       }
 
@@ -431,6 +413,22 @@ fun SettingsScreen(
               value = settings.tesseractModelsBaseUrl,
               onValueChange = {
                 onSettingsChange(settings.copy(tesseractModelsBaseUrl = it))
+              },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+            )
+
+            // Dictionary Base URL
+            Text(
+              text = "Base URL for Dictionaries",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            OutlinedTextField(
+              value = settings.dictionaryBaseUrl,
+              onValueChange = {
+                onSettingsChange(settings.copy(dictionaryBaseUrl = it))
               },
               modifier = Modifier.fillMaxWidth(),
               singleLine = true,

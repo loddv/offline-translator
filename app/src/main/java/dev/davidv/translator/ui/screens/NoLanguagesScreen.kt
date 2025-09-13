@@ -130,7 +130,6 @@ fun NoLanguagesScreen(
             is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
             is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
             is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-            is LanguageEvent.Manage -> {} // Should not happen since dialog handles this
             is LanguageEvent.DeleteDictionary -> {}
             is LanguageEvent.DownloadDictionary -> {} // TODO
           }

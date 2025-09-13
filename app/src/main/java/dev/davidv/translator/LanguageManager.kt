@@ -318,7 +318,6 @@ private fun LanguageItem(
     LanguageDownloadButton(
       language = lang,
       downloadState = downloadState,
-      state = state,
       isLanguageAvailable = availabilityCheck(state),
       onEvent = onEvent,
     )

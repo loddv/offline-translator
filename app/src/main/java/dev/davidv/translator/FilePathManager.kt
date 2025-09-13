@@ -27,4 +27,6 @@ class FilePathManager(
   fun getTesseractDataDir(): File = File(baseDir, "tesseract/tessdata")
 
   fun getTesseractDir(): File = File(baseDir, "tesseract")
+
+  fun getDictionaryFile(language: Language): File = File(getDataDir(), "${language.code}.dict")
 }

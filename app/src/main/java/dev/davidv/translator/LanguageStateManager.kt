@@ -76,14 +76,28 @@ class LanguageStateManager(
         withContext(Dispatchers.IO) {
           buildMap {
             // English is always available FIXME
-            put(Language.ENGLISH, LangAvailability(translatorFiles = true, ocrFiles = true, dictionaryFiles = false))
+            put(
+              Language.ENGLISH,
+              LangAvailability(
+                translatorFiles = true,
+                ocrFiles = true,
+                dictionaryFiles = isDictionaryAvailable(filePathManager.getDataDir(), Language.ENGLISH),
+              ),
+            )
 
             Language.entries.forEach { fromLang ->
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
                 val dataPath = filePathManager.getDataDir()
                 val isAvailable = missingFiles(dataPath, fromLang).second.isEmpty()
-                put(fromLang, LangAvailability(translatorFiles = isAvailable, ocrFiles = isAvailable, dictionaryFiles = false))
+                put(
+                  fromLang,
+                  LangAvailability(
+                    translatorFiles = isAvailable,
+                    ocrFiles = isAvailable,
+                    dictionaryFiles = isDictionaryAvailable(dataPath, fromLang),
+                  ),
+                )
               }
             }
           }

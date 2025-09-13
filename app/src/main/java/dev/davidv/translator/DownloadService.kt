@@ -162,6 +162,7 @@ class DownloadService : Service() {
       context: Context,
       language: Language,
     ) {
+      Log.d("Intent", "Send START_DICT_DOWNLOAD with ${language.code}")
       val intent =
         Intent(context, DownloadService::class.java).apply {
           action = "START_DICT_DOWNLOAD"
@@ -220,6 +221,7 @@ class DownloadService : Service() {
 
       "START_DICT_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code")
+        Log.d("onStartCommand", "Dict download for $languageCode")
         val language = Language.entries.find { it.code == languageCode }
         if (language != null) {
           startDictionaryDownload(language)
@@ -338,6 +340,7 @@ class DownloadService : Service() {
 
   private fun startDictionaryDownload(language: Language) {
     if (_dictionaryDownloadStates.value[language]?.isDownloading == true) return
+    Log.d("DictionaryDownload", "Starting for $language")
     updateDictionaryDownloadState(language) {
       DownloadState(
         isDownloading = true,
@@ -682,7 +685,7 @@ class DownloadService : Service() {
     outputFile: File,
   ): Boolean =
     withContext(Dispatchers.IO) {
-      val url = "${settingsManager.settings.value.translationModelsBaseUrl}/dictionaries/${language.code}_dictionary.bin"
+      val url = "${settingsManager.settings.value.dictionaryBaseUrl}/1/${language.code}.dict"
 
       return@withContext try {
         val conn = URL(url).openConnection()

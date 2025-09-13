@@ -73,6 +73,22 @@ fun toggleFirstLetterCase(word: String): String {
   return toggled + word.drop(1)
 }
 
+fun openDictionary(
+  language: Language,
+  filePathManager: FilePathManager,
+  onSuccess: (TarkkaBinding) -> Unit,
+  onError: (String) -> Unit,
+) {
+  val tarkkaBinding = TarkkaBinding()
+  val dictPath = filePathManager.getDictionaryFile(language).absolutePath
+  val result = tarkkaBinding.open(dictPath)
+  if (result) {
+    onSuccess(tarkkaBinding)
+  } else {
+    onError("Failed to load dictionary for ${language.displayName}")
+  }
+}
+
 @Composable
 fun TranslatorApp(
   initialText: String,
@@ -87,11 +103,10 @@ fun TranslatorApp(
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
 
-  val tb = TarkkaBinding()
-  val r = tb.open("/sdcard/es-multi-dictionary.dict")
-
+  var dictionaryBindings by remember { mutableStateOf<Map<Language, TarkkaBinding>>(emptyMap()) }
   var dictionaryWord by remember { mutableStateOf<WordWithTaggedEntries?>(null) }
   var dictionaryStack by remember { mutableStateOf<List<WordWithTaggedEntries>>(emptyList()) }
+
   val settings by settingsManager.settings.collectAsState()
   val downloadService by downloadServiceState.collectAsState()
   val languageStateManager =
@@ -133,6 +148,7 @@ fun TranslatorApp(
           val validLangs = langs?.filter { it.key != event.language }
           val currentFrom = fromState.value
           val currentTo = toState.value
+          // TODO remove from default settings
           if (validLangs != null) {
             if (currentFrom == event.language || currentFrom == null) {
               setFrom(validLangs.filterNot { it.key == currentTo }.keys.firstOrNull())
@@ -144,7 +160,38 @@ fun TranslatorApp(
         }
 
         is DownloadEvent.NewTranslationAvailable -> {}
-        is DownloadEvent.NewDictionaryAvailable -> {}
+        is DownloadEvent.NewDictionaryAvailable -> {
+          openDictionary(
+            event.language,
+            filePathManager,
+            onSuccess = { tarkkaBinding ->
+              dictionaryBindings = dictionaryBindings + (event.language to tarkkaBinding)
+              Log.d("DictionaryLookup", "Loaded dictionary for ${event.language.displayName}")
+            },
+            onError = { error ->
+              Log.e("DictionaryLookup", error)
+            },
+          )
+        }
+      }
+    }
+  }
+
+  // Load dictionary bindings for available languages
+  LaunchedEffect(languageState.availableLanguageMap) {
+    languageState.availableLanguageMap.forEach { (language, availability) ->
+      if (availability.dictionaryFiles && !dictionaryBindings.containsKey(language)) {
+        openDictionary(
+          language,
+          filePathManager,
+          onSuccess = { tarkkaBinding ->
+            dictionaryBindings = dictionaryBindings + (language to tarkkaBinding)
+            Log.d("DictionaryLookup", "Loaded existing dictionary for ${language.displayName}")
+          },
+          onError = { error ->
+            Log.w("DictionaryLookup", error)
+          },
+        )
       }
     }
   }
@@ -324,46 +371,58 @@ fun TranslatorApp(
       }
 
       is TranslatorMessage.DictionaryLookup -> {
-        val res = tb.lookup(message.str)
-        // Try both capitalizations if not found -- sometimes capitalization is
-        // important, so, if there's a hit, return that
-        // basic case is 'monday' (no result) -> 'Monday'
-        //
-        val foundWord =
-          if (res == null) {
-            val toggledWord = toggleFirstLetterCase(message.str)
-            tb.lookup(toggledWord)
-          } else {
-            res
-          }
+        val tarkkaBinding = dictionaryBindings[message.from]
+        if (tarkkaBinding != null) {
+          val res = tarkkaBinding.lookup(message.str)
+          // Try both capitalizations if not found -- sometimes capitalization is
+          // important, so, if there's a hit, return that
+          // basic case is 'monday' (no result) -> 'Monday'
+          //
+          val foundWord =
+            if (res == null) {
+              val toggledWord = toggleFirstLetterCase(message.str)
+              tarkkaBinding.lookup(toggledWord)
+            } else {
+              res
+            }
 
-        if (foundWord != null) {
-          dictionaryWord = foundWord
-          dictionaryStack = listOf(foundWord)
+          if (foundWord != null) {
+            dictionaryWord = foundWord
+            dictionaryStack = listOf(foundWord)
+          } else {
+            Toast.makeText(context, "'${message.str}' not found in dictionary", Toast.LENGTH_SHORT).show()
+          }
+          Log.d("DictionaryLookup", "From lookup got $foundWord")
         } else {
-          Toast.makeText(context, "'${message.str}' not found in dictionary", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, "Dictionary for ${message.from.displayName} not available", Toast.LENGTH_SHORT).show()
+          Log.w("DictionaryLookup", "No dictionary binding for ${message.from.displayName}")
         }
-        Log.d("DictionaryLookup", "From lookup got $foundWord")
       }
 
       is TranslatorMessage.PushDictionary -> {
-        val res = tb.lookup(message.word)
-        // Try both capitalizations if not found
-        val foundWord =
-          if (res == null) {
-            val toggledWord = toggleFirstLetterCase(message.word)
-            tb.lookup(toggledWord)
-          } else {
-            res
-          }
+        val tarkkaBinding = dictionaryBindings[message.language]
+        if (tarkkaBinding != null) {
+          val res = tarkkaBinding.lookup(message.word)
+          // Try both capitalizations if not found
+          val foundWord =
+            if (res == null) {
+              val toggledWord = toggleFirstLetterCase(message.word)
+              tarkkaBinding.lookup(toggledWord)
+            } else {
+              res
+            }
 
-        if (foundWord != null) {
-          dictionaryWord = foundWord
-          dictionaryStack = dictionaryStack + foundWord
+          if (foundWord != null) {
+            dictionaryWord = foundWord
+            dictionaryStack = dictionaryStack + foundWord
+          } else {
+            Toast.makeText(context, "'${message.word}' not found in dictionary", Toast.LENGTH_SHORT).show()
+          }
+          Log.d("PushDictionary", "Pushed $foundWord, stack size: ${dictionaryStack.size}")
         } else {
-          Toast.makeText(context, "'${message.word}' not found in dictionary", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, "Dictionary for ${message.language.displayName} not available", Toast.LENGTH_SHORT).show()
+          Log.w("PushDictionary", "No dictionary binding for ${message.language.displayName}")
         }
-        Log.d("PushDictionary", "Pushed $foundWord, stack size: ${dictionaryStack.size}")
       }
 
       is TranslatorMessage.PopDictionary -> {
@@ -533,8 +592,6 @@ fun TranslatorApp(
         val currentLanguageStateManager = languageStateManager
         val currentDownloadService = downloadService
         if (currentLanguageStateManager != null && currentDownloadService != null) {
-          val languageState by currentLanguageStateManager.languageState.collectAsState()
-          val downloadStates by currentDownloadService.downloadStates.collectAsState()
           val availLangs = languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
           val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
           val availableLanguages =
@@ -542,24 +599,56 @@ fun TranslatorApp(
               .filter { lang ->
                 fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
               }.sortedBy { it.displayName }
+          val dictionaryDownloadStates by currentDownloadService.dictionaryDownloadStates.collectAsState()
 
-          LanguageManagerScreen(
-            installedLanguages = installedLanguages,
-            availableLanguages = availableLanguages,
-            languageAvailabilityState = languageState,
-            downloadStates = downloadStates,
-            availabilityCheck = { it.translatorFiles },
-            onEvent = { event ->
-              when (event) {
-                is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
-                is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                is LanguageEvent.DownloadDictionary -> {} // TODO
-                is LanguageEvent.DeleteDictionary -> {}
-                is LanguageEvent.Manage -> {}
-              }
-            },
-          )
+          val languageManagerScreen =
+            LanguageManagerScreen(
+              installedLanguages = installedLanguages,
+              availableLanguages = availableLanguages,
+              languageAvailabilityState = languageState,
+              downloadStates = downloadStates,
+              availabilityCheck = { it.translatorFiles },
+              onEvent = { event ->
+                when (event) {
+                  is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+                  is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+                  is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                  is LanguageEvent.DownloadDictionary -> {} // unreachable
+                  is LanguageEvent.DeleteDictionary -> {}
+                }
+              },
+            )
+
+          if (installedLanguages.isNotEmpty()) {
+            TabbedLanguageManagerScreen(
+              installedLanguages = installedLanguages,
+              availableLanguages = availableLanguages,
+              languageAvailabilityState = languageState,
+              downloadStates = downloadStates,
+              dictionaryDownloadStates = dictionaryDownloadStates,
+              onLanguageEvent = { event ->
+                when (event) {
+                  is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+                  is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+                  is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                  is LanguageEvent.DownloadDictionary -> {} // unreachable in language tab
+                  is LanguageEvent.DeleteDictionary -> {}
+                }
+              },
+              onDictionaryEvent = { event ->
+                Log.d("TranslatorApp", "got dictionary event $event")
+                when (event) {
+                  is LanguageEvent.DownloadDictionary -> DownloadService.startDictDownload(context, event.language)
+                  is LanguageEvent.DeleteDictionary -> {} // TODO: implement delete dictionary
+                  is LanguageEvent.Cancel -> DownloadService.cancelDictDownload(context, event.language)
+                  is LanguageEvent.Download -> {} // unreachable in dictionary tab
+                  is LanguageEvent.Delete -> {}
+                }
+              },
+            )
+          } else {
+            languageManagerScreen
+          }
         }
       }
       composable("settings") {

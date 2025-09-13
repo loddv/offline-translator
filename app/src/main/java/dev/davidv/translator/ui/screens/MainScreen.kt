@@ -259,7 +259,6 @@ fun MainScreen(
                   is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
                   is LanguageEvent.DeleteDictionary -> {} // TODO
                   is LanguageEvent.DownloadDictionary -> {}
-                  is LanguageEvent.Manage -> {}
                 }
               },
             )

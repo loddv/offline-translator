@@ -17,14 +17,15 @@
 
 package dev.davidv.translator.ui.components
 
+import android.content.Context
 import android.content.Intent
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
-import androidx.core.view.forEach
 
 class DictionaryActionModeCallback(
+  private val context: Context,
   private val onDictionaryLookup: (String) -> Unit,
 ) : ActionMode.Callback2() {
   private var currentTextView: TextView? = null
@@ -37,13 +38,6 @@ class DictionaryActionModeCallback(
     mode: ActionMode?,
     menu: Menu?,
   ): Boolean {
-    // FIXME remove translate within the app
-    // does not work
-    menu?.forEach {
-      if (it.intent?.action == Intent.ACTION_TRANSLATE || it.intent?.`package` == "dev.davidv.translator") {
-        menu.removeItem(it.itemId)
-      }
-    }
     menu?.add(0, DICTIONARY_ID, 0, "Dictionary")
     return true
   }
@@ -51,7 +45,21 @@ class DictionaryActionModeCallback(
   override fun onPrepareActionMode(
     mode: ActionMode?,
     menu: Menu?,
-  ): Boolean = false
+  ): Boolean {
+    menu?.let { m ->
+      val itemsToRemove = mutableListOf<Int>()
+      for (i in 0 until m.size()) {
+        val item = m.getItem(i)
+        if (item.intent?.action == Intent.ACTION_TRANSLATE ||
+          item.intent?.`package` == context.packageName
+        ) {
+          itemsToRemove.add(item.itemId)
+        }
+      }
+      itemsToRemove.forEach { m.removeItem(it) }
+    }
+    return false
+  }
 
   override fun onActionItemClicked(
     mode: ActionMode?,

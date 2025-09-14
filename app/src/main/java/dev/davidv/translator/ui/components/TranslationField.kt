@@ -62,7 +62,7 @@ fun TranslationField(
 
   val actionModeCallback =
     remember(onDictionaryLookup) {
-      DictionaryActionModeCallback(onDictionaryLookup)
+      DictionaryActionModeCallback(context, onDictionaryLookup)
     }
 
   val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
@@ -115,7 +115,7 @@ fun TranslationField(
             textView.text = text.transliterated
             textView.textSize = smallerFontSize
           },
-          modifier = Modifier.padding(top = 5.dp),
+          modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
         )
       }
     }

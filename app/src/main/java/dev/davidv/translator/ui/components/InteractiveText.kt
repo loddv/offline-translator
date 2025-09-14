@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -33,9 +34,10 @@ fun InteractiveText(
   style: TextStyle = MaterialTheme.typography.bodyMedium,
   onDictionaryLookup: (String) -> Unit = {},
 ) {
+  val context = LocalContext.current
   val actionModeCallback =
     remember(onDictionaryLookup) {
-      DictionaryActionModeCallback(onDictionaryLookup)
+      DictionaryActionModeCallback(context, onDictionaryLookup)
     }
 
   val textColor = MaterialTheme.colorScheme.onSurface.toArgb()

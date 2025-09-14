@@ -20,6 +20,8 @@ package dev.davidv.translator.ui.components
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
+import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.EditText
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,9 +46,10 @@ fun StyledTextField(
   readOnly: Boolean = false,
   textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
+  val context = LocalContext.current
   val actionModeCallback =
     remember(onDictionaryLookup) {
-      DictionaryActionModeCallback(onDictionaryLookup)
+      DictionaryActionModeCallback(context, onDictionaryLookup)
     }
   val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
   val hintColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
@@ -55,6 +59,12 @@ fun StyledTextField(
     AndroidView(
       factory = { context ->
         EditText(context).apply {
+          this.layoutParams =
+            ViewGroup.LayoutParams(
+              ViewGroup.LayoutParams.MATCH_PARENT,
+              ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+          this.gravity = Gravity.START
           this.setText(text)
           this.textSize = fontSize
           this.setTextColor(textColor)
@@ -120,6 +130,22 @@ fun StyledTextFieldWeightedPreview() {
     Box(modifier = Modifier.fillMaxSize()) {
       StyledTextField(
         text = "very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text. very long text.",
+        onValueChange = {},
+        onDictionaryLookup = {},
+        placeholder = "Enter text",
+        modifier = Modifier.fillMaxSize(),
+      )
+    }
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ShortText() {
+  TranslatorTheme {
+    Box(modifier = Modifier.fillMaxSize()) {
+      StyledTextField(
+        text = "very short text.",
         onValueChange = {},
         onDictionaryLookup = {},
         placeholder = "Enter text",

@@ -51,6 +51,9 @@ class LanguageStateManager(
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
   val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
 
+  private val _dictionaryIndex = MutableStateFlow<DictionaryIndex?>(null)
+  val dictionaryIndex: StateFlow<DictionaryIndex?> = _dictionaryIndex.asStateFlow()
+
   init {
     scope.launch {
       downloadService.downloadEvents.collect { event ->
@@ -66,10 +69,20 @@ class LanguageStateManager(
           is DownloadEvent.LanguageDeleted -> {
             deleteLanguage(event.language)
           }
+
+          is DownloadEvent.DictionaryIndexLoaded -> {
+            _dictionaryIndex.value = event.index
+            Log.i("LanguageStateManager", "Dictionary index loaded: ${event.index != null}")
+          }
+
+          is DownloadEvent.DownloadError -> {
+            Log.w("LanguageStateManager", "Download error: ${event.message}")
+          }
         }
       }
     }
     refreshLanguageAvailability()
+    loadDictionaryIndex()
   }
 
   fun refreshLanguageAvailability() {
@@ -179,5 +192,50 @@ class LanguageStateManager(
       .filter { it.value.translatorFiles }
       .keys
       .firstOrNull()
+  }
+
+  private fun loadDictionaryIndex() {
+    scope.launch {
+      val index =
+        withContext(Dispatchers.IO) {
+          loadDictionaryIndexFromFile()
+        }
+      _dictionaryIndex.value = index
+      Log.i("LanguageStateManager", "Dictionary index loaded from file: ${index != null}")
+    }
+  }
+
+  private fun loadDictionaryIndexFromFile(): DictionaryIndex? {
+    return try {
+      val indexFile = filePathManager.getDictionaryIndexFile()
+      if (!indexFile.exists()) return null
+
+      val jsonString = indexFile.readText()
+      val jsonObject = org.json.JSONObject(jsonString)
+
+      val dictionariesJson = jsonObject.getJSONObject("dictionaries")
+      val dictionaries = mutableMapOf<String, DictionaryInfo>()
+
+      for (key in dictionariesJson.keys()) {
+        val dictJson = dictionariesJson.getJSONObject(key)
+        dictionaries[key] =
+          DictionaryInfo(
+            date = dictJson.getLong("date"),
+            filename = dictJson.getString("filename"),
+            size = dictJson.getLong("size"),
+            type = dictJson.getString("type"),
+            wordCount = dictJson.getLong("word_count"),
+          )
+      }
+
+      DictionaryIndex(
+        dictionaries = dictionaries,
+        updatedAt = jsonObject.getLong("updated_at"),
+        version = jsonObject.getInt("version"),
+      )
+    } catch (e: Exception) {
+      Log.e("LanguageStateManager", "Error parsing dictionary index file", e)
+      null
+    }
   }
 }

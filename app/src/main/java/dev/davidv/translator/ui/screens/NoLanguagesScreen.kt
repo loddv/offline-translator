@@ -45,12 +45,10 @@ import androidx.compose.ui.unit.dp
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.fromEnglishFiles
-import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -118,23 +116,21 @@ fun NoLanguagesScreen(
             fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
           }.sortedBy { it.displayName }
 
-      LanguageManagerScreen(
-        embedded = true,
-        installedLanguages = installedLanguages,
-        availableLanguages = availableLanguages,
-        languageAvailabilityState = state,
-        downloadStates = downloadStates,
-        availabilityCheck = { it.translatorFiles },
-        onEvent = { event ->
-          when (event) {
-            is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-            is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
-            is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-            is LanguageEvent.DeleteDictionary -> {}
-            is LanguageEvent.DownloadDictionary -> {} // TODO
-          }
-        },
-      )
+      if (downloadService != null) {
+        val curDownloadService = downloadService
+        val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
+        val dictionaryIndex by languageStateManager.dictionaryIndex.collectAsState()
+
+        TabbedLanguageManagerScreen(
+          context = context,
+          installedLanguages = installedLanguages,
+          availableLanguages = availableLanguages,
+          languageAvailabilityState = state,
+          downloadStates = downloadStates,
+          dictionaryDownloadStates = dictionaryDownloadStates,
+          dictionaryIndex = dictionaryIndex,
+        )
+      }
     }
   }
 }

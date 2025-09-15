@@ -182,6 +182,14 @@ class DownloadService : Service() {
         }
       context.startService(intent)
     }
+
+    fun fetchDictionaryIndex(context: Context) {
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "FETCH_DICTIONARY_INDEX"
+        }
+      context.startService(intent)
+    }
   }
 
   override fun onCreate() {
@@ -234,6 +242,10 @@ class DownloadService : Service() {
         if (language != null) {
           cancelDictionaryDownload(language)
         }
+      }
+
+      "FETCH_DICTIONARY_INDEX" -> {
+        fetchDictionaryIndex()
       }
     }
     return START_STICKY
@@ -317,19 +329,18 @@ class DownloadService : Service() {
             )
           }
           if (success) {
-            showNotification("Download Complete", "${language.displayName} is ready to use")
             Log.i("DownloadService", "Download complete: ${language.displayName}")
             // FIXME
             _downloadEvents.emit(DownloadEvent.NewTranslationAvailable(language))
           } else {
-            showNotification("Download failed", "${language.displayName} download failed")
+            _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} download failed"))
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "Download failed for ${language.displayName}", e)
           updateDownloadState(language) {
             it.copy(isDownloading = false, error = e.message)
           }
-          showNotification("Download Failed", "${language.displayName} download failed")
+          _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} download failed"))
         } finally {
           downloadJobs.remove(language)
         }
@@ -384,18 +395,17 @@ class DownloadService : Service() {
           }
 
           if (success) {
-            showNotification("Dictionary Download Complete", "${language.displayName} dictionary is ready to use")
             Log.i("DownloadService", "Dictionary download complete: ${language.displayName}")
             _downloadEvents.emit(DownloadEvent.NewDictionaryAvailable(language))
           } else {
-            showNotification("Dictionary Download Failed", "${language.displayName} dictionary download failed")
+            _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} dictionary download failed"))
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "Dictionary download failed for ${language.displayName}", e)
           updateDictionaryDownloadState(language) {
             it.copy(isDownloading = false, error = e.message)
           }
-          showNotification("Dictionary Download Failed", "${language.displayName} dictionary download failed")
+          _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} dictionary download failed"))
         } finally {
           dictionaryDownloadJobs.remove(language)
         }
@@ -412,7 +422,6 @@ class DownloadService : Service() {
       it.copy(isDownloading = false, isCancelled = true, error = null)
     }
 
-    showNotification("Dictionary Download Cancelled", "${language.displayName} dictionary download was cancelled")
     Log.i("DownloadService", "Cancelled dictionary download for ${language.displayName}")
   }
 
@@ -424,14 +433,11 @@ class DownloadService : Service() {
       it.copy(isDownloading = false, isCancelled = true, error = null)
     }
 
-    showNotification("Download Cancelled", "${language.displayName} download was cancelled")
     Log.i("DownloadService", "Cancelled download for ${language.displayName}")
   }
 
   private fun deleteLanguageFiles(language: Language) {
     serviceScope.launch {
-      showNotification("Deleting ${language.displayName}", "Removing language files...")
-
       withContext(Dispatchers.IO) {
         // Delete translation files (to and from English)
         val dataPath = filePathManager.getDataDir()
@@ -489,10 +495,6 @@ class DownloadService : Service() {
         )
       }
 
-      showNotification(
-        "Deletion Complete",
-        "${language.displayName} files removed",
-      )
       _downloadEvents.emit(DownloadEvent.LanguageDeleted(language))
       Log.i(
         "DownloadService",
@@ -683,7 +685,7 @@ class DownloadService : Service() {
     outputFile: File,
   ): Boolean =
     withContext(Dispatchers.IO) {
-      val url = "${settingsManager.settings.value.dictionaryBaseUrl}/1/${language.code}.dict"
+      val url = "${settingsManager.settings.value.dictionaryBaseUrl}/${Constants.DICT_VERSION}/${language.code}.dict"
 
       return@withContext try {
         val conn = URL(url).openConnection()
@@ -725,6 +727,78 @@ class DownloadService : Service() {
       }
     }
 
+  private fun fetchDictionaryIndex() {
+    serviceScope.launch {
+      try {
+        val indexFile = filePathManager.getDictionaryIndexFile()
+        val url = "${settingsManager.settings.value.dictionaryBaseUrl}/${Constants.DICT_VERSION}/index.json"
+
+        indexFile.parentFile?.mkdirs()
+        val tempFile = File(indexFile.parentFile, "${indexFile.name}.tmp")
+
+        val conn = URL(url).openConnection()
+        conn.getInputStream().use { inputStream ->
+          tempFile.outputStream().use { output ->
+            val buffer = ByteArray(16384)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+              output.write(buffer, 0, bytesRead)
+            }
+          }
+        }
+
+        if (tempFile.renameTo(indexFile)) {
+          Log.i("DownloadService", "Downloaded dictionary index from $url to $indexFile")
+          val index = loadDictionaryIndexFromFile(indexFile)
+          _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(index))
+        } else {
+          Log.e("DownloadService", "Failed to move temp index file $tempFile to final location $indexFile")
+          tempFile.delete()
+          _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(null))
+          _downloadEvents.emit(DownloadEvent.DownloadError("Failed to save dictionary index"))
+        }
+      } catch (e: Exception) {
+        Log.e("DownloadService", "Error downloading dictionary index", e)
+        _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(null))
+        val errorMessage = "Failed to download dictionary index: ${e.message ?: "Unknown error"}"
+        _downloadEvents.emit(DownloadEvent.DownloadError(errorMessage))
+      }
+    }
+  }
+
+  private fun loadDictionaryIndexFromFile(file: File): DictionaryIndex? {
+    return try {
+      if (!file.exists()) return null
+
+      val jsonString = file.readText()
+      val jsonObject = org.json.JSONObject(jsonString)
+
+      val dictionariesJson = jsonObject.getJSONObject("dictionaries")
+      val dictionaries = mutableMapOf<String, DictionaryInfo>()
+
+      for (key in dictionariesJson.keys()) {
+        val dictJson = dictionariesJson.getJSONObject(key)
+        dictionaries[key] =
+          DictionaryInfo(
+            date = dictJson.getLong("date"),
+            filename = dictJson.getString("filename"),
+            size = dictJson.getLong("size"),
+            type = dictJson.getString("type"),
+            wordCount = dictJson.getLong("word_count"),
+          )
+      }
+
+      DictionaryIndex(
+        dictionaries = dictionaries,
+        updatedAt = jsonObject.getLong("updated_at"),
+        version = jsonObject.getInt("version"),
+      )
+    } catch (e: Exception) {
+      Log.e("DownloadService", "Error parsing dictionary index file", e)
+      null
+    }
+  }
+
   private fun createNotificationChannel() {
     val channel =
       NotificationChannel(
@@ -746,8 +820,8 @@ class DownloadService : Service() {
         .Builder(this, CHANNEL_ID)
         .setContentTitle(title)
         .setContentText(content)
-        .setSmallIcon(R.drawable.add) // You'll need to add an icon
-        .setOngoing(true)
+        .setSmallIcon(R.drawable.add)
+        .setAutoCancel(true)
         .build()
 
     notificationManager.notify(NOTIFICATION_ID, notification)
@@ -756,7 +830,6 @@ class DownloadService : Service() {
   override fun onDestroy() {
     super.onDestroy()
     serviceScope.cancel()
-    notificationManager.cancel(NOTIFICATION_ID)
     cleanupTempFiles()
   }
 

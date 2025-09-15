@@ -90,6 +90,7 @@ fun LanguageManagerPreview() {
       .filter { lang ->
         fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
       }.sortedBy { it.displayName }
+      .take(4)
 
   TranslatorTheme {
     LanguageManagerScreen(
@@ -99,6 +100,7 @@ fun LanguageManagerPreview() {
       downloadStates = downloadStates,
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
+      description = { "asd" },
     )
   }
 }
@@ -115,6 +117,7 @@ fun LanguageManagerPreviewEmbedded() {
       downloadStates = emptyMap(),
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
+      description = { "asd" },
     )
   }
 }
@@ -142,6 +145,7 @@ fun LanguageManagerDialogPreview() {
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       openDialog = true,
+      description = { "asd" },
     )
   }
 }
@@ -157,6 +161,7 @@ fun LanguageManagerScreen(
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
   openDialog: Boolean = false,
+  description: (Language) -> String,
 ) {
   val context = LocalContext.current
 
@@ -201,6 +206,7 @@ fun LanguageManagerScreen(
               downloadState = downloadStates[lang],
               availabilityCheck = availabilityCheck,
               onEvent = onEvent,
+              description = description,
             )
           }
         }
@@ -240,6 +246,7 @@ fun LanguageManagerScreen(
               lang = lang,
               downloadState = downloadStates[lang],
               availabilityCheck = availabilityCheck,
+              description = description,
               onEvent = onEvent,
             )
           }
@@ -294,6 +301,7 @@ private fun LanguageItem(
   lang: Language,
   state: LangAvailability,
   downloadState: DownloadState?,
+  description: (Language) -> String,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
 ) {
@@ -311,7 +319,7 @@ private fun LanguageItem(
         style = MaterialTheme.typography.titleMedium,
       )
       Text(
-        text = "${(lang.sizeBytes / (1024 * 1024))} MB",
+        text = description(lang),
         style = MaterialTheme.typography.labelMedium,
       )
     }

@@ -61,6 +61,8 @@ sealed class LanguageEvent {
   data class Cancel(
     val language: Language,
   ) : LanguageEvent()
+
+  object FetchDictionaryIndex : LanguageEvent()
 }
 
 @Composable

@@ -26,7 +26,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,7 +53,6 @@ import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
-import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.SettingsManager
@@ -60,7 +63,6 @@ import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.WordWithTaggedEntries
 import dev.davidv.translator.fromEnglishFiles
-import dev.davidv.translator.ui.components.LanguageEvent
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -172,6 +174,15 @@ fun TranslatorApp(
               Log.e("DictionaryLookup", error)
             },
           )
+        }
+
+        is DownloadEvent.DictionaryIndexLoaded -> {
+          Log.d("TranslatorApp", "Dictionary index loaded: ${event.index != null}")
+        }
+
+        is DownloadEvent.DownloadError -> {
+          Log.w("TranslatorApp", "DownloadError $event")
+          Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
         }
       }
     }
@@ -589,9 +600,8 @@ fun TranslatorApp(
         }
       }
       composable("language_manager") {
-        val currentLanguageStateManager = languageStateManager
-        val currentDownloadService = downloadService
-        if (currentLanguageStateManager != null && currentDownloadService != null) {
+        if (languageStateManager != null && downloadService != null) {
+          val curDownloadService = downloadService!!
           val availLangs = languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
           val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
           val availableLanguages =
@@ -599,55 +609,26 @@ fun TranslatorApp(
               .filter { lang ->
                 fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
               }.sortedBy { it.displayName }
-          val dictionaryDownloadStates by currentDownloadService.dictionaryDownloadStates.collectAsState()
-
-          val languageManagerScreen =
-            LanguageManagerScreen(
-              installedLanguages = installedLanguages,
-              availableLanguages = availableLanguages,
-              languageAvailabilityState = languageState,
-              downloadStates = downloadStates,
-              availabilityCheck = { it.translatorFiles },
-              onEvent = { event ->
-                when (event) {
-                  is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                  is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
-                  is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                  is LanguageEvent.DownloadDictionary -> {} // unreachable
-                  is LanguageEvent.DeleteDictionary -> {}
-                }
-              },
-            )
-
-          if (installedLanguages.isNotEmpty()) {
-            TabbedLanguageManagerScreen(
-              installedLanguages = installedLanguages,
-              availableLanguages = availableLanguages,
-              languageAvailabilityState = languageState,
-              downloadStates = downloadStates,
-              dictionaryDownloadStates = dictionaryDownloadStates,
-              onLanguageEvent = { event ->
-                when (event) {
-                  is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                  is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
-                  is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                  is LanguageEvent.DownloadDictionary -> {} // unreachable in language tab
-                  is LanguageEvent.DeleteDictionary -> {}
-                }
-              },
-              onDictionaryEvent = { event ->
-                Log.d("TranslatorApp", "got dictionary event $event")
-                when (event) {
-                  is LanguageEvent.DownloadDictionary -> DownloadService.startDictDownload(context, event.language)
-                  is LanguageEvent.DeleteDictionary -> {} // TODO: implement delete dictionary
-                  is LanguageEvent.Cancel -> DownloadService.cancelDictDownload(context, event.language)
-                  is LanguageEvent.Download -> {} // unreachable in dictionary tab
-                  is LanguageEvent.Delete -> {}
-                }
-              },
-            )
-          } else {
-            languageManagerScreen
+          val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
+          val dictionaryIndex by languageStateManager.dictionaryIndex.collectAsState()
+          Scaffold(
+            modifier =
+              Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding(),
+          ) { padding ->
+            Box(modifier = Modifier.padding(padding)) {
+              TabbedLanguageManagerScreen(
+                context = context,
+                installedLanguages = installedLanguages,
+                availableLanguages = availableLanguages,
+                languageAvailabilityState = languageState,
+                downloadStates = downloadStates,
+                dictionaryDownloadStates = dictionaryDownloadStates,
+                dictionaryIndex = dictionaryIndex,
+              )
+            }
           }
         }
       }

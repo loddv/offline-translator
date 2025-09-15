@@ -352,9 +352,7 @@ class DownloadService : Service() {
       serviceScope.launch {
         try {
           val downloadTasks = mutableListOf<suspend () -> Boolean>()
-          val dataDir = filePathManager.getDataDir()
-
-          val dictionaryFile = File(dataDir, "${language.code}.dict")
+          val dictionaryFile = filePathManager.getDictionaryFile(language)
           var toDownload = 0L
 
           // TODO

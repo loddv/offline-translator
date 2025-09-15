@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 data class LangAvailability(
   val translatorFiles: Boolean,
@@ -40,9 +39,9 @@ data class LanguageAvailabilityState(
 )
 
 fun isDictionaryAvailable(
-  dataPath: File,
+  filePathManager: FilePathManager,
   language: Language,
-): Boolean = File(dataPath, "${language.code}.dict").exists()
+): Boolean = filePathManager.getDictionaryFile(language).exists()
 
 class LanguageStateManager(
   private val scope: CoroutineScope,
@@ -87,7 +86,7 @@ class LanguageStateManager(
               LangAvailability(
                 translatorFiles = true,
                 ocrFiles = true,
-                dictionaryFiles = isDictionaryAvailable(filePathManager.getDataDir(), Language.ENGLISH),
+                dictionaryFiles = isDictionaryAvailable(filePathManager, Language.ENGLISH),
               ),
             )
 
@@ -101,7 +100,7 @@ class LanguageStateManager(
                   LangAvailability(
                     translatorFiles = isAvailable,
                     ocrFiles = isAvailable,
-                    dictionaryFiles = isDictionaryAvailable(dataPath, fromLang),
+                    dictionaryFiles = isDictionaryAvailable(filePathManager, fromLang),
                   ),
                 )
               }

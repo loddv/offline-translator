@@ -175,11 +175,12 @@ fun TabbedLanguageManagerScreen(
                   val indexEntry = dictionaryIndex.dictionaries[l.code]
                   val size = (indexEntry?.size ?: 0) / (1024f * 1024f)
                   val entries = indexEntry?.wordCount ?: 0
+                  val type = indexEntry?.type ?: "unknown"
                   val entriesStr =
                     if (entries == 0L) {
                       ""
                     } else {
-                      " - ${humanCount(entries)} entries"
+                      " - ${humanCount(entries)} entries - $type"
                     }
                   if (size > 10f) {
                     "${size.roundToInt()} MB$entriesStr"

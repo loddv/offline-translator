@@ -17,15 +17,12 @@
 
 package dev.davidv.translator
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -98,7 +95,6 @@ class TrackingInputStream(
 class DownloadService : Service() {
   private val binder = DownloadBinder()
   private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-  private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
   private val settingsManager by lazy { SettingsManager(this) }
   private val filePathManager by lazy { FilePathManager(this, settingsManager.settings) }
 
@@ -190,11 +186,6 @@ class DownloadService : Service() {
         }
       context.startService(intent)
     }
-  }
-
-  override fun onCreate() {
-    super.onCreate()
-    createNotificationChannel()
   }
 
   override fun onStartCommand(
@@ -797,34 +788,6 @@ class DownloadService : Service() {
       Log.e("DownloadService", "Error parsing dictionary index file", e)
       null
     }
-  }
-
-  private fun createNotificationChannel() {
-    val channel =
-      NotificationChannel(
-        CHANNEL_ID,
-        "Language Downloads",
-        NotificationManager.IMPORTANCE_LOW,
-      ).apply {
-        description = "Shows progress of language pack downloads"
-      }
-    notificationManager.createNotificationChannel(channel)
-  }
-
-  private fun showNotification(
-    title: String,
-    content: String,
-  ) {
-    val notification =
-      NotificationCompat
-        .Builder(this, CHANNEL_ID)
-        .setContentTitle(title)
-        .setContentText(content)
-        .setSmallIcon(R.drawable.add)
-        .setAutoCancel(true)
-        .build()
-
-    notificationManager.notify(NOTIFICATION_ID, notification)
   }
 
   override fun onDestroy() {

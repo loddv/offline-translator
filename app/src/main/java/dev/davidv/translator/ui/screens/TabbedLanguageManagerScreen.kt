@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,6 +54,7 @@ import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageManagerScreen
+import dev.davidv.translator.R
 import dev.davidv.translator.createPreviewStates
 import dev.davidv.translator.fromEnglishFiles
 import dev.davidv.translator.ui.components.LanguageEvent
@@ -67,8 +70,9 @@ fun TabbedLanguageManagerScreen(
   downloadStates: Map<Language, DownloadState>,
   dictionaryDownloadStates: Map<Language, DownloadState>,
   dictionaryIndex: DictionaryIndex?,
+  defaultTabIndex: Int = 0,
 ) {
-  var selectedTabIndex by remember { mutableIntStateOf(0) }
+  var selectedTabIndex by remember { mutableIntStateOf(defaultTabIndex) }
 
   val installedDictionaries =
     (installedLanguages + Language.ENGLISH).filter { lang ->
@@ -80,6 +84,10 @@ fun TabbedLanguageManagerScreen(
     }
 
   Scaffold(
+    modifier =
+      Modifier.fillMaxSize()
+        .navigationBarsPadding()
+        .imePadding(),
     topBar = {
       TabRow(selectedTabIndex = selectedTabIndex) {
         Tab(
@@ -205,10 +213,16 @@ fun TabbedLanguageManagerScreen(
               horizontalAlignment = Alignment.CenterHorizontally,
               verticalArrangement = Arrangement.Center,
             ) {
+              Icon(
+                painter = painterResource(id = R.drawable.question),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = 16.dp),
+              )
               Text(
                 text = "To download dictionaries, you need to download translation packages first",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
               )
             }
@@ -280,6 +294,42 @@ fun TabbedLanguageManagerPreview() {
           updatedAt = 1757962526,
           version = 1,
         ),
+    )
+  }
+}
+
+@Composable
+@Preview
+fun TabbedLanguageManagerDictionaryTabPreview() {
+  val states = createPreviewStates()
+  val downloadStates by states.downloadStates.collectAsState()
+
+  val mockLanguageState =
+    LanguageAvailabilityState(
+      availableLanguageMap =
+        mapOf(
+          Language.ENGLISH to LangAvailability(true, true, true),
+        ),
+    )
+
+  val availLangs = mockLanguageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+
+  TranslatorTheme {
+    TabbedLanguageManagerScreen(
+      context = LocalContext.current,
+      installedLanguages = installedLanguages,
+      availableLanguages = availableLanguages,
+      languageAvailabilityState = mockLanguageState,
+      downloadStates = downloadStates,
+      dictionaryDownloadStates = emptyMap(),
+      dictionaryIndex = null,
+      defaultTabIndex = 1,
     )
   }
 }

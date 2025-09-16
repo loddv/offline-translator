@@ -682,16 +682,16 @@ class DownloadService : Service() {
         if (tempFile.renameTo(indexFile)) {
           Log.i("DownloadService", "Downloaded dictionary index from $url to $indexFile")
           val index = loadDictionaryIndexFromFile(indexFile)
-          _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(index))
+          if (index != null) {
+            _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(index))
+          }
         } else {
           Log.e("DownloadService", "Failed to move temp index file $tempFile to final location $indexFile")
           tempFile.delete()
-          _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(null))
           _downloadEvents.emit(DownloadEvent.DownloadError("Failed to save dictionary index"))
         }
       } catch (e: Exception) {
         Log.e("DownloadService", "Error downloading dictionary index", e)
-        _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(null))
         val errorMessage = "Failed to download dictionary index: ${e.message ?: "Unknown error"}"
         _downloadEvents.emit(DownloadEvent.DownloadError(errorMessage))
       }
@@ -699,10 +699,10 @@ class DownloadService : Service() {
   }
 
   private fun loadDictionaryIndexFromFile(file: File): DictionaryIndex? {
-    return try {
-      if (!file.exists()) return null
+    if (!file.exists()) return null
 
-      val jsonString = file.readText()
+    val jsonString = file.readText()
+    return try {
       val jsonObject = org.json.JSONObject(jsonString)
 
       val dictionariesJson = jsonObject.getJSONObject("dictionaries")
@@ -726,7 +726,8 @@ class DownloadService : Service() {
         version = jsonObject.getInt("version"),
       )
     } catch (e: Exception) {
-      Log.e("DownloadService", "Error parsing dictionary index file", e)
+      Log.e("DownloadService", "Error parsing dictionary index file; deleting it", e)
+      file.delete()
       null
     }
   }

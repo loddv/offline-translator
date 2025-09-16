@@ -73,7 +73,7 @@ class LanguageStateManager(
 
           is DownloadEvent.DictionaryIndexLoaded -> {
             _dictionaryIndex.value = event.index
-            Log.i("LanguageStateManager", "Dictionary index loaded: ${event.index != null}")
+            Log.i("LanguageStateManager", "Dictionary index loaded: ${event.index}")
           }
 
           is DownloadEvent.DownloadError -> {

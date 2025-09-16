@@ -176,7 +176,7 @@ fun TranslatorApp(
         }
 
         is DownloadEvent.DictionaryIndexLoaded -> {
-          Log.d("TranslatorApp", "Dictionary index loaded: ${event.index != null}")
+          Log.d("TranslatorApp", "Dictionary index loaded: ${event.index}")
         }
 
         is DownloadEvent.DownloadError -> {

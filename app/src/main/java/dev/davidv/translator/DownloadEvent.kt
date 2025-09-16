@@ -31,7 +31,7 @@ sealed class DownloadEvent {
   ) : DownloadEvent()
 
   data class DictionaryIndexLoaded(
-    val index: DictionaryIndex?,
+    val index: DictionaryIndex,
   ) : DownloadEvent()
 
   data class DownloadError(

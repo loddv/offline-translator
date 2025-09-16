@@ -79,68 +79,64 @@ fun TabbedLanguageManagerScreen(
       languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == false
     }
 
-  val lang = @Composable {
-    LanguageManagerScreen(
-      embedded = true,
-      title = "Language Packs",
-      installedLanguages = installedLanguages,
-      availableLanguages = availableLanguages,
-      languageAvailabilityState = languageAvailabilityState,
-      downloadStates = downloadStates,
-      availabilityCheck = { it.translatorFiles },
-      onEvent = { event ->
-        when (event) {
-          is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-          is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
-          is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-          is LanguageEvent.DeleteDictionary -> {}
-          is LanguageEvent.DownloadDictionary -> {}
-          is LanguageEvent.FetchDictionaryIndex -> {}
-        }
-      },
-      description = { lang ->
-        val size = lang.sizeBytes / (1024f * 1024f)
-        if (size > 10f) {
-          "${size.roundToInt()} MB"
-        } else {
-          String.format("%.2f MB", size)
-        }
-      },
-    )
-  }
-
-  if (installedLanguages.filterNot { it == Language.ENGLISH }.isNotEmpty()) {
-    Scaffold(
-      topBar = {
-        TabRow(selectedTabIndex = selectedTabIndex) {
-          Tab(
-            selected = selectedTabIndex == 0,
-            onClick = { selectedTabIndex = 0 },
-            text = { Text("Languages") },
+  Scaffold(
+    topBar = {
+      TabRow(selectedTabIndex = selectedTabIndex) {
+        Tab(
+          selected = selectedTabIndex == 0,
+          onClick = { selectedTabIndex = 0 },
+          text = { Text("Languages") },
+        )
+        Tab(
+          selected = selectedTabIndex == 1,
+          onClick = { selectedTabIndex = 1 },
+          text = { Text("Dictionaries") },
+        )
+      }
+    },
+  ) { scaffoldPaddingValues ->
+    Box(
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .navigationBarsPadding()
+          .imePadding()
+          .padding(scaffoldPaddingValues)
+          .padding(bottom = 8.dp),
+    ) {
+      when (selectedTabIndex) {
+        0 -> {
+          LanguageManagerScreen(
+            embedded = true,
+            title = "Language Packs",
+            installedLanguages = installedLanguages,
+            availableLanguages = availableLanguages,
+            languageAvailabilityState = languageAvailabilityState,
+            downloadStates = downloadStates,
+            availabilityCheck = { it.translatorFiles },
+            onEvent = { event ->
+              when (event) {
+                is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+                is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+                is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                is LanguageEvent.DeleteDictionary -> {}
+                is LanguageEvent.DownloadDictionary -> {}
+                is LanguageEvent.FetchDictionaryIndex -> {}
+              }
+            },
+            description = { lang ->
+              val size = lang.sizeBytes / (1024f * 1024f)
+              if (size > 10f) {
+                "${size.roundToInt()} MB"
+              } else {
+                String.format("%.2f MB", size)
+              }
+            },
           )
-          Tab(
-            selected = selectedTabIndex == 1,
-            onClick = { selectedTabIndex = 1 },
-            text = { Text("Dictionaries") },
-          )
         }
-      },
-    ) { scaffoldPaddingValues ->
-      Box(
-        modifier =
-          Modifier
-            .fillMaxSize()
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(scaffoldPaddingValues)
-            .padding(bottom = 8.dp),
-      ) {
-        when (selectedTabIndex) {
-          0 -> {
-            lang()
-          }
 
-          1 -> {
+        1 -> {
+          if (installedLanguages.filterNot { it == Language.ENGLISH }.isNotEmpty()) {
             if (dictionaryIndex == null) {
               Column(
                 modifier =
@@ -200,12 +196,26 @@ fun TabbedLanguageManagerScreen(
                 },
               )
             }
+          } else {
+            Column(
+              modifier =
+                Modifier
+                  .fillMaxSize()
+                  .padding(16.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.Center,
+            ) {
+              Text(
+                text = "To download dictionaries, you need to download translation packages first",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+              )
+            }
           }
         }
       }
     }
-  } else {
-    lang()
   }
 }
 

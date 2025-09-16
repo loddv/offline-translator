@@ -21,6 +21,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -46,7 +47,7 @@ fun isDictionaryAvailable(
 class LanguageStateManager(
   private val scope: CoroutineScope,
   private val filePathManager: FilePathManager,
-  private val downloadService: DownloadService,
+  private val downloadEvents: SharedFlow<DownloadEvent>,
 ) {
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
   val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
@@ -56,7 +57,7 @@ class LanguageStateManager(
 
   init {
     scope.launch {
-      downloadService.downloadEvents.collect { event ->
+      downloadEvents.collect { event ->
         when (event) {
           is DownloadEvent.NewTranslationAvailable -> {
             addTranslationLanguage(event.language)

@@ -113,9 +113,8 @@ fun TranslatorApp(
   val downloadService by downloadServiceState.collectAsState()
   val languageStateManager =
     remember(downloadService) {
-      val currentDownloadService = downloadService
-      if (currentDownloadService != null) {
-        LanguageStateManager(scope, filePathManager, currentDownloadService)
+      if (downloadService != null) {
+        LanguageStateManager(scope, filePathManager, downloadService!!.downloadEvents)
       } else {
         null
       }

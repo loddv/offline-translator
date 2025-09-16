@@ -383,7 +383,7 @@ fun TranslatorApp(
       is TranslatorMessage.DictionaryLookup -> {
         val tarkkaBinding = dictionaryBindings[message.from]
         if (tarkkaBinding != null) {
-          val res = tarkkaBinding.lookup(message.str)
+          val res = tarkkaBinding.lookup(message.str.trim())
           // Try both capitalizations if not found -- sometimes capitalization is
           // important, so, if there's a hit, return that
           // basic case is 'monday' (no result) -> 'Monday'
@@ -391,7 +391,7 @@ fun TranslatorApp(
           val foundWord =
             if (res == null) {
               val toggledWord = toggleFirstLetterCase(message.str)
-              tarkkaBinding.lookup(toggledWord)
+              tarkkaBinding.lookup(toggledWord.trim())
             } else {
               res
             }

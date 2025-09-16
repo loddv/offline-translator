@@ -196,7 +196,12 @@ fun TabbedLanguageManagerScreen(
                 },
                 onEvent = { ev ->
                   when (ev) {
-                    is LanguageEvent.Download -> DownloadService.startDictDownload(context, ev.language)
+                    is LanguageEvent.Download ->
+                      DownloadService.startDictDownload(
+                        context,
+                        ev.language,
+                        dictionaryIndex.dictionaries[ev.language.code],
+                      )
                     is LanguageEvent.Delete -> languageStateManager?.deleteDict(ev.language)
                     is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
                     else -> {

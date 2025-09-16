@@ -142,12 +142,14 @@ class DownloadService : Service() {
     fun startDictDownload(
       context: Context,
       language: Language,
+      dictionaryInfo: DictionaryInfo?,
     ) {
       Log.d("Intent", "Send START_DICT_DOWNLOAD with ${language.code}")
       val intent =
         Intent(context, DownloadService::class.java).apply {
           action = "START_DICT_DOWNLOAD"
           putExtra("language_code", language.code)
+          putExtra("dictionary_size", dictionaryInfo?.size ?: 1000000L)
         }
       context.startService(intent)
     }
@@ -197,10 +199,11 @@ class DownloadService : Service() {
 
       "START_DICT_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code")
+        val dictionarySize = intent.getLongExtra("dictionary_size", 1000000L)
         Log.d("onStartCommand", "Dict download for $languageCode")
         val language = Language.entries.find { it.code == languageCode }
         if (language != null) {
-          startDictionaryDownload(language)
+          startDictionaryDownload(language, dictionarySize)
         }
       }
 
@@ -298,7 +301,6 @@ class DownloadService : Service() {
           }
           if (success) {
             Log.i("DownloadService", "Download complete: ${language.displayName}")
-            // FIXME
             _downloadEvents.emit(DownloadEvent.NewTranslationAvailable(language))
           } else {
             _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} download failed"))
@@ -317,7 +319,10 @@ class DownloadService : Service() {
     downloadJobs[language] = job
   }
 
-  private fun startDictionaryDownload(language: Language) {
+  private fun startDictionaryDownload(
+    language: Language,
+    dictionarySize: Long = 1000000L,
+  ) {
     if (_dictionaryDownloadStates.value[language]?.isDownloading == true) return
     Log.d("DictionaryDownload", "Starting for $language")
     updateDictionaryDownloadState(language) {
@@ -334,9 +339,8 @@ class DownloadService : Service() {
           val dictionaryFile = filePathManager.getDictionaryFile(language)
           var toDownload = 0L
 
-          // TODO
           if (!dictionaryFile.exists()) {
-            toDownload += 1000000L // Placeholder size for dictionary file
+            toDownload += dictionarySize
             downloadTasks.add {
               downloadDictionaryFile(language, dictionaryFile)
             }

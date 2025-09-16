@@ -95,7 +95,6 @@ class LanguageStateManager(
       val availabilityMap =
         withContext(Dispatchers.IO) {
           buildMap {
-            // English is always available FIXME
             put(
               Language.ENGLISH,
               LangAvailability(

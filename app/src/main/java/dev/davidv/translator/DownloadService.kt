@@ -115,9 +115,6 @@ class DownloadService : Service() {
   private val dictionaryDownloadJobs = mutableMapOf<Language, Job>()
 
   companion object {
-    private const val CHANNEL_ID = "download_channel"
-    private const val NOTIFICATION_ID = 1001
-
     fun startDownload(
       context: Context,
       language: Language,
@@ -429,63 +426,7 @@ class DownloadService : Service() {
 
   private fun deleteLanguageFiles(language: Language) {
     serviceScope.launch {
-      withContext(Dispatchers.IO) {
-        // Delete translation files (to and from English)
-        val dataPath = filePathManager.getDataDir()
-
-        // Delete to English files
-        val toEnglishFiles = toEnglishFiles[language]
-        toEnglishFiles?.allFiles()?.forEach { fileName ->
-          val file = File(dataPath, fileName)
-          if (file.exists() && file.delete()) {
-            Log.i("DownloadService", "Deleted: $fileName")
-          }
-        }
-
-        // Delete from English files
-        val fromEnglishFiles = fromEnglishFiles[language]
-        fromEnglishFiles?.allFiles()?.forEach { fileName ->
-          val file = File(dataPath, fileName)
-          if (file.exists() && file.delete()) {
-            Log.i("DownloadService", "Deleted: $fileName")
-          }
-        }
-
-        // Delete tessdata file
-        val tessDataPath = filePathManager.getTesseractDataDir()
-        val tessFile = File(tessDataPath, language.tessFilename)
-        if (tessFile.exists() && tessFile.delete()) {
-          Log.i("DownloadService", "Deleted: ${tessFile.name}")
-        }
-
-        // Delete dictionary file
-        val dictionaryFile = File(dataPath, "${language.code}_dictionary.bin")
-        if (dictionaryFile.exists() && dictionaryFile.delete()) {
-          Log.i("DownloadService", "Deleted: ${dictionaryFile.name}")
-        }
-      }
-
-      // Clear the download states
-      updateDownloadState(language) {
-        DownloadState(
-          isDownloading = false,
-          isCompleted = false,
-          isCancelled = false,
-          downloaded = 0,
-          error = null,
-        )
-      }
-
-      updateDictionaryDownloadState(language) {
-        DownloadState(
-          isDownloading = false,
-          isCompleted = false,
-          isCancelled = false,
-          downloaded = 0,
-          error = null,
-        )
-      }
-
+      filePathManager.deleteLanguageFiles(language)
       _downloadEvents.emit(DownloadEvent.LanguageDeleted(language))
       Log.i(
         "DownloadService",

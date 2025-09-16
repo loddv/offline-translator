@@ -136,7 +136,8 @@ class LanguageStateManager(
   private fun addTranslationLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
-    updatedLanguageMap[language] = LangAvailability(true, true, updatedLanguageMap[language]?.dictionaryFiles ?: false)
+    val isDictAvail = isDictionaryAvailable(filePathManager, language)
+    updatedLanguageMap[language] = LangAvailability(true, true, isDictAvail)
 
     // Only english doesn't count, so if it's non-english
     // or we already had languages, then we still have them

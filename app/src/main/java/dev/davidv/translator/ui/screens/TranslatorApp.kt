@@ -192,6 +192,11 @@ fun TranslatorApp(
         is FileEvent.DictionaryIndexLoaded -> {
           Log.d("TranslatorApp", "Dictionary index loaded from file: ${event.index}")
         }
+        is FileEvent.DictionaryDeleted -> {
+          dictionaryBindings[event.language]?.close()
+          dictionaryBindings = dictionaryBindings - event.language
+          Log.d("TranslatorApp", "Dictionary deleted for language: ${event.language}")
+        }
       }
     }
   }

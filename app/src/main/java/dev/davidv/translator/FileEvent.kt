@@ -25,4 +25,8 @@ sealed class FileEvent {
   data class LanguageDeleted(
     val language: Language,
   ) : FileEvent()
+
+  data class DictionaryDeleted(
+    val language: Language,
+  ) : FileEvent()
 }

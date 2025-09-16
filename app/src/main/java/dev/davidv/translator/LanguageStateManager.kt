@@ -172,6 +172,34 @@ class LanguageStateManager(
     Log.i("LanguageStateManager", "Added dict language: ${language.displayName}")
   }
 
+  fun deleteDict(language: Language) {
+    val currentState = _languageState.value
+    val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
+    val existingAvailability = updatedLanguageMap[language]
+    updatedLanguageMap[language] =
+      LangAvailability(
+        translatorFiles = existingAvailability?.translatorFiles ?: false,
+        ocrFiles = existingAvailability?.ocrFiles ?: false,
+        dictionaryFiles = false,
+      )
+
+    _languageState.value =
+      currentState.copy(
+        availableLanguageMap = updatedLanguageMap,
+      )
+
+    val dictionaryFile = filePathManager.getDictionaryFile(language)
+    if (dictionaryFile.exists() && dictionaryFile.delete()) {
+      Log.i("LanguageStateManager", "Deleted dictionary file: ${dictionaryFile.name}")
+    }
+
+    scope.launch {
+      _fileEvents.emit(FileEvent.DictionaryDeleted(language))
+    }
+
+    Log.i("LanguageStateManager", "Removed dictionary for language: ${language.displayName}")
+  }
+
   fun deleteLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()

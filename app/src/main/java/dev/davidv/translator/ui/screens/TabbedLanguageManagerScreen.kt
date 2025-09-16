@@ -54,6 +54,7 @@ import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageManagerScreen
+import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.createPreviewStates
 import dev.davidv.translator.fromEnglishFiles
@@ -64,7 +65,7 @@ import kotlin.math.roundToInt
 @Composable
 fun TabbedLanguageManagerScreen(
   context: Context,
-  languageStateManager: dev.davidv.translator.LanguageStateManager?,
+  languageStateManager: LanguageStateManager?,
   installedLanguages: List<Language>,
   availableLanguages: List<Language>,
   languageAvailabilityState: LanguageAvailabilityState,
@@ -128,7 +129,7 @@ fun TabbedLanguageManagerScreen(
                 is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
                 is LanguageEvent.Delete -> languageStateManager?.deleteLanguage(event.language)
                 is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                is LanguageEvent.DeleteDictionary -> {}
+                is LanguageEvent.DeleteDictionary -> languageStateManager?.deleteDict(event.language)
                 is LanguageEvent.DownloadDictionary -> {}
                 is LanguageEvent.FetchDictionaryIndex -> {}
               }
@@ -196,7 +197,7 @@ fun TabbedLanguageManagerScreen(
                 onEvent = { ev ->
                   when (ev) {
                     is LanguageEvent.Download -> DownloadService.startDictDownload(context, ev.language)
-                    is LanguageEvent.Delete -> {} // TODO
+                    is LanguageEvent.Delete -> languageStateManager?.deleteDict(ev.language)
                     is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
                     else -> {
                       Log.i("LanguageManager", "Got unexpected event $ev")

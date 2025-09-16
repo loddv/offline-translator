@@ -20,9 +20,11 @@ package dev.davidv.translator
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +57,9 @@ class LanguageStateManager(
   private val _dictionaryIndex = MutableStateFlow<DictionaryIndex?>(null)
   val dictionaryIndex: StateFlow<DictionaryIndex?> = _dictionaryIndex.asStateFlow()
 
+  private val _fileEvents = MutableSharedFlow<FileEvent>()
+  val fileEvents: SharedFlow<FileEvent> = _fileEvents.asSharedFlow()
+
   init {
     scope.launch {
       downloadEvents.collect { event ->
@@ -67,13 +72,9 @@ class LanguageStateManager(
             addDictionaryLanguage(event.language)
           }
 
-          is DownloadEvent.LanguageDeleted -> {
-            deleteLanguage(event.language)
-          }
-
-          is DownloadEvent.DictionaryIndexLoaded -> {
+          is DownloadEvent.DictionaryIndexDownloaded -> {
             _dictionaryIndex.value = event.index
-            Log.i("LanguageStateManager", "Dictionary index loaded: ${event.index}")
+            Log.i("LanguageStateManager", "Dictionary index downloaded: ${event.index}")
           }
 
           is DownloadEvent.DownloadError -> {
@@ -171,7 +172,7 @@ class LanguageStateManager(
     Log.i("LanguageStateManager", "Added dict language: ${language.displayName}")
   }
 
-  private fun deleteLanguage(language: Language) {
+  fun deleteLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
     updatedLanguageMap[language] = LangAvailability(translatorFiles = false, ocrFiles = false, dictionaryFiles = false)
@@ -184,6 +185,10 @@ class LanguageStateManager(
         availableLanguageMap = updatedLanguageMap,
       )
 
+    filePathManager.deleteLanguageFiles(language)
+    scope.launch {
+      _fileEvents.emit(FileEvent.LanguageDeleted(language))
+    }
     Log.i("LanguageStateManager", "Removed language: ${language.displayName}")
   }
 
@@ -200,44 +205,13 @@ class LanguageStateManager(
     scope.launch {
       val index =
         withContext(Dispatchers.IO) {
-          loadDictionaryIndexFromFile()
+          filePathManager.loadDictionaryIndexFromFile()
         }
       _dictionaryIndex.value = index
-      Log.i("LanguageStateManager", "Dictionary index loaded from file: ${index != null}")
-    }
-  }
-
-  private fun loadDictionaryIndexFromFile(): DictionaryIndex? {
-    return try {
-      val indexFile = filePathManager.getDictionaryIndexFile()
-      if (!indexFile.exists()) return null
-
-      val jsonString = indexFile.readText()
-      val jsonObject = org.json.JSONObject(jsonString)
-
-      val dictionariesJson = jsonObject.getJSONObject("dictionaries")
-      val dictionaries = mutableMapOf<String, DictionaryInfo>()
-
-      for (key in dictionariesJson.keys()) {
-        val dictJson = dictionariesJson.getJSONObject(key)
-        dictionaries[key] =
-          DictionaryInfo(
-            date = dictJson.getLong("date"),
-            filename = dictJson.getString("filename"),
-            size = dictJson.getLong("size"),
-            type = dictJson.getString("type"),
-            wordCount = dictJson.getLong("word_count"),
-          )
+      if (index != null) {
+        _fileEvents.emit(FileEvent.DictionaryIndexLoaded(index))
       }
-
-      DictionaryIndex(
-        dictionaries = dictionaries,
-        updatedAt = jsonObject.getLong("updated_at"),
-        version = jsonObject.getInt("version"),
-      )
-    } catch (e: Exception) {
-      Log.e("LanguageStateManager", "Error parsing dictionary index file", e)
-      null
+      Log.i("LanguageStateManager", "Dictionary index loaded from file: ${index != null}")
     }
   }
 }

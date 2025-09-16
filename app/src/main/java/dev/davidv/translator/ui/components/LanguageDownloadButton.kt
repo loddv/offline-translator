@@ -41,30 +41,6 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
-sealed class LanguageEvent {
-  data class Download(
-    val language: Language,
-  ) : LanguageEvent()
-
-  data class DownloadDictionary(
-    val language: Language,
-  ) : LanguageEvent()
-
-  data class Delete(
-    val language: Language,
-  ) : LanguageEvent()
-
-  data class DeleteDictionary(
-    val language: Language,
-  ) : LanguageEvent()
-
-  data class Cancel(
-    val language: Language,
-  ) : LanguageEvent()
-
-  object FetchDictionaryIndex : LanguageEvent()
-}
-
 @Composable
 fun LanguageDownloadButton(
   language: Language,
@@ -74,7 +50,6 @@ fun LanguageDownloadButton(
   modifier: Modifier = Modifier,
 ) {
   val isDownloading = downloadState?.isDownloading == true
-  val isCompleted = downloadState?.isCompleted == true
 
   if (isDownloading) {
     // Progress indicator with cancel button
@@ -106,7 +81,7 @@ fun LanguageDownloadButton(
         )
       }
     }
-  } else if (isLanguageAvailable || isCompleted) {
+  } else if (isLanguageAvailable) {
     // Delete button for available/completed languages
     IconButton(
       onClick = {
@@ -144,6 +119,30 @@ fun LanguageDownloadButton(
       }
     }
   }
+}
+
+sealed class LanguageEvent {
+  data class Download(
+    val language: Language,
+  ) : LanguageEvent()
+
+  data class DownloadDictionary(
+    val language: Language,
+  ) : LanguageEvent()
+
+  data class Delete(
+    val language: Language,
+  ) : LanguageEvent()
+
+  data class DeleteDictionary(
+    val language: Language,
+  ) : LanguageEvent()
+
+  data class Cancel(
+    val language: Language,
+  ) : LanguageEvent()
+
+  object FetchDictionaryIndex : LanguageEvent()
 }
 
 @Preview(showBackground = true)

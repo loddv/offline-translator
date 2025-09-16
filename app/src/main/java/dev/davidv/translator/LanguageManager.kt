@@ -50,106 +50,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 
-data class PreviewStates(
-  val languageState: StateFlow<LanguageAvailabilityState>,
-  val downloadStates: StateFlow<Map<Language, DownloadState>>,
-)
-
-fun createPreviewStates(): PreviewStates =
-  PreviewStates(
-    languageState =
-      MutableStateFlow(
-        LanguageAvailabilityState(
-          availableLanguageMap =
-            mapOf(
-              Language.ENGLISH to LangAvailability(true, true, true),
-              Language.FRENCH to LangAvailability(true, true, false),
-              Language.SPANISH to LangAvailability(true, true, true),
-            ),
-        ),
-      ),
-    downloadStates =
-      MutableStateFlow(
-        mapOf(
-          Language.ARABIC to DownloadState(isDownloading = true, totalSize = 10, downloaded = 5),
-          Language.ALBANIAN to DownloadState(isCancelled = true),
-        ),
-      ),
-  )
-
-@Composable
-@Preview
-fun LanguageManagerPreview() {
-  val states = createPreviewStates()
-  val languageAvailabilityState by states.languageState.collectAsState()
-  val downloadStates by states.downloadStates.collectAsState()
-  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
-  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
-  val availableLanguages =
-    Language.entries
-      .filter { lang ->
-        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
-      }.sortedBy { it.displayName }
-      .take(4)
-
-  TranslatorTheme {
-    LanguageManagerScreen(
-      installedLanguages = installedLanguages,
-      availableLanguages = availableLanguages,
-      languageAvailabilityState = languageAvailabilityState,
-      downloadStates = downloadStates,
-      availabilityCheck = { it.translatorFiles },
-      onEvent = {},
-      description = { "asd" },
-    )
-  }
-}
-
-@Composable
-@Preview
-fun LanguageManagerPreviewEmbedded() {
-  TranslatorTheme {
-    LanguageManagerScreen(
-      embedded = true,
-      installedLanguages = emptyList(),
-      availableLanguages = emptyList(),
-      languageAvailabilityState = LanguageAvailabilityState(),
-      downloadStates = emptyMap(),
-      availabilityCheck = { it.translatorFiles },
-      onEvent = {},
-      description = { "asd" },
-    )
-  }
-}
-
-@Composable
-@Preview
-fun LanguageManagerDialogPreview() {
-  val states = createPreviewStates()
-  val languageAvailabilityState by states.languageState.collectAsState()
-  val downloadStates by states.downloadStates.collectAsState()
-  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
-  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
-  val availableLanguages =
-    Language.entries
-      .filter { lang ->
-        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
-      }.sortedBy { it.displayName }
-
-  TranslatorTheme {
-    LanguageManagerScreen(
-      installedLanguages = installedLanguages,
-      availableLanguages = availableLanguages,
-      languageAvailabilityState = languageAvailabilityState,
-      downloadStates = downloadStates,
-      availabilityCheck = { it.translatorFiles },
-      onEvent = {},
-      openDialog = true,
-      description = { "asd" },
-    )
-  }
-}
-
 @Composable
 fun LanguageManagerScreen(
   embedded: Boolean = false,
@@ -366,3 +266,103 @@ fun missingFilesTo(
 }
 
 fun getAvailableTessLanguages(tessData: File): List<Language> = Language.entries.filter { File(tessData, it.tessFilename).exists() }
+
+data class PreviewStates(
+  val languageState: StateFlow<LanguageAvailabilityState>,
+  val downloadStates: StateFlow<Map<Language, DownloadState>>,
+)
+
+fun createPreviewStates(): PreviewStates =
+  PreviewStates(
+    languageState =
+      MutableStateFlow(
+        LanguageAvailabilityState(
+          availableLanguageMap =
+            mapOf(
+              Language.ENGLISH to LangAvailability(true, true, true),
+              Language.FRENCH to LangAvailability(true, true, false),
+              Language.SPANISH to LangAvailability(true, true, true),
+            ),
+        ),
+      ),
+    downloadStates =
+      MutableStateFlow(
+        mapOf(
+          Language.ARABIC to DownloadState(isDownloading = true, totalSize = 10, downloaded = 5),
+          Language.ALBANIAN to DownloadState(isCancelled = true),
+        ),
+      ),
+  )
+
+@Composable
+@Preview
+fun LanguageManagerPreview() {
+  val states = createPreviewStates()
+  val languageAvailabilityState by states.languageState.collectAsState()
+  val downloadStates by states.downloadStates.collectAsState()
+  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+      .take(4)
+
+  TranslatorTheme {
+    LanguageManagerScreen(
+      installedLanguages = installedLanguages,
+      availableLanguages = availableLanguages,
+      languageAvailabilityState = languageAvailabilityState,
+      downloadStates = downloadStates,
+      availabilityCheck = { it.translatorFiles },
+      onEvent = {},
+      description = { "asd" },
+    )
+  }
+}
+
+@Composable
+@Preview
+fun LanguageManagerPreviewEmbedded() {
+  TranslatorTheme {
+    LanguageManagerScreen(
+      embedded = true,
+      installedLanguages = emptyList(),
+      availableLanguages = emptyList(),
+      languageAvailabilityState = LanguageAvailabilityState(),
+      downloadStates = emptyMap(),
+      availabilityCheck = { it.translatorFiles },
+      onEvent = {},
+      description = { "asd" },
+    )
+  }
+}
+
+@Composable
+@Preview
+fun LanguageManagerDialogPreview() {
+  val states = createPreviewStates()
+  val languageAvailabilityState by states.languageState.collectAsState()
+  val downloadStates by states.downloadStates.collectAsState()
+  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+
+  TranslatorTheme {
+    LanguageManagerScreen(
+      installedLanguages = installedLanguages,
+      availableLanguages = availableLanguages,
+      languageAvailabilityState = languageAvailabilityState,
+      downloadStates = downloadStates,
+      availabilityCheck = { it.translatorFiles },
+      onEvent = {},
+      openDialog = true,
+      description = { "asd" },
+    )
+  }
+}

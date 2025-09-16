@@ -19,6 +19,7 @@ package dev.davidv.translator.ui.screens
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -258,11 +259,8 @@ fun MainScreen(
               onEvent = { event ->
                 when (event) {
                   is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                  is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
                   is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                  is LanguageEvent.DeleteDictionary -> {} // TODO
-                  is LanguageEvent.DownloadDictionary -> {}
-                  is LanguageEvent.FetchDictionaryIndex -> {} // not available from MainScreen
+                  else -> Log.e("MainScreen", "Got unexpected event: $event")
                 }
               },
             )

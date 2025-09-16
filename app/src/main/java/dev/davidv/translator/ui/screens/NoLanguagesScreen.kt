@@ -120,6 +120,7 @@ fun NoLanguagesScreen(
 
       TabbedLanguageManagerScreen(
         context = context,
+        languageStateManager = languageStateManager,
         installedLanguages = installedLanguages,
         availableLanguages = availableLanguages,
         languageAvailabilityState = state,

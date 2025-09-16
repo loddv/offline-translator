@@ -67,4 +67,38 @@ class FilePathManager(
       Log.i("FilePathManager", "Deleted: ${dictionaryFile.name}")
     }
   }
+
+  fun loadDictionaryIndexFromFile(): DictionaryIndex? {
+    return try {
+      val indexFile = getDictionaryIndexFile()
+      if (!indexFile.exists()) return null
+
+      val jsonString = indexFile.readText()
+      val jsonObject = org.json.JSONObject(jsonString)
+
+      val dictionariesJson = jsonObject.getJSONObject("dictionaries")
+      val dictionaries = mutableMapOf<String, DictionaryInfo>()
+
+      for (key in dictionariesJson.keys()) {
+        val dictJson = dictionariesJson.getJSONObject(key)
+        dictionaries[key] =
+          DictionaryInfo(
+            date = dictJson.getLong("date"),
+            filename = dictJson.getString("filename"),
+            size = dictJson.getLong("size"),
+            type = dictJson.getString("type"),
+            wordCount = dictJson.getLong("word_count"),
+          )
+      }
+
+      DictionaryIndex(
+        dictionaries = dictionaries,
+        updatedAt = jsonObject.getLong("updated_at"),
+        version = jsonObject.getInt("version"),
+      )
+    } catch (e: Exception) {
+      Log.e("FilePathManager", "Error parsing dictionary index file", e)
+      null
+    }
+  }
 }

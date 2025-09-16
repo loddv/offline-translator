@@ -64,6 +64,7 @@ import kotlin.math.roundToInt
 @Composable
 fun TabbedLanguageManagerScreen(
   context: Context,
+  languageStateManager: dev.davidv.translator.LanguageStateManager?,
   installedLanguages: List<Language>,
   availableLanguages: List<Language>,
   languageAvailabilityState: LanguageAvailabilityState,
@@ -125,7 +126,7 @@ fun TabbedLanguageManagerScreen(
             onEvent = { event ->
               when (event) {
                 is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                is LanguageEvent.Delete -> DownloadService.deleteLanguage(context, event.language)
+                is LanguageEvent.Delete -> languageStateManager?.deleteLanguage(event.language)
                 is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
                 is LanguageEvent.DeleteDictionary -> {}
                 is LanguageEvent.DownloadDictionary -> {}
@@ -276,6 +277,7 @@ fun TabbedLanguageManagerPreview() {
   TranslatorTheme {
     TabbedLanguageManagerScreen(
       context = LocalContext.current,
+      languageStateManager = null,
       installedLanguages = installedLanguages,
       availableLanguages = availableLanguages,
       languageAvailabilityState = mockLanguageState,
@@ -323,6 +325,7 @@ fun TabbedLanguageManagerDictionaryTabPreview() {
   TranslatorTheme {
     TabbedLanguageManagerScreen(
       context = LocalContext.current,
+      languageStateManager = null,
       installedLanguages = installedLanguages,
       availableLanguages = availableLanguages,
       languageAvailabilityState = mockLanguageState,

@@ -139,18 +139,6 @@ class DownloadService : Service() {
       context.startService(intent)
     }
 
-    fun deleteLanguage(
-      context: Context,
-      language: Language,
-    ) {
-      val intent =
-        Intent(context, DownloadService::class.java).apply {
-          action = "DELETE_LANGUAGE"
-          putExtra("language_code", language.code)
-        }
-      context.startService(intent)
-    }
-
     fun startDictDownload(
       context: Context,
       language: Language,
@@ -204,14 +192,6 @@ class DownloadService : Service() {
         val language = Language.entries.find { it.code == languageCode }
         if (language != null) {
           cancelLanguageDownload(language)
-        }
-      }
-
-      "DELETE_LANGUAGE" -> {
-        val languageCode = intent.getStringExtra("language_code")
-        val language = Language.entries.find { it.code == languageCode }
-        if (language != null) {
-          deleteLanguageFiles(language)
         }
       }
 
@@ -422,17 +402,6 @@ class DownloadService : Service() {
     }
 
     Log.i("DownloadService", "Cancelled download for ${language.displayName}")
-  }
-
-  private fun deleteLanguageFiles(language: Language) {
-    serviceScope.launch {
-      filePathManager.deleteLanguageFiles(language)
-      _downloadEvents.emit(DownloadEvent.LanguageDeleted(language))
-      Log.i(
-        "DownloadService",
-        "Deleted ${language.displayName}",
-      )
-    }
   }
 
   private fun updateDownloadState(
@@ -681,9 +650,9 @@ class DownloadService : Service() {
 
         if (tempFile.renameTo(indexFile)) {
           Log.i("DownloadService", "Downloaded dictionary index from $url to $indexFile")
-          val index = loadDictionaryIndexFromFile(indexFile)
+          val index = filePathManager.loadDictionaryIndexFromFile()
           if (index != null) {
-            _downloadEvents.emit(DownloadEvent.DictionaryIndexLoaded(index))
+            _downloadEvents.emit(DownloadEvent.DictionaryIndexDownloaded(index))
           }
         } else {
           Log.e("DownloadService", "Failed to move temp index file $tempFile to final location $indexFile")
@@ -695,40 +664,6 @@ class DownloadService : Service() {
         val errorMessage = "Failed to download dictionary index: ${e.message ?: "Unknown error"}"
         _downloadEvents.emit(DownloadEvent.DownloadError(errorMessage))
       }
-    }
-  }
-
-  private fun loadDictionaryIndexFromFile(file: File): DictionaryIndex? {
-    if (!file.exists()) return null
-
-    val jsonString = file.readText()
-    return try {
-      val jsonObject = org.json.JSONObject(jsonString)
-
-      val dictionariesJson = jsonObject.getJSONObject("dictionaries")
-      val dictionaries = mutableMapOf<String, DictionaryInfo>()
-
-      for (key in dictionariesJson.keys()) {
-        val dictJson = dictionariesJson.getJSONObject(key)
-        dictionaries[key] =
-          DictionaryInfo(
-            date = dictJson.getLong("date"),
-            filename = dictJson.getString("filename"),
-            size = dictJson.getLong("size"),
-            type = dictJson.getString("type"),
-            wordCount = dictJson.getLong("word_count"),
-          )
-      }
-
-      DictionaryIndex(
-        dictionaries = dictionaries,
-        updatedAt = jsonObject.getLong("updated_at"),
-        version = jsonObject.getInt("version"),
-      )
-    } catch (e: Exception) {
-      Log.e("DownloadService", "Error parsing dictionary index file; deleting it", e)
-      file.delete()
-      null
     }
   }
 

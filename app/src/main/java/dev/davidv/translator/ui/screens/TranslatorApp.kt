@@ -49,6 +49,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
+import dev.davidv.translator.FileEvent
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
@@ -144,22 +145,6 @@ fun TranslatorApp(
   LaunchedEffect(downloadService) {
     downloadService?.downloadEvents?.collect { event ->
       when (event) {
-        is DownloadEvent.LanguageDeleted -> {
-          val langs = languageStateManager?.languageState?.value?.availableLanguageMap
-          val validLangs = langs?.filter { it.key != event.language }
-          val currentFrom = fromState.value
-          val currentTo = toState.value
-          // TODO remove from default settings
-          if (validLangs != null) {
-            if (currentFrom == event.language || currentFrom == null) {
-              setFrom(validLangs.filterNot { it.key == currentTo }.keys.firstOrNull())
-            }
-            if (currentTo == event.language) {
-              setTo(validLangs.filterNot { it.key == currentFrom }.keys.firstOrNull() ?: Language.ENGLISH)
-            }
-          }
-        }
-
         is DownloadEvent.NewTranslationAvailable -> {}
         is DownloadEvent.NewDictionaryAvailable -> {
           openDictionary(
@@ -175,13 +160,37 @@ fun TranslatorApp(
           )
         }
 
-        is DownloadEvent.DictionaryIndexLoaded -> {
-          Log.d("TranslatorApp", "Dictionary index loaded: ${event.index}")
+        is DownloadEvent.DictionaryIndexDownloaded -> {
+          Log.d("TranslatorApp", "Dictionary index downloaded: ${event.index}")
         }
 
         is DownloadEvent.DownloadError -> {
           Log.w("TranslatorApp", "DownloadError $event")
           Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+        }
+      }
+    }
+  }
+
+  // Handle file events from LanguageStateManager
+  LaunchedEffect(languageStateManager) {
+    languageStateManager?.fileEvents?.collect { event ->
+      when (event) {
+        is FileEvent.LanguageDeleted -> {
+          val langs = languageStateManager.languageState.value.availableLanguageMap
+          val validLangs = langs.filter { it.key != event.language }
+          val currentFrom = fromState.value
+          val currentTo = toState.value
+          if (currentFrom == event.language || currentFrom == null) {
+            setFrom(validLangs.filterNot { it.key == currentTo }.keys.firstOrNull())
+          }
+          if (currentTo == event.language) {
+            setTo(validLangs.filterNot { it.key == currentFrom }.keys.firstOrNull() ?: Language.ENGLISH)
+          }
+          Log.d("TranslatorApp", "Language deleted: ${event.language}")
+        }
+        is FileEvent.DictionaryIndexLoaded -> {
+          Log.d("TranslatorApp", "Dictionary index loaded from file: ${event.index}")
         }
       }
     }
@@ -620,6 +629,7 @@ fun TranslatorApp(
             Box(modifier = Modifier.padding(padding)) {
               TabbedLanguageManagerScreen(
                 context = context,
+                languageStateManager = languageStateManager,
                 installedLanguages = installedLanguages,
                 availableLanguages = availableLanguages,
                 languageAvailabilityState = languageState,

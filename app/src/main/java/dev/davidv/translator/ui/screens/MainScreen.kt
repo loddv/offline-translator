@@ -101,6 +101,7 @@ fun MainScreen(
   isOcrInProgress: StateFlow<Boolean>,
   dictionaryWord: WordWithTaggedEntries?,
   dictionaryStack: List<WordWithTaggedEntries>,
+  dictionaryLookupLanguage: Language?,
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
   // System integration
@@ -325,12 +326,13 @@ fun MainScreen(
     DictionaryBottomSheet(
       dictionaryWord = dictionaryWord,
       dictionaryStack = dictionaryStack,
-      toLanguage = to,
+      // DictionaryLookupLanguage should always be set if dictionaryWord if set
+      dictionaryLookupLanguage = dictionaryLookupLanguage ?: Language.ENGLISH,
       onDismiss = {
         onMessage(TranslatorMessage.ClearDictionaryStack)
       },
       onDictionaryLookup = { word ->
-        onMessage(TranslatorMessage.PushDictionary(word, to))
+        onMessage(TranslatorMessage.DictionaryLookup(word, dictionaryLookupLanguage ?: Language.ENGLISH))
       },
       onBackPressed = {
         onMessage(TranslatorMessage.PopDictionary)
@@ -410,6 +412,7 @@ fun PopupMode() {
       settings = AppSettings(),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
+      dictionaryLookupLanguage = null,
     )
   }
 }
@@ -443,6 +446,7 @@ fun MainScreenPreview() {
       settings = AppSettings(),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
+      dictionaryLookupLanguage = null,
     )
   }
 }
@@ -481,6 +485,7 @@ fun PreviewVeryLongText() {
       settings = AppSettings(),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
+      dictionaryLookupLanguage = null,
     )
   }
 }
@@ -523,6 +528,7 @@ fun PreviewVeryLongTextImage() {
       settings = AppSettings(),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
+      dictionaryLookupLanguage = null,
     )
   }
 }

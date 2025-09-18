@@ -109,6 +109,7 @@ fun TranslatorApp(
   var dictionaryBindings by remember { mutableStateOf<Map<Language, TarkkaBinding>>(emptyMap()) }
   var dictionaryWord by remember { mutableStateOf<WordWithTaggedEntries?>(null) }
   var dictionaryStack by remember { mutableStateOf<List<WordWithTaggedEntries>>(emptyList()) }
+  var dictionaryLookupLanguage by remember { mutableStateOf<Language?>(null) }
 
   val settings by settingsManager.settings.collectAsState()
   val downloadService by downloadServiceState.collectAsState()
@@ -395,13 +396,13 @@ fun TranslatorApp(
       }
 
       is TranslatorMessage.DictionaryLookup -> {
-        val tarkkaBinding = dictionaryBindings[message.from]
+        Log.i("DictionaryLookup", "Looking up ${message.str} for ${message.language}")
+        val tarkkaBinding = dictionaryBindings[message.language]
         if (tarkkaBinding != null) {
           val res = tarkkaBinding.lookup(message.str.trim())
           // Try both capitalizations if not found -- sometimes capitalization is
           // important, so, if there's a hit, return that
           // basic case is 'monday' (no result) -> 'Monday'
-          //
           val foundWord =
             if (res == null) {
               val toggledWord = toggleFirstLetterCase(message.str)
@@ -412,40 +413,15 @@ fun TranslatorApp(
 
           if (foundWord != null) {
             dictionaryWord = foundWord
-            dictionaryStack = listOf(foundWord)
+            dictionaryLookupLanguage = message.language
+            dictionaryStack = dictionaryStack + foundWord
           } else {
-            Toast.makeText(context, "'${message.str}' not found in dictionary", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "'${message.str}' not found in ${message.language.code} dictionary", Toast.LENGTH_SHORT).show()
           }
           Log.d("DictionaryLookup", "From lookup got $foundWord")
         } else {
-          Toast.makeText(context, "Dictionary for ${message.from.displayName} not available", Toast.LENGTH_SHORT).show()
-          Log.w("DictionaryLookup", "No dictionary binding for ${message.from.displayName}")
-        }
-      }
-
-      is TranslatorMessage.PushDictionary -> {
-        val tarkkaBinding = dictionaryBindings[message.language]
-        if (tarkkaBinding != null) {
-          val res = tarkkaBinding.lookup(message.word)
-          // Try both capitalizations if not found
-          val foundWord =
-            if (res == null) {
-              val toggledWord = toggleFirstLetterCase(message.word)
-              tarkkaBinding.lookup(toggledWord)
-            } else {
-              res
-            }
-
-          if (foundWord != null) {
-            dictionaryWord = foundWord
-            dictionaryStack = dictionaryStack + foundWord
-          } else {
-            Toast.makeText(context, "'${message.word}' not found in dictionary", Toast.LENGTH_SHORT).show()
-          }
-          Log.d("PushDictionary", "Pushed $foundWord, stack size: ${dictionaryStack.size}")
-        } else {
           Toast.makeText(context, "Dictionary for ${message.language.displayName} not available", Toast.LENGTH_SHORT).show()
-          Log.w("PushDictionary", "No dictionary binding for ${message.language.displayName}")
+          Log.w("DictionaryLookup", "No dictionary binding for ${message.language.displayName}")
         }
       }
 
@@ -453,9 +429,11 @@ fun TranslatorApp(
         if (dictionaryStack.size > 1) {
           dictionaryStack = dictionaryStack.dropLast(1)
           dictionaryWord = dictionaryStack.lastOrNull()
+          // can't change lang while changing the stack
         } else {
           dictionaryStack = emptyList()
           dictionaryWord = null
+          dictionaryLookupLanguage = null
         }
         Log.d("PopDictionary", "Popped dictionary, stack size: ${dictionaryStack.size}")
       }
@@ -463,6 +441,7 @@ fun TranslatorApp(
       TranslatorMessage.ClearDictionaryStack -> {
         dictionaryStack = emptyList()
         dictionaryWord = null
+        dictionaryLookupLanguage = null
         Log.d("ClearDictionaryStack", "Cleared dictionary stack")
       }
     }
@@ -602,6 +581,7 @@ fun TranslatorApp(
             isOcrInProgress = translationCoordinator.isOcrInProgress,
             dictionaryWord = dictionaryWord,
             dictionaryStack = dictionaryStack,
+            dictionaryLookupLanguage = dictionaryLookupLanguage,
             // Action requests
             onMessage = handleMessage,
             // System integration

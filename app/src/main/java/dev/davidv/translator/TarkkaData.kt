@@ -15,13 +15,7 @@ data class PosGlosses(
 
 data class Gloss(
   val glossLines: List<String>,
-) {
-  val primaryGloss: String
-    get() = glossLines.firstOrNull() ?: ""
-
-  val allLines: String
-    get() = glossLines.joinToString("; ")
-}
+)
 
 data class WordWithTaggedEntries(
   val word: String,
@@ -29,6 +23,7 @@ data class WordWithTaggedEntries(
   val entries: List<WordEntryComplete>,
   val sounds: String?,
   val hyphenations: List<String>,
+  val redirects: List<String>,
 ) {
   enum class WordTag(
     val value: Int,
@@ -39,7 +34,7 @@ data class WordWithTaggedEntries(
     ;
 
     companion object {
-      fun fromValue(value: Int): WordTag? = values().find { it.value == value }
+      fun fromValue(value: Int): WordTag? = entries.find { it.value == value }
     }
   }
 

@@ -51,11 +51,6 @@ sealed class TranslatorMessage {
 
   data class DictionaryLookup(
     val str: String,
-    val from: Language,
-  ) : TranslatorMessage()
-
-  data class PushDictionary(
-    val word: String,
     val language: Language,
   ) : TranslatorMessage()
 

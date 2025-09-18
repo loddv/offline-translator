@@ -28,6 +28,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,7 +73,7 @@ import dev.davidv.translator.WordWithTaggedEntries
 fun DictionaryBottomSheet(
   dictionaryWord: WordWithTaggedEntries,
   dictionaryStack: List<WordWithTaggedEntries>,
-  toLanguage: Language,
+  dictionaryLookupLanguage: Language,
   onDismiss: () -> Unit,
   onDictionaryLookup: (String) -> Unit = {},
   onBackPressed: () -> Unit = {},
@@ -154,7 +155,7 @@ fun DictionaryBottomSheet(
           ) { (currentWord, entryIndex) ->
             DictionaryEntry(
               dictionaryWord = currentWord,
-              toLanguage = toLanguage,
+              dictionaryLookupLanguage = dictionaryLookupLanguage,
               selectedEntryIndex = entryIndex,
               onEntryIndexChanged = { selectedEntryIndex = it },
               showBackButton = dictionaryStack.size > 1,
@@ -178,7 +179,7 @@ fun DictionaryBottomSheet(
 @Composable
 fun DictionaryEntry(
   dictionaryWord: WordWithTaggedEntries,
-  toLanguage: Language,
+  dictionaryLookupLanguage: Language,
   selectedEntryIndex: Int,
   onEntryIndexChanged: (Int) -> Unit,
   showBackButton: Boolean = false,
@@ -229,7 +230,7 @@ fun DictionaryEntry(
             modifier = Modifier.alignByBaseline(),
           ) {
             Text(
-              toLanguage.code,
+              dictionaryLookupLanguage.code,
               style =
                 MaterialTheme.typography.titleMedium.copy(
                   fontWeight = if (selectedEntryIndex == 0) FontWeight.Bold else FontWeight.Normal,
@@ -287,6 +288,26 @@ fun DictionaryEntry(
         dictionaryWord.entries.firstOrNull()
       }
 
+    if (dictionaryWord.redirects.isNotEmpty()) {
+      Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+          text = "Also as:",
+          style = MaterialTheme.typography.bodyMedium,
+        )
+        dictionaryWord.redirects.forEach { r ->
+          Text(
+            text = "•",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+          )
+          InteractiveText(
+            text = r,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            onDictionaryLookup = onDictionaryLookup,
+          )
+        }
+      }
+    }
+
     if (selectedEntry != null) {
       WordEntryDisplay(
         entry = selectedEntry,
@@ -302,26 +323,31 @@ fun WordEntryDisplay(
   onDictionaryLookup: (String) -> Unit = {},
 ) {
   var lastPos: String? = null
-  entry.senses?.forEach { sense ->
+  entry.senses.forEach { sense ->
     if (lastPos != sense.pos) {
-      Row {
-        Text(
-          text = sense.pos,
-          style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-          modifier = Modifier.padding(bottom = 4.dp, top = 4.dp),
-        )
-      }
+      Text(
+        text = sense.pos,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        modifier = Modifier.padding(bottom = 4.dp, top = 4.dp),
+      )
       lastPos = sense.pos
     }
 
     sense.glosses.forEach { gloss ->
       gloss.glossLines.forEach { line ->
-        InteractiveText(
-          text = "• ${line.removeSuffix(".")}",
-          style = MaterialTheme.typography.bodyMedium,
-          onDictionaryLookup = onDictionaryLookup,
-          modifier = Modifier.padding(start = 16.dp, bottom = 2.dp),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.padding(start = 10.dp)) {
+          Text(
+            "•",
+            style = MaterialTheme.typography.bodyMedium,
+          )
+
+          InteractiveText(
+            text = line,
+            style = MaterialTheme.typography.bodyMedium,
+            onDictionaryLookup = onDictionaryLookup,
+            modifier = Modifier.padding(bottom = 2.dp),
+          )
+        }
       }
     }
   }
@@ -394,13 +420,14 @@ fun DictionaryBottomSheetPreview() {
         ),
       sounds = "[dik.θjo.ˈna.ɾjo]",
       hyphenations = listOf("dic", "cio", "na", "rio"),
+      redirects = listOf("book", "libro"),
     )
 
   MaterialTheme {
     Surface {
       DictionaryEntry(
         dictionaryWord = sampleWord,
-        toLanguage = Language.SPANISH,
+        dictionaryLookupLanguage = Language.SPANISH,
         selectedEntryIndex = 0,
         onEntryIndexChanged = {},
         showBackButton = true,

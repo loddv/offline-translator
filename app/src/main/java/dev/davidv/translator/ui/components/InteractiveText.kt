@@ -32,7 +32,7 @@ fun InteractiveText(
   text: String,
   modifier: Modifier = Modifier,
   style: TextStyle = MaterialTheme.typography.bodyMedium,
-  onDictionaryLookup: (String) -> Unit = {},
+  onDictionaryLookup: (String) -> Unit,
 ) {
   val context = LocalContext.current
   val actionModeCallback =

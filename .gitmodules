@@ -4,3 +4,6 @@
 [submodule "app/bergamot/src/main/cpp/bergamot-translator"]
 	path = app/bergamot/src/main/cpp/bergamot-translator
 	url = https://github.com/DavidVentura/bergamot-translator.git
+[submodule "app/src/main/nativeDeps/tarkka"]
+	path = app/src/main/nativeDeps/tarkka
+	url = git@github.com:DavidVentura/tarkka.git

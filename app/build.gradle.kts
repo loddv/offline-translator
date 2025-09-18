@@ -74,7 +74,7 @@ android {
   }
 }
 
-val tarkkaRootDir = "/home/david/git/tarkka"
+val tarkkaRootDir = "src/main/nativeDeps/tarkka"
 val jniLibsDir = "src/main/jniLibs"
 
 tasks.register("buildTarkkaX86_64") {
@@ -84,10 +84,13 @@ tasks.register("buildTarkkaX86_64") {
   doLast {
     exec {
       workingDir = file(tarkkaRootDir)
-      environment("CC", "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang")
+      environment(
+        "CC",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
+      )
       environment(
         "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER",
-        "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
       )
       commandLine("cargo", "build", "--release", "--target", "x86_64-linux-android", "--lib")
     }
@@ -109,10 +112,13 @@ tasks.register("buildTarkkaAarch64") {
   doLast {
     exec {
       workingDir = file(tarkkaRootDir)
-      environment("CC", "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang")
+      environment(
+        "CC",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+      )
       environment(
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
-        "/home/david/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
       )
       commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android", "--lib")
     }

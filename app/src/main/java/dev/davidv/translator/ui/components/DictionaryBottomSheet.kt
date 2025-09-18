@@ -293,19 +293,19 @@ fun DictionaryEntry(
         Text(
           text = "Also as:",
           style = MaterialTheme.typography.bodyMedium,
-          modifier = Modifier.padding(end = 4.dp)
+          modifier = Modifier.padding(end = 4.dp),
         )
-        dictionaryWord.redirects.forEachIndexed { i,r ->
+        dictionaryWord.redirects.forEachIndexed { i, r ->
           InteractiveText(
             text = r,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             onDictionaryLookup = onDictionaryLookup,
           )
-          if (i < dictionaryWord.redirects.size-1) {
+          if (i < dictionaryWord.redirects.size - 1) {
             Text(
               text = ",",
               style = MaterialTheme.typography.bodyMedium,
-              modifier = Modifier.padding(end = 2.dp)
+              modifier = Modifier.padding(end = 2.dp),
             )
           }
         }

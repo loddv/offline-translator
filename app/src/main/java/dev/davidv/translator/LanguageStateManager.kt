@@ -221,7 +221,7 @@ class LanguageStateManager(
 
   fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {
     val state = _languageState.value
-    return state.availableLanguages
+    return state.availableLanguageMap
       .filterNot { it.key == excluding }
       .filter { it.value.translatorFiles }
       .keys

@@ -289,21 +289,25 @@ fun DictionaryEntry(
       }
 
     if (dictionaryWord.redirects.isNotEmpty()) {
-      Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+      Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(
           text = "Also as:",
           style = MaterialTheme.typography.bodyMedium,
+          modifier = Modifier.padding(end = 4.dp)
         )
-        dictionaryWord.redirects.forEach { r ->
-          Text(
-            text = "•",
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-          )
+        dictionaryWord.redirects.forEachIndexed { i,r ->
           InteractiveText(
             text = r,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             onDictionaryLookup = onDictionaryLookup,
           )
+          if (i < dictionaryWord.redirects.size-1) {
+            Text(
+              text = ",",
+              style = MaterialTheme.typography.bodyMedium,
+              modifier = Modifier.padding(end = 2.dp)
+            )
+          }
         }
       }
     }

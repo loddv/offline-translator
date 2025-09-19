@@ -12,10 +12,11 @@ import aiohttp
 from pathlib import Path
 from typing import Dict, Set, Tuple
 
-COMMIT = "39a47f355e808057bbda8ee1556a546a4c6e0558"
+COMMIT = "a06d4724eb95d7452f9251cf2cc4ca2706636d74"
 TRANSLATION_BASE_URL = f"https://media.githubusercontent.com/media/mozilla/firefox-translations-models/{COMMIT}/models"
 TESSERACT_BASE_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main"
 DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"
+DICT_VERSION = 1
 
 # Language code to display name mapping
 LANGUAGE_NAMES = {
@@ -423,6 +424,7 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]], existing_sizes: di
 package dev.davidv.translator
 
 object Constants {{
+  const val DICT_VERSION = {DICT_VERSION}
   const val DEFAULT_TRANSLATION_MODELS_BASE_URL =
     "{TRANSLATION_BASE_URL}"
   const val DEFAULT_TESSERACT_MODELS_BASE_URL = "{TESSERACT_BASE_URL}"

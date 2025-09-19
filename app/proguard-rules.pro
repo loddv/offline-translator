@@ -27,6 +27,14 @@
 
 # Keep Tarkka native library integration
 -keep class dev.davidv.translator.TarkkaBinding { *; }
+-keep class dev.davidv.translator.TarkkaData** { *; }
+-keep class dev.davidv.translator.AggregatedWord { *; }
+-keep class dev.davidv.translator.PosGlosses { *; }
+-keep class dev.davidv.translator.Gloss { *; }
+-keep class dev.davidv.translator.WordWithTaggedEntries { *; }
+-keep class dev.davidv.translator.WordWithTaggedEntries$WordTag { *; }
+-keep class dev.davidv.translator.WordEntryComplete { *; }
+-keep class dev.davidv.translator.Sense { *; }
 -keepclasseswithmembernames class * {
     native <methods>;
 }

@@ -17,6 +17,8 @@
 
 package dev.davidv.translator.ui.screens
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
@@ -245,8 +247,12 @@ fun MainScreen(
                       lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
                     ),
                 )
-                if (displayImage == null && input.isNotEmpty()) {
-                  ClearInput(onMessage)
+                if (displayImage == null) {
+                  if (input.isNotEmpty()) {
+                    ClearInput(onMessage)
+                  } else {
+                    PasteButton(onMessage)
+                  }
                 }
               }
             }
@@ -353,6 +359,32 @@ fun BoxScope.ClearInput(onMessage: (TranslatorMessage) -> Unit) {
     Icon(
       painterResource(id = R.drawable.cancel),
       contentDescription = "Clear input",
+      tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+    )
+  }
+}
+
+@Composable
+fun BoxScope.PasteButton(onMessage: (TranslatorMessage) -> Unit) {
+  val context = LocalContext.current
+
+  IconButton(
+    onClick = {
+      val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+      val clipData = clipboardManager.primaryClip
+      if (clipData != null && clipData.itemCount > 0) {
+        val text = clipData.getItemAt(0).text?.toString() ?: ""
+        onMessage(TranslatorMessage.TextInput(text))
+      }
+    },
+    modifier =
+      Modifier
+        .align(Alignment.TopEnd)
+        .size(32.dp),
+  ) {
+    Icon(
+      painterResource(id = R.drawable.paste),
+      contentDescription = "Paste",
       tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
     )
   }

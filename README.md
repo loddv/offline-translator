@@ -2,7 +2,7 @@
 
 An Android translator app that performs text and image translation completely offline using on-device models.
 
-Supports automatic language detection and transliteration for non-latin scripts.
+Supports automatic language detection and transliteration for non-latin scripts. There's also a built-in word dictionary.
 
 [<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid"
     height="80">](https://f-droid.org/packages/dev.davidv.translator)
@@ -16,11 +16,12 @@ Language packs contain the full translation models, translation happens _on your
 
 ## Screenshots
 
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png" width="220px">](fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png)
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.jpg" width="360px">](fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.jpg)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07_dictionary.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/07_dictionary.png)
 
 ## Tech
 

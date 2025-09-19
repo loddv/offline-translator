@@ -120,6 +120,10 @@ tasks.register("buildTarkkaAarch64") {
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
         "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
       )
+      environment(
+        "AR_aarch64_linux_android",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
+      )
       commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android", "--lib")
     }
 

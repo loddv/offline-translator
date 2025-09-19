@@ -54,23 +54,12 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 # Add Android targets for Rust
 RUN rustup target add aarch64-linux-android x86_64-linux-android
 
-# Set up Cargo environment variables for Android cross-compilation
-#ENV CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang
-#ENV CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang
-#ENV CC_aarch64_linux_android=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang
-#ENV CC_x86_64_linux_android=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang
-#ENV AR_aarch64_linux_android=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-
 # Set working directory
 WORKDIR /home/vagrant/build/dev.davidv.translator
 
 # some commands run `git rev-parse --short` and may get different
 # lengths depending on git version or repo status
 RUN git config --system core.abbrev 10
-
-# Copy signing script
-COPY sign-apk.sh /usr/local/bin/sign-apk.sh
-RUN chmod +x /usr/local/bin/sign-apk.sh
 
 RUN echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 # Default command to build the project

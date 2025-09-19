@@ -29,6 +29,7 @@ Language packs contain the full translation models, translation happens _on your
   - The translation models run on [bergamot-translator](https://github.com/browsermt/bergamot-translator)
 - OCR models are [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
 - Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
+- Dictionary is based on data from Wiktionary, exported by [Kaikki](https://kaikki.org/)
 
 ## Manual offline setup
 
@@ -80,6 +81,6 @@ SHA-256 hash of signing certificate: `2B:38:06:E7:45:D8:09:01:8A:51:BE:58:D0:63:
 
 ## Funding
 
-![NLnet Foundation](https://nlnet.nl/logo/banner.svg)
+<img src="https://nlnet.nl/logo/banner.svg" width="200px">
 
 This project was funded through the [NGI Mobifree Fund](https://nlnet.nl/mobifree), a fund established by [NLnet](https://nlnet.nl).

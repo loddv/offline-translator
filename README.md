@@ -76,3 +76,9 @@ will sign the file built by `build.sh` (`app/build/outputs/apk/aarch64/release/a
 ### Verification info
 
 SHA-256 hash of signing certificate: `2B:38:06:E7:45:D8:09:01:8A:51:BE:58:D0:63:5F:FC:74:CC:97:33:43:94:07:AB:1E:D0:42:4A:4D:B3:E1:FB`
+
+## Funding
+
+![NLnet Foundation](https://nlnet.nl/logo/banner.svg)
+
+This project was funded through the [NGI Mobifree Fund](https://nlnet.nl/mobifree), a fund established by [NLnet](https://nlnet.nl).

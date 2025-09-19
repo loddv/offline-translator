@@ -40,12 +40,18 @@ class TranslationCoordinator(
   private val _isOcrInProgress = MutableStateFlow(false)
   val isOcrInProgress: StateFlow<Boolean> = _isOcrInProgress.asStateFlow()
 
+  var lastTranslatedInput: String = ""
+
   suspend fun translateText(
     from: Language,
     to: Language,
     text: String,
   ): TranslationResult? {
     if (text.isBlank()) return null
+    if (_isTranslating.value) {
+      Log.e("TranslationCoordinator", "Got asked to translate while busy")
+      return null
+    }
 
     _isTranslating.value = true
     val result: TranslationResult
@@ -56,6 +62,7 @@ class TranslationCoordinator(
         }
       Log.d("TranslationCoordinator", "Translating ${text.length} chars from ${from.displayName} to ${to.displayName} took ${elapsed}ms")
     } finally {
+      lastTranslatedInput = text
       _isTranslating.value = false
     }
     return when (result) {

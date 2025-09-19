@@ -97,7 +97,7 @@ fun StyledTextField(
 
               override fun afterTextChanged(s: Editable?) {
                 val newText = s?.toString() ?: ""
-                if (newText != text) {
+                if (newText != text || newText == "") {
                   onValueChange(newText)
                 }
               }

@@ -142,6 +142,7 @@ fun TranslatorApp(
   var currentDetectedLanguage by remember { mutableStateOf<Language?>(null) }
   var inputType by remember { mutableStateOf(InputType.TEXT) }
   var originalImage by remember { mutableStateOf<Bitmap?>(null) }
+  val isTranslating by translationCoordinator.isTranslating.collectAsState()
 
   LaunchedEffect(downloadService) {
     downloadService?.downloadEvents?.collect { event ->
@@ -254,6 +255,7 @@ fun TranslatorApp(
         null
       }
     val translated: TranslationResult?
+
     if (currentDetectedLanguage != null) {
       if (languageState.availableLanguageMap[currentDetectedLanguage!!]?.translatorFiles == true) {
         setFrom(currentDetectedLanguage!!)
@@ -375,6 +377,7 @@ fun TranslatorApp(
         val oldTo = to
         setFrom(oldTo)
         setTo(oldFrom)
+        output = null
       }
 
       TranslatorMessage.ClearInput -> {
@@ -447,7 +450,31 @@ fun TranslatorApp(
     }
   }
 
-  LaunchedEffect(from, input) {
+  LaunchedEffect(isTranslating) {
+    if (!isTranslating) {
+      if (translationCoordinator.lastTranslatedInput != input) {
+        if (from != null) {
+          scope.launch {
+            translationCoordinator.translateText(from!!, to, input)?.let {
+              output =
+                when (it) {
+                  is TranslationResult.Success -> it.result
+                  is TranslationResult.Error -> null
+                }
+            }
+          }
+        }
+      }
+    }
+  }
+  LaunchedEffect(from, input, to) {
+    if (input.trim().isEmpty()) {
+      output = null
+      return@LaunchedEffect
+    }
+    if (isTranslating) {
+      return@LaunchedEffect
+    }
     scope.launch {
       currentDetectedLanguage =
         if (!settings.disableCLD) {
@@ -457,26 +484,9 @@ fun TranslatorApp(
         }
     }
     if (input.isNotBlank() && from != null) {
-      scope.launch {
-        val translated =
-          translationCoordinator.translateText(from!!, to, input)
-        translated?.let {
-          output =
-            when (it) {
-              is TranslationResult.Success -> it.result
-              is TranslationResult.Error -> null
-            }
-        }
-      }
+      translateWithLanguages(from!!, to)
     } else {
       output = null
-    }
-  }
-  LaunchedEffect(from, to) {
-    if (from != null) {
-      scope.launch {
-        translateWithLanguages(from!!, to)
-      }
     }
   }
 

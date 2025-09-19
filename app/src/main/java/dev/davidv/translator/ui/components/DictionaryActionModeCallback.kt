@@ -51,7 +51,8 @@ class DictionaryActionModeCallback(
       for (i in 0 until m.size()) {
         val item = m.getItem(i)
         if (item.intent?.action == Intent.ACTION_TRANSLATE ||
-          item.intent?.`package` == context.packageName
+          item.intent?.`package` == context.packageName ||
+          item.title == "Translate"
         ) {
           itemsToRemove.add(item.itemId)
         }

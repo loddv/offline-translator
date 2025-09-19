@@ -20,12 +20,16 @@
 package dev.davidv.translator
 
 object Constants {
+  const val DICT_VERSION = 1
   const val DEFAULT_TRANSLATION_MODELS_BASE_URL =
     "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/39a47f355e808057bbda8ee1556a546a4c6e0558/models"
   const val DEFAULT_TESSERACT_MODELS_BASE_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main"
+  const val DEFAULT_DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"
 }
 
-enum class ModelType(private val pathName: String) {
+enum class ModelType(
+  private val pathName: String,
+) {
   BASE("base"),
   BASE_MEMORY("base-memory"),
   TINY("tiny"),
@@ -34,7 +38,14 @@ enum class ModelType(private val pathName: String) {
   override fun toString(): String = pathName
 }
 
-enum class Language(val code: String, val tessName: String, val displayName: String, val script: String, val sizeBytes: Int, val tessdataSizeBytes: Int) {
+enum class Language(
+  val code: String,
+  val tessName: String,
+  val displayName: String,
+  val script: String,
+  val sizeBytes: Int,
+  val tessdataSizeBytes: Int,
+) {
   ALBANIAN("sq", "sqi", "Albanian", "Latin", 32421521, 1874705),
   ARABIC("ar", "ara", "Arabic", "Arabic", 68840006, 1432056),
   AZERBAIJANI("az", "aze", "Azerbaijani", "Latin", 34314579, 3524799),

@@ -59,6 +59,10 @@ class SettingsManager(
       prefs.getString("tesseract_models_base_url", null)
         ?: defaults.tesseractModelsBaseUrl
 
+    val dictionaryBaseUrl =
+      prefs.getString("dictionary_base_url", null)
+        ?: defaults.dictionaryBaseUrl
+
     val backgroundModeName = prefs.getString("background_mode", null)
     val backgroundMode =
       if (backgroundModeName != null) {
@@ -84,6 +88,7 @@ class SettingsManager(
       defaultTargetLanguage = defaultTargetLanguage,
       translationModelsBaseUrl = translationModelsBaseUrl,
       tesseractModelsBaseUrl = tesseractModelsBaseUrl,
+      dictionaryBaseUrl = dictionaryBaseUrl,
       backgroundMode = backgroundMode,
       minConfidence = minConfidence,
       maxImageSize = maxImageSize,
@@ -112,6 +117,10 @@ class SettingsManager(
       if (newSettings.tesseractModelsBaseUrl != currentSettings.tesseractModelsBaseUrl) {
         putString("tesseract_models_base_url", newSettings.tesseractModelsBaseUrl)
         modifiedSettings.add("tesseract_models_base_url")
+      }
+      if (newSettings.dictionaryBaseUrl != currentSettings.dictionaryBaseUrl) {
+        putString("dictionary_base_url", newSettings.dictionaryBaseUrl)
+        modifiedSettings.add("dictionary_base_url")
       }
       if (newSettings.backgroundMode != currentSettings.backgroundMode) {
         putString("background_mode", newSettings.backgroundMode.name)

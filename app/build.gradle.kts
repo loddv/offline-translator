@@ -23,8 +23,8 @@ android {
     applicationId = "dev.davidv.translator"
     minSdk = 28 // iconv functions need 28?
     targetSdk = 34
-    versionCode = 4
-    versionName = "0.1.2"
+    versionCode = 5
+    versionName = "0.2.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -71,6 +71,88 @@ android {
   }
   buildFeatures {
     compose = true
+  }
+}
+
+val tarkkaRootDir = "src/main/nativeDeps/tarkka"
+val jniLibsDir = "src/main/jniLibs"
+
+tasks.register("buildTarkkaX86_64") {
+  group = "build"
+  description = "Build Tarkka Rust library for x86_64"
+
+  doLast {
+    exec {
+      workingDir = file(tarkkaRootDir)
+      environment(
+        "CC",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
+      )
+      environment(
+        "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
+      )
+      environment(
+        "AR_x86_64_linux_android",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
+      )
+      commandLine("cargo", "build", "--release", "--target", "x86_64-linux-android", "--lib")
+    }
+
+    val sourceFile = file("$tarkkaRootDir/target/x86_64-linux-android/release/libtarkka.so")
+    val targetDir = file("$jniLibsDir/x86_64")
+    val targetFile = file("$targetDir/libtarkka.so")
+
+    targetDir.mkdirs()
+    sourceFile.copyTo(targetFile, overwrite = true)
+    println("Copied $sourceFile to $targetFile")
+  }
+}
+
+tasks.register("buildTarkkaAarch64") {
+  group = "build"
+  description = "Build Tarkka Rust library for aarch64"
+
+  doLast {
+    exec {
+      workingDir = file(tarkkaRootDir)
+      environment(
+        "CC",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+      )
+      environment(
+        "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+      )
+      environment(
+        "AR_aarch64_linux_android",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
+      )
+      commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android", "--lib")
+    }
+
+    val sourceFile = file("$tarkkaRootDir/target/aarch64-linux-android/release/libtarkka.so")
+    val targetDir = file("$jniLibsDir/arm64-v8a")
+    val targetFile = file("$targetDir/libtarkka.so")
+
+    targetDir.mkdirs()
+    sourceFile.copyTo(targetFile, overwrite = true)
+    println("Copied $sourceFile to $targetFile")
+  }
+}
+
+tasks.register("buildTarkkaAll") {
+  group = "build"
+  description = "Build Tarkka Rust library for all architectures"
+  dependsOn("buildTarkkaX86_64", "buildTarkkaAarch64")
+}
+
+tasks.whenTaskAdded {
+  if (name.contains("preAarch64") && name.contains("Build")) {
+    dependsOn("buildTarkkaAarch64")
+  }
+  if (name.contains("preX86_64") && name.contains("Build")) {
+    dependsOn("buildTarkkaX86_64")
   }
 }
 

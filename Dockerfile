@@ -16,7 +16,10 @@ RUN apt-get update && \
         unzip \
         git \
         cmake \
-        ninja-build && \
+        ninja-build \
+        curl \
+        build-essential \
+        libclang-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Create Android SDK directory
@@ -39,6 +42,24 @@ RUN yes | sdkmanager --licenses && \
 
 # Set NDK environment variable
 ENV ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
+
+# Install Rust 1.87 system-wide
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.87.0 --no-modify-path && \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME
+
+# Add Android targets for Rust
+RUN rustup target add aarch64-linux-android x86_64-linux-android
+
+# Set up Cargo environment variables for Android cross-compilation
+#ENV CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang
+#ENV CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang
+#ENV CC_aarch64_linux_android=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang
+#ENV CC_x86_64_linux_android=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang
+#ENV AR_aarch64_linux_android=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
 
 # Set working directory
 WORKDIR /home/vagrant/build/dev.davidv.translator

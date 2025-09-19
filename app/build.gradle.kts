@@ -33,7 +33,17 @@ android {
     release {
       isMinifyEnabled = true
       isShrinkResources = true
-
+      // when building in F-Droid CI, the `cargo` binary is not in path
+      // so there's a prebuild step to modify this file and replace "cargo"
+      // with the full path to cargo (/home/vagrant/.cargo/bin/..)
+      // however, modifying this file leaves the repo in a dirty state
+      // which means that the revision in `META-INF/version-control-info.textproto`
+      // does not match with the _actual_ commit.
+      // Disabling this until I figure out how to put `cargo` in PATH
+      // in F-Droid CI
+      vcsInfo {
+        include = false
+      }
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro",

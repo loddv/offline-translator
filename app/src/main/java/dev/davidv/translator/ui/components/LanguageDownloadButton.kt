@@ -126,10 +126,6 @@ sealed class LanguageEvent {
     val language: Language,
   ) : LanguageEvent()
 
-  data class DownloadDictionary(
-    val language: Language,
-  ) : LanguageEvent()
-
   data class Delete(
     val language: Language,
   ) : LanguageEvent()

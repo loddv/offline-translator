@@ -87,7 +87,8 @@ fun TabbedLanguageManagerScreen(
 
   Scaffold(
     modifier =
-      Modifier.fillMaxSize()
+      Modifier
+        .fillMaxSize()
         .navigationBarsPadding()
         .imePadding(),
     topBar = {
@@ -130,7 +131,6 @@ fun TabbedLanguageManagerScreen(
                 is LanguageEvent.Delete -> languageStateManager?.deleteLanguage(event.language)
                 is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
                 is LanguageEvent.DeleteDictionary -> languageStateManager?.deleteDict(event.language)
-                is LanguageEvent.DownloadDictionary -> {}
                 is LanguageEvent.FetchDictionaryIndex -> {}
               }
             },
@@ -142,6 +142,7 @@ fun TabbedLanguageManagerScreen(
                 String.format("%.2f MB", size)
               }
             },
+            sizeBytes = { it.sizeBytes.toLong() },
           )
         }
 
@@ -177,6 +178,10 @@ fun TabbedLanguageManagerScreen(
                 languageAvailabilityState = languageAvailabilityState,
                 downloadStates = dictionaryDownloadStates,
                 availabilityCheck = { it.dictionaryFiles },
+                sizeBytes = { l ->
+                  val indexEntry = dictionaryIndex.dictionaries[l.code]
+                  (indexEntry?.size ?: 0)
+                },
                 description = { l ->
                   val indexEntry = dictionaryIndex.dictionaries[l.code]
                   val size = (indexEntry?.size ?: 0) / (1024f * 1024f)

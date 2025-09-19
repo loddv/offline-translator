@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
@@ -62,9 +61,8 @@ fun LanguageManagerScreen(
   onEvent: (LanguageEvent) -> Unit,
   openDialog: Boolean = false,
   description: (Language) -> String,
+  sizeBytes: (Language) -> Long,
 ) {
-  val context = LocalContext.current
-
   var showDownloadAllDialog by remember { mutableStateOf(openDialog) }
 
   Scaffold(
@@ -156,8 +154,15 @@ fun LanguageManagerScreen(
   }
 
   if (showDownloadAllDialog) {
-    val totalSizeBytes = availableLanguages.sumOf { it.sizeBytes }
-    val totalSizeGiB = totalSizeBytes / (1024.0 * 1024.0 * 1024.0)
+    val totalSizeBytes = availableLanguages.sumOf { sizeBytes(it) }
+    val totalSizeMiB = totalSizeBytes / (1024.0 * 1024.0)
+    val totalSizeGiB = totalSizeMiB / 1024.0
+    val sizeStr =
+      if (totalSizeMiB > 100) {
+        "%.2f GiB".format(totalSizeGiB)
+      } else {
+        "%.0f MiB".format(totalSizeMiB)
+      }
 
     AlertDialog(
       onDismissRequest = { showDownloadAllDialog = false },
@@ -169,7 +174,7 @@ fun LanguageManagerScreen(
       },
       text = {
         Text(
-          "Download size: %.2f GiB\n\n".format(totalSizeGiB) +
+          "Download size: $sizeStr\n\n" +
             "Make sure you've configured your storage location (internal/external) in settings first.",
         )
       },
@@ -177,7 +182,7 @@ fun LanguageManagerScreen(
         TextButton(
           onClick = {
             availableLanguages.forEach { language ->
-              DownloadService.startDownload(context, language)
+              onEvent(LanguageEvent.Download(language))
             }
             showDownloadAllDialog = false
           },
@@ -318,6 +323,7 @@ fun LanguageManagerPreview() {
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       description = { "asd" },
+      sizeBytes = { 5 },
     )
   }
 }
@@ -335,6 +341,7 @@ fun LanguageManagerPreviewEmbedded() {
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       description = { "asd" },
+      sizeBytes = { 5 },
     )
   }
 }
@@ -363,6 +370,8 @@ fun LanguageManagerDialogPreview() {
       onEvent = {},
       openDialog = true,
       description = { "asd" },
+      // this is wrong but fine
+      sizeBytes = { it.sizeBytes.toLong() },
     )
   }
 }

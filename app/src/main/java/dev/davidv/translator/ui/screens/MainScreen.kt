@@ -48,7 +48,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -114,7 +113,6 @@ fun MainScreen(
 ) {
   var showFullScreenImage by remember { mutableStateOf(false) }
   var showImageSourceSheet by remember { mutableStateOf(false) }
-  val translating by isTranslating.collectAsState()
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
   val context = LocalContext.current
 
@@ -179,7 +177,6 @@ fun MainScreen(
           from = from,
           to = to,
           availableLanguages = availableLanguages.mapValues { it.value.translatorFiles },
-          translating = translating,
           onMessage = onMessage,
           onSettings = if (launchMode == LaunchMode.Normal) onSettings else null,
         )

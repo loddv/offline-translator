@@ -39,7 +39,6 @@ fun LanguageSelectionRow(
   from: Language,
   to: Language,
   availableLanguages: Map<Language, Boolean>,
-  translating: Boolean,
   onMessage: (TranslatorMessage) -> Unit,
   onSettings: (() -> Unit)?,
 ) {
@@ -61,9 +60,7 @@ fun LanguageSelectionRow(
     )
 
     IconButton(onClick = {
-      if (!translating) {
-        onMessage(TranslatorMessage.SwapLanguages)
-      }
+      onMessage(TranslatorMessage.SwapLanguages)
     }) {
       Icon(
         painterResource(id = R.drawable.compare),
@@ -75,9 +72,7 @@ fun LanguageSelectionRow(
       selectedLanguage = to,
       availableLanguages = toLanguages,
       onLanguageSelected = { language ->
-        if (!translating) {
-          onMessage(TranslatorMessage.ToLang(language))
-        }
+        onMessage(TranslatorMessage.ToLang(language))
       },
       modifier = Modifier.weight(1f),
     )
@@ -107,7 +102,6 @@ fun LanguageSelectionRowPreview() {
           Language.FRENCH to true,
           Language.GERMAN to true,
         ),
-      translating = false,
       onMessage = {},
       onSettings = {},
     )
@@ -131,7 +125,6 @@ fun LanguageSelectionRowDarkPreview() {
           Language.FRENCH to true,
           Language.GERMAN to true,
         ),
-      translating = true,
       onMessage = {},
       onSettings = {},
     )

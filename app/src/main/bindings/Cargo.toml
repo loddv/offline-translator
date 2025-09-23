@@ -16,6 +16,7 @@ tesseract = { path = "../nativeDeps/tesseract-rs" }
 [patch.crates-io]
 leptonica-sys = { path = "../nativeDeps/leptonica-sys" }
 tesseract-sys = { path = "../nativeDeps/tesseract-sys" }
+tesseract-plumbing = { path = "../nativeDeps/tesseract-plumbing" }
 
 [profile.release]
 lto = "fat"

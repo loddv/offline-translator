@@ -62,16 +62,17 @@ fun getSentences(
   }
 
   val allWords =
-    detectedWords.map { detectedWord ->
-      WordInfo(
-        text = detectedWord.text,
-        confidence = detectedWord.confidence,
-        boundingBox = Rect(detectedWord.left, detectedWord.top, detectedWord.right, detectedWord.bottom),
-        isFirstInLine = detectedWord.isAtBeginningOfPara,
-        isLastInLine = detectedWord.endPara,
-        isLastInPara = detectedWord.endPara,
-      )
-    }.toMutableList()
+    detectedWords
+      .map { detectedWord ->
+        WordInfo(
+          text = detectedWord.text,
+          confidence = detectedWord.confidence,
+          boundingBox = Rect(detectedWord.left, detectedWord.top, detectedWord.right, detectedWord.bottom),
+          isFirstInLine = detectedWord.isAtBeginningOfPara,
+          isLastInLine = detectedWord.endPara,
+          isLastInPara = detectedWord.endPara,
+        )
+      }.toMutableList()
 
   val filteredWords = mutableListOf<WordInfo>()
   var pendingFirstInLine = false
@@ -196,7 +197,7 @@ class OCRService(
         val langs = availableLanguages.joinToString("+")
         Log.i("OCRService", "Initializing tesseract to path $dataPath, languages $langs")
 
-        tess = TesseractOCR(dataPath, langs)
+        tess = TesseractOCR(tessdata.absolutePathString(), langs)
         val initialized = tess?.initialize() ?: false
         if (!initialized) {
           tess?.close()

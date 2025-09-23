@@ -1,4 +1,3 @@
-use std::ffi::CString;
 use std::fs::File;
 use tarkka::WordWithTaggedEntries;
 use tarkka::reader::DictionaryReader;
@@ -8,24 +7,11 @@ use self::jni::JNIEnv;
 use self::jni::objects::{JClass, JObject, JString};
 use self::jni::sys::{jlong, jobject};
 
-#[link(name = "log")]
-unsafe extern "C" {
-    fn __android_log_write(prio: i32, tag: *const i8, text: *const i8) -> i32;
-}
-
-const ANDROID_LOG_DEBUG: i32 = 3;
+use crate::logging::android_log_with_level;
 
 macro_rules! android_log {
     ($msg:expr) => {
-        unsafe {
-            let tag = CString::new("TarkkaNative").unwrap();
-            let message = CString::new($msg).unwrap();
-            __android_log_write(
-                ANDROID_LOG_DEBUG,
-                tag.as_ptr() as *const i8,
-                message.as_ptr() as *const i8,
-            );
-        }
+        android_log_with_level(crate::logging::ANDROID_LOG_DEBUG, "TarkkaNative", &$msg);
     };
 }
 

@@ -9,7 +9,7 @@ plugins {
 android {
   namespace = "dev.davidv.translator"
   compileSdk = 34
-  ndkVersion = "27.0.12077973"
+  ndkVersion = "28.0.12674087"
   buildToolsVersion = "34.0.0"
 
   sourceSets {
@@ -84,66 +84,117 @@ android {
   }
 }
 
-val tarkkaRootDir = "src/main/nativeDeps/tarkka"
-val jniLibsDir = "src/main/jniLibs"
+val bindingsRootDir = "src/main/bindings"
+val jniLibsDir = "../jniLibs"
 
-tasks.register("buildTarkkaX86_64") {
+tasks.register("buildBindingsX86_64") {
   group = "build"
-  description = "Build Tarkka Rust library for x86_64"
+  description = "Build Rust bindings library for x86_64"
 
   doLast {
     exec {
-      workingDir = file(tarkkaRootDir)
-      environment(
-        "CC",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
+      workingDir = file(bindingsRootDir)
+      environment("ANDROID_NDK_ROOT", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
+      environment("ANDROID_NDK_HOME", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
+      commandLine(
+        "cargo",
+        "ndk",
+        "build",
+        "-v",
+        "--target",
+        "x86_64",
+        "--release",
+        "--platform",
+        "28",
+        "--link-libcxx-shared",
+        "--output-dir",
+        "../jniLibs",
       )
-      environment(
-        "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang",
-      )
-      environment(
-        "AR_x86_64_linux_android",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
-      )
-      commandLine("cargo", "build", "--release", "--target", "x86_64-linux-android", "--lib")
     }
-
-    val sourceFile = file("$tarkkaRootDir/target/x86_64-linux-android/release/libtarkka.so")
-    val targetDir = file("$jniLibsDir/x86_64")
-    val targetFile = file("$targetDir/libtarkka.so")
-
-    targetDir.mkdirs()
-    sourceFile.copyTo(targetFile, overwrite = true)
-    println("Copied $sourceFile to $targetFile")
   }
 }
 
-tasks.register("buildTarkkaAarch64") {
+tasks.register("buildBindingsAarch64") {
   group = "build"
-  description = "Build Tarkka Rust library for aarch64"
+  description = "Build Rust bindings library for aarch64"
 
   doLast {
     exec {
-      workingDir = file(tarkkaRootDir)
+      workingDir = file(bindingsRootDir)
       environment(
         "CC",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+      )
+      environment(
+        "CXX",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
       )
       environment(
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
       )
       environment(
         "AR_aarch64_linux_android",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
       )
-      commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android", "--lib")
+      environment(
+        "CMAKE_ANDROID_STANDALONE_TOOLCHAIN",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/",
+      )
+      environment(
+        "ANDROID_NDK_ROOT",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087",
+      )
+      environment(
+        "CMAKE_TOOLCHAIN_FILE",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/build/cmake/android.toolchain.cmake",
+      )
+      environment(
+        "ANDROID_PLATFORM",
+        "android-28",
+      )
+      environment(
+        "CMAKE_ANDROID_API",
+        "28",
+      )
+      environment(
+        "CMAKE_SYSROOT",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
+      )
+      environment(
+        "CMAKE_C_COMPILER",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
+      )
+      environment(
+        "CMAKE_CXX_COMPILER",
+        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++",
+      )
+      environment(
+        "ANDROID_ABI",
+        "arm64-v8a",
+      )
+      environment(
+        "CFLAGS",
+        "--sysroot=${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
+      )
+      environment(
+        "CXXFLAGS",
+        "--sysroot=${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
+      )
+      environment(
+        "BINDGEN_EXTRA_CLANG_ARGS",
+        "--sysroot=${System.getenv(
+          "ANDROID_SDK_ROOT",
+        )}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot -I${System.getenv(
+          "ANDROID_SDK_ROOT",
+        )}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include",
+      )
+      commandLine("cargo", "build", "--target", "aarch64-linux-android")
     }
 
-    val sourceFile = file("$tarkkaRootDir/target/aarch64-linux-android/release/libtarkka.so")
+    val sourceFile = file("$bindingsRootDir/target/aarch64-linux-android/release/libbindings.so")
     val targetDir = file("$jniLibsDir/arm64-v8a")
-    val targetFile = file("$targetDir/libtarkka.so")
+    val targetFile = file("$targetDir/libbindings.so")
 
     targetDir.mkdirs()
     sourceFile.copyTo(targetFile, overwrite = true)
@@ -151,18 +202,18 @@ tasks.register("buildTarkkaAarch64") {
   }
 }
 
-tasks.register("buildTarkkaAll") {
+tasks.register("buildBindingsAll") {
   group = "build"
-  description = "Build Tarkka Rust library for all architectures"
-  dependsOn("buildTarkkaX86_64", "buildTarkkaAarch64")
+  description = "Build Rust bindings library for all architectures"
+  dependsOn("buildBindingsX86_64", "buildBindingsAarch64")
 }
 
 tasks.whenTaskAdded {
   if (name.contains("preAarch64") && name.contains("Build")) {
-    dependsOn("buildTarkkaAarch64")
+    dependsOn("buildBindingsAarch64")
   }
   if (name.contains("preX86_64") && name.contains("Build")) {
-    dependsOn("buildTarkkaX86_64")
+    dependsOn("buildBindingsX86_64")
   }
 }
 
@@ -189,7 +240,7 @@ dependencies {
   implementation(libs.kotlinx.coroutines.core)
   implementation(project(":app:bergamot"))
   // OpenMP - Multi-threaded. Provides better performance on multi-core processors when using only single instance of Tesseract.
-  implementation(("cz.adaptech.tesseract4android:tesseract4android-openmp:4.9.0"))
+//  implementation(("cz.adaptech.tesseract4android:tesseract4android-openmp:4.9.0"))
 }
 
 ktlint {

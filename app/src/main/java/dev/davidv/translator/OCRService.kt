@@ -20,10 +20,6 @@ package dev.davidv.translator
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.util.Log
-import com.googlecode.tesseract.android.TessBaseAPI
-import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_PARA
-import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE
-import com.googlecode.tesseract.android.TessBaseAPI.PageIteratorLevel.RIL_WORD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.io.path.Path
@@ -54,44 +50,28 @@ data class WordInfo(
 
 fun getSentences(
   bitmap: Bitmap,
-  tessInstance: TessBaseAPI,
+  tessInstance: TesseractOCR,
   minConfidence: Int = 75,
 ): Array<TextBlock> {
-  tessInstance.setImage(bitmap)
-  tessInstance.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO_OSD)
+  tessInstance.setPageSegmentationMode(PageSegMode.PSM_AUTO_OSD)
 
-  // calling utf8text is required to create iterator
-  tessInstance.utF8Text
-
-  val iter = tessInstance.resultIterator
-  if (iter == null) {
-    Log.e("OCRService", "Got Null iterator from Tesseract")
+  val detectedWords = tessInstance.processImage(bitmap)
+  if (detectedWords == null) {
+    Log.e("OCRService", "Failed to process image with Tesseract")
     return emptyArray()
   }
 
-  iter.begin()
-  val allWords = mutableListOf<WordInfo>()
-  do {
-    val word = iter.getUTF8Text(RIL_WORD)
-    if (word == null) {
-      Log.e("OCRService", "WTF word was null")
-      continue
-    }
-
-    allWords.add(
+  val allWords =
+    detectedWords.map { detectedWord ->
       WordInfo(
-        text = word,
-        confidence = iter.confidence(RIL_WORD),
-        boundingBox = iter.getBoundingRect(RIL_WORD),
-        isFirstInLine = iter.isAtBeginningOf(RIL_TEXTLINE),
-        isLastInLine = iter.isAtFinalElement(RIL_TEXTLINE, RIL_WORD),
-        isLastInPara = iter.isAtFinalElement(RIL_PARA, RIL_WORD),
-      ),
-    )
-  } while (iter.next(RIL_WORD))
-
-  iter.delete()
-  tessInstance.clear()
+        text = detectedWord.text,
+        confidence = detectedWord.confidence,
+        boundingBox = Rect(detectedWord.left, detectedWord.top, detectedWord.right, detectedWord.bottom),
+        isFirstInLine = detectedWord.isAtBeginningOfPara,
+        isLastInLine = detectedWord.endPara,
+        isLastInPara = detectedWord.endPara,
+      )
+    }.toMutableList()
 
   val filteredWords = mutableListOf<WordInfo>()
   var pendingFirstInLine = false
@@ -193,7 +173,7 @@ fun getSentences(
 class OCRService(
   private val filePathManager: FilePathManager,
 ) {
-  private var tess: TessBaseAPI? = null
+  private var tess: TesseractOCR? = null
   private var isInitialized = false
 
   private suspend fun initialize(): Boolean =
@@ -213,15 +193,14 @@ class OCRService(
           return@withContext false
         }
 
-        tess = TessBaseAPI()
-
         val langs = availableLanguages.joinToString("+")
         Log.i("OCRService", "Initializing tesseract to path $dataPath, languages $langs")
-        val initialized = tess?.init(dataPath, langs) ?: false
+
+        tess = TesseractOCR(dataPath, langs)
+        val initialized = tess?.initialize() ?: false
         if (!initialized) {
-          tess?.recycle()
+          tess?.close()
           tess = null
-          // TODO popup
           Log.e(
             "OCRService",
             "Failed to initialize Tesseract with languages: $availableLanguages",
@@ -264,7 +243,7 @@ class OCRService(
     }
 
   fun cleanup() {
-    tess?.recycle()
+    tess?.close()
     tess = null
     isInitialized = false
     Log.i("OCRService", "OCR service cleaned up")

@@ -3,7 +3,8 @@ package dev.davidv.translator
 class TarkkaBinding {
   companion object {
     init {
-      System.loadLibrary("tarkka")
+      // TODO
+      System.loadLibrary("bindings")
     }
   }
 

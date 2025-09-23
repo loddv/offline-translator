@@ -16,3 +16,9 @@ tesseract = { path = "/home/david/git/tesseract-rs" }
 [patch.crates-io]
 leptonica-sys = { path = "/home/david/git/leptonica-sys" }
 tesseract-sys = { path = "/home/david/git/tesseract-sys" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+debug = false
+strip = true

@@ -86,7 +86,7 @@ android {
 
 val bindingsRootDir = "src/main/bindings"
 val jniLibsDir = "../jniLibs"
-
+val ndk = "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087"
 tasks.register("buildBindingsX86_64") {
   group = "build"
   description = "Build Rust bindings library for x86_64"
@@ -94,8 +94,8 @@ tasks.register("buildBindingsX86_64") {
   doLast {
     exec {
       workingDir = file(bindingsRootDir)
-      environment("ANDROID_NDK_ROOT", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
-      environment("ANDROID_NDK_HOME", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
+      environment("ANDROID_NDK_ROOT", ndk)
+      environment("ANDROID_NDK_HOME", ndk)
       commandLine(
         "cargo",
         "ndk",
@@ -121,15 +121,15 @@ tasks.register("buildBindingsAarch64") {
   doLast {
     exec {
       workingDir = file(bindingsRootDir)
-      environment("ANDROID_NDK_ROOT", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
-      environment("ANDROID_NDK_HOME", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
+      environment("ANDROID_NDK_ROOT", ndk)
+      environment("ANDROID_NDK_HOME", ndk)
       commandLine(
         "cargo",
         "ndk",
         "build",
         "-v",
         "--target",
-        "aarch64",
+        "arm64-v8a",
         "--release",
         "--platform",
         "28",

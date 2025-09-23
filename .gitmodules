@@ -7,3 +7,15 @@
 [submodule "app/src/main/nativeDeps/tarkka"]
 	path = app/src/main/nativeDeps/tarkka
 	url = git@github.com:DavidVentura/tarkka.git
+[submodule "app/src/main/nativeDeps/tesseract-plumbing"]
+	path = app/src/main/nativeDeps/tesseract-plumbing
+	url = git@github.com:DavidVentura/tesseract-plumbing.git
+[submodule "app/src/main/nativeDeps/tesseract-sys"]
+	path = app/src/main/nativeDeps/tesseract-sys
+	url = git@github.com:DavidVentura/tesseract-sys.git
+[submodule "app/src/main/nativeDeps/leptonica-sys"]
+	path = app/src/main/nativeDeps/leptonica-sys
+	url = git@github.com:DavidVentura/leptonica-sys.git
+[submodule "app/src/main/nativeDeps/tesseract-rs"]
+	path = app/src/main/nativeDeps/tesseract-rs
+	url = git@github.com:DavidVentura/tesseract-rs.git

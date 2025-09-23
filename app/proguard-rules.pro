@@ -35,6 +35,14 @@
 -keep class dev.davidv.translator.WordWithTaggedEntries$WordTag { *; }
 -keep class dev.davidv.translator.WordEntryComplete { *; }
 -keep class dev.davidv.translator.Sense { *; }
+
+# Keep Tesseract native library integration
+-keep class dev.davidv.translator.TesseractBinding { *; }
+-keep class dev.davidv.translator.TesseractOCR { *; }
+-keep class dev.davidv.translator.DetectedWord { *; }
+-keep class dev.davidv.translator.PageSegMode { *; }
+-keep class dev.davidv.translator.TesseractData** { *; }
+
 -keepclasseswithmembernames class * {
     native <methods>;
 }

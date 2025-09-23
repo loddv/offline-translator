@@ -20,12 +20,10 @@ package dev.davidv.translator
 import android.graphics.BitmapFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.googlecode.tesseract.android.TessBaseAPI
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
-import kotlin.io.path.absolutePathString
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -53,7 +51,6 @@ class ExampleInstrumentedTest {
 
     val tessDir = File(appContext.dataDir, "tesseract")
     val tessdataDir = File(tessDir, "tessdata")
-    val dataPath: String = tessDir.toPath().absolutePathString()
     tessdataDir.mkdirs()
 
     // copy from test context to app context
@@ -64,8 +61,8 @@ class ExampleInstrumentedTest {
     }
     inputStreamEng.close()
 
-    val tessInstance = TessBaseAPI()
-    assert(tessInstance.init(dataPath, "eng"))
+    val tessInstance = TesseractOCR(tessdataDir.absolutePath, "eng")
+    assert(tessInstance.initialize())
     val blocks = getSentences(bitmap, tessInstance)
     println(blocks.joinToString("\n"))
     assertEquals(11, blocks.count())

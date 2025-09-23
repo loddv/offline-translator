@@ -121,84 +121,23 @@ tasks.register("buildBindingsAarch64") {
   doLast {
     exec {
       workingDir = file(bindingsRootDir)
-      environment(
-        "CC",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
-      )
-      environment(
-        "CXX",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
-      )
-      environment(
-        "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
-      )
-      environment(
-        "AR_aarch64_linux_android",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar",
-      )
-      environment(
-        "CMAKE_ANDROID_STANDALONE_TOOLCHAIN",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/",
-      )
-      environment(
-        "ANDROID_NDK_ROOT",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087",
-      )
-      environment(
-        "CMAKE_TOOLCHAIN_FILE",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/build/cmake/android.toolchain.cmake",
-      )
-      environment(
-        "ANDROID_PLATFORM",
-        "android-28",
-      )
-      environment(
-        "CMAKE_ANDROID_API",
+      environment("ANDROID_NDK_ROOT", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
+      environment("ANDROID_NDK_HOME", "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087")
+      commandLine(
+        "cargo",
+        "ndk",
+        "build",
+        "-v",
+        "--target",
+        "aarch64",
+        "--release",
+        "--platform",
         "28",
+        "--link-libcxx-shared",
+        "--output-dir",
+        "../jniLibs",
       )
-      environment(
-        "CMAKE_SYSROOT",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
-      )
-      environment(
-        "CMAKE_C_COMPILER",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang",
-      )
-      environment(
-        "CMAKE_CXX_COMPILER",
-        "${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++",
-      )
-      environment(
-        "ANDROID_ABI",
-        "arm64-v8a",
-      )
-      environment(
-        "CFLAGS",
-        "--sysroot=${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
-      )
-      environment(
-        "CXXFLAGS",
-        "--sysroot=${System.getenv("ANDROID_SDK_ROOT")}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
-      )
-      environment(
-        "BINDGEN_EXTRA_CLANG_ARGS",
-        "--sysroot=${System.getenv(
-          "ANDROID_SDK_ROOT",
-        )}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot -I${System.getenv(
-          "ANDROID_SDK_ROOT",
-        )}/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include",
-      )
-      commandLine("cargo", "build", "--target", "aarch64-linux-android")
     }
-
-    val sourceFile = file("$bindingsRootDir/target/aarch64-linux-android/release/libbindings.so")
-    val targetDir = file("$jniLibsDir/arm64-v8a")
-    val targetFile = file("$targetDir/libbindings.so")
-
-    targetDir.mkdirs()
-    sourceFile.copyTo(targetFile, overwrite = true)
-    println("Copied $sourceFile to $targetFile")
   }
 }
 

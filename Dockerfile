@@ -53,7 +53,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 
 # Add Android targets for Rust
 RUN rustup target add aarch64-linux-android x86_64-linux-android
-
+RUN cargo install cargo-ndk
 # Set working directory
 WORKDIR /home/vagrant/build/dev.davidv.translator
 

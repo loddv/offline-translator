@@ -51,7 +51,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.ui.theme.TranslatorTheme
-import java.lang.reflect.AnnotatedElement
 
 @Composable
 fun TranslationField(

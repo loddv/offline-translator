@@ -168,15 +168,14 @@ normalize: 1.0
 word-penalty: 0
 max-length-break: 128
 mini-batch-words: 1024
-workspace: 128
 max-length-factor: 2.0
 skip-cost: true
-cpu-threads: 0
-quiet: false
-quiet-translation: false
+cpu-threads: 1
+quiet: true
+quiet-translation: true
 gemm-precision: int8shiftAlphaAll
 alignment: soft
-)"""
+"""
   }
 }
 

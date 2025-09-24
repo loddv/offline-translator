@@ -40,6 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,6 +51,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import java.lang.reflect.AnnotatedElement
 
 @Composable
 fun TranslationField(
@@ -70,7 +75,13 @@ fun TranslationField(
   val smallerFontSize = fontSize * 0.7f
 
   Box(
-    modifier = Modifier.fillMaxSize(),
+    modifier =
+      Modifier
+        .fillMaxSize()
+        .semantics {
+          contentDescription = "Translation output"
+          this.text = AnnotatedString(text.translated)
+        },
   ) {
     Column(
       modifier =
@@ -81,8 +92,12 @@ fun TranslationField(
           .padding(end = 22.dp),
     ) {
       AndroidView(
+        modifier =
+          Modifier
+            .fillMaxSize(),
         factory = { context ->
           TextView(context).apply {
+            this.contentDescription = "Output textview"
             this.text = text.translated
             this.textSize = fontSize
             this.setTextColor(textColor)
@@ -98,7 +113,6 @@ fun TranslationField(
           textView.customSelectionActionModeCallback = actionModeCallback
           actionModeCallback.setTextView(textView)
         },
-        modifier = Modifier.fillMaxSize(),
       )
 
       if (text.transliterated != null) {

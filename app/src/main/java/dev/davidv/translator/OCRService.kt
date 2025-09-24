@@ -144,7 +144,7 @@ fun getSentences(
           lines.clear()
         }
       } else {
-        line.text = "${line.text} $word"
+        line.text = "${line.text} $word".trim()
         line.wordRects += boundingBox
         if (boundingBox.right < line.boundingBox.left) {
           Log.e("OCRService", "going to break $boundingBox ${line.boundingBox}")

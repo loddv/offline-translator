@@ -29,6 +29,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.mutableStateOf
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class MainActivity : ComponentActivity() {
   private var textToTranslate: String = ""
   private var launchMode: LaunchMode = LaunchMode.Normal
-  private var sharedImageUri: Uri? = null
+  private var sharedImageUri = mutableStateOf<Uri?>(null)
   private lateinit var ocrService: OCRService
   private lateinit var translationCoordinator: TranslationCoordinator
   private var downloadService: DownloadService? = null
@@ -109,12 +110,13 @@ class MainActivity : ComponentActivity() {
     Log.i("MainActivity", "cleaning up")
   }
 
-  override fun onNewIntent(intent: Intent?) {
+  public override fun onNewIntent(intent: Intent?) {
     super.onNewIntent(intent)
     handleIntent(intent)
   }
 
   private fun handleIntent(intent: Intent?) {
+    Log.d("MainActivity", "Got intent $intent")
     when (intent?.action) {
       Intent.ACTION_SEND -> {
         // Check if it's text or image
@@ -130,7 +132,7 @@ class MainActivity : ComponentActivity() {
         if (text != null) {
           textToTranslate = text
         } else if (imageUri != null) {
-          sharedImageUri = imageUri
+          sharedImageUri.value = imageUri
           textToTranslate = "" // Clear any existing text
         }
       }

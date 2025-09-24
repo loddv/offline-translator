@@ -41,20 +41,7 @@ class LanguageDetectionInstrumentedTest {
 
   @Before
   fun setUp() {
-    val context = InstrumentationRegistry.getInstrumentation().context
-    val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-
-    val settingsManager = SettingsManager(appContext)
-    val filePathManager = FilePathManager(appContext, settingsManager.settings)
-    val dataPath = filePathManager.getDataDir()
-    dataPath.mkdirs()
-
-    val tessDataPath = filePathManager.getTesseractDataDir()
-    tessDataPath.mkdirs()
-
-    TestUtils.copyLangData(context, dataPath, Language.SPANISH)
-    TestUtils.copyTessData(context, tessDataPath, Language.ENGLISH)
-    TestUtils.copyTessData(context, tessDataPath, Language.SPANISH)
+    TestUtils.setupLanguagesForApp()
   }
 
   @Test

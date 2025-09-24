@@ -33,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -95,7 +96,7 @@ fun openDictionary(
 @Composable
 fun TranslatorApp(
   initialText: String,
-  sharedImageUri: Uri? = null,
+  sharedImageUri: MutableState<Uri?>,
   translationCoordinator: TranslationCoordinator,
   settingsManager: SettingsManager,
   filePathManager: FilePathManager,
@@ -298,7 +299,7 @@ fun TranslatorApp(
     scope.launch {
       when (inputType) {
         InputType.TEXT -> {
-          val result = translationCoordinator.translateText(fromLang, toLang, input)
+          val result = translationCoordinator.translateText(fromLang, toLang, input.trim())
           result?.let {
             output =
               when (it) {
@@ -468,10 +469,7 @@ fun TranslatorApp(
     }
   }
   LaunchedEffect(from, input, to) {
-    if (input.trim().isEmpty()) {
-      output = null
-      return@LaunchedEffect
-    }
+    // don't check for empty, we may be translating an image
     if (isTranslating) {
       return@LaunchedEffect
     }
@@ -483,7 +481,7 @@ fun TranslatorApp(
           null
         }
     }
-    if (input.isNotBlank() && from != null) {
+    if (from != null) {
       translateWithLanguages(from!!, to)
     } else {
       output = null
@@ -491,10 +489,11 @@ fun TranslatorApp(
   }
 
   // Process shared image when component loads
-  LaunchedEffect(sharedImageUri) {
-    if (sharedImageUri != null) {
-      Log.d("SharedImage", "Processing shared image: $sharedImageUri")
-      handleMessage(TranslatorMessage.SetImageUri(sharedImageUri))
+  LaunchedEffect(sharedImageUri.value) {
+    val uri = sharedImageUri.value
+    if (uri != null) {
+      Log.d("SharedImage", "Processing shared image: $uri")
+      handleMessage(TranslatorMessage.SetImageUri(uri))
     }
   }
   // Determine start destination based on initial language availability (fixed at first composition)

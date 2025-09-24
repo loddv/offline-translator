@@ -58,4 +58,21 @@ object TestUtils {
       copyFile(context, dataPath, it)
     }
   }
+
+  fun setupLanguagesForApp() {
+    val testContext = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context
+    val appContext = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+
+    val settingsManager = SettingsManager(appContext)
+    val filePathManager = FilePathManager(appContext, settingsManager.settings)
+    val dataPath = filePathManager.getDataDir()
+    dataPath.mkdirs()
+
+    val tessDataPath = filePathManager.getTesseractDataDir()
+    tessDataPath.mkdirs()
+
+    copyLangData(testContext, dataPath, Language.SPANISH)
+    copyTessData(testContext, tessDataPath, Language.ENGLISH)
+    copyTessData(testContext, tessDataPath, Language.SPANISH)
+  }
 }

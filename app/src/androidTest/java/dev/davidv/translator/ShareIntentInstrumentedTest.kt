@@ -27,7 +27,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -40,20 +39,7 @@ class ShareIntentInstrumentedTest {
 
   @Before
   fun setUp() {
-    val context = InstrumentationRegistry.getInstrumentation().context
-    val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-
-    val settingsManager = SettingsManager(appContext)
-    val filePathManager = FilePathManager(appContext, settingsManager.settings)
-    val dataPath = filePathManager.getDataDir()
-    dataPath.mkdirs()
-
-    val tessDataPath = filePathManager.getTesseractDataDir()
-    tessDataPath.mkdirs()
-
-    TestUtils.copyLangData(context, dataPath, Language.SPANISH)
-    TestUtils.copyTessData(context, tessDataPath, Language.ENGLISH)
-    TestUtils.copyTessData(context, tessDataPath, Language.SPANISH)
+    TestUtils.setupLanguagesForApp()
   }
 
   @Test

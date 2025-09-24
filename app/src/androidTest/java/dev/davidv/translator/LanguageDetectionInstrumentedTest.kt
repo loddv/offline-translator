@@ -40,44 +40,6 @@ class LanguageDetectionInstrumentedTest {
   @get:Rule
   val composeTestRule = createAndroidComposeRule<MainActivity>()
 
-  private fun copyFile(
-    testContext: android.content.Context,
-    appPath: File,
-    filename: String,
-  ) {
-    val stream = testContext.assets.open(filename)
-    val out = File(appPath, filename)
-    out.outputStream().use { output ->
-      stream.copyTo(output)
-    }
-    stream.close()
-    println("Copied $filename to ${appPath.name}")
-  }
-
-  private fun copyTessData(
-    context: android.content.Context,
-    tessDataPath: File,
-    language: Language,
-  ) {
-    copyFile(context, tessDataPath, language.tessFilename)
-  }
-
-  private fun copyLangData(
-    context: android.content.Context,
-    dataPath: File,
-    language: Language,
-  ) {
-    val enLangFiles = fromEnglishFiles[language]
-    enLangFiles?.allFiles()?.forEach {
-      copyFile(context, dataPath, it)
-    }
-
-    val langEnFiles = toEnglishFiles[language]
-    langEnFiles?.allFiles()?.forEach {
-      copyFile(context, dataPath, it)
-    }
-  }
-
   @Before
   fun setUp() {
     val context = InstrumentationRegistry.getInstrumentation().context
@@ -91,9 +53,9 @@ class LanguageDetectionInstrumentedTest {
     val tessDataPath = filePathManager.getTesseractDataDir()
     tessDataPath.mkdirs()
 
-    copyLangData(context, dataPath, Language.SPANISH)
-    copyTessData(context, tessDataPath, Language.ENGLISH)
-    copyTessData(context, tessDataPath, Language.SPANISH)
+    TestUtils.copyLangData(context, dataPath, Language.SPANISH)
+    TestUtils.copyTessData(context, tessDataPath, Language.ENGLISH)
+    TestUtils.copyTessData(context, tessDataPath, Language.SPANISH)
   }
 
   @Test

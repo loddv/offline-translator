@@ -53,13 +53,7 @@ class ExampleInstrumentedTest {
     val tessdataDir = File(tessDir, "tessdata")
     tessdataDir.mkdirs()
 
-    // copy from test context to app context
-    val inputStreamEng = context.assets.open("eng.traineddata")
-    val trainedDataFile = File(tessdataDir, "eng.traineddata")
-    trainedDataFile.outputStream().use { output ->
-      inputStreamEng.copyTo(output)
-    }
-    inputStreamEng.close()
+    TestUtils.copyFile(context, tessdataDir, "eng.traineddata")
 
     val tessInstance = TesseractOCR(tessdataDir.absolutePath, "eng")
     assert(tessInstance.initialize())

@@ -59,6 +59,7 @@ fun StyledTextField(
     AndroidView(
       factory = { context ->
         EditText(context).apply {
+          this.contentDescription = "Primary input"
           this.layoutParams =
             ViewGroup.LayoutParams(
               ViewGroup.LayoutParams.MATCH_PARENT,

@@ -64,7 +64,9 @@ class ExampleInstrumentedTest {
     val tessInstance = TesseractOCR(tessdataDir.absolutePath, "eng")
     assert(tessInstance.initialize())
     val blocks = getSentences(bitmap, tessInstance)
-    println(blocks.joinToString("\n"))
+    blocks.forEachIndexed { i, b ->
+      println("$i $b")
+    }
     assertEquals(11, blocks.count())
     assertEquals(3, blocks[6].lines.count())
     assertEquals("Philipsen sprint naar eerste gele trui in", blocks[6].lines[0].text)

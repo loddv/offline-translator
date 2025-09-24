@@ -15,6 +15,7 @@ pub struct DetectedWord {
     pub confidence: f32,
     pub is_at_beginning_of_para: bool,
     pub end_para: bool,
+    pub end_line: bool,
 }
 
 pub struct TesseractWrapper {
@@ -161,8 +162,12 @@ impl TesseractWrapper {
                         let confidence = word.confidence;
                         let is_at_beginning_of_para =
                             word_iter.is_at_beginning_of(PageIteratorLevel::RIL_PARA);
-                        let end_para = word_iter.is_at_final_element(
+                        let end_line = word_iter.is_at_final_element(
                             PageIteratorLevel::RIL_TEXTLINE,
+                            PageIteratorLevel::RIL_WORD,
+                        );
+                        let end_para = word_iter.is_at_final_element(
+                            PageIteratorLevel::RIL_PARA,
                             PageIteratorLevel::RIL_WORD,
                         );
 
@@ -171,6 +176,7 @@ impl TesseractWrapper {
                             bounding_rect,
                             confidence,
                             is_at_beginning_of_para,
+                            end_line,
                             end_para,
                         });
                         word_count += 1;
@@ -430,10 +436,11 @@ fn create_detected_word_jobject(env: &mut JNIEnv, word: &DetectedWord) -> jobjec
     let confidence = word.confidence;
     let is_at_beginning_of_para = word.is_at_beginning_of_para as u8;
     let end_para = word.end_para as u8;
+    let end_line = word.end_line as u8;
 
     match env.new_object(
         "dev/davidv/translator/DetectedWord",
-        "(Ljava/lang/String;IIIIFZZ)V",
+        "(Ljava/lang/String;IIIIFZZZ)V",
         &[
             (&text_string).into(),
             left.into(),
@@ -442,6 +449,7 @@ fn create_detected_word_jobject(env: &mut JNIEnv, word: &DetectedWord) -> jobjec
             bottom.into(),
             confidence.into(),
             is_at_beginning_of_para.into(),
+            end_line.into(),
             end_para.into(),
         ],
     ) {

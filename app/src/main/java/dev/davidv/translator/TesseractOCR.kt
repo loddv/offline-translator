@@ -17,14 +17,13 @@ class TesseractOCR(
     return isInitialized
   }
 
-  fun setPageSegmentationMode(mode: PageSegMode): Boolean {
-    return if (isInitialized) {
+  fun setPageSegmentationMode(mode: PageSegMode): Boolean =
+    if (isInitialized) {
       binding.setPageSegMode(mode)
       true
     } else {
       false
     }
-  }
 
   fun processImage(bitmap: Bitmap): List<DetectedWord>? {
     if (!isInitialized) return null
@@ -34,24 +33,6 @@ class TesseractOCR(
     val height = bitmap.height
     val bytesPerPixel = 4 // RGBA
     val bytesPerLine = width * bytesPerPixel
-
-    val success = binding.setFrame(imageData, width, height, bytesPerPixel, bytesPerLine)
-
-    return if (success) {
-      binding.getWordBoxes()
-    } else {
-      null
-    }
-  }
-
-  fun processImageBytes(
-    imageData: ByteArray,
-    width: Int,
-    height: Int,
-    bytesPerPixel: Int = 3,
-    bytesPerLine: Int = width * 3,
-  ): List<DetectedWord>? {
-    if (!isInitialized) return null
 
     val success = binding.setFrame(imageData, width, height, bytesPerPixel, bytesPerLine)
 

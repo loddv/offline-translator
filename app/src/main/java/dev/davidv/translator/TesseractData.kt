@@ -8,13 +8,16 @@ data class DetectedWord(
   val bottom: Int,
   val confidence: Float,
   val isAtBeginningOfPara: Boolean,
+  val endLine: Boolean,
   val endPara: Boolean,
 ) {
   val width: Int get() = right - left
   val height: Int get() = bottom - top
 }
 
-enum class PageSegMode(val value: Int) {
+enum class PageSegMode(
+  val value: Int,
+) {
   PSM_OSD_ONLY(0),
   PSM_AUTO_OSD(1),
   PSM_AUTO_ONLY(2),

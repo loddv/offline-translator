@@ -69,7 +69,7 @@ fun getSentences(
           confidence = detectedWord.confidence,
           boundingBox = Rect(detectedWord.left, detectedWord.top, detectedWord.right, detectedWord.bottom),
           isFirstInLine = detectedWord.isAtBeginningOfPara,
-          isLastInLine = detectedWord.endPara,
+          isLastInLine = detectedWord.endLine,
           isLastInPara = detectedWord.endPara,
         )
       }.toMutableList()
@@ -162,7 +162,8 @@ fun getSentences(
     }
 
     if (lastWordInPara && lines.isNotEmpty()) {
-      blocks.add(TextBlock(lines.toTypedArray()))
+      val block = TextBlock(lines.toTypedArray())
+      blocks.add(block)
       lines.clear()
     }
     lastRight = boundingBox.right

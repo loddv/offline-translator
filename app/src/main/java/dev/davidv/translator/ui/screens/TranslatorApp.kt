@@ -21,6 +21,12 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +35,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -42,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -102,10 +110,21 @@ fun TranslatorApp(
   filePathManager: FilePathManager,
   downloadServiceState: StateFlow<DownloadService?>,
   launchMode: LaunchMode,
+  onClose: () -> Unit = {},
 ) {
   val navController = rememberNavController()
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
+
+  // Modal animation state
+  var modalVisible by remember { mutableStateOf(launchMode == LaunchMode.Normal) }
+
+  // Animate in modal on launch
+  LaunchedEffect(launchMode) {
+    if (launchMode != LaunchMode.Normal) {
+      modalVisible = true
+    }
+  }
 
   var dictionaryBindings by remember { mutableStateOf<Map<Language, TarkkaBinding>>(emptyMap()) }
   var dictionaryWord by remember { mutableStateOf<WordWithTaggedEntries?>(null) }
@@ -520,6 +539,7 @@ fun TranslatorApp(
 
   // Handle initial navigation from loading screen only
   LaunchedEffect(languageState.isChecking) {
+    Log.i("TranslatorApp", "Checking ${languageState.isChecking}")
     val currentRoute = navController.currentDestination?.route
 
     if (!languageState.isChecking && currentRoute == "loading") {
@@ -532,138 +552,179 @@ fun TranslatorApp(
   }
 
   Box(
-    modifier =
-      when (launchMode) {
-        LaunchMode.Normal -> Modifier.fillMaxHeight()
-        LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
-          Modifier.height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
-      }.fillMaxWidth(),
+    modifier = Modifier.fillMaxSize(),
+    contentAlignment = Alignment.Center,
   ) {
-    NavHost(
-      navController = navController,
-      startDestination = startDestination,
-    ) {
-      composable("loading") {
-        // Simple loading screen while checking languages
-        Box(
-          modifier = Modifier.fillMaxSize(),
-          contentAlignment = Alignment.Center,
-        ) {
-          CircularProgressIndicator()
-        }
-      }
-
-      composable("no_languages") {
-        val currentLanguageStateManager = languageStateManager
-        val currentDownloadService = downloadService
-        if (currentLanguageStateManager != null && currentDownloadService != null) {
-          NoLanguagesScreen(
-            onDone = {
-              // Only navigate if languages are available
-              if (languageState.hasLanguages) {
-                MainScope().launch {
-                  navController.navigate("main") {
-                    popUpTo("no_languages") { inclusive = true }
-                  }
-                }
+    // Background scrim for modal modes
+    if (launchMode != LaunchMode.Normal) {
+      Box(
+        modifier =
+          Modifier
+            .fillMaxSize()
+            .background(
+              androidx.compose.material3.MaterialTheme.colorScheme.primary
+                .copy(alpha = 0.15f),
+            ).clickable {
+              modalVisible = false
+              scope.launch {
+                kotlinx.coroutines.delay(300) // Wait for animation to complete
+                onClose()
               }
             },
-            onSettings = {
-              navController.navigate("settings")
-            },
-            languageStateManager = currentLanguageStateManager,
-            downloadService = currentDownloadService,
-          )
-        }
-      }
+      )
+    }
 
-      composable("main") {
-        // Guard: redirect to no_languages if no languages available (only on initial load)
-        if (!languageState.hasLanguages && !languageState.isChecking) {
-          LaunchedEffect(Unit) {
-            navController.navigate("no_languages") {
-              popUpTo("main") { inclusive = true }
+    AnimatedVisibility(
+      visible = modalVisible,
+      enter =
+        slideInVertically(
+          animationSpec = tween(300),
+          initialOffsetY = { fullHeight -> fullHeight },
+        ),
+      exit =
+        slideOutVertically(
+          animationSpec = tween(300),
+          targetOffsetY = { fullHeight -> fullHeight },
+        ),
+    ) {
+      Box(
+        modifier =
+          when (launchMode) {
+            LaunchMode.Normal -> Modifier.fillMaxHeight()
+            LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
+              Modifier
+                .height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
+                .fillMaxWidth(0.9f)
+                .clip(RoundedCornerShape(10.dp))
+          },
+      ) {
+        NavHost(
+          navController = navController,
+          startDestination = startDestination,
+        ) {
+          composable("loading") {
+            // Simple loading screen while checking languages
+            Box(
+              modifier = Modifier.fillMaxSize(),
+              contentAlignment = Alignment.Center,
+            ) {
+              CircularProgressIndicator()
             }
           }
-        } else if (from != null) {
-          MainScreen(
-            // Navigation
-            onSettings = { navController.navigate("settings") },
-            // Current state (read-only)
-            input = input,
-            output = output,
-            from = from!!,
-            to = to,
-            detectedLanguage = currentDetectedLanguage,
-            displayImage = displayImage,
-            isTranslating = translationCoordinator.isTranslating,
-            isOcrInProgress = translationCoordinator.isOcrInProgress,
-            dictionaryWord = dictionaryWord,
-            dictionaryStack = dictionaryStack,
-            dictionaryLookupLanguage = dictionaryLookupLanguage,
-            // Action requests
-            onMessage = handleMessage,
-            // System integration
-            availableLanguages = languageState.availableLanguageMap,
-            downloadStates = downloadStates,
-            settings = settings,
-            launchMode = launchMode,
-          )
-        }
-      }
-      composable("language_manager") {
-        if (languageStateManager != null && downloadService != null) {
-          val curDownloadService = downloadService!!
-          val availLangs = languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
-          val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
-          val availableLanguages =
-            Language.entries
-              .filter { lang ->
-                fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
-              }.sortedBy { it.displayName }
-          val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
-          val dictionaryIndex by languageStateManager.dictionaryIndex.collectAsState()
-          Scaffold(
-            modifier =
-              Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .imePadding(),
-          ) { padding ->
-            Box(modifier = Modifier.padding(padding)) {
-              TabbedLanguageManagerScreen(
-                context = context,
-                languageStateManager = languageStateManager,
-                installedLanguages = installedLanguages,
-                availableLanguages = availableLanguages,
-                languageAvailabilityState = languageState,
-                downloadStates = downloadStates,
-                dictionaryDownloadStates = dictionaryDownloadStates,
-                dictionaryIndex = dictionaryIndex,
+
+          composable("no_languages") {
+            val currentLanguageStateManager = languageStateManager
+            val currentDownloadService = downloadService
+            if (currentLanguageStateManager != null && currentDownloadService != null) {
+              NoLanguagesScreen(
+                onDone = {
+                  // Only navigate if languages are available
+                  if (languageState.hasLanguages) {
+                    MainScope().launch {
+                      navController.navigate("main") {
+                        popUpTo("no_languages") { inclusive = true }
+                      }
+                    }
+                  }
+                },
+                onSettings = {
+                  navController.navigate("settings")
+                },
+                languageStateManager = currentLanguageStateManager,
+                downloadService = currentDownloadService,
               )
             }
           }
+
+          composable("main") {
+            // Guard: redirect to no_languages if no languages available (only on initial load)
+            if (!languageState.hasLanguages && !languageState.isChecking) {
+              LaunchedEffect(Unit) {
+                navController.navigate("no_languages") {
+                  popUpTo("main") { inclusive = true }
+                }
+              }
+            } else if (from != null) {
+              MainScreen(
+                // Navigation
+                onSettings = { navController.navigate("settings") },
+                // Current state (read-only)
+                input = input,
+                output = output,
+                from = from!!,
+                to = to,
+                detectedLanguage = currentDetectedLanguage,
+                displayImage = displayImage,
+                isTranslating = translationCoordinator.isTranslating,
+                isOcrInProgress = translationCoordinator.isOcrInProgress,
+                dictionaryWord = dictionaryWord,
+                dictionaryStack = dictionaryStack,
+                dictionaryLookupLanguage = dictionaryLookupLanguage,
+                // Action requests
+                onMessage = handleMessage,
+                // System integration
+                availableLanguages = languageState.availableLanguageMap,
+                downloadStates = downloadStates,
+                settings = settings,
+                launchMode = launchMode,
+              )
+            }
+          }
+          composable("language_manager") {
+            if (languageStateManager != null && downloadService != null) {
+              val curDownloadService = downloadService!!
+              val availLangs = languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+              val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+              val availableLanguages =
+                Language.entries
+                  .filter { lang ->
+                    fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+                  }.sortedBy { it.displayName }
+              val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
+              val dictionaryIndex by languageStateManager.dictionaryIndex.collectAsState()
+              Scaffold(
+                modifier =
+                  Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .imePadding(),
+              ) { padding ->
+                Box(modifier = Modifier.padding(padding)) {
+                  TabbedLanguageManagerScreen(
+                    context = context,
+                    languageStateManager = languageStateManager,
+                    installedLanguages = installedLanguages,
+                    availableLanguages = availableLanguages,
+                    languageAvailabilityState = languageState,
+                    downloadStates = downloadStates,
+                    dictionaryDownloadStates = dictionaryDownloadStates,
+                    dictionaryIndex = dictionaryIndex,
+                  )
+                }
+              }
+            }
+          }
+          composable("settings") {
+            SettingsScreen(
+              settings = settings,
+              availableLanguages = (languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys + Language.ENGLISH).toList(),
+              onSettingsChange = { newSettings ->
+                settingsManager.updateSettings(newSettings)
+                // Update current target language if it changed
+                if (newSettings.defaultTargetLanguage != settings.defaultTargetLanguage) {
+                  setTo(newSettings.defaultTargetLanguage)
+                }
+                // Refresh language availability if storage location changed
+                if (newSettings.useExternalStorage != settings.useExternalStorage) {
+                  languageStateManager?.refreshLanguageAvailability()
+                }
+              },
+              onManageLanguages = {
+                navController.navigate("language_manager")
+              },
+            )
+          }
         }
-      }
-      composable("settings") {
-        SettingsScreen(
-          settings = settings,
-          availableLanguages = (languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys + Language.ENGLISH).toList(),
-          onSettingsChange = { newSettings ->
-            settingsManager.updateSettings(newSettings)
-            // Update current target language if it changed
-            if (newSettings.defaultTargetLanguage != settings.defaultTargetLanguage) {
-              setTo(newSettings.defaultTargetLanguage)
-            }
-            // Refresh language availability if storage location changed
-            if (newSettings.useExternalStorage != settings.useExternalStorage) {
-              languageStateManager?.refreshLanguageAvailability()
-            }
-          },
-          onManageLanguages = {
-            navController.navigate("language_manager")
-          },
-        )
       }
     }
   }

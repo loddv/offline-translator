@@ -75,6 +75,7 @@ class ProcessTextActivity : ComponentActivity() {
             filePathManager = filePathManager,
             downloadServiceState = downloadServiceState,
             launchMode = launchMode,
+            onClose = { finish() },
           )
         }
       }

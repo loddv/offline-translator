@@ -160,9 +160,6 @@ models:
 vocabs:
   - $dataPath/${languageFiles.srcVocab.first}
   - $dataPath/${languageFiles.tgtVocab.first}
-shortlist:
-    - $dataPath/${languageFiles.lex.first}
-    - false
 beam-size: 1
 normalize: 1.0
 word-penalty: 0

@@ -2,3 +2,4 @@
 - Fix OCR from shared images sometimes not starting
 - Change the Tesseract build, should be about 35% faster
 - Added some integration tests
+- Improved translation quality, but it's slightly slower

@@ -4,3 +4,4 @@
 - Improve startup speed
 - Improve translation resposiveness
 - Improved translation quality (but it's slightly slower)
+- Change Chinese, Korean, Japanese and Russian model quality (lower memory usage, 99% of the quality)

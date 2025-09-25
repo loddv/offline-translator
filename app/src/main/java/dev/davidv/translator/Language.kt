@@ -27,9 +27,7 @@ object Constants {
   const val DEFAULT_DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"
 }
 
-enum class ModelType(
-  private val pathName: String,
-) {
+enum class ModelType(private val pathName: String) {
   BASE("base"),
   BASE_MEMORY("base-memory"),
   TINY("tiny"),
@@ -38,21 +36,14 @@ enum class ModelType(
   override fun toString(): String = pathName
 }
 
-enum class Language(
-  val code: String,
-  val tessName: String,
-  val displayName: String,
-  val script: String,
-  val sizeBytes: Int,
-  val tessdataSizeBytes: Int,
-) {
+enum class Language(val code: String, val tessName: String, val displayName: String, val script: String, val sizeBytes: Int, val tessdataSizeBytes: Int) {
   ALBANIAN("sq", "sqi", "Albanian", "Latin", 32421521, 1874705),
-  ARABIC("ar", "ara", "Arabic", "Arabic", 68840006, 1432056),
+  ARABIC("ar", "ara", "Arabic", "Arabic", 52249041, 1432056),
   AZERBAIJANI("az", "aze", "Azerbaijani", "Latin", 34314579, 3524799),
   BENGALI("bn", "ben", "Bengali", "Bengali", 31090144, 855841),
   BULGARIAN("bg", "bul", "Bulgarian", "Cyrillic", 43393000, 1675212),
   CATALAN("ca", "cat", "Catalan", "Latin", 52271256, 1146012),
-  CHINESE("zh", "chi_sim", "Chinese", "Han", 87272270, 2469156),
+  CHINESE("zh", "chi_sim", "Chinese", "Han", 78503531, 2469156),
   CROATIAN("hr", "hrv", "Croatian", "Latin", 34072743, 4103348),
   CZECH("cs", "ces", "Czech", "Latin", 63076435, 3795684),
   DANISH("da", "dan", "Danish", "Latin", 32381617, 2580059),
@@ -70,9 +61,9 @@ enum class Language(
   ICELANDIC("is", "isl", "Icelandic", "Latin", 52912843, 2278973),
   INDONESIAN("id", "ind", "Indonesian", "Latin", 30949027, 1122661),
   ITALIAN("it", "ita", "Italian", "Latin", 45061556, 2701314),
-  JAPANESE("ja", "jpn", "Japanese", "Japanese", 99552247, 2471260),
+  JAPANESE("ja", "jpn", "Japanese", "Japanese", 76844178, 2471260),
   KANNADA("kn", "kan", "Kannada", "Kannada", 34140291, 3608331),
-  KOREAN("ko", "kor", "Korean", "Hangul", 99798052, 1677415),
+  KOREAN("ko", "kor", "Korean", "Hangul", 76943353, 1677415),
   LATVIAN("lv", "lav", "Latvian", "Latin", 43806510, 2717247),
   LITHUANIAN("lt", "lit", "Lithuanian", "Latin", 43477739, 3154896),
   MALAY("ms", "msa", "Malay", "Latin", 32319298, 1747801),
@@ -81,7 +72,7 @@ enum class Language(
   POLISH("pl", "pol", "Polish", "Latin", 36390308, 4765518),
   PORTUGUESE("pt", "por", "Portuguese", "Latin", 43444286, 1982756),
   ROMANIAN("ro", "ron", "Romanian", "Latin", 32105494, 2376323),
-  RUSSIAN("ru", "rus", "Russian", "Cyrillic", 51323156, 3861738),
+  RUSSIAN("ru", "rus", "Russian", "Cyrillic", 42643637, 3861738),
   SLOVAK("sk", "slk", "Slovak", "Latin", 45019909, 4427661),
   SLOVENIAN("sl", "slv", "Slovenian", "Latin", 54080964, 3003829),
   SPANISH("es", "spa", "Spanish", "Latin", 43273604, 2294433),
@@ -108,7 +99,7 @@ data class LanguageFiles(
 
 val fromEnglishFiles =
   mapOf(
-    Language.ARABIC to LanguageFiles(Pair("model.enar.intgemm.alphas.bin", 32224151), Pair("vocab.enar.spm", 418930), Pair("vocab.enar.spm", 418930), Pair("lex.50.50.enar.s2t.bin", 1633784), ModelType.BASE),
+    Language.ARABIC to LanguageFiles(Pair("model.enar.intgemm.alphas.bin", 22857819), Pair("vocab.enar.spm", 418930), Pair("vocab.enar.spm", 418930), Pair("lex.50.50.enar.s2t.bin", 1639219), ModelType.BASE_MEMORY),
     Language.AZERBAIJANI to LanguageFiles(Pair("model.enaz.intgemm.alphas.bin", 13233108), Pair("vocab.enaz.spm", 418956), Pair("vocab.enaz.spm", 418956), Pair("lex.50.50.enaz.s2t.bin", 1711544), ModelType.TINY),
     Language.BULGARIAN to LanguageFiles(Pair("model.enbg.intgemm.alphas.bin", 13311038), Pair("vocab.enbg.spm", 435044), Pair("vocab.enbg.spm", 435044), Pair("lex.50.50.enbg.s2t.bin", 2950444), ModelType.TINY),
     Language.BENGALI to LanguageFiles(Pair("model.enbn.intgemm.alphas.bin", 12821521), Pair("vocab.enbn.spm", 437373), Pair("vocab.enbn.spm", 437373), Pair("lex.50.50.enbn.s2t.bin", 1607697), ModelType.TINY),
@@ -130,9 +121,9 @@ val fromEnglishFiles =
     Language.INDONESIAN to LanguageFiles(Pair("model.enid.intgemm.alphas.bin", 12503257), Pair("vocab.enid.spm", 379806), Pair("vocab.enid.spm", 379806), Pair("lex.50.50.enid.s2t.bin", 1734565), ModelType.TINY),
     Language.ICELANDIC to LanguageFiles(Pair("model.enis.intgemm.alphas.bin", 22588003), Pair("vocab.enis.spm", 413543), Pair("vocab.enis.spm", 413543), Pair("lex.50.50.enis.s2t.bin", 1977789), ModelType.BASE_MEMORY),
     Language.ITALIAN to LanguageFiles(Pair("model.enit.intgemm.alphas.bin", 13267138), Pair("vocab.enit.spm", 408834), Pair("vocab.enit.spm", 408834), Pair("lex.50.50.enit.s2t.bin", 2441969), ModelType.TINY),
-    Language.JAPANESE to LanguageFiles(Pair("model.enja.intgemm.alphas.bin", 44089580), Pair("srcvocab.enja.spm", 404352), Pair("trgvocab.enja.spm", 431278), Pair("lex.50.50.enja.s2t.bin", 3504993), ModelType.BASE),
+    Language.JAPANESE to LanguageFiles(Pair("model.enja.intgemm.alphas.bin", 33052218), Pair("srcvocab.enja.spm", 404352), Pair("trgvocab.enja.spm", 431278), Pair("lex.50.50.enja.s2t.bin", 2341409), ModelType.BASE_MEMORY),
     Language.KANNADA to LanguageFiles(Pair("model.enkn.intgemm.alphas.bin", 13009213), Pair("vocab.enkn.spm", 450046), Pair("vocab.enkn.spm", 450046), Pair("lex.50.50.enkn.s2t.bin", 1416160), ModelType.TINY),
-    Language.KOREAN to LanguageFiles(Pair("model.enko.intgemm.alphas.bin", 45488445), Pair("vocab.enko.spm", 706904), Pair("vocab.enko.spm", 706904), Pair("lex.50.50.enko.s2t.bin", 3697379), ModelType.BASE),
+    Language.KOREAN to LanguageFiles(Pair("model.enko.intgemm.alphas.bin", 33738001), Pair("srcvocab.enko.spm", 402480), Pair("trgvocab.enko.spm", 412614), Pair("lex.50.50.enko.s2t.bin", 3471311), ModelType.BASE_MEMORY),
     Language.LITHUANIAN to LanguageFiles(Pair("model.enlt.intgemm.alphas.bin", 22865642), Pair("vocab.enlt.spm", 403356), Pair("vocab.enlt.spm", 403356), Pair("lex.50.50.enlt.s2t.bin", 1769752), ModelType.BASE_MEMORY),
     Language.LATVIAN to LanguageFiles(Pair("model.enlv.intgemm.alphas.bin", 23727668), Pair("vocab.enlv.spm", 407540), Pair("vocab.enlv.spm", 407540), Pair("lex.50.50.enlv.s2t.bin", 1725879), ModelType.BASE_MEMORY),
     Language.MALAYALAM to LanguageFiles(Pair("model.enml.intgemm.alphas.bin", 12570038), Pair("vocab.enml.spm", 454768), Pair("vocab.enml.spm", 454768), Pair("lex.50.50.enml.s2t.bin", 1275347), ModelType.TINY),
@@ -141,7 +132,7 @@ val fromEnglishFiles =
     Language.POLISH to LanguageFiles(Pair("model.enpl.intgemm.alphas.bin", 12797631), Pair("vocab.enpl.spm", 415308), Pair("vocab.enpl.spm", 415308), Pair("lex.50.50.enpl.s2t.bin", 1945174), ModelType.TINY),
     Language.PORTUGUESE to LanguageFiles(Pair("model.enpt.intgemm.alphas.bin", 13099731), Pair("vocab.enpt.spm", 410584), Pair("vocab.enpt.spm", 410584), Pair("lex.50.50.enpt.s2t.bin", 2354273), ModelType.TINY),
     Language.ROMANIAN to LanguageFiles(Pair("model.enro.intgemm.alphas.bin", 12207487), Pair("vocab.enro.spm", 397137), Pair("vocab.enro.spm", 397137), Pair("lex.50.50.enro.s2t.bin", 1846074), ModelType.TINY),
-    Language.RUSSIAN to LanguageFiles(Pair("model.enru.intgemm.alphas.bin", 30698731), Pair("vocab.enru.spm", 419005), Pair("vocab.enru.spm", 419005), Pair("lex.50.50.enru.s2t.bin", 1348215), ModelType.BASE),
+    Language.RUSSIAN to LanguageFiles(Pair("model.enru.intgemm.alphas.bin", 21988864), Pair("vocab.enru.spm", 419005), Pair("vocab.enru.spm", 419005), Pair("lex.50.50.enru.s2t.bin", 1378563), ModelType.BASE_MEMORY),
     Language.SLOVAK to LanguageFiles(Pair("model.ensk.intgemm.alphas.bin", 22902983), Pair("vocab.ensk.spm", 405652), Pair("vocab.ensk.spm", 405652), Pair("lex.50.50.ensk.s2t.bin", 1708788), ModelType.BASE_MEMORY),
     Language.SLOVENIAN to LanguageFiles(Pair("model.ensl.intgemm.alphas.bin", 22669559), Pair("vocab.ensl.spm", 398763), Pair("vocab.ensl.spm", 398763), Pair("lex.50.50.ensl.s2t.bin", 1741316), ModelType.BASE_MEMORY),
     Language.ALBANIAN to LanguageFiles(Pair("model.ensq.intgemm.alphas.bin", 13366206), Pair("vocab.ensq.spm", 410650), Pair("vocab.ensq.spm", 410650), Pair("lex.50.50.ensq.s2t.bin", 1599959), ModelType.TINY),
@@ -150,19 +141,19 @@ val fromEnglishFiles =
     Language.TELUGU to LanguageFiles(Pair("model.ente.intgemm.alphas.bin", 12590862), Pair("vocab.ente.spm", 448838), Pair("vocab.ente.spm", 448838), Pair("lex.50.50.ente.s2t.bin", 1434105), ModelType.TINY),
     Language.TURKISH to LanguageFiles(Pair("model.entr.intgemm.alphas.bin", 13159314), Pair("vocab.entr.spm", 395473), Pair("vocab.entr.spm", 395473), Pair("lex.50.50.entr.s2t.bin", 1546258), ModelType.TINY),
     Language.UKRAINIAN to LanguageFiles(Pair("model.enuk.intgemm.alphas.bin", 22864374), Pair("vocab.enuk.spm", 436850), Pair("vocab.enuk.spm", 436850), Pair("lex.50.50.enuk.s2t.bin", 1564122), ModelType.BASE_MEMORY),
-    Language.CHINESE to LanguageFiles(Pair("model.enzh.intgemm.alphas.bin", 30500315), Pair("srcvocab.enzh.spm", 407784), Pair("trgvocab.enzh.spm", 425748), Pair("lex.50.50.enzh.s2t.bin", 3537095), ModelType.BASE),
+    Language.CHINESE to LanguageFiles(Pair("model.enzh.intgemm.alphas.bin", 33375922), Pair("srcvocab.enzh.spm", 407784), Pair("trgvocab.enzh.spm", 425748), Pair("lex.50.50.enzh.s2t.bin", 3537095), ModelType.BASE_MEMORY),
   )
 
 val toEnglishFiles =
   mapOf(
-    Language.ARABIC to LanguageFiles(Pair("model.aren.intgemm.alphas.bin", 30454343), Pair("vocab.aren.spm", 416700), Pair("vocab.aren.spm", 416700), Pair("lex.50.50.aren.s2t.bin", 2260042), ModelType.BASE),
+    Language.ARABIC to LanguageFiles(Pair("model.aren.intgemm.alphas.bin", 23224456), Pair("vocab.aren.spm", 416700), Pair("vocab.aren.spm", 416700), Pair("lex.50.50.aren.s2t.bin", 2259861), ModelType.BASE_MEMORY),
     Language.AZERBAIJANI to LanguageFiles(Pair("model.azen.intgemm.alphas.bin", 12740106), Pair("vocab.azen.spm", 418965), Pair("vocab.azen.spm", 418965), Pair("lex.50.50.azen.s2t.bin", 2267101), ModelType.TINY),
     Language.BULGARIAN to LanguageFiles(Pair("model.bgen.intgemm.alphas.bin", 22399269), Pair("vocab.bgen.spm", 434940), Pair("vocab.bgen.spm", 434940), Pair("lex.50.50.bgen.s2t.bin", 2187053), ModelType.BASE_MEMORY),
     Language.BENGALI to LanguageFiles(Pair("model.bnen.intgemm.alphas.bin", 12665857), Pair("vocab.bnen.spm", 437571), Pair("vocab.bnen.spm", 437571), Pair("lex.50.50.bnen.s2t.bin", 2264284), ModelType.TINY),
     Language.CATALAN to LanguageFiles(Pair("model.caen.intgemm.alphas.bin", 22787743), Pair("vocab.caen.spm", 409662), Pair("vocab.caen.spm", 409662), Pair("lex.50.50.caen.s2t.bin", 2257590), ModelType.BASE_MEMORY),
     Language.CZECH to LanguageFiles(Pair("model.csen.intgemm.alphas.bin", 22830296), Pair("vocab.csen.spm", 412691), Pair("vocab.csen.spm", 412691), Pair("lex.50.50.csen.s2t.bin", 2493702), ModelType.BASE_MEMORY),
     Language.DANISH to LanguageFiles(Pair("model.daen.intgemm.alphas.bin", 12525769), Pair("vocab.daen.spm", 399344), Pair("vocab.daen.spm", 399344), Pair("lex.50.50.daen.s2t.bin", 2170970), ModelType.TINY),
-    Language.GERMAN to LanguageFiles(Pair("model.deen.intgemm.alphas.bin", 30375030), Pair("vocab.deen.spm", 413926), Pair("vocab.deen.spm", 413926), Pair("lex.50.50.deen.s2t.bin", 2630876), ModelType.BASE),
+    Language.GERMAN to LanguageFiles(Pair("model.deen.intgemm.alphas.bin", 30375030), Pair("vocab.deen.spm", 413926), Pair("vocab.deen.spm", 413926), Pair("lex.50.50.deen.s2t.bin", 2630876), ModelType.BASE_MEMORY),
     Language.GREEK to LanguageFiles(Pair("model.elen.intgemm.alphas.bin", 12696541), Pair("vocab.elen.spm", 419174), Pair("vocab.elen.spm", 419174), Pair("lex.50.50.elen.s2t.bin", 1851246), ModelType.TINY),
     Language.SPANISH to LanguageFiles(Pair("model.esen.intgemm.alphas.bin", 23288494), Pair("vocab.esen.spm", 409312), Pair("vocab.esen.spm", 409312), Pair("lex.50.50.esen.s2t.bin", 2543246), ModelType.BASE_MEMORY),
     Language.ESTONIAN to LanguageFiles(Pair("model.eten.intgemm.alphas.bin", 22785077), Pair("vocab.eten.spm", 414262), Pair("vocab.eten.spm", 414262), Pair("lex.50.50.eten.s2t.bin", 2321326), ModelType.BASE_MEMORY),
@@ -177,9 +168,9 @@ val toEnglishFiles =
     Language.INDONESIAN to LanguageFiles(Pair("model.iden.intgemm.alphas.bin", 13010657), Pair("vocab.iden.spm", 379859), Pair("vocab.iden.spm", 379859), Pair("lex.50.50.iden.s2t.bin", 1818222), ModelType.TINY),
     Language.ICELANDIC to LanguageFiles(Pair("model.isen.intgemm.alphas.bin", 23229378), Pair("vocab.isen.spm", 412304), Pair("vocab.isen.spm", 412304), Pair("lex.50.50.isen.s2t.bin", 2012853), ModelType.BASE_MEMORY),
     Language.ITALIAN to LanguageFiles(Pair("model.iten.intgemm.alphas.bin", 23301774), Pair("vocab.iten.spm", 407598), Pair("vocab.iten.spm", 407598), Pair("lex.50.50.iten.s2t.bin", 2532929), ModelType.BASE_MEMORY),
-    Language.JAPANESE to LanguageFiles(Pair("model.jaen.intgemm.alphas.bin", 43084737), Pair("vocab.jaen.spm", 746616), Pair("vocab.jaen.spm", 746616), Pair("lex.50.50.jaen.s2t.bin", 4819431), ModelType.BASE),
+    Language.JAPANESE to LanguageFiles(Pair("model.jaen.intgemm.alphas.bin", 32577435), Pair("vocab.jaen.spm", 746616), Pair("vocab.jaen.spm", 746616), Pair("lex.50.50.jaen.s2t.bin", 4819610), ModelType.BASE_MEMORY),
     Language.KANNADA to LanguageFiles(Pair("model.knen.intgemm.alphas.bin", 13077357), Pair("vocab.knen.spm", 450324), Pair("vocab.knen.spm", 450324), Pair("lex.50.50.knen.s2t.bin", 2128860), ModelType.TINY),
-    Language.KOREAN to LanguageFiles(Pair("model.koen.intgemm.alphas.bin", 43140465), Pair("vocab.koen.spm", 706864), Pair("vocab.koen.spm", 706864), Pair("lex.50.50.koen.s2t.bin", 4380580), ModelType.BASE),
+    Language.KOREAN to LanguageFiles(Pair("model.koen.intgemm.alphas.bin", 32152814), Pair("vocab.koen.spm", 706864), Pair("vocab.koen.spm", 706864), Pair("lex.50.50.koen.s2t.bin", 4381854), ModelType.BASE_MEMORY),
     Language.LITHUANIAN to LanguageFiles(Pair("model.lten.intgemm.alphas.bin", 12571257), Pair("vocab.lten.spm", 403960), Pair("vocab.lten.spm", 403960), Pair("lex.50.50.lten.s2t.bin", 2308876), ModelType.TINY),
     Language.LATVIAN to LanguageFiles(Pair("model.lven.intgemm.alphas.bin", 12689153), Pair("vocab.lven.spm", 407237), Pair("vocab.lven.spm", 407237), Pair("lex.50.50.lven.s2t.bin", 2131786), ModelType.TINY),
     Language.MALAYALAM to LanguageFiles(Pair("model.mlen.intgemm.alphas.bin", 12792306), Pair("vocab.mlen.spm", 454911), Pair("vocab.mlen.spm", 454911), Pair("lex.50.50.mlen.s2t.bin", 2296381), ModelType.TINY),
@@ -197,5 +188,5 @@ val toEnglishFiles =
     Language.TELUGU to LanguageFiles(Pair("model.teen.intgemm.alphas.bin", 13202063), Pair("vocab.teen.spm", 448555), Pair("vocab.teen.spm", 448555), Pair("lex.50.50.teen.s2t.bin", 2209444), ModelType.TINY),
     Language.TURKISH to LanguageFiles(Pair("model.tren.intgemm.alphas.bin", 12362908), Pair("vocab.tren.spm", 409060), Pair("vocab.tren.spm", 409060), Pair("lex.50.50.tren.s2t.bin", 2470683), ModelType.TINY),
     Language.UKRAINIAN to LanguageFiles(Pair("model.uken.intgemm.alphas.bin", 12677432), Pair("vocab.uken.spm", 415266), Pair("vocab.uken.spm", 415266), Pair("lex.50.50.uken.s2t.bin", 1790588), ModelType.TINY),
-    Language.CHINESE to LanguageFiles(Pair("model.zhen.intgemm.alphas.bin", 44369188), Pair("vocab.zhen.spm", 738862), Pair("vocab.zhen.spm", 738862), Pair("lex.50.50.zhen.s2t.bin", 4824122), ModelType.BASE),
+    Language.CHINESE to LanguageFiles(Pair("model.zhen.intgemm.alphas.bin", 32726806), Pair("vocab.zhen.spm", 738862), Pair("vocab.zhen.spm", 738862), Pair("lex.50.50.zhen.s2t.bin", 4822158), ModelType.BASE_MEMORY),
   )

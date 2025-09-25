@@ -66,6 +66,56 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun LanguageDropdown(
+  label: String,
+  selectedLanguage: Language?,
+  availableLanguages: List<Language>,
+  fallbackLanguage: Language?,
+  onLanguageSelected: (Language) -> Unit,
+) {
+  var expanded by remember { mutableStateOf(false) }
+
+  Text(
+    text = label,
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurface,
+  )
+
+  ExposedDropdownMenuBox(
+    expanded = expanded,
+    onExpandedChange = { expanded = it },
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    OutlinedTextField(
+      value = selectedLanguage?.displayName ?: fallbackLanguage?.displayName ?: "No languages available",
+      onValueChange = {},
+      readOnly = true,
+      trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+      modifier =
+        Modifier
+          .menuAnchor()
+          .fillMaxWidth(),
+      colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+    )
+    ExposedDropdownMenu(
+      expanded = expanded,
+      onDismissRequest = { expanded = false },
+    ) {
+      availableLanguages.forEach { language ->
+        DropdownMenuItem(
+          text = { Text(language.displayName) },
+          onClick = {
+            onLanguageSelected(language)
+            expanded = false
+          },
+        )
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun SettingsScreen(
   settings: AppSettings,
   availableLanguages: List<Language>,
@@ -167,46 +217,25 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.primary,
           )
 
-          // Default Target Language
-          var languageExpanded by remember { mutableStateOf(false) }
-
-          Text(
-            text = "Default Target Language",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+          LanguageDropdown(
+            label = "Default 'from' language",
+            selectedLanguage = settings.defaultSourceLanguage,
+            availableLanguages = availableLanguages,
+            fallbackLanguage = availableLanguages.firstOrNull { it != settings.defaultTargetLanguage },
+            onLanguageSelected = { language ->
+              onSettingsChange(settings.copy(defaultSourceLanguage = language))
+            },
           )
 
-          ExposedDropdownMenuBox(
-            expanded = languageExpanded,
-            onExpandedChange = { languageExpanded = it },
-            modifier = Modifier.fillMaxWidth(),
-          ) {
-            OutlinedTextField(
-              value = settings.defaultTargetLanguage.displayName,
-              onValueChange = {},
-              readOnly = true,
-              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
-              modifier =
-                Modifier
-                  .menuAnchor()
-                  .fillMaxWidth(),
-              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            )
-            ExposedDropdownMenu(
-              expanded = languageExpanded,
-              onDismissRequest = { languageExpanded = false },
-            ) {
-              availableLanguages.forEach { language ->
-                DropdownMenuItem(
-                  text = { Text(language.displayName) },
-                  onClick = {
-                    onSettingsChange(settings.copy(defaultTargetLanguage = language))
-                    languageExpanded = false
-                  },
-                )
-              }
-            }
-          }
+          LanguageDropdown(
+            label = "Default 'to' language",
+            selectedLanguage = settings.defaultTargetLanguage,
+            availableLanguages = availableLanguages,
+            fallbackLanguage = null,
+            onLanguageSelected = { language ->
+              onSettingsChange(settings.copy(defaultTargetLanguage = language))
+            },
+          )
 
           Text(
             text = "Font Size",

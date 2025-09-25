@@ -51,6 +51,14 @@ class SettingsManager(
         defaults.defaultTargetLanguage
       }
 
+    val defaultSourceLanguageCode = prefs.getString("default_source_language", null)
+    val defaultSourceLanguage =
+      if (defaultSourceLanguageCode != null) {
+        Language.entries.find { it.code == defaultSourceLanguageCode }
+      } else {
+        defaults.defaultSourceLanguage
+      }
+
     val translationModelsBaseUrl =
       prefs.getString("translation_models_base_url_v2", null)
         ?: defaults.translationModelsBaseUrl
@@ -86,6 +94,7 @@ class SettingsManager(
 
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
+      defaultSourceLanguage = defaultSourceLanguage,
       translationModelsBaseUrl = translationModelsBaseUrl,
       tesseractModelsBaseUrl = tesseractModelsBaseUrl,
       dictionaryBaseUrl = dictionaryBaseUrl,
@@ -109,6 +118,14 @@ class SettingsManager(
       if (newSettings.defaultTargetLanguage != currentSettings.defaultTargetLanguage) {
         putString("default_target_language", newSettings.defaultTargetLanguage.code)
         modifiedSettings.add("default_target_language")
+      }
+      if (newSettings.defaultSourceLanguage != currentSettings.defaultSourceLanguage) {
+        if (newSettings.defaultSourceLanguage != null) {
+          putString("default_source_language", newSettings.defaultSourceLanguage.code)
+        } else {
+          remove("default_source_language")
+        }
+        modifiedSettings.add("default_source_language")
       }
       if (newSettings.translationModelsBaseUrl != currentSettings.translationModelsBaseUrl) {
         putString("translation_models_base_url_v2", newSettings.translationModelsBaseUrl)

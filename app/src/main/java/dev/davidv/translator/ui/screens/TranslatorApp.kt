@@ -224,7 +224,7 @@ fun TranslatorApp(
   }
 
   // Initialize from language when languages become available
-  LaunchedEffect(languageState.availableLanguageMap, settings.defaultTargetLanguage) {
+  LaunchedEffect(languageState.availableLanguageMap, settings.defaultTargetLanguage, settings.defaultSourceLanguage) {
     var actualTo = settings.defaultTargetLanguage
     if (languageState.hasLanguages) {
       // Deleted default target
@@ -233,12 +233,22 @@ fun TranslatorApp(
         actualTo = Language.ENGLISH
         settingsManager.updateSettings(settings.copy(defaultTargetLanguage = Language.ENGLISH))
       }
+
       if (from == null) {
-        val firstAvailable =
-          languageStateManager?.getFirstAvailableFromLanguage(excluding = settings.defaultTargetLanguage)
-        if (firstAvailable != null) {
-          setFrom(firstAvailable)
-          translationCoordinator.translationService.preloadModel(firstAvailable, actualTo)
+        val preferredSource = settings.defaultSourceLanguage
+        val sourceLanguage =
+          if (preferredSource != null &&
+            languageState.availableLanguageMap[preferredSource]?.translatorFiles == true &&
+            preferredSource != actualTo
+          ) {
+            preferredSource
+          } else {
+            languageStateManager?.getFirstAvailableFromLanguage(excluding = actualTo)
+          }
+
+        if (sourceLanguage != null) {
+          setFrom(sourceLanguage)
+          translationCoordinator.translationService.preloadModel(sourceLanguage, actualTo)
         }
       }
     }

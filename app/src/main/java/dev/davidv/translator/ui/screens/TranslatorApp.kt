@@ -108,7 +108,7 @@ fun TranslatorApp(
   settingsManager: SettingsManager,
   filePathManager: FilePathManager,
   downloadServiceState: StateFlow<DownloadService?>,
-  launchMode: LaunchMode,
+  initialLaunchMode: LaunchMode,
   onClose: () -> Unit = {},
 ) {
   val navController = rememberNavController()
@@ -116,7 +116,7 @@ fun TranslatorApp(
   val context = LocalContext.current
 
   // Launch mode state - make it mutable so it can be changed
-  var currentLaunchMode by remember { mutableStateOf(launchMode) }
+  var currentLaunchMode by remember { mutableStateOf(initialLaunchMode) }
 
   // Modal animation state
   var modalVisible by remember { mutableStateOf(currentLaunchMode == LaunchMode.Normal) }
@@ -620,7 +620,7 @@ fun TranslatorApp(
             .fillMaxHeight(heightFactor)
             .fillMaxWidth(widthFactor)
             .then(
-              if (launchMode == LaunchMode.Normal) {
+              if (currentLaunchMode == LaunchMode.Normal) {
                 Modifier
               } else {
                 Modifier.clip(RoundedCornerShape(10.dp))

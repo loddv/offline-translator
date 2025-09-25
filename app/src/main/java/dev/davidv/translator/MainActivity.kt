@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
           settingsManager = settingsManager,
           filePathManager = filePathManager,
           downloadServiceState = downloadServiceState,
-          launchMode = launchMode,
+          initialLaunchMode = launchMode,
         )
       }
     }

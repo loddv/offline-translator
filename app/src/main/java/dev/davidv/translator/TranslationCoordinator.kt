@@ -117,20 +117,10 @@ class TranslationCoordinator(
       val processedImage = imageProcessor.processImage(finalBitmap, minConfidence)
       _isOcrInProgress.value = false
 
-      // Create translation function for overlay
-      suspend fun translateFn(text: String): String =
-        when (val result = translationService.translate(from, to, text)) {
-          is TranslationResult.Success -> result.result.translated
-          is TranslationResult.Error -> {
-            Toast
-              .makeText(
-                context,
-                "Translation error: ${result.message}",
-                Toast.LENGTH_SHORT,
-              ).show()
-            "Error"
-          }
-        }
+      suspend fun translateMFn(texts: Array<String>): Array<String> {
+        // TODO error handling
+        return translationService.translateMultiple(from, to, texts).map { it.translated }.toTypedArray()
+      }
 
       Log.d("OCR", "complete, result ${processedImage.textBlocks}")
 
@@ -152,7 +142,7 @@ class TranslationCoordinator(
             paintTranslatedTextOver(
               processedImage.bitmap,
               processedImage.textBlocks,
-              ::translateFn,
+              ::translateMFn,
               settingsManager.settings.value.backgroundMode,
             )
           overlayBitmap = pair.first

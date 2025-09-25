@@ -64,6 +64,28 @@ class TranslationService(
     }
   }
 
+  // TODO maybe error as well
+  suspend fun translateMultiple(
+    from: Language,
+    to: Language,
+    texts: Array<String>,
+  ): List<TranslatedText> =
+    withContext(Dispatchers.IO) {
+      if (from == to) {
+        return@withContext texts.map { TranslatedText(it, null) }
+      }
+      // TODO: checks
+      val translationPairs = getTranslationPairs(from, to)
+      val result: Array<String>
+      val elapsed =
+        measureTimeMillis {
+          result = performMultipleTranslations(translationPairs, texts)
+        }
+      Log.d("TranslationService", "bulk translation took ${elapsed}ms")
+      val translated = result.map { TranslatedText(it, null) } // TODO translit
+      return@withContext translated
+    }
+
   suspend fun translate(
     from: Language,
     to: Language,
@@ -146,6 +168,19 @@ class TranslationService(
       currentText = nativeLib.stringFromJNI(config, currentText, languageCode)
     }
     return currentText
+  }
+
+  private fun performMultipleTranslations(
+    pairs: List<Pair<Language, Language>>,
+    texts: Array<String>,
+  ): Array<String> {
+    var currentTexts = texts
+    pairs.forEach { pair ->
+      val config = generateConfig(pair.first, pair.second)
+      val languageCode = "${pair.first.code}${pair.second.code}"
+      currentTexts = nativeLib.translateMultiple(config, currentTexts, languageCode)
+    }
+    return currentTexts
   }
 
   private fun generateConfig(

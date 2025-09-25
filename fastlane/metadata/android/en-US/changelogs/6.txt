@@ -2,6 +2,7 @@
 - Fix OCR from shared images sometimes not starting
 - Fix crash when downloads failed
 - Improve startup speed
-- Improve translation resposiveness
+- Improve translation resposiveness (UI interactions)
 - Improved translation quality (but it's slightly slower)
+- Improved translation speed by ~10% for text and ~30% for images
 - Change Chinese, Korean, Japanese and Russian model quality (lower memory usage, 99% of the quality)

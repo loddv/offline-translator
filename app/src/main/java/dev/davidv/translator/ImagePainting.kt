@@ -247,7 +247,7 @@ fun getSurroundingAverageColor(
 suspend fun paintTranslatedTextOver(
   originalBitmap: Bitmap,
   textBlocks: Array<TextBlock>,
-  translate: suspend (String) -> String,
+  translate: suspend (Array<String>) -> Array<String>,
   backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
 ): Pair<Bitmap, String> {
   val mutableBitmap = originalBitmap.copy(originalBitmap.config, true)
@@ -259,21 +259,26 @@ suspend fun paintTranslatedTextOver(
     }
 
   var allTranslatedText = ""
-  var totalTranslateMs: Long = 0
 
   val textSizePadding = 0.95f
   val minTextSize = 8f
 
-  textBlocks.forEach { textBlock ->
-    val blockAvgPixelHeight =
-      textBlock.lines.map { textLine -> textLine.boundingBox.height() }.average().toFloat()
-    val blockText = textBlock.lines.joinToString(" ") { line -> line.text }
+  val blockTexts = textBlocks.map { it.lines.joinToString(" ") { line -> line.text } }
+  val translatedBlocks: Array<String>
+  val totalTranslateMs =
+    measureTimeMillis {
+      translatedBlocks = translate(blockTexts.toTypedArray())
+    }
+  Log.i("ImagePainting", "Translation took ${totalTranslateMs}ms")
 
-    val translated: String
-    totalTranslateMs +=
-      measureTimeMillis {
-        translated = translate(blockText)
-      }
+  textBlocks.forEachIndexed { i, textBlock ->
+    val blockAvgPixelHeight =
+      textBlock.lines
+        .map { textLine -> textLine.boundingBox.height() }
+        .average()
+        .toFloat()
+
+    val translated = translatedBlocks[i]
 
     val translatedSpaceIndices =
       translated.mapIndexedNotNull { index, char ->
@@ -355,7 +360,6 @@ suspend fun paintTranslatedTextOver(
     }
   }
 
-  Log.i("ImagePainting", "Translation took ${totalTranslateMs}ms")
   return Pair(mutableBitmap, allTranslatedText.trim())
 }
 

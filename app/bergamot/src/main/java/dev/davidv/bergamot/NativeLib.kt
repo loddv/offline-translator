@@ -36,6 +36,12 @@ class NativeLib {
     key: String,
   )
 
+  external fun translateMultiple(
+    cfg: String,
+    inputs: Array<String>,
+    key: String,
+  ): Array<String>
+
   private external fun initializeService()
 
   external fun cleanup()

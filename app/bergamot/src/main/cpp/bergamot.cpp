@@ -71,6 +71,37 @@ std::string func(const char* cfg, const char *input, const char* key) {
     return response.target.text;
 }
 
+std::vector<std::string> translateMultiple(const char *cfg, std::vector<std::string> &&inputs, const char *key) {
+    initializeService();
+
+    std::string key_str(key);
+    std::string cfg_s(cfg);
+
+    loadModelIntoCache(cfg_s, key_str);
+
+    std::shared_ptr<TranslationModel> model = model_cache[key_str];
+
+    std::vector<ResponseOptions> responseOptions;
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        ResponseOptions opts;
+        opts.HTML = false;
+        opts.qualityScores = false;
+        opts.alignment = false;
+        opts.sentenceMappings = false;
+        responseOptions.emplace_back(opts);
+    }
+
+    std::vector<Response> responses = global_service->translateMultiple(model, std::move(inputs), responseOptions);
+
+    std::vector<std::string> results;
+    results.reserve(responses.size());
+    for (const auto &response: responses) {
+        results.push_back(response.target.text);
+    }
+
+    return results;
+}
+
 extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
 Java_dev_davidv_bergamot_NativeLib_initializeService(
         JNIEnv* env,
@@ -135,6 +166,51 @@ Java_dev_davidv_bergamot_NativeLib_stringFromJNI(
 }
 
 // Cleanup function to be called when the library is unloaded
+extern "C" __attribute__((visibility("default"))) JNIEXPORT jobjectArray JNICALL
+Java_dev_davidv_bergamot_NativeLib_translateMultiple(
+        JNIEnv *env,
+        jobject /* this */,
+        jstring cfg,
+        jobjectArray inputs,
+        jstring key) {
+
+    const char *c_cfg = env->GetStringUTFChars(cfg, nullptr);
+    const char *c_key = env->GetStringUTFChars(key, nullptr);
+
+    jsize inputCount = env->GetArrayLength(inputs);
+    std::vector<std::string> cpp_inputs;
+
+    for (jsize i = 0; i < inputCount; i++) {
+        auto jstr = (jstring) env->GetObjectArrayElement(inputs, i);
+        const char *c_str = env->GetStringUTFChars(jstr, nullptr);
+        cpp_inputs.emplace_back(c_str);
+        env->ReleaseStringUTFChars(jstr, c_str);
+        env->DeleteLocalRef(jstr);
+    }
+
+    jobjectArray result = nullptr;
+    try {
+        std::vector<std::string> translations = translateMultiple(c_cfg, std::move(cpp_inputs), c_key);
+
+        jclass stringClass = env->FindClass("java/lang/String");
+        result = env->NewObjectArray((jsize) translations.size(), stringClass, nullptr);
+
+        for (size_t i = 0; i < translations.size(); ++i) {
+            jstring jstr = env->NewStringUTF(translations[i].c_str());
+            env->SetObjectArrayElement(result, (jsize) i, jstr);
+            env->DeleteLocalRef(jstr);
+        }
+    } catch (const std::exception &e) {
+        jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exceptionClass, e.what());
+    }
+
+    env->ReleaseStringUTFChars(cfg, c_cfg);
+    env->ReleaseStringUTFChars(key, c_key);
+
+    return result;
+}
+
 extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
 Java_dev_davidv_bergamot_NativeLib_cleanup(JNIEnv* env, jobject /* this */) {
     std::lock_guard<std::mutex> lock(service_mutex);

@@ -149,12 +149,13 @@ fun MainScreen(
               onClick = {
                 launchMode.reply(output.translated)
               },
-              shape = FloatingActionButtonDefaults.largeShape,
+              shape = FloatingActionButtonDefaults.smallShape,
+              modifier = Modifier.size(30.dp),
             ) {
               Icon(
                 painterResource(id = R.drawable.check),
                 contentDescription = "Replace text",
-                modifier = Modifier.size(30.dp),
+                modifier = Modifier.size(20.dp),
               )
             }
           }

@@ -46,10 +46,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.davidv.translator.AppSettings
 import dev.davidv.translator.DictionaryIndex
 import dev.davidv.translator.DictionaryInfo
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
+import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
@@ -60,12 +62,14 @@ import dev.davidv.translator.createPreviewStates
 import dev.davidv.translator.fromEnglishFiles
 import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.theme.TranslatorTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlin.math.roundToInt
 
 @Composable
 fun TabbedLanguageManagerScreen(
   context: Context,
-  languageStateManager: LanguageStateManager?,
+  languageStateManager: LanguageStateManager,
   installedLanguages: List<Language>,
   availableLanguages: List<Language>,
   languageAvailabilityState: LanguageAvailabilityState,
@@ -128,9 +132,9 @@ fun TabbedLanguageManagerScreen(
             onEvent = { event ->
               when (event) {
                 is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                is LanguageEvent.Delete -> languageStateManager?.deleteLanguage(event.language)
+                is LanguageEvent.Delete -> languageStateManager.deleteLanguage(event.language)
                 is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                is LanguageEvent.DeleteDictionary -> languageStateManager?.deleteDict(event.language)
+                is LanguageEvent.DeleteDictionary -> languageStateManager.deleteDict(event.language)
                 is LanguageEvent.FetchDictionaryIndex -> {}
               }
             },
@@ -207,7 +211,7 @@ fun TabbedLanguageManagerScreen(
                         ev.language,
                         dictionaryIndex.dictionaries[ev.language.code],
                       )
-                    is LanguageEvent.Delete -> languageStateManager?.deleteDict(ev.language)
+                    is LanguageEvent.Delete -> languageStateManager.deleteDict(ev.language)
                     is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
                     else -> {
                       Log.i("LanguageManager", "Got unexpected event $ev")
@@ -288,7 +292,11 @@ fun TabbedLanguageManagerPreview() {
   TranslatorTheme {
     TabbedLanguageManagerScreen(
       context = LocalContext.current,
-      languageStateManager = null,
+      languageStateManager =
+        LanguageStateManager(
+          CoroutineScope(Dispatchers.Main),
+          FilePathManager(LocalContext.current, kotlinx.coroutines.flow.MutableStateFlow(AppSettings())),
+        ),
       installedLanguages = installedLanguages,
       availableLanguages = availableLanguages,
       languageAvailabilityState = mockLanguageState,
@@ -336,7 +344,11 @@ fun TabbedLanguageManagerDictionaryTabPreview() {
   TranslatorTheme {
     TabbedLanguageManagerScreen(
       context = LocalContext.current,
-      languageStateManager = null,
+      languageStateManager =
+        LanguageStateManager(
+          CoroutineScope(Dispatchers.Main),
+          FilePathManager(LocalContext.current, kotlinx.coroutines.flow.MutableStateFlow(AppSettings())),
+        ),
       installedLanguages = installedLanguages,
       availableLanguages = availableLanguages,
       languageAvailabilityState = mockLanguageState,

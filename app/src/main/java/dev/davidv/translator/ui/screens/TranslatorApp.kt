@@ -22,6 +22,7 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -62,7 +63,6 @@ import dev.davidv.translator.FileEvent
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.SettingsManager
@@ -134,16 +134,16 @@ fun TranslatorApp(
   val settings by settingsManager.settings.collectAsState()
   val downloadService by downloadServiceState.collectAsState()
   val languageStateManager =
-    remember(downloadService) {
-      if (downloadService != null) {
-        LanguageStateManager(scope, filePathManager, downloadService!!.downloadEvents)
-      } else {
-        null
-      }
+    remember(filePathManager) {
+      LanguageStateManager(scope, filePathManager)
     }
-  val languageState by languageStateManager?.languageState?.collectAsState() ?: remember {
-    mutableStateOf(LanguageAvailabilityState(isChecking = true, hasLanguages = false))
+
+  LaunchedEffect(downloadService) {
+    downloadService?.let { service ->
+      languageStateManager.connectToDownloadEvents(service.downloadEvents)
+    }
   }
+  val languageState by languageStateManager.languageState.collectAsState()
   val downloadStates by downloadService?.downloadStates?.collectAsState() ?: remember {
     mutableStateOf(emptyMap())
   }
@@ -196,7 +196,7 @@ fun TranslatorApp(
 
   // Handle file events from LanguageStateManager
   LaunchedEffect(languageStateManager) {
-    languageStateManager?.fileEvents?.collect { event ->
+    languageStateManager.fileEvents.collect { event ->
       when (event) {
         is FileEvent.LanguageDeleted -> {
           val langs = languageStateManager.languageState.value.availableLanguageMap
@@ -262,7 +262,7 @@ fun TranslatorApp(
           ) {
             preferredSource
           } else {
-            languageStateManager?.getFirstAvailableFromLanguage(excluding = actualTo)
+            languageStateManager.getFirstAvailableFromLanguage(excluding = actualTo)
           }
 
         if (sourceLanguage != null) {
@@ -291,7 +291,7 @@ fun TranslatorApp(
         setFrom(currentDetectedLanguage!!)
         var actualTo = to
         if (to == currentDetectedLanguage!!) {
-          val other = languageStateManager?.getFirstAvailableFromLanguage(currentDetectedLanguage!!)
+          val other = languageStateManager.getFirstAvailableFromLanguage(currentDetectedLanguage!!)
           if (other != null) {
             setTo(other)
             actualTo = other
@@ -551,6 +551,14 @@ fun TranslatorApp(
     }
   }
 
+  val opacity = remember { Animatable(if (modalVisible) 0.3f else 0f) }
+
+  LaunchedEffect(modalVisible) {
+    opacity.animateTo(
+      targetValue = if (modalVisible) 0.3f else 0f,
+      animationSpec = tween(300),
+    )
+  }
   Box(
     modifier = Modifier.fillMaxSize(),
     contentAlignment = Alignment.Center,
@@ -562,12 +570,12 @@ fun TranslatorApp(
           Modifier
             .fillMaxSize()
             .background(
-              androidx.compose.material3.MaterialTheme.colorScheme.primary
-                .copy(alpha = 0.15f),
+              androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                .copy(alpha = opacity.value),
             ).clickable {
               modalVisible = false
               scope.launch {
-                kotlinx.coroutines.delay(300) // Wait for animation to complete
+                kotlinx.coroutines.delay(400) // Wait for animation to complete
                 onClose()
               }
             },
@@ -578,13 +586,13 @@ fun TranslatorApp(
       visible = modalVisible,
       enter =
         slideInVertically(
-          animationSpec = tween(300),
+          animationSpec = tween(500, delayMillis = 100),
           initialOffsetY = { fullHeight -> fullHeight },
         ),
       exit =
         slideOutVertically(
           animationSpec = tween(300),
-          targetOffsetY = { fullHeight -> fullHeight },
+          targetOffsetY = { fullHeight -> (fullHeight * 1.5f).toInt() },
         ),
     ) {
       Box(
@@ -613,9 +621,8 @@ fun TranslatorApp(
           }
 
           composable("no_languages") {
-            val currentLanguageStateManager = languageStateManager
             val currentDownloadService = downloadService
-            if (currentLanguageStateManager != null && currentDownloadService != null) {
+            if (currentDownloadService != null) {
               NoLanguagesScreen(
                 onDone = {
                   // Only navigate if languages are available
@@ -630,7 +637,7 @@ fun TranslatorApp(
                 onSettings = {
                   navController.navigate("settings")
                 },
-                languageStateManager = currentLanguageStateManager,
+                languageStateManager = languageStateManager,
                 downloadService = currentDownloadService,
               )
             }
@@ -671,7 +678,7 @@ fun TranslatorApp(
             }
           }
           composable("language_manager") {
-            if (languageStateManager != null && downloadService != null) {
+            if (downloadService != null) {
               val curDownloadService = downloadService!!
               val availLangs = languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys
               val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
@@ -716,7 +723,7 @@ fun TranslatorApp(
                 }
                 // Refresh language availability if storage location changed
                 if (newSettings.useExternalStorage != settings.useExternalStorage) {
-                  languageStateManager?.refreshLanguageAvailability()
+                  languageStateManager.refreshLanguageAvailability()
                 }
               },
               onManageLanguages = {

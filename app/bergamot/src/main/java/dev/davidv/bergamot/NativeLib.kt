@@ -44,8 +44,6 @@ class NativeLib {
     // Used to load the 'bergamot' library on application startup.
     init {
       Log.d("NativeLib", "Loading bergamot library")
-
-//            Debug.waitForDebugger()
       System.loadLibrary("bergamot-sys")
     }
   }

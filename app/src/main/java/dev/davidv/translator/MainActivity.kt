@@ -52,14 +52,14 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
     handleIntent(intent)
 
-    val settingsManager = SettingsManager(this)
+    val settingsManager = SettingsManager(this) // 8ms
     val filePathManager = FilePathManager(this, settingsManager.settings)
     ocrService = OCRService(filePathManager)
     val imageProcessor = ImageProcessor(this, ocrService)
     val ctx = this
 
     Log.d("MainActivity", "Initializing translation service")
-    val translationService = TranslationService(settingsManager, filePathManager)
+    val translationService = TranslationService(settingsManager, filePathManager) // 40ms
     val languageDetector = LanguageDetector()
     translationCoordinator = TranslationCoordinator(ctx, translationService, languageDetector, imageProcessor, settingsManager)
 
@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
           name: ComponentName?,
           service: IBinder?,
         ) {
+          Log.d("ServiceConnection", "download service done")
           val binder = service as DownloadService.DownloadBinder
           downloadService = binder.getService()
           _downloadServiceState.value = downloadService

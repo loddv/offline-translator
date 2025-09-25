@@ -54,7 +54,7 @@ fun isDictionaryAvailable(
 class LanguageStateManager(
   private val scope: CoroutineScope,
   private val filePathManager: FilePathManager,
-  private val downloadEvents: SharedFlow<DownloadEvent>,
+  downloadEvents: SharedFlow<DownloadEvent>? = null,
 ) {
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
   val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
@@ -65,31 +65,41 @@ class LanguageStateManager(
   private val _fileEvents = MutableSharedFlow<FileEvent>()
   val fileEvents: SharedFlow<FileEvent> = _fileEvents.asSharedFlow()
 
+  private var downloadEventsJob: kotlinx.coroutines.Job? = null
+
   init {
-    scope.launch {
-      downloadEvents.collect { event ->
-        when (event) {
-          is DownloadEvent.NewTranslationAvailable -> {
-            addTranslationLanguage(event.language)
-          }
-
-          is DownloadEvent.NewDictionaryAvailable -> {
-            addDictionaryLanguage(event.language)
-          }
-
-          is DownloadEvent.DictionaryIndexDownloaded -> {
-            _dictionaryIndex.value = event.index
-            Log.i("LanguageStateManager", "Dictionary index downloaded: ${event.index}")
-          }
-
-          is DownloadEvent.DownloadError -> {
-            Log.w("LanguageStateManager", "Download error: ${event.message}")
-          }
-        }
-      }
+    if (downloadEvents != null) {
+      connectToDownloadEvents(downloadEvents)
     }
     refreshLanguageAvailability()
     loadDictionaryIndex()
+  }
+
+  fun connectToDownloadEvents(downloadEvents: SharedFlow<DownloadEvent>) {
+    downloadEventsJob?.cancel()
+    downloadEventsJob =
+      scope.launch {
+        downloadEvents.collect { event ->
+          when (event) {
+            is DownloadEvent.NewTranslationAvailable -> {
+              addTranslationLanguage(event.language)
+            }
+
+            is DownloadEvent.NewDictionaryAvailable -> {
+              addDictionaryLanguage(event.language)
+            }
+
+            is DownloadEvent.DictionaryIndexDownloaded -> {
+              _dictionaryIndex.value = event.index
+              Log.i("LanguageStateManager", "Dictionary index downloaded: ${event.index}")
+            }
+
+            is DownloadEvent.DownloadError -> {
+              Log.w("LanguageStateManager", "Download error: ${event.message}")
+            }
+          }
+        }
+      }
   }
 
   fun refreshLanguageAvailability() {

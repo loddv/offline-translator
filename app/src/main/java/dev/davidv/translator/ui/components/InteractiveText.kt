@@ -24,6 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -64,6 +67,9 @@ fun InteractiveText(
       textView.customInsertionActionModeCallback = actionModeCallback
       actionModeCallback.setTextView(textView)
     },
-    modifier = modifier,
+    modifier =
+      modifier.semantics {
+        this.text = AnnotatedString(text)
+      },
   )
 }

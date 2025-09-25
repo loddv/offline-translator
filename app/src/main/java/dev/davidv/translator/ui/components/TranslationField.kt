@@ -96,6 +96,7 @@ fun TranslationField(
             .fillMaxSize(),
         factory = { context ->
           TextView(context).apply {
+            this.tag = "output_textview_tag"
             this.contentDescription = "Output textview"
             this.text = text.translated
             this.textSize = fontSize

@@ -19,6 +19,7 @@ package dev.davidv.translator.ui.components
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
@@ -59,14 +60,16 @@ class DictionaryActionModeCallback(
       }
       itemsToRemove.forEach { m.removeItem(it) }
     }
+    Log.d("DictionaryActionMode", "Show menu now")
     return false
   }
 
   override fun onActionItemClicked(
     mode: ActionMode?,
     item: MenuItem?,
-  ): Boolean =
-    when (item?.itemId) {
+  ): Boolean {
+    Log.d("DictionaryActionMode", "Clicked '${item?.itemId}' == '${item?.title}'")
+    return when (item?.itemId) {
       DICTIONARY_ID -> {
         val textView = currentTextView
         val selectedText =
@@ -87,6 +90,7 @@ class DictionaryActionModeCallback(
 
       else -> false
     }
+  }
 
   override fun onDestroyActionMode(mode: ActionMode?) {}
 

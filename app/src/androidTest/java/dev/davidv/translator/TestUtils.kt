@@ -18,6 +18,9 @@
 package dev.davidv.translator
 
 import android.content.Context
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.onChildAt
+import androidx.compose.ui.test.onChildren
 import java.io.File
 
 object TestUtils {
@@ -60,8 +63,14 @@ object TestUtils {
   }
 
   fun setupLanguagesForApp() {
-    val testContext = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context
-    val appContext = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+    val testContext =
+      androidx.test.platform.app.InstrumentationRegistry
+        .getInstrumentation()
+        .context
+    val appContext =
+      androidx.test.platform.app.InstrumentationRegistry
+        .getInstrumentation()
+        .targetContext
 
     val settingsManager = SettingsManager(appContext)
     val filePathManager = FilePathManager(appContext, settingsManager.settings)
@@ -74,5 +83,60 @@ object TestUtils {
     copyLangData(testContext, dataPath, Language.SPANISH)
     copyTessData(testContext, tessDataPath, Language.ENGLISH)
     copyTessData(testContext, tessDataPath, Language.SPANISH)
+
+    val dictionariesPath = filePathManager.getDictionariesDir()
+    dictionariesPath.mkdirs()
+    copyFile(testContext, dictionariesPath, "es.dict")
+    copyFile(testContext, dictionariesPath, "en.dict")
+    copyFile(testContext, dictionariesPath, "index.json")
+  }
+
+  fun logUiChildren(
+    node: Any?,
+    depth: Int = 0,
+  ) {
+    if (node == null) return
+    val indent = "  ".repeat(depth)
+    when (node) {
+      is androidx.test.uiautomator.UiObject2 -> {
+        println("${indent}UiObject2: text='${node.text}' desc='${node.contentDescription}' class='${node.className}'")
+        try {
+          node.children.forEach { child ->
+            logUiChildren(child, depth + 1)
+          }
+        } catch (e: Exception) {
+          println("${indent}Error getting children: ${e.message}")
+        }
+      }
+    }
+  }
+
+  fun logComposeChildren(
+    nodeInteraction: androidx.compose.ui.test.SemanticsNodeInteraction,
+    depth: Int = 0,
+  ) {
+    try {
+      val node = nodeInteraction.fetchSemanticsNode()
+      val text = node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)
+      val contentDesc = node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.ContentDescription)
+      val indent = "  ".repeat(depth)
+
+      if (text?.isNotEmpty() == true || contentDesc?.isNotEmpty() == true) {
+        println(
+          "${indent}Node: text='${text?.joinToString("") { it.text } ?: ""}' desc='${contentDesc?.joinToString("") ?: ""}' id=${node.id}",
+        )
+      }
+
+      // Recursively log children
+      nodeInteraction.onChildren().fetchSemanticsNodes().forEachIndexed { index, _ ->
+        try {
+          logComposeChildren(nodeInteraction.onChildAt(index), depth + 1)
+        } catch (e: Exception) {
+          println("${indent}Error accessing child $index: ${e.message}")
+        }
+      }
+    } catch (e: Exception) {
+      println("Error logging node at depth $depth: ${e.message}")
+    }
   }
 }

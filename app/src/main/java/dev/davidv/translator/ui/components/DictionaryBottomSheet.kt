@@ -51,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,7 +60,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -81,7 +86,7 @@ fun DictionaryBottomSheet(
 ) {
   var isVisible by remember { mutableStateOf(false) }
   var isDismissing by remember { mutableStateOf(false) }
-  var selectedEntryIndex by remember(dictionaryWord) { mutableStateOf(0) }
+  var selectedEntryIndex by remember(dictionaryWord) { mutableIntStateOf(0) }
 
   LaunchedEffect(Unit) {
     isVisible = true
@@ -193,7 +198,9 @@ fun DictionaryEntry(
       Modifier
         .fillMaxWidth()
         .padding(vertical = 16.dp, horizontal = 8.dp)
-        .verticalScroll(rememberScrollState()),
+        .verticalScroll(rememberScrollState())
+        .semantics { contentDescription = "Dictionary Entry" }
+        .testTag("DictionaryEntry"),
   ) {
     Box(
       modifier =
@@ -345,6 +352,7 @@ fun WordEntryDisplay(
           Text(
             "•",
             style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.clearAndSetSemantics { },
           )
 
           InteractiveText(

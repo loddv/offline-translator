@@ -330,7 +330,7 @@ fun MainScreen(
   // Dictionary bottom sheet
   if (dictionaryWord != null) {
     DictionaryBottomSheet(
-      dictionaryWord = dictionaryWord,
+      dictionaryWord = dictionaryWord!!,
       dictionaryStack = dictionaryStack,
       // DictionaryLookupLanguage should always be set if dictionaryWord if set
       dictionaryLookupLanguage = dictionaryLookupLanguage ?: Language.ENGLISH,

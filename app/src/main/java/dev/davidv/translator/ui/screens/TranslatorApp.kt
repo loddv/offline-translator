@@ -116,12 +116,15 @@ fun TranslatorApp(
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
 
+  // Launch mode state - make it mutable so it can be changed
+  var currentLaunchMode by remember { mutableStateOf(launchMode) }
+
   // Modal animation state
-  var modalVisible by remember { mutableStateOf(launchMode == LaunchMode.Normal) }
+  var modalVisible by remember { mutableStateOf(currentLaunchMode == LaunchMode.Normal) }
 
   // Animate in modal on launch
-  LaunchedEffect(launchMode) {
-    if (launchMode != LaunchMode.Normal) {
+  LaunchedEffect(currentLaunchMode) {
+    if (currentLaunchMode != LaunchMode.Normal) {
       modalVisible = true
     }
   }
@@ -477,6 +480,12 @@ fun TranslatorApp(
         dictionaryLookupLanguage = null
         Log.d("ClearDictionaryStack", "Cleared dictionary stack")
       }
+
+      is TranslatorMessage.ChangeLaunchMode -> {
+        currentLaunchMode = message.newLaunchMode
+        modalVisible = currentLaunchMode == LaunchMode.Normal
+        Log.d("ChangeLaunchMode", "Changed launch mode to: ${message.newLaunchMode}")
+      }
     }
   }
 
@@ -564,7 +573,7 @@ fun TranslatorApp(
     contentAlignment = Alignment.Center,
   ) {
     // Background scrim for modal modes
-    if (launchMode != LaunchMode.Normal) {
+    if (currentLaunchMode != LaunchMode.Normal) {
       Box(
         modifier =
           Modifier
@@ -597,7 +606,7 @@ fun TranslatorApp(
     ) {
       Box(
         modifier =
-          when (launchMode) {
+          when (currentLaunchMode) {
             LaunchMode.Normal -> Modifier.fillMaxHeight()
             LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
               Modifier
@@ -673,7 +682,7 @@ fun TranslatorApp(
                 availableLanguages = languageState.availableLanguageMap,
                 downloadStates = downloadStates,
                 settings = settings,
-                launchMode = launchMode,
+                launchMode = currentLaunchMode,
               )
             }
           }

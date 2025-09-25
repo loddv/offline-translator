@@ -57,4 +57,8 @@ sealed class TranslatorMessage {
   data object PopDictionary : TranslatorMessage()
 
   data object ClearDictionaryStack : TranslatorMessage()
+
+  data class ChangeLaunchMode(
+    val newLaunchMode: LaunchMode,
+  ) : TranslatorMessage()
 }

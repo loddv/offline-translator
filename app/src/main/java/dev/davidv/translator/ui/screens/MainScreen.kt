@@ -182,7 +182,21 @@ fun MainScreen(
           to = to,
           availableLanguages = availableLanguages.mapValues { it.value.translatorFiles },
           onMessage = onMessage,
-          onSettings = if (launchMode == LaunchMode.Normal) onSettings else null,
+          drawable =
+            if (launchMode == LaunchMode.Normal) {
+              Pair("Settings", R.drawable.settings)
+            } else {
+              Pair(
+                "Expand",
+                R.drawable.open_in_full,
+              )
+            },
+          onSettings =
+            if (launchMode == LaunchMode.Normal) {
+              onSettings
+            } else {
+              { onMessage(TranslatorMessage.ChangeLaunchMode(LaunchMode.Normal)) }
+            },
         )
 
         BoxWithConstraints(

@@ -92,8 +92,14 @@ class TranslationService(
           } else {
             pair.first
           }
-        val dataPath = filePathManager.getDataDir()
-        if (missingFilesFrom(dataPath, lang).second.isNotEmpty()) {
+        val dataFiles =
+          filePathManager
+            .getDataDir()
+            .listFiles()
+            ?.map { it.name }
+            ?.toSet() ?: emptySet()
+        // TODO: this should be checked on startup and on update only
+        if (missingFilesFrom(dataFiles, lang).second.isNotEmpty()) {
           return@withContext TranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }
       }

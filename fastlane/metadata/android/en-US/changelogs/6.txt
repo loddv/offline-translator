@@ -1,6 +1,6 @@
-- Improve translation resposiveness
+- OCR should be about 35% faster, thanks to a new build setup
 - Fix OCR from shared images sometimes not starting
-- Change the Tesseract build, should be about 35% faster
-- Added some integration tests
-- Improved translation quality, but it's slightly slower
-- Handle failed downloads instead of crashing the app
+- Fix crash when downloads failed
+- Improve startup speed
+- Improve translation resposiveness
+- Improved translation quality (but it's slightly slower)

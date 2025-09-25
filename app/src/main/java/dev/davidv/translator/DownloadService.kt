@@ -237,12 +237,19 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
+          val dataFiles =
+            filePathManager
+              .getDataDir()
+              .listFiles()
+              ?.map { it.name }
+              ?.toSet() ?: emptySet()
+
           val downloadTasks = mutableListOf<suspend () -> Boolean>()
           val dataDir = filePathManager.getDataDir()
           val tessDir = filePathManager.getTesseractDataDir()
           Path(tessDir.absolutePath).createDirectories()
-          val (fromSize, missingFrom) = missingFilesFrom(dataDir, language)
-          val (toSize, missingTo) = missingFilesTo(dataDir, language)
+          val (fromSize, missingFrom) = missingFilesFrom(dataFiles, language)
+          val (toSize, missingTo) = missingFilesTo(dataFiles, language)
           val tessFile = File(tessDir, language.tessFilename)
           val engTessFile = File(tessDir, Language.ENGLISH.tessFilename)
           var toDownload = (fromSize + toSize).toLong()

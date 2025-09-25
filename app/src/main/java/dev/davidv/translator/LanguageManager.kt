@@ -238,33 +238,33 @@ private fun LanguageItem(
 }
 
 fun missingFiles(
-  dataPath: File,
+  dataFiles: Set<String>,
   lang: Language,
 ): Pair<Int, List<String>> {
-  val (toSize, toFiles) = missingFilesTo(dataPath, lang)
-  val (fromSize, fromFiles) = missingFilesFrom(dataPath, lang)
+  val (toSize, toFiles) = missingFilesTo(dataFiles, lang)
+  val (fromSize, fromFiles) = missingFilesFrom(dataFiles, lang)
   return Pair(toSize + fromSize, toFiles + fromFiles)
 }
 
 fun missingFilesFrom(
-  dataPath: File,
+  dataFiles: Set<String>,
   lang: Language,
 ): Pair<Int, List<String>> {
   val languageFiles = fromEnglishFiles[lang]!!
   val fileSizePairs = listOf(languageFiles.model, languageFiles.srcVocab, languageFiles.tgtVocab, languageFiles.lex).distinct()
-  val missingFiles = fileSizePairs.filter { (filename, _) -> !File(dataPath, filename).exists() }
+  val missingFiles = fileSizePairs.filter { (filename, _) -> filename !in dataFiles }
   val totalSize = missingFiles.sumOf { (_, size) -> size }
   val filenames = missingFiles.map { (filename, _) -> filename }
   return Pair(totalSize, filenames)
 }
 
 fun missingFilesTo(
-  dataPath: File,
+  dataFiles: Set<String>,
   lang: Language,
 ): Pair<Int, List<String>> {
   val languageFiles = toEnglishFiles[lang]!!
   val fileSizePairs = listOf(languageFiles.model, languageFiles.srcVocab, languageFiles.tgtVocab, languageFiles.lex).distinct()
-  val missingFiles = fileSizePairs.filter { (filename, _) -> !File(dataPath, filename).exists() }
+  val missingFiles = fileSizePairs.filter { (filename, _) -> filename !in dataFiles }
   val totalSize = missingFiles.sumOf { (_, size) -> size }
   val filenames = missingFiles.map { (filename, _) -> filename }
   return Pair(totalSize, filenames)

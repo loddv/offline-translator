@@ -46,6 +46,11 @@ fun isDictionaryAvailable(
   language: Language,
 ): Boolean = filePathManager.getDictionaryFile(language).exists()
 
+fun isDictionaryAvailable(
+  dictFiles: Set<String>,
+  language: Language,
+): Boolean = "${language.code}.dict" in dictFiles
+
 class LanguageStateManager(
   private val scope: CoroutineScope,
   private val filePathManager: FilePathManager,
@@ -94,31 +99,53 @@ class LanguageStateManager(
       Log.i("LanguageStateManager", "Refreshing language availability")
       val availabilityMap =
         withContext(Dispatchers.IO) {
+          Log.d("LanguageStateManager", "listing")
+          val dataFiles =
+            filePathManager
+              .getDataDir()
+              .listFiles()
+              ?.map { it.name }
+              ?.toSet() ?: emptySet()
+          val tessFiles =
+            filePathManager
+              .getTesseractDataDir()
+              .listFiles()
+              ?.map { it.name }
+              ?.toSet() ?: emptySet()
+          val dictFiles =
+            filePathManager
+              .getDictionariesDir()
+              .listFiles()
+              ?.map { it.name }
+              ?.toSet() ?: emptySet()
+          Log.d("LanguageStateManager", "listed")
+
           buildMap {
             put(
               Language.ENGLISH,
               LangAvailability(
                 translatorFiles = true,
                 ocrFiles = true,
-                dictionaryFiles = isDictionaryAvailable(filePathManager, Language.ENGLISH),
+                dictionaryFiles = isDictionaryAvailable(dictFiles, Language.ENGLISH),
               ),
             )
 
             Language.entries.forEach { fromLang ->
               val toLang = Language.ENGLISH
               if (fromLang != toLang) {
-                val dataPath = filePathManager.getDataDir()
-                val isAvailable = missingFiles(dataPath, fromLang).second.isEmpty()
+                val isTranslatorAvailable = missingFiles(dataFiles, fromLang).second.isEmpty()
+                val isOcrAvailable = "${fromLang.tessName}.traineddata" in tessFiles
                 put(
                   fromLang,
                   LangAvailability(
-                    translatorFiles = isAvailable,
-                    ocrFiles = isAvailable,
-                    dictionaryFiles = isDictionaryAvailable(filePathManager, fromLang),
+                    translatorFiles = isTranslatorAvailable,
+                    ocrFiles = isOcrAvailable,
+                    dictionaryFiles = isDictionaryAvailable(dictFiles, fromLang),
                   ),
                 )
               }
             }
+            Log.d("LanguageStateManager", "mapped")
           }
         }
 

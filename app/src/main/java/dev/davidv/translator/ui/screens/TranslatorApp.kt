@@ -23,6 +23,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -32,7 +33,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -51,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -568,6 +567,17 @@ fun TranslatorApp(
       animationSpec = tween(300),
     )
   }
+
+  val heightFactor by animateFloatAsState(
+    targetValue = if (currentLaunchMode == LaunchMode.Normal) 1f else 0.6f,
+    animationSpec = tween(300),
+    label = "heightFactor",
+  )
+  val widthFactor by animateFloatAsState(
+    targetValue = if (currentLaunchMode == LaunchMode.Normal) 1f else 0.9f,
+    animationSpec = tween(300),
+    label = "widthFactor",
+  )
   Box(
     modifier = Modifier.fillMaxSize(),
     contentAlignment = Alignment.Center,
@@ -606,14 +616,16 @@ fun TranslatorApp(
     ) {
       Box(
         modifier =
-          when (currentLaunchMode) {
-            LaunchMode.Normal -> Modifier.fillMaxHeight()
-            LaunchMode.ReadonlyModal, is LaunchMode.ReadWriteModal ->
-              Modifier
-                .height((LocalConfiguration.current.screenHeightDp * 0.5f).dp)
-                .fillMaxWidth(0.9f)
-                .clip(RoundedCornerShape(10.dp))
-          },
+          Modifier
+            .fillMaxHeight(heightFactor)
+            .fillMaxWidth(widthFactor)
+            .then(
+              if (launchMode == LaunchMode.Normal) {
+                Modifier
+              } else {
+                Modifier.clip(RoundedCornerShape(10.dp))
+              },
+            ),
       ) {
         NavHost(
           navController = navController,

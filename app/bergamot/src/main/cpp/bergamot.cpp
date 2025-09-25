@@ -14,16 +14,17 @@ using namespace marian::bergamot;
 #include <unordered_map>
 #include <mutex>
 static std::unordered_map<std::string, std::shared_ptr<TranslationModel>> model_cache;
-static std::unique_ptr<AsyncService> global_service = nullptr;
+static std::unique_ptr<BlockingService> global_service = nullptr;
 static std::mutex service_mutex;
 
 void initializeService() {
     std::lock_guard<std::mutex> lock(service_mutex);
 
     if (global_service == nullptr) {
-        ConfigParser<AsyncService> configParser("Bergamot CLI", false);
-        auto &config = configParser.getConfig();
-        global_service = std::make_unique<AsyncService>(config.serviceConfig);
+        BlockingService::Config blockingConfig;
+        blockingConfig.cacheSize = 0;
+        blockingConfig.logger.level = "off";
+        global_service = std::make_unique<BlockingService>(blockingConfig);
     }
 }
 
@@ -35,7 +36,7 @@ void loadModelIntoCache(const std::string& cfg, const std::string& key) {
 
     if (model_cache.find(key) == model_cache.end()) {
         auto options = parseOptionsFromString(cfg, validate, pathsDir);
-        model_cache[key] = global_service->createCompatibleModel(options);
+        model_cache[key] = std::make_shared<TranslationModel>(options);
     }
 }
 
@@ -54,21 +55,17 @@ std::string func(const char* cfg, const char *input, const char* key) {
     std::shared_ptr<TranslationModel> model = model_cache[key_str];
 
     ResponseOptions responseOptions;
+    responseOptions.HTML = false;
+    responseOptions.qualityScores = false;
+    responseOptions.alignment = false;
+    responseOptions.sentenceMappings = false;
     std::string input_str(input);
 
-    // Create a barrier using future/promise.
-    std::promise<Response> promise;
-    std::future<Response> future = promise.get_future();
-    auto callback = [&promise](Response &&response) {
-        // Fulfill promise.
-        promise.set_value(std::move(response));
-    };
-
-    // Pass the model via shared_ptr and move the input string.
-    global_service->translate(model, std::move(input_str), callback, responseOptions);
-
-    // Wait until promise sets the response.
-    Response response = future.get();
+    // Use blocking service for single translation
+    std::vector<std::string> inputs = {input_str};
+    std::vector<ResponseOptions> options = {responseOptions};
+    std::vector<Response> responses = global_service->translateMultiple(model, std::move(inputs), options);
+    const Response &response = responses.front();
 
     // Print (only) translated text.
     return response.target.text;
@@ -154,7 +151,7 @@ struct DetectionResult {
 
 DetectionResult detectLanguage(const char *text, const char *language_hint = nullptr) {
     bool is_reliable;
-    int text_bytes = strlen(text);
+    int text_bytes = (int) strlen(text);
     bool is_plain_text = true;
 
     CLD2::Language hint_lang = CLD2::UNKNOWN_LANGUAGE;
@@ -162,7 +159,7 @@ DetectionResult detectLanguage(const char *text, const char *language_hint = nul
         hint_lang = CLD2::GetLanguageFromName(language_hint);
     }
 
-    CLD2::CLDHints hints = {NULL, NULL, 0, hint_lang};
+    CLD2::CLDHints hints = {nullptr, nullptr, 0, hint_lang};
     CLD2::Language language3[3];
     int percent3[3];
     double normalized_score3[3];
@@ -177,7 +174,7 @@ DetectionResult detectLanguage(const char *text, const char *language_hint = nul
             language3,
             percent3,
             normalized_score3,
-            NULL,
+            nullptr,
             &chunk_bytes,
             &is_reliable
     );

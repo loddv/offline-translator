@@ -27,7 +27,9 @@ object Constants {
   const val DEFAULT_DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"
 }
 
-enum class ModelType(private val pathName: String) {
+enum class ModelType(
+  private val pathName: String,
+) {
   BASE("base"),
   BASE_MEMORY("base-memory"),
   TINY("tiny"),
@@ -36,7 +38,14 @@ enum class ModelType(private val pathName: String) {
   override fun toString(): String = pathName
 }
 
-enum class Language(val code: String, val tessName: String, val displayName: String, val script: String, val sizeBytes: Int, val tessdataSizeBytes: Int) {
+enum class Language(
+  val code: String,
+  val tessName: String,
+  val displayName: String,
+  val script: String,
+  val sizeBytes: Int,
+  val tessdataSizeBytes: Int,
+) {
   ALBANIAN("sq", "sqi", "Albanian", "Latin", 32421521, 1874705),
   ARABIC("ar", "ara", "Arabic", "Arabic", 68840006, 1432056),
   AZERBAIJANI("az", "aze", "Azerbaijani", "Latin", 34314579, 3524799),

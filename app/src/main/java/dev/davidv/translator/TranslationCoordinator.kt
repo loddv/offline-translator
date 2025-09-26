@@ -117,11 +117,6 @@ class TranslationCoordinator(
       val processedImage = imageProcessor.processImage(finalBitmap, minConfidence)
       _isOcrInProgress.value = false
 
-      suspend fun translateMFn(texts: Array<String>): Array<String> {
-        // TODO error handling
-        return translationService.translateMultiple(from, to, texts).map { it.translated }.toTypedArray()
-      }
-
       Log.d("OCR", "complete, result ${processedImage.textBlocks}")
 
       val extractedText =
@@ -133,6 +128,28 @@ class TranslationCoordinator(
 
       onMessage(TranslatorMessage.ImageTextDetected(extractedText))
 
+      val blockTexts = processedImage.textBlocks.map { it.lines.joinToString(" ") { line -> line.text } }
+      val translatedBlocks: List<String>
+      val totalTranslateMs =
+        measureTimeMillis {
+          when (val translationResult = translationService.translateMultiple(from, to, blockTexts.toTypedArray())) {
+            is BatchTranslationResult.Success -> {
+              translatedBlocks = translationResult.result.map { it.translated }
+            }
+
+            is BatchTranslationResult.Error -> {
+              Toast
+                .makeText(
+                  context,
+                  "Translation error: ${translationResult.message}",
+                  Toast.LENGTH_SHORT,
+                ).show()
+              return null
+            }
+          }
+        }
+      Log.i("TranslationCoordinator", "Bulk translation took ${totalTranslateMs}ms")
+
       // Paint translated text over image
       val overlayBitmap: Bitmap
       val allTranslatedText: String
@@ -142,14 +159,14 @@ class TranslationCoordinator(
             paintTranslatedTextOver(
               processedImage.bitmap,
               processedImage.textBlocks,
-              ::translateMFn,
+              translatedBlocks,
               settingsManager.settings.value.backgroundMode,
             )
           overlayBitmap = pair.first
           allTranslatedText = pair.second
         }
 
-      Log.i("TranslationCoordinator", "Translating and overpainting took ${translatePaint}ms")
+      Log.i("TranslationCoordinator", "Overpainting took ${translatePaint}ms")
 
       ProcessedImageResult(
         correctedBitmap = overlayBitmap,

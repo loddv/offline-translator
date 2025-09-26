@@ -69,21 +69,51 @@ class TranslationService(
     from: Language,
     to: Language,
     texts: Array<String>,
-  ): List<TranslatedText> =
+  ): BatchTranslationResult =
     withContext(Dispatchers.IO) {
       if (from == to) {
-        return@withContext texts.map { TranslatedText(it, null) }
+        return@withContext BatchTranslationResult.Success(texts.map { TranslatedText(it, null) })
       }
-      // TODO: checks
+
       val translationPairs = getTranslationPairs(from, to)
+
+      // Validate all required language pairs are available
+      for (pair in translationPairs) {
+        val lang =
+          if (pair.first == Language.ENGLISH) {
+            pair.second
+          } else {
+            pair.first
+          }
+        val dataFiles =
+          filePathManager
+            .getDataDir()
+            .listFiles()
+            ?.map { it.name }
+            ?.toSet() ?: emptySet()
+        // TODO: this should be checked on startup and on update only
+        if (missingFilesFrom(dataFiles, lang).second.isNotEmpty()) {
+          return@withContext BatchTranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
+        }
+      }
+
       val result: Array<String>
       val elapsed =
         measureTimeMillis {
           result = performMultipleTranslations(translationPairs, texts)
         }
       Log.d("TranslationService", "bulk translation took ${elapsed}ms")
-      val translated = result.map { TranslatedText(it, null) } // TODO translit
-      return@withContext translated
+      val translated =
+        result.map { translatedText ->
+          val transliterated =
+            if (!settingsManager.settings.value.disableTransliteration) {
+              TransliterationService.transliterate(translatedText, to)
+            } else {
+              null
+            }
+          TranslatedText(translatedText, transliterated)
+        }
+      return@withContext BatchTranslationResult.Success(translated)
     }
 
   suspend fun translate(
@@ -225,4 +255,14 @@ sealed class TranslationResult {
   data class Error(
     val message: String,
   ) : TranslationResult()
+}
+
+sealed class BatchTranslationResult {
+  data class Success(
+    val result: List<TranslatedText>,
+  ) : BatchTranslationResult()
+
+  data class Error(
+    val message: String,
+  ) : BatchTranslationResult()
 }

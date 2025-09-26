@@ -59,15 +59,12 @@ std::string func(const char* cfg, const char *input, const char* key) {
     responseOptions.qualityScores = false;
     responseOptions.alignment = false;
     responseOptions.sentenceMappings = false;
-    std::string input_str(input);
 
-    // Use blocking service for single translation
-    std::vector<std::string> inputs = {input_str};
+    std::vector<std::string> inputs = {std::string(input)};
     std::vector<ResponseOptions> options = {responseOptions};
     std::vector<Response> responses = global_service->translateMultiple(model, std::move(inputs), options);
     const Response &response = responses.front();
 
-    // Print (only) translated text.
     return response.target.text;
 }
 
@@ -82,6 +79,7 @@ std::vector<std::string> translateMultiple(const char *cfg, std::vector<std::str
     std::shared_ptr<TranslationModel> model = model_cache[key_str];
 
     std::vector<ResponseOptions> responseOptions;
+    responseOptions.reserve(inputs.size());
     for (size_t i = 0; i < inputs.size(); ++i) {
         ResponseOptions opts;
         opts.HTML = false;
@@ -179,6 +177,7 @@ Java_dev_davidv_bergamot_NativeLib_translateMultiple(
 
     jsize inputCount = env->GetArrayLength(inputs);
     std::vector<std::string> cpp_inputs;
+    cpp_inputs.reserve(inputCount);
 
     for (jsize i = 0; i < inputCount; i++) {
         auto jstr = (jstring) env->GetObjectArrayElement(inputs, i);

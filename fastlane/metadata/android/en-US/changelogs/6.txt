@@ -1,8 +1,6 @@
-- OCR should be about 35% faster, thanks to a new build setup
 - Fix OCR from shared images sometimes not starting
 - Fix crash when downloads failed
-- Improve startup speed
-- Improve translation resposiveness (UI interactions)
-- Improved translation quality (but it's slightly slower)
-- Improved translation speed by ~10% for text and ~30% for images
-- Change Chinese, Korean, Japanese and Russian model quality (lower memory usage, 99% of the quality)
+- Improved performance: OCR ~35% faster, translation ~10% faster for text and ~30% for images
+- Improved startup speed and translation responsiveness (UI interactions)
+- Improved translation quality (disable shortlisting)
+- Reduced memory usage for CJK and Russian models while maintaining 99% quality

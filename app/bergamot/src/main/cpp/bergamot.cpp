@@ -41,36 +41,6 @@ void loadModelIntoCache(const std::string& cfg, const std::string& key) {
     }
 }
 
-std::string func(const char* cfg, const char *input, const char* key) {
-    // Initialize service if not already done
-    initializeService();
-
-    std::string key_str(key);
-    std::string cfg_s(cfg);
-
-    // Load model into cache if not already present
-    loadModelIntoCache(cfg_s, key_str);
-
-    // NB: this assumes a thread has not unloaded the model from the cache
-    // as we don't implement unloading, it's fine
-    std::shared_ptr<TranslationModel> model = model_cache[key_str];
-
-    ResponseOptions responseOptions;
-    responseOptions.HTML = false;
-    responseOptions.qualityScores = false;
-    responseOptions.alignment = false;
-    responseOptions.sentenceMappings = false;
-
-    std::vector<std::string> inputs = {std::string(input)};
-    std::vector<ResponseOptions> options = {responseOptions};
-
-    std::lock_guard<std::mutex> translation_lock(translation_mutex);
-    std::vector<Response> responses = global_service->translateMultiple(model, std::move(inputs), options);
-    const Response &response = responses.front();
-
-    return response.target.text;
-}
-
 std::vector<std::string> translateMultiple(const char *cfg, std::vector<std::string> &&inputs, const char *key) {
     initializeService();
 
@@ -102,6 +72,12 @@ std::vector<std::string> translateMultiple(const char *cfg, std::vector<std::str
     }
 
     return results;
+}
+
+std::string translateSingle(const char *cfg, const char *input, const char *key) {
+    std::vector<std::string> inputs = {std::string(input)};
+    std::vector<std::string> results = translateMultiple(cfg, std::move(inputs), key);
+    return results.front();
 }
 
 extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
@@ -153,7 +129,7 @@ Java_dev_davidv_bergamot_NativeLib_stringFromJNI(
 
     jstring result = nullptr;
     try {
-        std::string s = func(c_cfg, c_data, c_key);
+        std::string s = translateSingle(c_cfg, c_data, c_key);
         result = env->NewStringUTF(s.c_str());
     } catch(const std::exception &e) {
         jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
@@ -192,20 +168,15 @@ Java_dev_davidv_bergamot_NativeLib_translateMultiple(
     }
 
     jobjectArray result = nullptr;
-    try {
-        std::vector<std::string> translations = translateMultiple(c_cfg, std::move(cpp_inputs), c_key);
+    std::vector<std::string> translations = translateMultiple(c_cfg, std::move(cpp_inputs), c_key);
 
-        jclass stringClass = env->FindClass("java/lang/String");
-        result = env->NewObjectArray((jsize) translations.size(), stringClass, nullptr);
+    jclass stringClass = env->FindClass("java/lang/String");
+    result = env->NewObjectArray((jsize) translations.size(), stringClass, nullptr);
 
-        for (size_t i = 0; i < translations.size(); ++i) {
-            jstring jstr = env->NewStringUTF(translations[i].c_str());
-            env->SetObjectArrayElement(result, (jsize) i, jstr);
-            env->DeleteLocalRef(jstr);
-        }
-    } catch (const std::exception &e) {
-        jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
-        env->ThrowNew(exceptionClass, e.what());
+    for (size_t i = 0; i < translations.size(); ++i) {
+        jstring jstr = env->NewStringUTF(translations[i].c_str());
+        env->SetObjectArrayElement(result, (jsize) i, jstr);
+        env->DeleteLocalRef(jstr);
     }
 
     env->ReleaseStringUTFChars(cfg, c_cfg);

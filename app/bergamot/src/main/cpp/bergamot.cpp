@@ -16,6 +16,7 @@ using namespace marian::bergamot;
 static std::unordered_map<std::string, std::shared_ptr<TranslationModel>> model_cache;
 static std::unique_ptr<BlockingService> global_service = nullptr;
 static std::mutex service_mutex;
+static std::mutex translation_mutex;
 
 void initializeService() {
     std::lock_guard<std::mutex> lock(service_mutex);
@@ -62,6 +63,8 @@ std::string func(const char* cfg, const char *input, const char* key) {
 
     std::vector<std::string> inputs = {std::string(input)};
     std::vector<ResponseOptions> options = {responseOptions};
+
+    std::lock_guard<std::mutex> translation_lock(translation_mutex);
     std::vector<Response> responses = global_service->translateMultiple(model, std::move(inputs), options);
     const Response &response = responses.front();
 
@@ -89,6 +92,7 @@ std::vector<std::string> translateMultiple(const char *cfg, std::vector<std::str
         responseOptions.emplace_back(opts);
     }
 
+    std::lock_guard<std::mutex> translation_lock(translation_mutex);
     std::vector<Response> responses = global_service->translateMultiple(model, std::move(inputs), responseOptions);
 
     std::vector<std::string> results;

@@ -268,7 +268,7 @@ fun TranslatorApp(
 
         if (sourceLanguage != null) {
           setFrom(sourceLanguage)
-          translationCoordinator.translationService.preloadModel(sourceLanguage, actualTo)
+          translationCoordinator.preloadModel(sourceLanguage, actualTo)
         }
       }
     }
@@ -561,7 +561,7 @@ fun TranslatorApp(
   val opacity by animateFloatAsState(
     targetValue = if (modalVisible) 0.3f else 0f,
     animationSpec = tween(300),
-    label = "opacity"
+    label = "opacity",
   )
 
   val heightFactor by animateFloatAsState(

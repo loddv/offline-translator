@@ -29,7 +29,7 @@ import kotlin.system.measureTimeMillis
 
 class TranslationCoordinator(
   private val context: Context,
-  val translationService: TranslationService,
+  private val translationService: TranslationService,
   private val languageDetector: LanguageDetector,
   private val imageProcessor: ImageProcessor,
   private val settingsManager: SettingsManager,
@@ -41,6 +41,18 @@ class TranslationCoordinator(
   val isOcrInProgress: StateFlow<Boolean> = _isOcrInProgress.asStateFlow()
 
   var lastTranslatedInput: String = ""
+
+  suspend fun preloadModel(
+    from: Language,
+    to: Language,
+  ) {
+    if (_isTranslating.value) {
+      return
+    }
+    _isTranslating.value = true
+    translationService.preloadModel(from, to)
+    _isTranslating.value = false
+  }
 
   suspend fun translateText(
     from: Language,

@@ -463,6 +463,65 @@ fun SettingsScreen(
               singleLine = true,
             )
 
+            // External Storage Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Use external storage",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.useExternalStorage,
+                onCheckedChange = { checked ->
+                  if (checked) {
+                    if (PermissionHelper.hasExternalStoragePermission(context)) {
+                      onSettingsChange(settings.copy(useExternalStorage = true))
+                    } else if (PermissionHelper.needsSpecialPermissionIntent()) {
+                      // Android 11+ - Show dialog first, then launch Settings
+                      showPermissionDialog = true
+                    } else {
+                      // Android 10 and below - Request runtime permissions
+                      val permissions = PermissionHelper.getExternalStoragePermissions()
+                      if (permissions.isNotEmpty()) {
+                        permissionLauncher.launch(permissions)
+                      } else {
+                        onSettingsChange(settings.copy(useExternalStorage = true))
+                      }
+                    }
+                  } else {
+                    onSettingsChange(settings.copy(useExternalStorage = false))
+                  }
+                },
+              )
+            }
+
+            // Show OCR Detection Toggle
+            if (!settings.disableOcr) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = "Show OCR detection",
+                  style = MaterialTheme.typography.bodyMedium,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Switch(
+                  checked = settings.showOCRDetection,
+                  onCheckedChange = { checked ->
+                    onSettingsChange(settings.copy(showOCRDetection = checked))
+                  },
+                )
+              }
+            }
+
             // Disable OCR Toggle
             Row(
               modifier = Modifier.fillMaxWidth(),
@@ -519,63 +578,6 @@ fun SettingsScreen(
                 checked = settings.disableTransliteration,
                 onCheckedChange = { checked ->
                   onSettingsChange(settings.copy(disableTransliteration = checked))
-                },
-              )
-            }
-
-            // External Storage Toggle
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                text = "Use external storage",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-              )
-
-              Switch(
-                checked = settings.useExternalStorage,
-                onCheckedChange = { checked ->
-                  if (checked) {
-                    if (PermissionHelper.hasExternalStoragePermission(context)) {
-                      onSettingsChange(settings.copy(useExternalStorage = true))
-                    } else if (PermissionHelper.needsSpecialPermissionIntent()) {
-                      // Android 11+ - Show dialog first, then launch Settings
-                      showPermissionDialog = true
-                    } else {
-                      // Android 10 and below - Request runtime permissions
-                      val permissions = PermissionHelper.getExternalStoragePermissions()
-                      if (permissions.isNotEmpty()) {
-                        permissionLauncher.launch(permissions)
-                      } else {
-                        onSettingsChange(settings.copy(useExternalStorage = true))
-                      }
-                    }
-                  } else {
-                    onSettingsChange(settings.copy(useExternalStorage = false))
-                  }
-                },
-              )
-            }
-
-            // Show OCR Detection Toggle
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                text = "Show OCR detection",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-              )
-
-              Switch(
-                checked = settings.showOCRDetection,
-                onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(showOCRDetection = checked))
                 },
               )
             }

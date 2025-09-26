@@ -22,7 +22,6 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -559,14 +558,11 @@ fun TranslatorApp(
     }
   }
 
-  val opacity = remember { Animatable(if (modalVisible) 0.3f else 0f) }
-
-  LaunchedEffect(modalVisible) {
-    opacity.animateTo(
-      targetValue = if (modalVisible) 0.3f else 0f,
-      animationSpec = tween(300),
-    )
-  }
+  val opacity by animateFloatAsState(
+    targetValue = if (modalVisible) 0.3f else 0f,
+    animationSpec = tween(300),
+    label = "opacity"
+  )
 
   val heightFactor by animateFloatAsState(
     targetValue = if (currentLaunchMode == LaunchMode.Normal) 1f else 0.6f,
@@ -590,7 +586,7 @@ fun TranslatorApp(
             .fillMaxSize()
             .background(
               androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
-                .copy(alpha = opacity.value),
+                .copy(alpha = opacity),
             ).clickable {
               modalVisible = false
               scope.launch {

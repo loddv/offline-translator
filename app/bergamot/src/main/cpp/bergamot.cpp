@@ -229,6 +229,7 @@ DetectionResult detectLanguage(const char *text, const char *language_hint = nul
             &is_reliable
     );
 
+    /*
     __android_log_print(ANDROID_LOG_DEBUG, "Bergamot", "Language detection results:");
     for (int i = 0; i < 3; i++) {
         __android_log_print(ANDROID_LOG_DEBUG, "Bergamot", "  %d: %s - %d%% (score: %.3f)",
@@ -237,6 +238,7 @@ DetectionResult detectLanguage(const char *text, const char *language_hint = nul
                             percent3[i],
                             normalized_score3[i]);
     }
+    */
 
     return DetectionResult{
             CLD2::LanguageCode(language3[0]),
@@ -246,15 +248,14 @@ DetectionResult detectLanguage(const char *text, const char *language_hint = nul
 }
 
 
-
 extern "C" __attribute__((visibility("default"))) JNIEXPORT jobject JNICALL
 Java_dev_davidv_bergamot_LangDetect_detectLanguage(
-        JNIEnv* env,
+        JNIEnv *env,
         jobject /* this */,
         jstring text,
         jstring hint) {
 
-    const char* c_text = env->GetStringUTFChars(text, nullptr);
+    const char *c_text = env->GetStringUTFChars(text, nullptr);
     const char *c_hint = nullptr;
     if (hint != nullptr) {
         c_hint = env->GetStringUTFChars(hint, nullptr);

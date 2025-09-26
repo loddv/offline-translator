@@ -98,6 +98,7 @@ fun StyledTextField(
 
               override fun afterTextChanged(s: Editable?) {
                 val newText = s?.toString() ?: ""
+                // TODO text is always ''
                 if (newText != text || newText == "") {
                   onValueChange(newText)
                 }

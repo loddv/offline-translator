@@ -60,10 +60,6 @@ fun TranslationField(
 ) {
   val context = LocalContext.current
 
-  if (text.translated.isEmpty()) {
-    return
-  }
-
   val actionModeCallback =
     remember(onDictionaryLookup) {
       DictionaryActionModeCallback(context, onDictionaryLookup)

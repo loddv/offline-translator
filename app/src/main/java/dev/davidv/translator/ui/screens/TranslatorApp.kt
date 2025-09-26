@@ -488,19 +488,20 @@ fun TranslatorApp(
   }
 
   LaunchedEffect(isTranslating) {
-    if (!isTranslating) {
-      if (translationCoordinator.lastTranslatedInput != input) {
-        if (from != null) {
-          scope.launch {
-            translationCoordinator.translateText(from!!, to, input)?.let {
-              output =
-                when (it) {
-                  is TranslationResult.Success -> it.result
-                  is TranslationResult.Error -> null
-                }
-            }
+    if (isTranslating || from == null) {
+      return@LaunchedEffect
+    }
+    // don't go in a loop translating forever
+    if (translationCoordinator.lastTranslatedInput == input) {
+      return@LaunchedEffect
+    }
+    scope.launch {
+      translationCoordinator.translateText(from!!, to, input)?.let {
+        output =
+          when (it) {
+            is TranslationResult.Success -> it.result
+            is TranslationResult.Error -> null
           }
-        }
       }
     }
   }

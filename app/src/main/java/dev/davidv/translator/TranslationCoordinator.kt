@@ -59,7 +59,7 @@ class TranslationCoordinator(
     to: Language,
     text: String,
   ): TranslationResult? {
-    if (text.isBlank()) return null
+    if (text.isBlank()) return TranslationResult.Success(TranslatedText("", ""))
     if (_isTranslating.value) {
       Log.e("TranslationCoordinator", "Got asked to translate while busy")
       return null

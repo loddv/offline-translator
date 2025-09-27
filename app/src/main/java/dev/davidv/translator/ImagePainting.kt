@@ -351,6 +351,7 @@ fun paintTranslatedTextOver(
       lineColors[index] = fg
     }
 
+    // only false if we would need to have text size < 8f
     if (fitResult is TextFitResult.Fits) {
       textBlock.lines.forEachIndexed { lineIndex, line ->
         // Set color for this specific line

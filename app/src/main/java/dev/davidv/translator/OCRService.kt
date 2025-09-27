@@ -95,57 +95,60 @@ fun mergeHyphenatedWords(words: List<WordInfo>): List<WordInfo> {
       break
     }
 
-    if (currentWord.isLastInLine && currentWord.text.endsWith("-")) {
-      val nextWord = words[i + 1]
-      // sometimes tesseract does not detect firstInLine properly
-      // we only hack around it if the previous word as hyphenated, as it's unlikely
-      // to cause much damage in normal usage.
-      val poorMansFirstInLine =
-        nextWord.boundingBox.left < currentWord.boundingBox.left && nextWord.boundingBox.top > currentWord.boundingBox.top
-      if (nextWord.isFirstInLine || poorMansFirstInLine) {
-        val mergedText = currentWord.text.dropLast(1) + nextWord.text
-        val ghostBBox = Rect(currentWord.boundingBox)
-        ghostBBox.right += nextWord.boundingBox.width()
-        val mergedWord =
-          WordInfo(
-            text = mergedText,
-            confidence = minOf(currentWord.confidence, nextWord.confidence),
-            // we only take as much space
-            // as available until the end of the next line.
-            // the NEXT word, should start where the second half of the word
-            // was. Text will be reflown in the block, but lines must
-            // continue to span their entire width
-            boundingBox = currentWord.boundingBox,
-            isFirstInLine = currentWord.isFirstInLine,
-            isLastInLine = true,
-            isLastInPara = nextWord.isLastInPara,
-            ghostBBox = ghostBBox,
-          )
-        result.add(mergedWord)
-
-        // Expand the next word to take over the space from the second part of the hyphenated word
-        if (i + 2 < words.size) {
-          val nextWordAfterMerged = words[i + 2]
-          val newRect = Rect(nextWord.boundingBox)
-          newRect.union(nextWordAfterMerged.boundingBox)
-          val expandedWord =
-            nextWordAfterMerged.copy(
-              boundingBox = newRect,
-              isFirstInLine = true,
-            )
-          result.add(expandedWord)
-          i += 3
-        } else {
-          i += 2
-        }
-      } else {
-        result.add(currentWord)
-        i++
-      }
-    } else {
+    if (!currentWord.isLastInLine || !currentWord.text.endsWith("-")) {
       result.add(currentWord)
       i++
+      continue
     }
+
+    val nextWord = words[i + 1]
+    // sometimes tesseract does not detect firstInLine properly
+    // we only hack around it if the previous word as hyphenated, as it's unlikely
+    // to cause much damage in normal usage.
+    val poorMansFirstInLine =
+      nextWord.boundingBox.left < currentWord.boundingBox.left && nextWord.boundingBox.top > currentWord.boundingBox.top
+    if (!nextWord.isFirstInLine && !poorMansFirstInLine) {
+      result.add(currentWord)
+      i++
+      continue
+    }
+
+    val mergedText = currentWord.text.dropLast(1) + nextWord.text
+    val ghostBBox = Rect(currentWord.boundingBox)
+    ghostBBox.right += nextWord.boundingBox.width()
+    val mergedWord =
+      WordInfo(
+        text = mergedText,
+        confidence = minOf(currentWord.confidence, nextWord.confidence),
+        // we only take as much space
+        // as available until the end of the next line.
+        // the NEXT word, should start where the second half of the word
+        // was. Text will be reflown in the block, but lines must
+        // continue to span their entire width
+        boundingBox = currentWord.boundingBox,
+        isFirstInLine = currentWord.isFirstInLine,
+        isLastInLine = true,
+        isLastInPara = nextWord.isLastInPara,
+        ghostBBox = ghostBBox,
+      )
+    result.add(mergedWord)
+
+    if (i + 2 >= words.size) {
+      i += 2
+      continue
+    }
+
+    // Expand the next word to take over the space from the second part of the hyphenated word
+    val nextWordAfterMerged = words[i + 2]
+    val newRect = Rect(nextWord.boundingBox)
+    newRect.union(nextWordAfterMerged.boundingBox)
+    val expandedWord =
+      nextWordAfterMerged.copy(
+        boundingBox = newRect,
+        isFirstInLine = true,
+      )
+    result.add(expandedWord)
+    i += 3
   }
 
   return result

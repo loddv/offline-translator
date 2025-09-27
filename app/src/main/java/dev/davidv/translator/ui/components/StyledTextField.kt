@@ -129,15 +129,16 @@ fun StyledTextField(
     )
 
     DisposableEffect(lifecycleOwner) {
-      val observer = LifecycleEventObserver { _, event ->
-        when (event) {
-          Lifecycle.Event.ON_PAUSE -> {
-            val currentFocus = (context as? android.app.Activity)?.currentFocus
-            currentFocus?.clearFocus()
+      val observer =
+        LifecycleEventObserver { _, event ->
+          when (event) {
+            Lifecycle.Event.ON_PAUSE -> {
+              val currentFocus = (context as? android.app.Activity)?.currentFocus
+              currentFocus?.clearFocus()
+            }
+            else -> {}
           }
-          else -> {}
         }
-      }
       lifecycleOwner.lifecycle.addObserver(observer)
       onDispose {
         lifecycleOwner.lifecycle.removeObserver(observer)

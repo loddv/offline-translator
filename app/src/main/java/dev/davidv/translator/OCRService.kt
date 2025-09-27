@@ -18,7 +18,6 @@
 package dev.davidv.translator
 
 import android.graphics.Bitmap
-import android.graphics.Rect
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,6 +27,35 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.pathString
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
+
+data class Rect(
+  var left: Int,
+  var top: Int,
+  var right: Int,
+  var bottom: Int,
+) {
+  constructor(other: Rect) : this(other.left, other.top, other.right, other.bottom)
+
+  fun width(): Int = right - left
+
+  fun height(): Int = bottom - top
+
+  fun isEmpty(): Boolean = left >= right || top >= bottom
+
+  fun union(other: Rect) {
+    if (isEmpty()) {
+      left = other.left
+      top = other.top
+      right = other.right
+      bottom = other.bottom
+    } else {
+      if (other.left < left) left = other.left
+      if (other.top < top) top = other.top
+      if (other.right > right) right = other.right
+      if (other.bottom > bottom) bottom = other.bottom
+    }
+  }
+}
 
 data class TextLine(
   var text: String,
@@ -43,10 +71,85 @@ data class WordInfo(
   val text: String,
   val confidence: Float,
   val boundingBox: Rect,
+  // when concatenating words (undoing line-breaks)
+  // the boundingBox must remain within the original boundary
+  // however, the actual size of the word will be bigger
+  val ghostBBox: Rect? = null,
   val isFirstInLine: Boolean,
   var isLastInLine: Boolean,
   var isLastInPara: Boolean,
 )
+
+fun mergeHyphenatedWords(words: List<WordInfo>): List<WordInfo> {
+  if (words.isEmpty()) return words
+
+  val result = mutableListOf<WordInfo>()
+  var i = 0
+
+  while (i < words.size) {
+    val currentWord = words[i]
+
+    // can't merge with next if we are at the last word
+    if (i == words.size - 1) {
+      result.add(currentWord)
+      break
+    }
+
+    if (currentWord.isLastInLine && currentWord.text.endsWith("-")) {
+      val nextWord = words[i + 1]
+      // sometimes tesseract does not detect firstInLine properly
+      // we only hack around it if the previous word as hyphenated, as it's unlikely
+      // to cause much damage in normal usage.
+      val poorMansFirstInLine =
+        nextWord.boundingBox.left < currentWord.boundingBox.left && nextWord.boundingBox.top > currentWord.boundingBox.top
+      if (nextWord.isFirstInLine || poorMansFirstInLine) {
+        val mergedText = currentWord.text.dropLast(1) + nextWord.text
+        val ghostBBox = Rect(currentWord.boundingBox)
+        ghostBBox.right += nextWord.boundingBox.width()
+        val mergedWord =
+          WordInfo(
+            text = mergedText,
+            confidence = minOf(currentWord.confidence, nextWord.confidence),
+            // we only take as much space
+            // as available until the end of the next line.
+            // the NEXT word, should start where the second half of the word
+            // was. Text will be reflown in the block, but lines must
+            // continue to span their entire width
+            boundingBox = currentWord.boundingBox,
+            isFirstInLine = currentWord.isFirstInLine,
+            isLastInLine = true,
+            isLastInPara = nextWord.isLastInPara,
+            ghostBBox = ghostBBox,
+          )
+        result.add(mergedWord)
+
+        // Expand the next word to take over the space from the second part of the hyphenated word
+        if (i + 2 < words.size) {
+          val nextWordAfterMerged = words[i + 2]
+          val newRect = Rect(nextWord.boundingBox)
+          newRect.union(nextWordAfterMerged.boundingBox)
+          val expandedWord =
+            nextWordAfterMerged.copy(
+              boundingBox = newRect,
+              isFirstInLine = true,
+            )
+          result.add(expandedWord)
+          i += 3
+        } else {
+          i += 2
+        }
+      } else {
+        result.add(currentWord)
+        i++
+      }
+    } else {
+      result.add(currentWord)
+      i++
+    }
+  }
+
+  return result
+}
 
 fun getSentences(
   bitmap: Bitmap,
@@ -74,7 +177,7 @@ fun getSentences(
         )
       }.toMutableList()
 
-  val filteredWords = mutableListOf<WordInfo>()
+  var filteredWords = mutableListOf<WordInfo>()
   var pendingFirstInLine = false
 
   for (i in allWords.indices) {
@@ -109,6 +212,10 @@ fun getSentences(
     }
   }
 
+  // FIXME: this is technically wrong -- if we skip a word (pendingFirstInLine)
+  // we shouldn't merge hyphenations
+  filteredWords = mergeHyphenatedWords(filteredWords).toMutableList()
+
   val blocks = mutableListOf<TextBlock>()
   val lines = mutableListOf<TextLine>()
   var line = TextLine("", Rect(0, 0, 0, 0), emptyArray())
@@ -120,6 +227,7 @@ fun getSentences(
       continue
     }
     val boundingBox = wordInfo.boundingBox
+    val realBBox = wordInfo.ghostBBox ?: wordInfo.boundingBox
     val skippedFirstWord = boundingBox.right < line.boundingBox.left
     val firstWordInLine = wordInfo.isFirstInLine || skippedFirstWord
     val lastWordInLine = wordInfo.isLastInLine
@@ -129,7 +237,7 @@ fun getSentences(
       line = TextLine(word, boundingBox, arrayOf(boundingBox))
     } else {
       val delta = boundingBox.left - lastRight
-      val charWidth = boundingBox.width().toFloat() / word.length
+      val charWidth = realBBox.width().toFloat() / word.length
       val deltaInChars: Float = if (charWidth > 0) delta.toFloat() / charWidth else 0f
 
       // In the same line but too far apart, make a new block

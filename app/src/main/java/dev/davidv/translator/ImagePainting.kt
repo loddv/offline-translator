@@ -22,7 +22,6 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
 import android.text.TextPaint
 
 fun getForegroundColorByContrast(
@@ -157,7 +156,7 @@ fun removeTextWithSmartBlur(
 
   if (backgroundMode == BackgroundMode.AUTO_DETECT) {
     words.forEach { word ->
-      val w = word
+      val w = toAndroidRect(word)
       w.inset(-2, -2)
       canvas.drawRect(w, paint)
     }
@@ -169,7 +168,7 @@ fun removeTextWithSmartBlur(
       }
   }
 
-  canvas.drawRect(textBounds, paint)
+  canvas.drawRect(toAndroidRect(textBounds), paint)
 
   return fgColor
 }
@@ -258,7 +257,7 @@ fun paintTranslatedTextOver(
 
   var allTranslatedText = ""
 
-  val textSizePadding = 0.95f
+  val textSizePadding = 0.8f // FIXME: pre-calculate real size
   val minTextSize = 8f
 
   textBlocks.forEachIndexed { i, textBlock ->
@@ -312,9 +311,11 @@ fun paintTranslatedTextOver(
             style = Paint.Style.STROKE
           }
         line.wordRects.forEach { w ->
-          canvas.drawRect(w, p)
+          canvas.drawRect(toAndroidRect(w), p)
         }
-        canvas.drawRect(line.boundingBox, p.apply { color = Color.BLUE })
+        val l = toAndroidRect(line.boundingBox)
+        l.inset(-2, -2)
+        canvas.drawRect(l, p.apply { color = Color.BLUE })
       }
       if (start < translated.length) {
         val measuredWidth = FloatArray(1)
@@ -337,6 +338,8 @@ fun paintTranslatedTextOver(
             previousSpaceIndex?.let { it + 1 } ?: (start + countedChars)
           }
 
+        // this is drawing as much as possible per line
+        // meaning that next line starts late
         canvas.drawText(
           translated,
           start,
@@ -352,6 +355,8 @@ fun paintTranslatedTextOver(
 
   return Pair(mutableBitmap, allTranslatedText.trim())
 }
+
+private fun toAndroidRect(r: Rect): android.graphics.Rect = android.graphics.Rect(r.left, r.top, r.right, r.bottom)
 
 fun getBackgroundColorExcludingWords(
   bitmap: Bitmap,
@@ -370,8 +375,8 @@ fun getBackgroundColorExcludingWords(
   val mask = BooleanArray(width * height) { true }
 
   for (excludeRect in wordRects) {
-    val intersect = Rect()
-    if (intersect.setIntersect(textBounds, excludeRect)) {
+    val intersect = android.graphics.Rect()
+    if (intersect.setIntersect(toAndroidRect(textBounds), toAndroidRect(excludeRect))) {
       val offsetLeft = intersect.left - textBounds.left
       val offsetTop = intersect.top - textBounds.top
       val intersectWidth = intersect.width()

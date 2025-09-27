@@ -575,7 +575,7 @@ fun TranslatorApp(
   }
 
   val opacity by animateFloatAsState(
-    targetValue = if (modalVisible) 0.3f else 0f,
+    targetValue = if (modalVisible) 0.4f else 0f,
     animationSpec = tween(300),
     label = "opacity",
   )

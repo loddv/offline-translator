@@ -1,6 +1,7 @@
 - Fix OCR from shared images sometimes not starting
 - Fix crash when downloads failed
-- Improved performance: OCR ~35% faster, translation ~10% faster for text and ~30% for images
+- Add button to transition from popup mode to full app
+- Add setting for default 'source' language
+- Improved translation performance & quality
 - Improved startup speed and translation responsiveness (UI interactions)
-- Improved translation quality (disable shortlisting)
-- Reduced memory usage for CJK and Russian models while maintaining 99% quality
+- Reduced memory usage for CJK and Russian models (needs redownload)

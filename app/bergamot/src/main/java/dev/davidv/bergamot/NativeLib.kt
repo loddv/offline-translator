@@ -25,21 +25,20 @@ class NativeLib {
     initializeService()
   }
 
-  external fun stringFromJNI(
-    cfg: String,
-    data: String,
-    key: String,
-  ): String
-
   external fun loadModelIntoCache(
     cfg: String,
     key: String,
   )
 
   external fun translateMultiple(
-    cfg: String,
     inputs: Array<String>,
     key: String,
+  ): Array<String>
+
+  external fun pivotMultiple(
+    firstKey: String,
+    secondKey: String,
+    inputs: Array<String>,
   ): Array<String>
 
   private external fun initializeService()

@@ -59,12 +59,11 @@ class TranslationService(
       val config = generateConfig(pair.first, pair.second)
       val languageCode = "${pair.first.code}${pair.second.code}"
       Log.d("TranslationService", "Preloading model with key: $languageCode")
-      nativeLib.stringFromJNI(config, ".", languageCode) // translate empty string to load the model
+      nativeLib.loadModelIntoCache(config, languageCode) // translate empty string to load the model
       Log.d("TranslationService", "Preloaded model for ${pair.first} -> ${pair.second} with key: $languageCode")
     }
   }
 
-  // TODO maybe error as well
   suspend fun translateMultiple(
     from: Language,
     to: Language,
@@ -74,10 +73,9 @@ class TranslationService(
       if (from == to) {
         return@withContext BatchTranslationResult.Success(texts.map { TranslatedText(it, null) })
       }
-
       val translationPairs = getTranslationPairs(from, to)
 
-      // Validate all required language pairs are available
+      // TODO: do once
       for (pair in translationPairs) {
         val lang =
           if (pair.first == Language.ENGLISH) {
@@ -96,11 +94,12 @@ class TranslationService(
           return@withContext BatchTranslationResult.Error("Language pair ${pair.first} -> ${pair.second} not installed")
         }
       }
+      preloadModel(from, to)
 
       val result: Array<String>
       val elapsed =
         measureTimeMillis {
-          result = performMultipleTranslations(translationPairs, texts)
+          result = performTranslations(translationPairs, texts)
         }
       Log.d("TranslationService", "bulk translation took ${elapsed}ms")
       val translated =
@@ -160,7 +159,7 @@ class TranslationService(
         val result: String
         val elapsed =
           measureTimeMillis {
-            result = performTranslation(translationPairs, text)
+            result = performTranslations(translationPairs, arrayOf(text)).first()
           }
         Log.d("TranslationService", "Translation took ${elapsed}ms")
         val transliterated =
@@ -187,30 +186,27 @@ class TranslationService(
       else -> listOf(from to Language.ENGLISH, Language.ENGLISH to to) // Pivot through English
     }
 
-  private fun performTranslation(
-    pairs: List<Pair<Language, Language>>,
-    initialText: String,
-  ): String {
-    var currentText = initialText
-    pairs.forEach { pair ->
-      val config = generateConfig(pair.first, pair.second)
-      val languageCode = "${pair.first.code}${pair.second.code}"
-      currentText = nativeLib.stringFromJNI(config, currentText, languageCode)
-    }
-    return currentText
-  }
-
-  private fun performMultipleTranslations(
+  // pairs can be len 1 or len 2 only
+  private fun performTranslations(
     pairs: List<Pair<Language, Language>>,
     texts: Array<String>,
   ): Array<String> {
-    var currentTexts = texts
     pairs.forEach { pair ->
       val config = generateConfig(pair.first, pair.second)
       val languageCode = "${pair.first.code}${pair.second.code}"
-      currentTexts = nativeLib.translateMultiple(config, currentTexts, languageCode)
+      measureTimeMillis {
+        nativeLib.loadModelIntoCache(config, languageCode)
+      }
     }
-    return currentTexts
+    if (pairs.count() == 1) {
+      val code = "${pairs[0].first.code}${pairs[0].second.code}"
+      return nativeLib.translateMultiple(texts, code)
+    } else if (pairs.count() == 2) {
+      val toEng = "${pairs[0].first.code}${pairs[0].second.code}"
+      val fromEng = "${pairs[1].first.code}${pairs[1].second.code}"
+      return nativeLib.pivotMultiple(toEng, fromEng, texts)
+    }
+    return emptyArray()
   }
 
   private fun generateConfig(

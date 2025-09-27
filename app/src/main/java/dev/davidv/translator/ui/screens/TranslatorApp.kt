@@ -268,7 +268,6 @@ fun TranslatorApp(
 
         if (sourceLanguage != null) {
           setFrom(sourceLanguage)
-          translationCoordinator.preloadModel(sourceLanguage, actualTo)
         }
       }
     }
@@ -503,6 +502,12 @@ fun TranslatorApp(
             is TranslationResult.Error -> null
           }
       }
+    }
+  }
+
+  LaunchedEffect(from, to) {
+    if (from != null) {
+      translationCoordinator.preloadModel(from!!, to)
     }
   }
   LaunchedEffect(from, input, to) {

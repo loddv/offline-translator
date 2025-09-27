@@ -33,8 +33,7 @@ impl TesseractWrapper {
         ));
 
         // Check tessdata directory if datapath is provided
-        if let Some(path) = datapath {
-            let tessdata_path = format!("{}/tessdata", path);
+        if let Some(tessdata_path) = datapath {
             android_log_info!(format!("Checking tessdata directory: {}", tessdata_path));
 
             match std::fs::read_dir(&tessdata_path) {

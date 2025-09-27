@@ -54,7 +54,7 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun TranslationField(
-  text: TranslatedText,
+  text: TranslatedText?,
   textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
   onDictionaryLookup: (String) -> Unit = {},
 ) {
@@ -75,7 +75,7 @@ fun TranslationField(
         .fillMaxSize()
         .semantics {
           contentDescription = "Translation output"
-          this.text = AnnotatedString(text.translated)
+          this.text = AnnotatedString(text?.translated ?: "")
         },
   ) {
     Column(
@@ -94,7 +94,7 @@ fun TranslationField(
           TextView(context).apply {
             this.tag = "output_textview_tag"
             this.contentDescription = "Output textview"
-            this.text = text.translated
+            this.text = text?.translated ?: ""
             this.textSize = fontSize
             this.setTextColor(textColor)
             this.setTextIsSelectable(true)
@@ -104,14 +104,14 @@ fun TranslationField(
           }
         },
         update = { textView ->
-          textView.text = text.translated
+          textView.text = text?.translated ?: ""
           textView.textSize = fontSize
           textView.customSelectionActionModeCallback = actionModeCallback
           actionModeCallback.setTextView(textView)
         },
       )
 
-      if (text.transliterated != null) {
+      if (text?.transliterated != null) {
         AndroidView(
           factory = { context ->
             TextView(context).apply {
@@ -130,24 +130,25 @@ fun TranslationField(
       }
     }
 
-    // Copy button positioned sticky to the right
-    IconButton(
-      onClick = {
-        val clipboard =
-          context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Translation", text.translated)
-        clipboard.setPrimaryClip(clip)
-      },
-      modifier =
-        Modifier
-          .align(Alignment.TopEnd)
-          .size(24.dp),
-    ) {
-      Icon(
-        painterResource(id = R.drawable.copy),
-        contentDescription = "Copy translation",
-        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-      )
+    if (text?.translated?.isNotEmpty() == true) {
+      IconButton(
+        onClick = {
+          val clipboard =
+            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+          val clip = ClipData.newPlainText("Translation", text?.translated)
+          clipboard.setPrimaryClip(clip)
+        },
+        modifier =
+          Modifier
+            .align(Alignment.TopEnd)
+            .size(24.dp),
+      ) {
+        Icon(
+          painterResource(id = R.drawable.copy),
+          contentDescription = "Copy translation",
+          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
+      }
     }
   }
 }

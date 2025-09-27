@@ -307,19 +307,17 @@ fun MainScreen(
                   .fillMaxWidth()
                   .height(parentHeight * 0.5f),
             ) {
-              if (output != null) {
-                TranslationField(
-                  text = output,
-                  textStyle =
-                    MaterialTheme.typography.bodyLarge.copy(
-                      fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
-                      lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
-                    ),
-                  onDictionaryLookup = {
-                    onMessage(TranslatorMessage.DictionaryLookup(it, to))
-                  },
-                )
-              }
+              TranslationField(
+                text = output,
+                textStyle =
+                  MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                    lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                  ),
+                onDictionaryLookup = {
+                  onMessage(TranslatorMessage.DictionaryLookup(it, to))
+                },
+              )
             }
           }
         }

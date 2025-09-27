@@ -243,32 +243,40 @@ fun TranslatorApp(
     }
   }
 
+  // update prefs when deleting
+  LaunchedEffect(languageState.availableLanguageMap, settings.defaultTargetLanguage, settings.defaultSourceLanguage) {
+    if (!languageState.hasLanguages) {
+      return@LaunchedEffect
+    }
+    // Deleted default target
+    if (languageState.availableLanguageMap[settings.defaultTargetLanguage]?.translatorFiles == false) {
+      setTo(Language.ENGLISH)
+      settingsManager.updateSettings(settings.copy(defaultTargetLanguage = Language.ENGLISH))
+    }
+    // Deleted default source
+    if (languageState.availableLanguageMap[settings.defaultSourceLanguage]?.translatorFiles == false) {
+      setFrom(Language.ENGLISH)
+      settingsManager.updateSettings(settings.copy(defaultSourceLanguage = Language.ENGLISH))
+    }
+  }
+
   // Initialize from language when languages become available
   LaunchedEffect(languageState.availableLanguageMap, settings.defaultTargetLanguage, settings.defaultSourceLanguage) {
-    var actualTo = settings.defaultTargetLanguage
-    if (languageState.hasLanguages) {
-      // Deleted default target
-      if (languageState.availableLanguageMap[settings.defaultTargetLanguage]?.translatorFiles == false) {
-        setTo(Language.ENGLISH)
-        actualTo = Language.ENGLISH
-        settingsManager.updateSettings(settings.copy(defaultTargetLanguage = Language.ENGLISH))
-      }
-
-      if (from == null) {
-        val preferredSource = settings.defaultSourceLanguage
-        val sourceLanguage =
-          if (preferredSource != null &&
-            languageState.availableLanguageMap[preferredSource]?.translatorFiles == true &&
-            preferredSource != actualTo
-          ) {
-            preferredSource
-          } else {
-            languageStateManager.getFirstAvailableFromLanguage(excluding = actualTo)
-          }
-
-        if (sourceLanguage != null) {
-          setFrom(sourceLanguage)
+    if (!languageState.hasLanguages) {
+      return@LaunchedEffect
+    }
+    val preferredSource = settings.defaultSourceLanguage
+    val preferredAvail = languageState.availableLanguageMap[preferredSource]?.translatorFiles == true
+    if (from == null) {
+      val sourceLanguage =
+        if (preferredSource != null && preferredAvail && preferredSource != to) {
+          preferredSource
+        } else {
+          languageStateManager.getFirstAvailableFromLanguage(excluding = to)
         }
+
+      if (sourceLanguage != null) {
+        setFrom(sourceLanguage)
       }
     }
   }

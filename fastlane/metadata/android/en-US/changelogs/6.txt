@@ -4,4 +4,5 @@
 - Add setting for default 'source' language
 - Improved translation performance & quality
 - Improved startup speed and translation responsiveness (UI interactions)
+- Improve OCR image overlay quality
 - Reduced memory usage for CJK and Russian models (needs redownload)

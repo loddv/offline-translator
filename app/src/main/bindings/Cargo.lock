@@ -501,7 +501,7 @@ dependencies = [
 [[package]]
 name = "tesseract-sys"
 version = "0.6.3"
-source = "git+https://github.com/DavidVentura/tesseract-sys#792b0d6760c4d64dcbde43e8afd50d43b3543153"
+source = "git+https://github.com/DavidVentura/tesseract-sys#53d9e3cfc42c77773a3d006bc15cd59960514983"
 dependencies = [
  "bindgen 0.64.0",
  "cc",

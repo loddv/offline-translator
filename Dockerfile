@@ -47,8 +47,8 @@ ENV ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION
 
 # Install Rust 1.87 system-wide
 ENV RUSTUP_HOME=/usr/local/rustup
-ENV CARGO_HOME=/usr/local/cargo
-ENV PATH="/usr/local/cargo/bin:${PATH}"
+ENV CARGO_HOME=/home/vagrant/.cargo
+ENV PATH="$CARGO_HOME/bin:${PATH}"
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.87.0 --no-modify-path && \
     chmod -R a+w $RUSTUP_HOME $CARGO_HOME
@@ -64,7 +64,7 @@ WORKDIR /home/vagrant/build/dev.davidv.translator
 RUN git config --system core.abbrev 10
 
 RUN echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-RUN chmod a+rw -R /usr/local/cargo/registry
+RUN chmod a+rw -R $CARGO_HOME/registry
 RUN mkdir /.gradle && chmod a+rw /.gradle
 RUN mkdir /.android && chmod a+rw /.android
 # Default command to build the project

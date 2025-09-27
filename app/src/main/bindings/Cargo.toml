@@ -10,13 +10,16 @@ path = "src/lib.rs"
 
 [dependencies]
 jni = "0.21.1"
-tarkka = { version = "0.1.0", path = "../nativeDeps/tarkka" }
-tesseract = { path = "../nativeDeps/tesseract-rs" }
+tarkka = { git = "https://github.com/DavidVentura/tarkka" }
+tesseract = { git = "https://github.com/DavidVentura/tesseract-rs" }
 
 [patch.crates-io]
-leptonica-sys = { path = "../nativeDeps/leptonica-sys" }
-tesseract-sys = { path = "../nativeDeps/tesseract-sys" }
-tesseract-plumbing = { path = "../nativeDeps/tesseract-plumbing" }
+leptonica-sys = { git = "https://github.com/DavidVentura/leptonica-sys" }
+tesseract-sys = { git = "https://github.com/DavidVentura/tesseract-sys" }
+tesseract-plumbing = { git = "https://github.com/DavidVentura/tesseract-plumbing" }
+
+[patch."https://github.com/DavidVentura/tesseract-rs"]
+tesseract-sys = { git = "https://github.com/DavidVentura/tesseract-sys" }
 
 [profile.release]
 lto = "fat"

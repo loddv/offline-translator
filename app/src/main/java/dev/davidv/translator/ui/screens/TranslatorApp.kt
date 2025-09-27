@@ -512,9 +512,6 @@ fun TranslatorApp(
   }
   LaunchedEffect(from, input, to) {
     // don't check for empty, we may be translating an image
-    if (isTranslating) {
-      return@LaunchedEffect
-    }
     scope.launch {
       currentDetectedLanguage =
         if (!settings.disableCLD) {
@@ -522,6 +519,11 @@ fun TranslatorApp(
         } else {
           null
         }
+    }
+    // don't enqueue a new translation if busy; when we stop
+    // being busy, then-current state will be translated
+    if (isTranslating) {
+      return@LaunchedEffect
     }
     if (from != null) {
       translateWithLanguages(from!!, to)

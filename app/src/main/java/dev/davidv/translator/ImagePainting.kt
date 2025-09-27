@@ -241,6 +241,45 @@ fun getSurroundingAverageColor(
   }
 }
 
+fun doesTextFitInLines(
+  text: String,
+  lines: Array<TextLine>,
+  textPaint: TextPaint,
+): Boolean {
+  val translatedSpaceIndices =
+    text.mapIndexedNotNull { index, char ->
+      if (char == ' ') index else null
+    }
+
+  var start = 0
+  for (line in lines) {
+    if (start >= text.length) break
+
+    val measuredWidth = FloatArray(1)
+    val countedChars =
+      textPaint.breakText(
+        text,
+        start,
+        text.length,
+        true,
+        line.boundingBox.width().toFloat(),
+        measuredWidth,
+      )
+
+    val endIndex: Int =
+      if (start + countedChars == text.length) {
+        text.length
+      } else {
+        val previousSpaceIndex = translatedSpaceIndices.findLast { it < start + countedChars }
+        previousSpaceIndex?.let { it + 1 } ?: (start + countedChars)
+      }
+
+    start = endIndex
+  }
+
+  return start >= text.length
+}
+
 fun paintTranslatedTextOver(
   originalBitmap: Bitmap,
   textBlocks: Array<TextBlock>,
@@ -257,9 +296,6 @@ fun paintTranslatedTextOver(
 
   var allTranslatedText = ""
 
-  val textSizePadding = 0.8f // FIXME: pre-calculate real size
-  val minTextSize = 8f
-
   textBlocks.forEachIndexed { i, textBlock ->
     val blockAvgPixelHeight =
       textBlock.lines
@@ -275,11 +311,10 @@ fun paintTranslatedTextOver(
       }
     allTranslatedText = "${allTranslatedText}\n$translated"
 
-    val totalBBLength = textBlock.lines.sumOf { line -> line.boundingBox.width() }
-    val availableBBLength = totalBBLength * textSizePadding
+    val minTextSize = 8f
 
     textPaint.textSize = blockAvgPixelHeight
-    while (textPaint.measureText(translated) >= availableBBLength && textPaint.textSize > minTextSize) {
+    while (!doesTextFitInLines(translated, textBlock.lines, textPaint) && textPaint.textSize > minTextSize) {
       textPaint.textSize -= 1f
     }
 

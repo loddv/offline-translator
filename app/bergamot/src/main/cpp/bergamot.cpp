@@ -23,7 +23,7 @@ void initializeService() {
 
     if (global_service == nullptr) {
         BlockingService::Config blockingConfig;
-        blockingConfig.cacheSize = 0;
+        blockingConfig.cacheSize = 256;
         blockingConfig.logger.level = "off";
         global_service = std::make_unique<BlockingService>(blockingConfig);
     }

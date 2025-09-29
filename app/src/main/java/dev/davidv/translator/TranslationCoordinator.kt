@@ -33,6 +33,7 @@ class TranslationCoordinator(
   private val languageDetector: LanguageDetector,
   private val imageProcessor: ImageProcessor,
   private val settingsManager: SettingsManager,
+  private val enableToast: Boolean = true,
 ) {
   private val _isTranslating = MutableStateFlow(false)
   val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
@@ -58,7 +59,7 @@ class TranslationCoordinator(
     from: Language,
     to: Language,
     text: String,
-  ): TranslationResult? {
+  ): TranslationResult {
     if (text.isBlank()) return TranslationResult.Success(TranslatedText("", ""))
     // we do best-effort in TranslatorApp to not call this concurrently,
     // to avoid pointless queueing (only the latest result is useful)
@@ -79,13 +80,15 @@ class TranslationCoordinator(
     return when (result) {
       is TranslationResult.Success -> result
       is TranslationResult.Error -> {
-        Toast
-          .makeText(
-            context,
-            "Translation error: ${result.message}",
-            Toast.LENGTH_SHORT,
-          ).show()
-        null
+        if (enableToast) {
+          Toast
+            .makeText(
+              context,
+              "Translation error: ${result.message}",
+              Toast.LENGTH_SHORT,
+            ).show()
+        }
+        result
       }
     }
   }
@@ -94,6 +97,12 @@ class TranslationCoordinator(
     text: String,
     hint: Language?,
   ): Language? = languageDetector.detectLanguage(text, hint)
+
+  suspend fun detectLanguageRobust(
+    text: String,
+    hint: Language?,
+    availableLanguages: List<Language>,
+  ): Language? = languageDetector.detectLanguageRobust(text, hint, availableLanguages)
 
   fun correctBitmap(uri: Uri): Bitmap {
     val originalBitmap = imageProcessor.loadBitmapFromUri(uri)
@@ -186,9 +195,11 @@ class TranslationCoordinator(
       )
     } catch (e: Exception) {
       Log.e("TranslationCoordinator", "Exception ${e.stackTrace}")
-      Toast
-        .makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT)
-        .show()
+      if (enableToast) {
+        Toast
+          .makeText(context, "Image processing error: ${e.message}", Toast.LENGTH_SHORT)
+          .show()
+      }
       null
     } finally {
       _isOcrInProgress.value = false

@@ -60,6 +60,7 @@ fun ImageCaptureHandler(
   onMessage: (TranslatorMessage) -> Unit,
   showImageSourceSheet: Boolean,
   onDismissImageSourceSheet: () -> Unit,
+  showFilePickerInImagePicker: Boolean = true,
 ) {
   val context = LocalContext.current
 
@@ -112,10 +113,21 @@ fun ImageCaptureHandler(
       }
     }
 
+  val pickFromFiles =
+    rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+      if (uri != null) {
+        Log.d("FilePicker", "Selected URI: $uri")
+        onMessage(TranslatorMessage.SetImageUri(uri))
+      } else {
+        Log.d("FilePicker", "No file selected")
+      }
+    }
+
   // Image source selection bottom sheet
   if (showImageSourceSheet) {
     ImageSourceBottomSheet(
       onDismiss = onDismissImageSourceSheet,
+      showFilePickerOption = showFilePickerInImagePicker,
       onCameraClick = {
         onDismissImageSourceSheet()
         val cameraIntent =
@@ -133,6 +145,10 @@ fun ImageCaptureHandler(
         val galleryIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         pickFromGallery.launch(galleryIntent)
       },
+      onFilePickerClick = {
+        onDismissImageSourceSheet()
+        pickFromFiles.launch(arrayOf("image/*"))
+      },
     )
   }
 }
@@ -141,9 +157,11 @@ fun ImageCaptureHandler(
 @Composable
 fun ImageSourceBottomSheet(
   onDismiss: () -> Unit,
+  showFilePickerOption: Boolean,
   onCameraClick: () -> Unit,
   onMediaPickerClick: () -> Unit,
   onGalleryClick: () -> Unit,
+  onFilePickerClick: () -> Unit,
 ) {
   val bottomSheetState = rememberModalBottomSheetState()
 
@@ -207,7 +225,8 @@ fun ImageSourceBottomSheet(
               textAlign = TextAlign.Center,
             )
           }
-        } else {
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
           // Traditional Gallery for older Android versions
           Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -224,6 +243,29 @@ fun ImageSourceBottomSheet(
             )
             Text(
               text = "Gallery",
+              style = MaterialTheme.typography.bodyMedium,
+              textAlign = TextAlign.Center,
+            )
+          }
+        }
+
+        if (showFilePickerOption) {
+          // File picker
+          Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable { onFilePickerClick() },
+          ) {
+            Icon(
+              painter = painterResource(id = R.drawable.folder),
+              contentDescription = "Files",
+              modifier =
+                Modifier
+                  .size(48.dp)
+                  .padding(bottom = 8.dp),
+              tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+              text = "Files",
               style = MaterialTheme.typography.bodyMedium,
               textAlign = TextAlign.Center,
             )

@@ -147,6 +147,8 @@ fun TabbedLanguageManagerScreen(
               }
             },
             sizeBytes = { it.sizeBytes.toLong() },
+            // TODO
+            onFavorite = {},
           )
         }
 
@@ -203,6 +205,8 @@ fun TabbedLanguageManagerScreen(
                     String.format("%.2f MB$entriesStr", size)
                   }
                 },
+                // TODO
+                onFavorite = {},
                 onEvent = { ev ->
                   when (ev) {
                     is LanguageEvent.Download ->

@@ -28,6 +28,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -40,6 +42,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.ui.components.LanguageDownloadButton
@@ -48,6 +52,16 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
+
+sealed class FavoriteEvent {
+  data class Star(
+    val language: Language,
+  ) : FavoriteEvent()
+
+  data class Unstar(
+    val language: Language,
+  ) : FavoriteEvent()
+}
 
 @Composable
 fun LanguageManagerScreen(
@@ -59,6 +73,7 @@ fun LanguageManagerScreen(
   downloadStates: Map<Language, DownloadState>,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
+  onFavorite: (FavoriteEvent) -> Unit,
   openDialog: Boolean = false,
   description: (Language) -> String,
   sizeBytes: (Language) -> Long,
@@ -104,6 +119,7 @@ fun LanguageManagerScreen(
               downloadState = downloadStates[lang],
               availabilityCheck = availabilityCheck,
               onEvent = onEvent,
+              onFavorite = onFavorite,
               description = description,
             )
           }
@@ -146,6 +162,7 @@ fun LanguageManagerScreen(
               availabilityCheck = availabilityCheck,
               description = description,
               onEvent = onEvent,
+              onFavorite = onFavorite,
             )
           }
         }
@@ -202,6 +219,29 @@ fun LanguageManagerScreen(
 }
 
 @Composable
+fun FavoriteButton(
+  isFavorite: Boolean,
+  language: Language,
+  onEvent: (FavoriteEvent) -> Unit,
+) {
+  IconButton(
+    onClick = {
+      if (isFavorite) {
+        onEvent(FavoriteEvent.Unstar(language))
+      } else {
+        onEvent(FavoriteEvent.Star(language))
+      }
+    },
+  ) {
+    Icon(
+      painter = painterResource(id = if (isFavorite) R.drawable.star_filled else R.drawable.star),
+      contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+      tint = if (isFavorite) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+    )
+  }
+}
+
+@Composable
 private fun LanguageItem(
   lang: Language,
   state: LangAvailability,
@@ -209,7 +249,9 @@ private fun LanguageItem(
   description: (Language) -> String,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
+  onFavorite: (FavoriteEvent) -> Unit,
 ) {
+  val isAvailable = availabilityCheck(state)
   Row(
     modifier =
       Modifier
@@ -228,12 +270,19 @@ private fun LanguageItem(
         style = MaterialTheme.typography.labelMedium,
       )
     }
-    LanguageDownloadButton(
-      language = lang,
-      downloadState = downloadState,
-      isLanguageAvailable = availabilityCheck(state),
-      onEvent = onEvent,
-    )
+    Row(
+      horizontalArrangement = Arrangement.End,
+    ) {
+      if (isAvailable) {
+        FavoriteButton(isFavorite = lang == Language.SPANISH, language = lang, onEvent = onFavorite)
+      }
+      LanguageDownloadButton(
+        language = lang,
+        downloadState = downloadState,
+        isLanguageAvailable = isAvailable,
+        onEvent = onEvent,
+      )
+    }
   }
 }
 
@@ -301,6 +350,36 @@ fun createPreviewStates(): PreviewStates =
 
 @Composable
 @Preview
+fun LanguageManagerPreviewDark() {
+  val states = createPreviewStates()
+  val languageAvailabilityState by states.languageState.collectAsState()
+  val downloadStates by states.downloadStates.collectAsState()
+  val availLangs = languageAvailabilityState.availableLanguageMap.filterValues { it.translatorFiles }.keys
+  val installedLanguages = availLangs.filter { it != Language.ENGLISH }.sortedBy { it.displayName }
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
+      .take(4)
+
+  TranslatorTheme(darkTheme = true) {
+    LanguageManagerScreen(
+      installedLanguages = installedLanguages,
+      availableLanguages = availableLanguages,
+      languageAvailabilityState = languageAvailabilityState,
+      downloadStates = downloadStates,
+      availabilityCheck = { it.translatorFiles },
+      onEvent = {},
+      onFavorite = {},
+      description = { "3MB" },
+      sizeBytes = { 5 },
+    )
+  }
+}
+
+@Composable
+@Preview
 fun LanguageManagerPreview() {
   val states = createPreviewStates()
   val languageAvailabilityState by states.languageState.collectAsState()
@@ -322,7 +401,8 @@ fun LanguageManagerPreview() {
       downloadStates = downloadStates,
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
-      description = { "asd" },
+      onFavorite = {},
+      description = { "3MB" },
       sizeBytes = { 5 },
     )
   }
@@ -331,16 +411,22 @@ fun LanguageManagerPreview() {
 @Composable
 @Preview
 fun LanguageManagerPreviewEmbedded() {
+  val availableLanguages =
+    Language.entries
+      .filter { lang ->
+        fromEnglishFiles[lang] != null && lang != Language.ENGLISH
+      }.sortedBy { it.displayName }
   TranslatorTheme {
     LanguageManagerScreen(
       embedded = true,
       installedLanguages = emptyList(),
-      availableLanguages = emptyList(),
+      availableLanguages = availableLanguages,
       languageAvailabilityState = LanguageAvailabilityState(),
       downloadStates = emptyMap(),
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
-      description = { "asd" },
+      onFavorite = {},
+      description = { "4MB" },
       sizeBytes = { 5 },
     )
   }
@@ -368,9 +454,9 @@ fun LanguageManagerDialogPreview() {
       downloadStates = downloadStates,
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
+      onFavorite = {},
       openDialog = true,
-      description = { "asd" },
-      // this is wrong but fine
+      description = { "5MB" },
       sizeBytes = { it.sizeBytes.toLong() },
     )
   }

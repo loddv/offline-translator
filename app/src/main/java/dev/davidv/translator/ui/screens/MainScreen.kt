@@ -330,7 +330,7 @@ fun MainScreen(
     onMessage = onMessage,
     showImageSourceSheet = showImageSourceSheet,
     onDismissImageSourceSheet = { showImageSourceSheet = false },
-    showGalleryInImagePicker = settings.showGalleryInImagePicker,
+    showFilePickerInImagePicker = settings.showFilePickerInImagePicker,
   )
 
   // Full screen image viewer

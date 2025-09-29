@@ -91,7 +91,7 @@ class SettingsManager(
     val useExternalStorage = prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
     val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
     val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
-    val showGalleryInImagePicker = prefs.getBoolean("show_gallery_in_image_picker", defaults.showGalleryInImagePicker)
+    val showFilePickerInImagePicker = prefs.getBoolean("show_file_picker_in_image_picker", defaults.showFilePickerInImagePicker)
 
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
@@ -108,7 +108,7 @@ class SettingsManager(
       useExternalStorage = useExternalStorage,
       fontFactor = fontFactor,
       showOCRDetection = showOCRDetection,
-      showGalleryInImagePicker = showGalleryInImagePicker,
+      showFilePickerInImagePicker = showFilePickerInImagePicker,
     )
   }
 
@@ -177,9 +177,9 @@ class SettingsManager(
         putFloat("font_factor", newSettings.fontFactor)
         modifiedSettings.add("font_factor")
       }
-      if (newSettings.showGalleryInImagePicker != currentSettings.showGalleryInImagePicker) {
-        putBoolean("show_gallery_in_image_picker", newSettings.showGalleryInImagePicker)
-        modifiedSettings.add("show_gallery_in_image_picker")
+      if (newSettings.showFilePickerInImagePicker != currentSettings.showFilePickerInImagePicker) {
+        putBoolean("show_file_picker_in_image_picker", newSettings.showFilePickerInImagePicker)
+        modifiedSettings.add("show_file_picker_in_image_picker")
       }
       apply()
     }

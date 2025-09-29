@@ -500,6 +500,26 @@ fun SettingsScreen(
               )
             }
 
+            // Disable OCR Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Disable OCR",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.disableOcr,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(disableOcr = checked))
+                },
+              )
+            }
+
             // Show OCR Detection Toggle
             if (!settings.disableOcr) {
               Row(
@@ -520,26 +540,26 @@ fun SettingsScreen(
                   },
                 )
               }
-            }
 
-            // Disable OCR Toggle
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                text = "Disable OCR",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-              )
+              // Show Gallery in Image Picker Toggle
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = "Show file picker for OCR",
+                  style = MaterialTheme.typography.bodyMedium,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
 
-              Switch(
-                checked = settings.disableOcr,
-                onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(disableOcr = checked))
-                },
-              )
+                Switch(
+                  checked = settings.showFilePickerInImagePicker,
+                  onCheckedChange = { checked ->
+                    onSettingsChange(settings.copy(showFilePickerInImagePicker = checked))
+                  },
+                )
+              }
             }
 
             // Disable CLD Toggle
@@ -578,26 +598,6 @@ fun SettingsScreen(
                 checked = settings.disableTransliteration,
                 onCheckedChange = { checked ->
                   onSettingsChange(settings.copy(disableTransliteration = checked))
-                },
-              )
-            }
-
-            // Show Gallery in Image Picker Toggle
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                text = "Show gallery in image picker",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-              )
-
-              Switch(
-                checked = settings.showGalleryInImagePicker,
-                onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(showGalleryInImagePicker = checked))
                 },
               )
             }

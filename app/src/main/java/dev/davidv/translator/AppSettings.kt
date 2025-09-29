@@ -32,5 +32,5 @@ data class AppSettings(
   val useExternalStorage: Boolean = false,
   val fontFactor: Float = 1.0f,
   val showOCRDetection: Boolean = false,
-  val showGalleryInImagePicker: Boolean = false,
+  val showFilePickerInImagePicker: Boolean = false,
 )

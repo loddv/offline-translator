@@ -581,6 +581,26 @@ fun SettingsScreen(
                 },
               )
             }
+
+            // Show Gallery in Image Picker Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Show gallery in image picker",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.showGalleryInImagePicker,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(showGalleryInImagePicker = checked))
+                },
+              )
+            }
           }
         }
       }

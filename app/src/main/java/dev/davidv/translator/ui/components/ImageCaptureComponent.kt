@@ -60,6 +60,7 @@ fun ImageCaptureHandler(
   onMessage: (TranslatorMessage) -> Unit,
   showImageSourceSheet: Boolean,
   onDismissImageSourceSheet: () -> Unit,
+  showGalleryInImagePicker: Boolean = true,
 ) {
   val context = LocalContext.current
 
@@ -116,6 +117,7 @@ fun ImageCaptureHandler(
   if (showImageSourceSheet) {
     ImageSourceBottomSheet(
       onDismiss = onDismissImageSourceSheet,
+      showGalleryOption = showGalleryInImagePicker,
       onCameraClick = {
         onDismissImageSourceSheet()
         val cameraIntent =
@@ -141,6 +143,7 @@ fun ImageCaptureHandler(
 @Composable
 fun ImageSourceBottomSheet(
   onDismiss: () -> Unit,
+  showGalleryOption: Boolean,
   onCameraClick: () -> Unit,
   onMediaPickerClick: () -> Unit,
   onGalleryClick: () -> Unit,
@@ -207,7 +210,8 @@ fun ImageSourceBottomSheet(
               textAlign = TextAlign.Center,
             )
           }
-        } else {
+        }
+        if (showGalleryOption || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
           // Traditional Gallery for older Android versions
           Column(
             horizontalAlignment = Alignment.CenterHorizontally,

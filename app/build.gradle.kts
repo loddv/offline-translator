@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.compose)
+  alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ktlint)
   alias(libs.plugins.detekt)
 }
@@ -176,9 +177,10 @@ dependencies {
   debugImplementation(libs.androidx.ui.test.manifest)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.androidx.datastore.preferences)
+  implementation(libs.kotlinx.serialization.json)
   implementation(project(":app:bergamot"))
-  // OpenMP - Multi-threaded. Provides better performance on multi-core processors when using only single instance of Tesseract.
-//  implementation(("cz.adaptech.tesseract4android:tesseract4android-openmp:4.9.0"))
+  implementation(libs.kotlinx.serialization.json.v162)
 }
 
 ktlint {

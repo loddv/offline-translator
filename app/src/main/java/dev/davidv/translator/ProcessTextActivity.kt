@@ -52,6 +52,7 @@ class ProcessTextActivity : ComponentActivity() {
     handleIntent(intent)
 
     val settingsManager = SettingsManager(this)
+    val languageMetadataManager = LanguageMetadataManager(this)
     val filePathManager = FilePathManager(this, settingsManager.settings)
     ocrService = OCRService(filePathManager)
     val imageProcessor = ImageProcessor(this, ocrService)
@@ -72,6 +73,7 @@ class ProcessTextActivity : ComponentActivity() {
             sharedImageUri = mutableStateOf(null),
             translationCoordinator = translationCoordinator,
             settingsManager = settingsManager,
+            languageMetadataManager = languageMetadataManager,
             filePathManager = filePathManager,
             downloadServiceState = downloadServiceState,
             initialLaunchMode = launchMode,

@@ -71,6 +71,7 @@ fun LanguageManagerScreen(
   availableLanguages: List<Language>,
   languageAvailabilityState: LanguageAvailabilityState,
   downloadStates: Map<Language, DownloadState>,
+  languageMetadata: Map<Language, LanguageMetadata>,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
   onFavorite: (FavoriteEvent) -> Unit,
@@ -117,6 +118,7 @@ fun LanguageManagerScreen(
               lang = lang,
               state = languageAvailabilityState.availableLanguageMap[lang]!!,
               downloadState = downloadStates[lang],
+              isFavorite = languageMetadata[lang]?.favorite ?: false,
               availabilityCheck = availabilityCheck,
               onEvent = onEvent,
               onFavorite = onFavorite,
@@ -159,6 +161,7 @@ fun LanguageManagerScreen(
               state = languageAvailabilityState.availableLanguageMap[lang] ?: LangAvailability(false, false, false),
               lang = lang,
               downloadState = downloadStates[lang],
+              isFavorite = languageMetadata[lang]?.favorite ?: false,
               availabilityCheck = availabilityCheck,
               description = description,
               onEvent = onEvent,
@@ -246,6 +249,7 @@ private fun LanguageItem(
   lang: Language,
   state: LangAvailability,
   downloadState: DownloadState?,
+  isFavorite: Boolean,
   description: (Language) -> String,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
@@ -274,7 +278,7 @@ private fun LanguageItem(
       horizontalArrangement = Arrangement.End,
     ) {
       if (isAvailable) {
-        FavoriteButton(isFavorite = lang == Language.SPANISH, language = lang, onEvent = onFavorite)
+        FavoriteButton(isFavorite = isFavorite, language = lang, onEvent = onFavorite)
       }
       LanguageDownloadButton(
         language = lang,
@@ -369,6 +373,7 @@ fun LanguageManagerPreviewDark() {
       availableLanguages = availableLanguages,
       languageAvailabilityState = languageAvailabilityState,
       downloadStates = downloadStates,
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       onFavorite = {},
@@ -399,6 +404,7 @@ fun LanguageManagerPreview() {
       availableLanguages = availableLanguages,
       languageAvailabilityState = languageAvailabilityState,
       downloadStates = downloadStates,
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       onFavorite = {},
@@ -423,6 +429,7 @@ fun LanguageManagerPreviewEmbedded() {
       availableLanguages = availableLanguages,
       languageAvailabilityState = LanguageAvailabilityState(),
       downloadStates = emptyMap(),
+      languageMetadata = emptyMap(),
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       onFavorite = {},
@@ -452,6 +459,7 @@ fun LanguageManagerDialogPreview() {
       availableLanguages = availableLanguages,
       languageAvailabilityState = languageAvailabilityState,
       downloadStates = downloadStates,
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       availabilityCheck = { it.translatorFiles },
       onEvent = {},
       onFavorite = {},

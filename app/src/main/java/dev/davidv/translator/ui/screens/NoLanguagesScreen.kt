@@ -45,6 +45,7 @@ import dev.davidv.translator.DownloadEvent
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.fromEnglishFiles
@@ -58,6 +59,7 @@ fun NoLanguagesScreen(
   onDone: () -> Unit,
   onSettings: () -> Unit,
   languageStateManager: LanguageStateManager,
+  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   downloadService: DownloadService,
 ) {
   val state by languageStateManager.languageState.collectAsState()
@@ -121,6 +123,7 @@ fun NoLanguagesScreen(
       TabbedLanguageManagerScreen(
         context = context,
         languageStateManager = languageStateManager,
+        languageMetadataManager = languageMetadataManager,
         installedLanguages = installedLanguages,
         availableLanguages = availableLanguages,
         languageAvailabilityState = state,
@@ -147,6 +150,7 @@ fun NoLanguagesScreenPreview() {
       onSettings = {},
       downloadService = downloadService,
       languageStateManager = LanguageStateManager(scope, fp, mockDownloadEvents),
+      languageMetadataManager = LanguageMetadataManager(context),
     )
   }
 }

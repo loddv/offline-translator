@@ -51,11 +51,14 @@ import dev.davidv.translator.DictionaryIndex
 import dev.davidv.translator.DictionaryInfo
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
+import dev.davidv.translator.FavoriteEvent
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageManagerScreen
+import dev.davidv.translator.LanguageMetadata
+import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.createPreviewStates
@@ -70,6 +73,7 @@ import kotlin.math.roundToInt
 fun TabbedLanguageManagerScreen(
   context: Context,
   languageStateManager: LanguageStateManager,
+  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   installedLanguages: List<Language>,
   availableLanguages: List<Language>,
   languageAvailabilityState: LanguageAvailabilityState,
@@ -79,6 +83,7 @@ fun TabbedLanguageManagerScreen(
   defaultTabIndex: Int = 0,
 ) {
   var selectedTabIndex by remember { mutableIntStateOf(defaultTabIndex) }
+  val languageMetadata by languageMetadataManager.metadata.collectAsState()
 
   val installedDictionaries =
     (installedLanguages + Language.ENGLISH).filter { lang ->
@@ -128,6 +133,7 @@ fun TabbedLanguageManagerScreen(
             availableLanguages = availableLanguages,
             languageAvailabilityState = languageAvailabilityState,
             downloadStates = downloadStates,
+            languageMetadata = languageMetadata,
             availabilityCheck = { it.translatorFiles },
             onEvent = { event ->
               when (event) {
@@ -136,6 +142,18 @@ fun TabbedLanguageManagerScreen(
                 is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
                 is LanguageEvent.DeleteDictionary -> languageStateManager.deleteDict(event.language)
                 is LanguageEvent.FetchDictionaryIndex -> {}
+              }
+            },
+            onFavorite = { event ->
+              when (event) {
+                is FavoriteEvent.Star -> {
+                  val current = languageMetadata[event.language] ?: LanguageMetadata()
+                  languageMetadataManager.updateLanguage(event.language, current.copy(favorite = true))
+                }
+                is FavoriteEvent.Unstar -> {
+                  val current = languageMetadata[event.language] ?: LanguageMetadata()
+                  languageMetadataManager.updateLanguage(event.language, current.copy(favorite = false))
+                }
               }
             },
             description = { lang ->
@@ -147,8 +165,6 @@ fun TabbedLanguageManagerScreen(
               }
             },
             sizeBytes = { it.sizeBytes.toLong() },
-            // TODO
-            onFavorite = {},
           )
         }
 
@@ -183,6 +199,7 @@ fun TabbedLanguageManagerScreen(
                 availableLanguages = availableDictionaries,
                 languageAvailabilityState = languageAvailabilityState,
                 downloadStates = dictionaryDownloadStates,
+                languageMetadata = languageMetadata,
                 availabilityCheck = { it.dictionaryFiles },
                 sizeBytes = { l ->
                   val indexEntry = dictionaryIndex.dictionaries[l.code]
@@ -205,8 +222,18 @@ fun TabbedLanguageManagerScreen(
                     String.format("%.2f MB$entriesStr", size)
                   }
                 },
-                // TODO
-                onFavorite = {},
+                onFavorite = { event ->
+                  when (event) {
+                    is FavoriteEvent.Star -> {
+                      val current = languageMetadata[event.language] ?: LanguageMetadata()
+                      languageMetadataManager.updateLanguage(event.language, current.copy(favorite = true))
+                    }
+                    is FavoriteEvent.Unstar -> {
+                      val current = languageMetadata[event.language] ?: LanguageMetadata()
+                      languageMetadataManager.updateLanguage(event.language, current.copy(favorite = false))
+                    }
+                  }
+                },
                 onEvent = { ev ->
                   when (ev) {
                     is LanguageEvent.Download ->
@@ -293,14 +320,16 @@ fun TabbedLanguageManagerPreview() {
         fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
       }.sortedBy { it.displayName }
 
+  val context = LocalContext.current
   TranslatorTheme {
     TabbedLanguageManagerScreen(
-      context = LocalContext.current,
+      context = context,
       languageStateManager =
         LanguageStateManager(
           CoroutineScope(Dispatchers.Main),
-          FilePathManager(LocalContext.current, kotlinx.coroutines.flow.MutableStateFlow(AppSettings())),
+          FilePathManager(context, kotlinx.coroutines.flow.MutableStateFlow(AppSettings())),
         ),
+      languageMetadataManager = LanguageMetadataManager(context),
       installedLanguages = installedLanguages,
       availableLanguages = availableLanguages,
       languageAvailabilityState = mockLanguageState,
@@ -345,14 +374,16 @@ fun TabbedLanguageManagerDictionaryTabPreview() {
         fromEnglishFiles[lang] != null && !availLangs.contains(lang) && lang != Language.ENGLISH
       }.sortedBy { it.displayName }
 
+  val context = LocalContext.current
   TranslatorTheme {
     TabbedLanguageManagerScreen(
-      context = LocalContext.current,
+      context = context,
       languageStateManager =
         LanguageStateManager(
           CoroutineScope(Dispatchers.Main),
-          FilePathManager(LocalContext.current, kotlinx.coroutines.flow.MutableStateFlow(AppSettings())),
+          FilePathManager(context, kotlinx.coroutines.flow.MutableStateFlow(AppSettings())),
         ),
+      languageMetadataManager = LanguageMetadataManager(context),
       installedLanguages = installedLanguages,
       availableLanguages = availableLanguages,
       languageAvailabilityState = mockLanguageState,

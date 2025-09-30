@@ -105,6 +105,7 @@ fun TranslatorApp(
   sharedImageUri: MutableState<Uri?>,
   translationCoordinator: TranslationCoordinator,
   settingsManager: SettingsManager,
+  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   filePathManager: FilePathManager,
   downloadServiceState: StateFlow<DownloadService?>,
   initialLaunchMode: LaunchMode,
@@ -671,6 +672,7 @@ fun TranslatorApp(
                   navController.navigate("settings")
                 },
                 languageStateManager = languageStateManager,
+                languageMetadataManager = languageMetadataManager,
                 downloadService = currentDownloadService,
               )
             }
@@ -733,6 +735,7 @@ fun TranslatorApp(
                   TabbedLanguageManagerScreen(
                     context = context,
                     languageStateManager = languageStateManager,
+                    languageMetadataManager = languageMetadataManager,
                     installedLanguages = installedLanguages,
                     availableLanguages = availableLanguages,
                     languageAvailabilityState = languageState,
@@ -747,6 +750,7 @@ fun TranslatorApp(
           composable("settings") {
             SettingsScreen(
               settings = settings,
+              languageMetadataManager = languageMetadataManager,
               availableLanguages = (languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys + Language.ENGLISH).toList(),
               onSettingsChange = { newSettings ->
                 settingsManager.updateSettings(newSettings)

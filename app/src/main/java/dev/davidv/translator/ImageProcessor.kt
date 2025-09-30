@@ -34,10 +34,11 @@ class ImageProcessor(
 ) {
   suspend fun processImage(
     bitmap: Bitmap,
+    fromLang: Language,
     minConfidence: Int = 75,
   ): ProcessedImage =
     withContext(Dispatchers.IO) {
-      val textBlocks = ocrService.extractText(bitmap, minConfidence)
+      val textBlocks = ocrService.extractText(bitmap, fromLang, minConfidence)
 
       ProcessedImage(
         bitmap = bitmap,

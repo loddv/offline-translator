@@ -134,7 +134,7 @@ class TranslationCoordinator(
     return try {
       _isOcrInProgress.value = true
       val minConfidence = settingsManager.settings.value.minConfidence
-      val processedImage = imageProcessor.processImage(finalBitmap, minConfidence)
+      val processedImage = imageProcessor.processImage(finalBitmap, from, minConfidence)
       _isOcrInProgress.value = false
 
       Log.d("OCR", "complete, result ${processedImage.textBlocks}")

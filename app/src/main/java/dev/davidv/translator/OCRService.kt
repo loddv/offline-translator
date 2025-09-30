@@ -287,26 +287,23 @@ class OCRService(
   private val filePathManager: FilePathManager,
 ) {
   private var tess: TesseractOCR? = null
-  private var isInitialized = false
+  private var initializedToLang: Language? = null
 
-  private suspend fun initialize(): Boolean =
+  private suspend fun initialize(lang: Language): Boolean =
     withContext(Dispatchers.IO) {
-      if (isInitialized) return@withContext true
+      if (initializedToLang == lang) return@withContext true
 
       try {
+        tess?.close()
+        tess = null
+        initializedToLang = null
+
         val p = filePathManager.getTesseractDir().toPath()
         val tessdata = Path(p.pathString, "tessdata")
         val dataPath: String = p.absolutePathString()
         tessdata.createDirectories()
 
-        // Get available language data
-        val availableLanguages = getAvailableTessLanguages(tessdata.toFile()).map { it.tessName }
-        if (availableLanguages.isEmpty()) {
-          Log.w("OCRService", "No tessdata language files found")
-          return@withContext false
-        }
-
-        val langs = availableLanguages.joinToString("+")
+        val langs = "eng+${lang.tessName}"
         Log.i("OCRService", "Initializing tesseract to path $dataPath, languages $langs")
 
         tess = TesseractOCR(tessdata.absolutePathString(), langs)
@@ -316,15 +313,15 @@ class OCRService(
           tess = null
           Log.e(
             "OCRService",
-            "Failed to initialize Tesseract with languages: $availableLanguages",
+            "Failed to initialize Tesseract with languages: $langs",
           )
           return@withContext false
         }
 
-        isInitialized = true
+        initializedToLang = lang
         Log.i(
           "OCRService",
-          "Tesseract initialized successfully with languages: $availableLanguages",
+          "Tesseract initialized successfully with languages: $langs",
         )
         true
       } catch (e: Exception) {
@@ -335,11 +332,12 @@ class OCRService(
 
   suspend fun extractText(
     bitmap: Bitmap,
+    fromLang: Language,
     minConfidence: Int = 75,
   ): Array<TextBlock> =
     withContext(Dispatchers.IO) {
-      if (!isInitialized) {
-        val initSuccess = initialize()
+      if (initializedToLang != fromLang) {
+        val initSuccess = initialize(fromLang)
         if (!initSuccess) return@withContext emptyArray()
       }
 
@@ -350,7 +348,6 @@ class OCRService(
         measureTimeMillis {
           blocks = getSentences(bitmap, tessInstance, minConfidence)
         }
-      // Release image data & results; but keeps the instance active
       Log.i("OCRService", "OCR took ${elapsed}ms")
       blocks
     }
@@ -358,7 +355,7 @@ class OCRService(
   fun cleanup() {
     tess?.close()
     tess = null
-    isInitialized = false
+    initializedToLang = null
     Log.i("OCRService", "OCR service cleaned up")
   }
 }

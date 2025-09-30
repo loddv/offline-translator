@@ -67,21 +67,23 @@ class AidlTranslationService : Service() {
           Log.d(tag, "Detected lang $from")
           if (from == null) {
             Log.d(tag, "Could not detect language")
-            val err = TranslationError().apply {
-              type = ErrorType.COULD_NOT_DETECT_LANGUAGE
-              language = null
-              message = null
-            }
+            val err =
+              TranslationError().apply {
+                type = ErrorType.COULD_NOT_DETECT_LANGUAGE
+                language = null
+                message = null
+              }
             callback.onTranslationError(err)
             return@launch
           }
           if (!langs.contains(from)) {
             Log.d(tag, "Detected language ${from.displayName} not available")
-            val err = TranslationError().apply {
-              type = ErrorType.DETECTED_BUT_UNAVAILABLE
-              language = from.displayName
-              message = null
-            }
+            val err =
+              TranslationError().apply {
+                type = ErrorType.DETECTED_BUT_UNAVAILABLE
+                language = from.displayName
+                message = null
+              }
             callback.onTranslationError(err)
             return@launch
           }
@@ -95,11 +97,12 @@ class AidlTranslationService : Service() {
 
             is TranslationResult.Error -> {
               Log.d(tag, "Translation error: ${result.message}")
-              val err = TranslationError().apply {
-                type = ErrorType.UNEXPECTED
-                language = null
-                message = result.message
-              }
+              val err =
+                TranslationError().apply {
+                  type = ErrorType.UNEXPECTED
+                  language = null
+                  message = result.message
+                }
               callback.onTranslationError(err)
             }
           }

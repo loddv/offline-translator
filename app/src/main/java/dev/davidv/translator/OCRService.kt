@@ -237,7 +237,7 @@ fun getSentences(
     val lastWordInPara = wordInfo.isLastInPara
 
     if (firstWordInLine) {
-      line = TextLine(word, boundingBox, arrayOf(boundingBox))
+      line = TextLine(word, Rect(boundingBox), arrayOf(boundingBox))
     } else {
       val delta = boundingBox.left - lastRight
       val charWidth = realBBox.width().toFloat() / word.length
@@ -249,7 +249,7 @@ fun getSentences(
         if (line.text.trim() != "") {
           lines.add(line)
         }
-        line = TextLine(word, boundingBox, arrayOf(boundingBox))
+        line = TextLine(word, Rect(boundingBox), arrayOf(boundingBox))
         if (lines.isNotEmpty()) {
           blocks.add(TextBlock(lines.toTypedArray()))
           lines.clear()
@@ -303,7 +303,7 @@ class OCRService(
         val dataPath: String = p.absolutePathString()
         tessdata.createDirectories()
 
-        val langs = "eng+${lang.tessName}"
+        val langs = "${lang.tessName}+eng"
         Log.i("OCRService", "Initializing tesseract to path $dataPath, languages $langs")
 
         tess = TesseractOCR(tessdata.absolutePathString(), langs)

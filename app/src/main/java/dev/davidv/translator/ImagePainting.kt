@@ -315,6 +315,7 @@ fun paintTranslatedTextOver(
       isAntiAlias = true
     }
 
+  val testingBoxes = false
   var allTranslatedText = ""
 
   textBlocks.forEachIndexed { i, textBlock ->
@@ -337,18 +338,23 @@ fun paintTranslatedTextOver(
       fitResult = doesTextFitInLines(translated, textBlock.lines, textPaint)
     }
 
+    if (testingBoxes) {
+      textBlock.lines.forEach { println(it) }
+    }
     // Store colors for each line to avoid redundant calculations
     val lineColors = mutableMapOf<Int, Int>()
-    textBlock.lines.forEachIndexed { index, line ->
-      val fg =
-        removeTextWithSmartBlur(
-          canvas,
-          mutableBitmap,
-          line.boundingBox,
-          line.wordRects,
-          backgroundMode,
-        )
-      lineColors[index] = fg
+    if (!testingBoxes) {
+      textBlock.lines.forEachIndexed { index, line ->
+        val fg =
+          removeTextWithSmartBlur(
+            canvas,
+            mutableBitmap,
+            line.boundingBox,
+            line.wordRects,
+            backgroundMode,
+          )
+        lineColors[index] = fg
+      }
     }
 
     // only false if we would need to have text size < 8f
@@ -359,7 +365,7 @@ fun paintTranslatedTextOver(
           textPaint.color = color
         }
 
-        if (false) {
+        if (testingBoxes) {
           val p =
             TextPaint().apply {
               color = Color.RED
@@ -369,20 +375,22 @@ fun paintTranslatedTextOver(
             canvas.drawRect(toAndroidRect(w), p)
           }
           val l = toAndroidRect(line.boundingBox)
-          l.inset(-2, -2)
+//          l.inset(-2, -2)
           canvas.drawRect(l, p.apply { color = Color.BLUE })
         }
 
         val lineBreak = fitResult.lineBreaks.getOrNull(lineIndex)
         if (lineBreak != null && lineBreak.startIndex < translated.length) {
-          canvas.drawText(
-            translated,
-            lineBreak.startIndex,
-            lineBreak.endIndex,
-            line.boundingBox.left.toFloat(),
-            line.boundingBox.top.toFloat() - textPaint.ascent(),
-            textPaint,
-          )
+          if (!testingBoxes) {
+            canvas.drawText(
+              translated,
+              lineBreak.startIndex,
+              lineBreak.endIndex,
+              line.boundingBox.left.toFloat(),
+              line.boundingBox.top.toFloat() - textPaint.ascent(),
+              textPaint,
+            )
+          }
         }
       }
     }

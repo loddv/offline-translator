@@ -114,6 +114,7 @@ fun TranslatorApp(
   val navController = rememberNavController()
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
+  val languageMetadata by languageMetadataManager.metadata.collectAsState()
 
   // Launch mode state - make it mutable so it can be changed
   var currentLaunchMode by remember { mutableStateOf(initialLaunchMode) }
@@ -706,6 +707,7 @@ fun TranslatorApp(
                 onMessage = handleMessage,
                 // System integration
                 availableLanguages = languageState.availableLanguageMap,
+                languageMetadata = languageMetadata,
                 downloadStates = downloadStates,
                 settings = settings,
                 launchMode = currentLaunchMode,

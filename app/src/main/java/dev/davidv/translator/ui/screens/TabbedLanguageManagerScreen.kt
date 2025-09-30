@@ -199,7 +199,7 @@ fun TabbedLanguageManagerScreen(
                 availableLanguages = availableDictionaries,
                 languageAvailabilityState = languageAvailabilityState,
                 downloadStates = dictionaryDownloadStates,
-                languageMetadata = languageMetadata,
+                languageMetadata = emptyMap(),
                 availabilityCheck = { it.dictionaryFiles },
                 sizeBytes = { l ->
                   val indexEntry = dictionaryIndex.dictionaries[l.code]
@@ -222,18 +222,7 @@ fun TabbedLanguageManagerScreen(
                     String.format("%.2f MB$entriesStr", size)
                   }
                 },
-                onFavorite = { event ->
-                  when (event) {
-                    is FavoriteEvent.Star -> {
-                      val current = languageMetadata[event.language] ?: LanguageMetadata()
-                      languageMetadataManager.updateLanguage(event.language, current.copy(favorite = true))
-                    }
-                    is FavoriteEvent.Unstar -> {
-                      val current = languageMetadata[event.language] ?: LanguageMetadata()
-                      languageMetadataManager.updateLanguage(event.language, current.copy(favorite = false))
-                    }
-                  }
-                },
+                onFavorite = null,
                 onEvent = { ev ->
                   when (ev) {
                     is LanguageEvent.Download ->

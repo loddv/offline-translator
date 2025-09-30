@@ -74,7 +74,7 @@ fun LanguageManagerScreen(
   languageMetadata: Map<Language, LanguageMetadata>,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
-  onFavorite: (FavoriteEvent) -> Unit,
+  onFavorite: ((FavoriteEvent) -> Unit)?,
   openDialog: Boolean = false,
   description: (Language) -> String,
   sizeBytes: (Language) -> Long,
@@ -253,7 +253,7 @@ private fun LanguageItem(
   description: (Language) -> String,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
-  onFavorite: (FavoriteEvent) -> Unit,
+  onFavorite: ((FavoriteEvent) -> Unit)?,
 ) {
   val isAvailable = availabilityCheck(state)
   Row(
@@ -277,7 +277,7 @@ private fun LanguageItem(
     Row(
       horizontalArrangement = Arrangement.End,
     ) {
-      if (isAvailable) {
+      if (isAvailable && onFavorite != null) {
         FavoriteButton(isFavorite = isFavorite, language = lang, onEvent = onFavorite)
       }
       LanguageDownloadButton(

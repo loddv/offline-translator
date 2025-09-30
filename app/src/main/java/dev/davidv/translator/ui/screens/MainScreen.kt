@@ -70,6 +70,7 @@ import dev.davidv.translator.DownloadService
 import dev.davidv.translator.DownloadState
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatedText
@@ -109,6 +110,7 @@ fun MainScreen(
   onMessage: (TranslatorMessage) -> Unit,
   // System integration
   availableLanguages: Map<Language, LangAvailability>,
+  languageMetadata: Map<Language, LanguageMetadata>,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
   settings: AppSettings,
   launchMode: LaunchMode,
@@ -181,6 +183,7 @@ fun MainScreen(
           from = from,
           to = to,
           availableLanguages = availableLanguages.mapValues { it.value.translatorFiles },
+          languageMetadata = languageMetadata,
           onMessage = onMessage,
           drawable =
             if (launchMode == LaunchMode.Normal) {
@@ -454,6 +457,7 @@ fun PopupMode() {
           Language.SPANISH to LangAvailability(true, true, true),
           Language.FRENCH to LangAvailability(true, true, true),
         ),
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       downloadStates = emptyMap(),
       settings = AppSettings(),
       dictionaryWord = null,
@@ -488,6 +492,7 @@ fun MainScreenPreview() {
           Language.SPANISH to LangAvailability(true, true, true),
           Language.FRENCH to LangAvailability(true, true, true),
         ),
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       downloadStates = emptyMap(),
       settings = AppSettings(),
       dictionaryWord = null,
@@ -529,6 +534,7 @@ fun PreviewVeryLongText() {
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
       dictionaryLookupLanguage = null,
@@ -572,6 +578,7 @@ fun PreviewVeryLongTextImage() {
         ),
       downloadStates = emptyMap(),
       settings = AppSettings(),
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
       dictionaryLookupLanguage = null,

@@ -20,13 +20,18 @@ package dev.davidv.translator.ui.components
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,16 +41,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageMetadata
+import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun LanguageSelector(
   selectedLanguage: Language,
   availableLanguages: List<Language>,
+  languageMetadata: Map<Language, LanguageMetadata>,
   onLanguageSelected: (Language) -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -80,15 +90,36 @@ fun LanguageSelector(
       expanded = expanded,
       onDismissRequest = { expanded = false },
     ) {
-      availableLanguages.forEach { language ->
-        DropdownMenuItem(
-          text = { Text(language.displayName) },
-          onClick = {
-            onLanguageSelected(language)
-            expanded = false
-          },
-        )
-      }
+      availableLanguages
+        .sortedWith(
+          compareByDescending<Language> { languageMetadata[it]?.favorite ?: false }
+            .thenBy { it.displayName },
+        ).forEach { language ->
+          val isFavorite = languageMetadata[language]?.favorite ?: false
+          DropdownMenuItem(
+            text = {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+              ) {
+                Text(language.displayName)
+                if (isFavorite) {
+                  Icon(
+                    painter = painterResource(id = R.drawable.star_filled),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.width(10.dp),
+                  )
+                }
+              }
+            },
+            onClick = {
+              onLanguageSelected(language)
+              expanded = false
+            },
+          )
+        }
     }
   }
 }
@@ -97,18 +128,23 @@ fun LanguageSelector(
 @Composable
 fun LanguageSelectorAzerbaijaniPreview() {
   TranslatorTheme {
-    LanguageSelector(
-      selectedLanguage = Language.AZERBAIJANI,
-      availableLanguages =
-        listOf(
-          Language.ENGLISH,
-          Language.SPANISH,
-          Language.FRENCH,
-          Language.AZERBAIJANI,
-          Language.GERMAN,
-        ),
-      onLanguageSelected = { },
-    )
+    Surface(
+      color = MaterialTheme.colorScheme.surface,
+    ) {
+      LanguageSelector(
+        selectedLanguage = Language.AZERBAIJANI,
+        availableLanguages =
+          listOf(
+            Language.ENGLISH,
+            Language.SPANISH,
+            Language.FRENCH,
+            Language.AZERBAIJANI,
+            Language.GERMAN,
+          ),
+        languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
+        onLanguageSelected = { },
+      )
+    }
   }
 }
 
@@ -116,17 +152,22 @@ fun LanguageSelectorAzerbaijaniPreview() {
 @Composable
 fun LanguageSelectorSpanishPreview() {
   TranslatorTheme {
-    LanguageSelector(
-      selectedLanguage = Language.SPANISH,
-      availableLanguages =
-        listOf(
-          Language.ENGLISH,
-          Language.SPANISH,
-          Language.FRENCH,
-          Language.AZERBAIJANI,
-          Language.GERMAN,
-        ),
-      onLanguageSelected = { },
-    )
+    Surface(
+      color = MaterialTheme.colorScheme.surface,
+    ) {
+      LanguageSelector(
+        selectedLanguage = Language.SPANISH,
+        availableLanguages =
+          listOf(
+            Language.ENGLISH,
+            Language.SPANISH,
+            Language.FRENCH,
+            Language.AZERBAIJANI,
+            Language.GERMAN,
+          ),
+        languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
+        onLanguageSelected = { },
+      )
+    }
   }
 }

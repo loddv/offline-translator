@@ -30,6 +30,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -39,6 +40,7 @@ fun LanguageSelectionRow(
   from: Language,
   to: Language,
   availableLanguages: Map<Language, Boolean>,
+  languageMetadata: Map<Language, LanguageMetadata>,
   onMessage: (TranslatorMessage) -> Unit,
   onSettings: (() -> Unit)?,
   drawable: Pair<String, Int>,
@@ -54,6 +56,7 @@ fun LanguageSelectionRow(
     LanguageSelector(
       selectedLanguage = from,
       availableLanguages = fromLanguages,
+      languageMetadata = languageMetadata,
       onLanguageSelected = { language ->
         onMessage(TranslatorMessage.FromLang(language))
       },
@@ -72,6 +75,7 @@ fun LanguageSelectionRow(
     LanguageSelector(
       selectedLanguage = to,
       availableLanguages = toLanguages,
+      languageMetadata = languageMetadata,
       onLanguageSelected = { language ->
         onMessage(TranslatorMessage.ToLang(language))
       },
@@ -103,6 +107,7 @@ fun LanguageSelectionRowPreview() {
           Language.FRENCH to true,
           Language.GERMAN to true,
         ),
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       onMessage = {},
       onSettings = {},
       drawable = Pair("Settings", R.drawable.settings),
@@ -127,6 +132,7 @@ fun LanguageSelectionRowDarkPreview() {
           Language.FRENCH to true,
           Language.GERMAN to true,
         ),
+      languageMetadata = mapOf(Language.FRENCH to LanguageMetadata(favorite = true)),
       onMessage = {},
       onSettings = {},
       drawable = Pair("Settings", R.drawable.settings),

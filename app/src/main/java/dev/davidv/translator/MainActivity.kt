@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
     handleIntent(intent)
 
     val settingsManager = SettingsManager(this) // 8ms
+    val languageMetadataManager = LanguageMetadataManager(this)
     val filePathManager = FilePathManager(this, settingsManager.settings)
     ocrService = OCRService(filePathManager)
     val imageProcessor = ImageProcessor(this, ocrService)
@@ -70,6 +71,7 @@ class MainActivity : ComponentActivity() {
           sharedImageUri = sharedImageUri,
           translationCoordinator = translationCoordinator,
           settingsManager = settingsManager,
+          languageMetadataManager = languageMetadataManager,
           filePathManager = filePathManager,
           downloadServiceState = downloadServiceState,
           initialLaunchMode = launchMode,

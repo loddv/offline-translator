@@ -105,6 +105,7 @@ fun TranslatorApp(
   sharedImageUri: MutableState<Uri?>,
   translationCoordinator: TranslationCoordinator,
   settingsManager: SettingsManager,
+  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   filePathManager: FilePathManager,
   downloadServiceState: StateFlow<DownloadService?>,
   initialLaunchMode: LaunchMode,
@@ -113,6 +114,7 @@ fun TranslatorApp(
   val navController = rememberNavController()
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
+  val languageMetadata by languageMetadataManager.metadata.collectAsState()
 
   // Launch mode state - make it mutable so it can be changed
   var currentLaunchMode by remember { mutableStateOf(initialLaunchMode) }
@@ -671,6 +673,7 @@ fun TranslatorApp(
                   navController.navigate("settings")
                 },
                 languageStateManager = languageStateManager,
+                languageMetadataManager = languageMetadataManager,
                 downloadService = currentDownloadService,
               )
             }
@@ -704,6 +707,7 @@ fun TranslatorApp(
                 onMessage = handleMessage,
                 // System integration
                 availableLanguages = languageState.availableLanguageMap,
+                languageMetadata = languageMetadata,
                 downloadStates = downloadStates,
                 settings = settings,
                 launchMode = currentLaunchMode,
@@ -733,6 +737,7 @@ fun TranslatorApp(
                   TabbedLanguageManagerScreen(
                     context = context,
                     languageStateManager = languageStateManager,
+                    languageMetadataManager = languageMetadataManager,
                     installedLanguages = installedLanguages,
                     availableLanguages = availableLanguages,
                     languageAvailabilityState = languageState,
@@ -747,6 +752,7 @@ fun TranslatorApp(
           composable("settings") {
             SettingsScreen(
               settings = settings,
+              languageMetadataManager = languageMetadataManager,
               availableLanguages = (languageState.availableLanguageMap.filterValues { it.translatorFiles }.keys + Language.ENGLISH).toList(),
               onSettingsChange = { newSettings ->
                 settingsManager.updateSettings(newSettings)

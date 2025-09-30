@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
@@ -118,6 +119,7 @@ private fun LanguageDropdown(
 @Composable
 fun SettingsScreen(
   settings: AppSettings,
+  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   availableLanguages: List<Language>,
   onSettingsChange: (AppSettings) -> Unit,
   onManageLanguages: () -> Unit,
@@ -648,9 +650,11 @@ fun SettingsScreen(
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
+  val context = LocalContext.current
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(),
+      languageMetadataManager = LanguageMetadataManager(context),
       availableLanguages = Language.entries,
       onSettingsChange = {},
       onManageLanguages = {},
@@ -664,9 +668,11 @@ fun SettingsScreenPreview() {
 )
 @Composable
 fun SettingsScreenDarkPreview() {
+  val context = LocalContext.current
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(fontFactor = 3.0f),
+      languageMetadataManager = LanguageMetadataManager(context),
       availableLanguages = Language.entries,
       onSettingsChange = {},
       onManageLanguages = {},

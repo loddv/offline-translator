@@ -22,6 +22,10 @@ sealed class FileEvent {
     val index: DictionaryIndex,
   ) : FileEvent()
 
+  data class MucabFileLoaded(
+    val mucabBinding: MucabBinding,
+  ) : FileEvent()
+
   data class LanguageDeleted(
     val language: Language,
   ) : FileEvent()

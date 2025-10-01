@@ -12,6 +12,7 @@ path = "src/lib.rs"
 jni = "0.21.1"
 tarkka = { git = "https://github.com/DavidVentura/tarkka" }
 tesseract = { git = "https://github.com/DavidVentura/tesseract-rs" }
+mucab = { git = "https://github.com/DavidVentura/mucab" }
 
 [patch.crates-io]
 leptonica-sys = { git = "https://github.com/DavidVentura/leptonica-sys" }

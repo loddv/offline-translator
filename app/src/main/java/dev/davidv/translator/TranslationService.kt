@@ -49,6 +49,12 @@ class TranslationService(
 
   private val nativeLib = getNativeLib()
 
+  private var mucabBinding: MucabBinding? = null
+
+  fun setMucabBinding(binding: MucabBinding?) {
+    mucabBinding = binding
+  }
+
   // / Requires the translation pairs to be available
   suspend fun preloadModel(
     from: Language,
@@ -106,7 +112,7 @@ class TranslationService(
         result.map { translatedText ->
           val transliterated =
             if (!settingsManager.settings.value.disableTransliteration) {
-              TransliterationService.transliterate(translatedText, to)
+              TransliterationService.transliterate(translatedText, to, mucabBinding = mucabBinding)
             } else {
               null
             }
@@ -164,7 +170,7 @@ class TranslationService(
         Log.d("TranslationService", "Translation took ${elapsed}ms")
         val transliterated =
           if (!settingsManager.settings.value.disableTransliteration) {
-            TransliterationService.transliterate(result, to)
+            TransliterationService.transliterate(result, to, mucabBinding = mucabBinding)
           } else {
             null
           }

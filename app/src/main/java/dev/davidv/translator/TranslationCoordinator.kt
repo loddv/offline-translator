@@ -43,6 +43,10 @@ class TranslationCoordinator(
 
   var lastTranslatedInput: String = ""
 
+  fun setMucabBinding(binding: MucabBinding?) {
+    translationService.setMucabBinding(binding)
+  }
+
   suspend fun preloadModel(
     from: Language,
     to: Language,

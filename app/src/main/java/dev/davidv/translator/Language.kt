@@ -190,3 +190,8 @@ val toEnglishFiles =
     Language.UKRAINIAN to LanguageFiles(Pair("model.uken.intgemm.alphas.bin", 12677432), Pair("vocab.uken.spm", 415266), Pair("vocab.uken.spm", 415266), Pair("lex.50.50.uken.s2t.bin", 1790588), ModelType.TINY),
     Language.CHINESE to LanguageFiles(Pair("model.zhen.intgemm.alphas.bin", 32726806), Pair("vocab.zhen.spm", 738862), Pair("vocab.zhen.spm", 738862), Pair("lex.50.50.zhen.s2t.bin", 4822158), ModelType.BASE_MEMORY),
   )
+
+val extraFiles =
+  mapOf(
+    Language.JAPANESE to listOf("mucab.bin"),
+  )

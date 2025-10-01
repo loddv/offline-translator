@@ -401,6 +401,11 @@ def generate_kotlin_enum(language_pairs: Dict[str, Set[str]], existing_sizes: di
     to_english_lines = ",\n".join(to_english_files_entries)
     from_english_lines = ",\n".join(from_english_files_entries)
     language_lines = ",\n".join(language_entries)
+
+    extra_files_entries = []
+    extra_files_entries.append('    Language.JAPANESE to listOf("mucab.bin")')
+    extra_files_lines = ",\n".join(extra_files_entries)
+
     # Generate the complete enum classes and maps
     kotlin_code = f"""/*
  * Copyright (C) 2024 David V
@@ -462,6 +467,10 @@ val fromEnglishFiles = mapOf(
 
 val toEnglishFiles = mapOf(
 {to_english_lines}
+)
+
+val extraFiles = mapOf(
+{extra_files_lines}
 )"""
 
     return kotlin_code

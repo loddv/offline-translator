@@ -60,6 +60,7 @@ object TransliterationService {
     text: String,
     language: Language,
     targetScript: String = "Latin",
+    mucabBinding: MucabBinding? = null,
   ): String? {
     if (!shouldTransliterate(language, targetScript) || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
       return null
@@ -70,7 +71,7 @@ object TransliterationService {
     val transliterator = getTransliterator(rule) ?: return null
     return try {
       if (language == Language.JAPANESE) {
-        transliterateJapanese(text, transliterator)
+        transliterateJapanese(text, transliterator, mucabBinding)
       } else {
         transliterator.transliterate(text)
       }
@@ -84,22 +85,30 @@ object TransliterationService {
   private fun transliterateJapanese(
     text: String,
     transliterator: Transliterator,
+    mucabBinding: MucabBinding?,
   ): String {
+    var toTranslate = text
+    if (mucabBinding != null && mucabBinding.isOpen()) {
+      val res = mucabBinding.transliterateJP(text)
+      if (res != null) {
+        toTranslate = res
+      }
+    }
     val result = StringBuilder()
     var i = 0
 
-    while (i < text.length) {
-      val char = text[i]
+    while (i < toTranslate.length) {
+      val char = toTranslate[i]
 
       if (isKanji(char)) {
         result.append(char)
         i++
       } else {
         val segmentStart = i
-        while (i < text.length && !isKanji(text[i])) {
+        while (i < toTranslate.length && !isKanji(toTranslate[i])) {
           i++
         }
-        val segment = text.substring(segmentStart, i)
+        val segment = toTranslate.substring(segmentStart, i)
         val transliterated = transliterator.transliterate(segment)
         result.append(transliterated)
       }

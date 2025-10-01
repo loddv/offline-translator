@@ -35,6 +35,8 @@ class FilePathManager(
 
   fun getDictionaryIndexFile(): File = File(baseDir, "dictionaries/index.json")
 
+  fun getMucabFile(): File = File(getDataDir(), "mucab.bin")
+
   fun deleteLanguageFiles(language: Language) {
     val dataPath = getDataDir()
 
@@ -53,6 +55,14 @@ class FilePathManager(
       val file = File(dataPath, fileName)
       if (file.exists() && file.delete()) {
         Log.i("FilePathManager", "Deleted: $fileName")
+      }
+    }
+
+    // Delete extra files
+    extraFiles[language]?.forEach { fileName ->
+      val file = File(dataPath, fileName)
+      if (file.exists() && file.delete()) {
+        Log.i("FilePathManager", "Deleted extra file: $fileName")
       }
     }
 

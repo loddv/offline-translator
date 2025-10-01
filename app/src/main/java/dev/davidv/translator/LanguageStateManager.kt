@@ -73,6 +73,7 @@ class LanguageStateManager(
     }
     refreshLanguageAvailability()
     loadDictionaryIndex()
+    loadMucabFile()
   }
 
   fun connectToDownloadEvents(downloadEvents: SharedFlow<DownloadEvent>) {
@@ -83,6 +84,9 @@ class LanguageStateManager(
           when (event) {
             is DownloadEvent.NewTranslationAvailable -> {
               addTranslationLanguage(event.language)
+              if (event.language == Language.JAPANESE) {
+                loadMucabFile()
+              }
             }
 
             is DownloadEvent.NewDictionaryAvailable -> {
@@ -276,6 +280,26 @@ class LanguageStateManager(
         _fileEvents.emit(FileEvent.DictionaryIndexLoaded(index))
       }
       Log.i("LanguageStateManager", "Dictionary index loaded from file: ${index != null}")
+    }
+  }
+
+  private fun loadMucabFile() {
+    scope.launch {
+      withContext(Dispatchers.IO) {
+        val mucabFile = filePathManager.getMucabFile()
+        if (mucabFile.exists()) {
+          val binding = MucabBinding()
+          val success = binding.open(mucabFile.absolutePath)
+          if (success) {
+            _fileEvents.emit(FileEvent.MucabFileLoaded(binding))
+            Log.i("LanguageStateManager", "Mucab file loaded successfully")
+          } else {
+            Log.w("LanguageStateManager", "Failed to open mucab file")
+          }
+        } else {
+          Log.i("LanguageStateManager", "Mucab file not found")
+        }
+      }
     }
   }
 }

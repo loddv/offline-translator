@@ -1,5 +1,8 @@
 package dev.davidv.translator
 
+import android.util.Log
+import kotlin.system.measureTimeMillis
+
 class MucabBinding {
   companion object {
     init {
@@ -8,24 +11,37 @@ class MucabBinding {
   }
 
   private var dictPtr: Long = 0
+  private val lock = Any()
 
   fun open(path: String): Boolean {
-    close()
-    dictPtr = nativeOpen(path)
-    return dictPtr != 0L
+    synchronized(lock) {
+      close()
+      dictPtr = nativeOpen(path)
+      return dictPtr != 0L
+    }
   }
 
   fun transliterateJP(text: String): String? =
-    if (dictPtr != 0L) {
-      nativeTransliterateJP(dictPtr, text)
-    } else {
-      null
+    synchronized(lock) {
+      if (dictPtr != 0L) {
+        val result: String?
+        val elapsed =
+          measureTimeMillis {
+            result = nativeTransliterateJP(dictPtr, text)
+          }
+        Log.d("MucabBindings", "Mucab transliteration took ${elapsed}ms")
+        result
+      } else {
+        null
+      }
     }
 
   fun close() {
-    if (dictPtr != 0L) {
-      nativeClose(dictPtr)
-      dictPtr = 0
+    synchronized(lock) {
+      if (dictPtr != 0L) {
+        nativeClose(dictPtr)
+        dictPtr = 0
+      }
     }
   }
 

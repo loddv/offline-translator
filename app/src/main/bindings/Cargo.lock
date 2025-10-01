@@ -327,7 +327,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 [[package]]
 name = "mucab"
 version = "0.1.0"
-source = "git+https://github.com/DavidVentura/mucab#3581a3790ebf8fdffeedb302a6b0c09a2b84d1f7"
+source = "git+https://github.com/DavidVentura/mucab#23c9f5740d17f9e05d4b4aa2a2c6f62844493de4"
 dependencies = [
  "encoding_rs",
  "glob",
@@ -374,9 +374,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.40"
+version = "1.0.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1885c039570dc00dcb4ff087a89e185fd56bae234ddc7f056a945bf36467248d"
+checksum = "ce25767e7b499d1b604768e7cde645d14cc8584231ea6b295e9c9eb22c02e1d1"
 dependencies = [
  "proc-macro2",
 ]

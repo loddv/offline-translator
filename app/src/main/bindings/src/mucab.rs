@@ -54,7 +54,7 @@ pub unsafe extern "C" fn Java_dev_davidv_translator_MucabBinding_nativeTranslite
     let text: String = match env.get_string(&java_text) {
         Ok(text) => {
             let t: String = text.into();
-            android_log!(format!("nativeTransliterateJP: Input text: {}", t));
+            android_log!(format!("nativeTransliterateJP: Input text length: {}", t.len()));
             t
         }
         Err(_) => {
@@ -63,13 +63,10 @@ pub unsafe extern "C" fn Java_dev_davidv_translator_MucabBinding_nativeTranslite
         }
     };
 
-    android_log!("nativeTransliterateJP: Getting dictionary from pointer");
     let dict = unsafe { &mut *(dict_ptr as *mut Dictionary) };
-
-    android_log!("nativeTransliterateJP: Calling transliterate");
     let result = transliterate(&text, dict);
 
-    android_log!(format!("nativeTransliterateJP: Result: {}", result));
+    android_log!(format!("nativeTransliterateJP: Result length: {}", result.len()));
 
     match env.new_string(&result) {
         Ok(jstring) => jstring.into_raw(),

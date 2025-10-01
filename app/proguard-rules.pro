@@ -43,6 +43,9 @@
 -keep class dev.davidv.translator.PageSegMode { *; }
 -keep class dev.davidv.translator.TesseractData** { *; }
 
+# Keep Mucab native library integration
+-keep class dev.davidv.translator.MucabBinding { *; }
+
 -keepclasseswithmembernames class * {
     native <methods>;
 }

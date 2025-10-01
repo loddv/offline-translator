@@ -212,10 +212,17 @@ fun TranslatorApp(
           if (currentTo == event.language) {
             setTo(validLangs.filterNot { it.key == currentFrom }.keys.firstOrNull() ?: Language.ENGLISH)
           }
+          if (event.language == Language.JAPANESE) {
+            translationCoordinator.setMucabBinding(null)
+          }
           Log.d("TranslatorApp", "Language deleted: ${event.language}")
         }
         is FileEvent.DictionaryIndexLoaded -> {
           Log.d("TranslatorApp", "Dictionary index loaded from file: ${event.index}")
+        }
+        is FileEvent.MucabFileLoaded -> {
+          translationCoordinator.setMucabBinding(event.mucabBinding)
+          Log.d("TranslatorApp", "Mucab file loaded and set in TranslationCoordinator")
         }
         is FileEvent.DictionaryDeleted -> {
           dictionaryBindings[event.language]?.close()

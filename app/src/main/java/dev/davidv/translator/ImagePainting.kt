@@ -339,7 +339,7 @@ fun paintTranslatedTextOver(
     }
 
     if (testingBoxes) {
-      textBlock.lines.forEach { println(it) }
+      textBlock.lines.forEach {}
     }
     // Store colors for each line to avoid redundant calculations
     val lineColors = mutableMapOf<Int, Int>()

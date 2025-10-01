@@ -286,6 +286,15 @@ class DownloadService : Service() {
             downloadTasks.add(task)
           }
 
+          extraFiles[language]?.forEach { extraFileName ->
+            val extraFile = File(dataDir, extraFileName)
+            if (!extraFile.exists()) {
+              downloadTasks.add {
+                downloadExtraFile(language, extraFileName, extraFile)
+              }
+            }
+          }
+
           // Execute all downloads in parallel
           var success = true
           if (downloadTasks.isNotEmpty()) {
@@ -538,6 +547,25 @@ class DownloadService : Service() {
         Log.e("DownloadService", "Failed to download tessdata from $url", e)
         false
       }
+    }
+  }
+
+  private suspend fun downloadExtraFile(
+    language: Language,
+    fileName: String,
+    outputFile: File,
+  ): Boolean {
+    val url = "${settingsManager.settings.value.dictionaryBaseUrl}/extra/$fileName"
+    return try {
+      val success =
+        download(url, outputFile) { incrementalProgress ->
+          incrementDownloadBytes(language, incrementalProgress)
+        }
+      Log.i("DownloadService", "Downloaded extra file $fileName for ${language.displayName}: $success")
+      success
+    } catch (e: Exception) {
+      Log.e("DownloadService", "Failed to download extra file $fileName from $url", e)
+      false
     }
   }
 

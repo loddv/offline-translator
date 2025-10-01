@@ -2,3 +2,4 @@
 - Implement API so other apps can request for translation (@dic1911)
 - Add setting to enable File picker for OCR
 - Make OCR only use 'from' language for detection (instead of all languages)
+- Implement Japanese Kanji transliteration (you'll need to re-download Japanese, sorry!)

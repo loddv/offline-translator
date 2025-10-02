@@ -30,6 +30,10 @@ Language packs contain the full translation models, translation happens _on your
 - OCR models are [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android)
 - Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
 - Dictionary is based on data from Wiktionary, exported by [Kaikki](https://kaikki.org/)
+  - For Japanese specifically, there's a second "word dictionary" (Mecab) for transliterating Kanji
+
+This app also offers an API to other apps (check `ITranslationService.aidl`), so that they can request translations to be performed for
+them.
 
 ## Manual offline setup
 

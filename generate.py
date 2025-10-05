@@ -12,7 +12,7 @@ import aiohttp
 from pathlib import Path
 from typing import Dict, Set, Tuple
 
-COMMIT = "a06d4724eb95d7452f9251cf2cc4ca2706636d74"
+COMMIT = "ef690b3ac1f4cf772962bf4cee143d10334ed131"
 TRANSLATION_BASE_URL = f"https://media.githubusercontent.com/media/mozilla/firefox-translations-models/{COMMIT}/models"
 TESSERACT_BASE_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main"
 DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"

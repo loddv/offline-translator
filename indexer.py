@@ -8,6 +8,8 @@ from pathlib import Path
 
 from data import LANGUAGE_NAMES, LANGUAGE_SCRIPTS
 
+MODELS_URL = "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/{commit}/models/{category}/{{lang_pair}}/{{fname}}.gz"
+
 repo_dir = Path("~/git/firefox-translations-models/models/").expanduser()
 assert repo_dir.exists()
 model_types = ["tiny", "base", "base-memory"]
@@ -35,8 +37,10 @@ all_langs = sorted(set(not_eng(x) for x in all_langs))
 
 @dataclass(frozen=True)
 class IndexFile:
-    size_bytes: int
     name: str
+    size_bytes: int
+    release_date: int
+    url: str
 
 
 def file_size(repo_path: Path, quality: str, lang_pair: str, fname: str) -> int:
@@ -44,7 +48,9 @@ def file_size(repo_path: Path, quality: str, lang_pair: str, fname: str) -> int:
     return fpath.stat().st_size
 
 
-def generate_files_for_language(repo_path: Path, quality: str, lang_pair: str) -> dict[str, IndexFile]:
+def generate_files_for_language(
+    repo_path: Path, quality: str, lang_pair: str, rd: int, base_url
+) -> dict[str, IndexFile]:
     model = f"model.{lang_pair}.intgemm.alphas.bin"
     lex = f"lex.50.50.{lang_pair}.s2t.bin"
 
@@ -62,19 +68,35 @@ def generate_files_for_language(repo_path: Path, quality: str, lang_pair: str) -
 
     fsize = partial(file_size, repo_path, quality, lang_pair)
     return {
-        "model": IndexFile(name=model, size_bytes=fsize(model)),
-        "lex": IndexFile(name=lex, size_bytes=fsize(lex)),
-        "src_vocab": IndexFile(name=src_vocab, size_bytes=fsize(src_vocab)),
-        "tgt_vocab": IndexFile(name=tgt_vocab, size_bytes=fsize(tgt_vocab)),
+        "model": IndexFile(
+            name=model, size_bytes=fsize(model), release_date=rd, url=base_url.format(fname=model, lang_pair=lang_pair)
+        ),
+        "lex": IndexFile(
+            name=lex, size_bytes=fsize(lex), release_date=rd, url=base_url.format(fname=lex, lang_pair=lang_pair)
+        ),
+        "src_vocab": IndexFile(
+            name=src_vocab,
+            size_bytes=fsize(src_vocab),
+            release_date=rd,
+            url=base_url.format(fname=src_vocab, lang_pair=lang_pair),
+        ),
+        "tgt_vocab": IndexFile(
+            name=tgt_vocab,
+            size_bytes=fsize(tgt_vocab),
+            release_date=rd,
+            url=base_url.format(fname=tgt_vocab, lang_pair=lang_pair),
+        ),
     }
 
 
-def get_release_date(repo_path: Path, quality: str, lang_pair: str) -> int:
+def get_release_date_and_commit(repo_path: Path, quality: str, lang_pair: str) -> tuple[int, str]:
     cwd = repo_path / quality / lang_pair
-    cmd = ["git", "log", "-1", '--format="%at"', "."]
+    cmd = ["git", "log", "-1", "--format=%H;%at", "."]
     proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, check=True)
-    tstamp = int(proc.stdout.decode().strip().strip('"'))
-    return tstamp
+    stdout = proc.stdout.decode().strip()
+    commit, tstamp = stdout.split(";")
+    tstamp = int(tstamp)
+    return (tstamp, commit)
 
 
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -93,14 +115,14 @@ def main():
         pair_data_to = None
 
         if cat := best_cat_for_model.get(model_from):
-            files_from = generate_files_for_language(repo_dir, cat, model_from)
-            rd = get_release_date(repo_dir, cat, model_from)
-            pair_data_from = {"release_date": rd, "files": files_from}
+            rd, commit = get_release_date_and_commit(repo_dir, cat, model_from)
+            url = MODELS_URL.format(commit=commit, category=cat)
+            pair_data_from = generate_files_for_language(repo_dir, cat, model_from, rd, url)
 
         if cat := best_cat_for_model.get(model_to):
-            files_to = generate_files_for_language(repo_dir, cat, model_to)
-            rd = get_release_date(repo_dir, cat, model_to)
-            pair_data_to = {"release_date": rd, "files": files_to}
+            rd, commit = get_release_date_and_commit(repo_dir, cat, model_to)
+            url = MODELS_URL.format(commit=commit, category=cat)
+            pair_data_to = generate_files_for_language(repo_dir, cat, model_to, rd, url)
 
         index_language = {
             "code": lang,
@@ -108,6 +130,7 @@ def main():
             "from": pair_data_from,
             "name": LANGUAGE_NAMES[lang],
             "script": LANGUAGE_SCRIPTS[lang],
+            "extra_files": [],
         }
         index.append(index_language)
 

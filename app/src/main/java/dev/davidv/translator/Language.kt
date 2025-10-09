@@ -22,7 +22,7 @@ package dev.davidv.translator
 object Constants {
   const val DICT_VERSION = 1
   const val DEFAULT_TRANSLATION_MODELS_BASE_URL =
-    "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/ef690b3ac1f4cf772962bf4cee143d10334ed131/models"
+    "https://media.githubusercontent.com/media/mozilla/firefox-translations-models/6ffda9ba34d107a8b50ec766273b252ef92ebafc/models"
   const val DEFAULT_TESSERACT_MODELS_BASE_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main"
   const val DEFAULT_DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"
 }
@@ -69,7 +69,7 @@ enum class Language(val code: String, val tessName: String, val displayName: Str
   MALAY("ms", "msa", "Malay", "Latin", 32319298, 1747801),
   MALAYALAM("ml", "mal", "Malayalam", "Malayalam", 35119747, 5275996),
   PERSIAN("fa", "fas", "Persian", "Arabic", 31061402, 431500),
-  POLISH("pl", "pol", "Polish", "Latin", 45456982, 4765518),
+  POLISH("pl", "pol", "Polish", "Latin", 55209214, 4765518),
   PORTUGUESE("pt", "por", "Portuguese", "Latin", 53652106, 1982756),
   ROMANIAN("ro", "ron", "Romanian", "Latin", 32105494, 2376323),
   RUSSIAN("ru", "rus", "Russian", "Cyrillic", 42643637, 3861738),
@@ -129,7 +129,7 @@ val fromEnglishFiles =
     Language.MALAYALAM to LanguageFiles(Pair("model.enml.intgemm.alphas.bin", 12570038), Pair("vocab.enml.spm", 454768), Pair("vocab.enml.spm", 454768), Pair("lex.50.50.enml.s2t.bin", 1275347), ModelType.TINY),
     Language.MALAY to LanguageFiles(Pair("model.enms.intgemm.alphas.bin", 13039668), Pair("vocab.enms.spm", 404033), Pair("vocab.enms.spm", 404033), Pair("lex.50.50.enms.s2t.bin", 2044118), ModelType.TINY),
     Language.DUTCH to LanguageFiles(Pair("model.ennl.intgemm.alphas.bin", 23710253), Pair("vocab.ennl.spm", 410222), Pair("vocab.ennl.spm", 410222), Pair("lex.50.50.ennl.s2t.bin", 2153762), ModelType.BASE_MEMORY),
-    Language.POLISH to LanguageFiles(Pair("model.enpl.intgemm.alphas.bin", 12797631), Pair("vocab.enpl.spm", 415308), Pair("vocab.enpl.spm", 415308), Pair("lex.50.50.enpl.s2t.bin", 1945174), ModelType.TINY),
+    Language.POLISH to LanguageFiles(Pair("model.enpl.intgemm.alphas.bin", 22623230), Pair("vocab.enpl.spm", 413194), Pair("vocab.enpl.spm", 413194), Pair("lex.50.50.enpl.s2t.bin", 1873921), ModelType.BASE_MEMORY),
     Language.PORTUGUESE to LanguageFiles(Pair("model.enpt.intgemm.alphas.bin", 23546635), Pair("vocab.enpt.spm", 408686), Pair("vocab.enpt.spm", 408686), Pair("lex.50.50.enpt.s2t.bin", 2117087), ModelType.BASE_MEMORY),
     Language.ROMANIAN to LanguageFiles(Pair("model.enro.intgemm.alphas.bin", 12207487), Pair("vocab.enro.spm", 397137), Pair("vocab.enro.spm", 397137), Pair("lex.50.50.enro.s2t.bin", 1846074), ModelType.TINY),
     Language.RUSSIAN to LanguageFiles(Pair("model.enru.intgemm.alphas.bin", 21988864), Pair("vocab.enru.spm", 419005), Pair("vocab.enru.spm", 419005), Pair("lex.50.50.enru.s2t.bin", 1378563), ModelType.BASE_MEMORY),

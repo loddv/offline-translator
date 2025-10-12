@@ -33,4 +33,5 @@ data class AppSettings(
   val fontFactor: Float = 1.0f,
   val showOCRDetection: Boolean = false,
   val showFilePickerInImagePicker: Boolean = false,
+  val showTransliterationOnInput: Boolean = false,
 )

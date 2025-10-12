@@ -92,6 +92,7 @@ class SettingsManager(
     val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
     val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
     val showFilePickerInImagePicker = prefs.getBoolean("show_file_picker_in_image_picker", defaults.showFilePickerInImagePicker)
+    val showTransliterationOnInput = prefs.getBoolean("show_transliteration_on_input", defaults.showTransliterationOnInput)
 
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
@@ -109,6 +110,7 @@ class SettingsManager(
       fontFactor = fontFactor,
       showOCRDetection = showOCRDetection,
       showFilePickerInImagePicker = showFilePickerInImagePicker,
+      showTransliterationOnInput = showTransliterationOnInput,
     )
   }
 
@@ -180,6 +182,10 @@ class SettingsManager(
       if (newSettings.showFilePickerInImagePicker != currentSettings.showFilePickerInImagePicker) {
         putBoolean("show_file_picker_in_image_picker", newSettings.showFilePickerInImagePicker)
         modifiedSettings.add("show_file_picker_in_image_picker")
+      }
+      if (newSettings.showTransliterationOnInput != currentSettings.showTransliterationOnInput) {
+        putBoolean("show_transliteration_on_input", newSettings.showTransliterationOnInput)
+        modifiedSettings.add("show_transliteration_on_input")
       }
       apply()
     }

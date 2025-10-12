@@ -210,6 +210,11 @@ class TranslationCoordinator(
       _isTranslating.value = false
     }
   }
+
+  fun transliterate(
+    text: String,
+    from: Language,
+  ): String? = translationService.transliterate(text, from)
 }
 
 data class ProcessedImageResult(

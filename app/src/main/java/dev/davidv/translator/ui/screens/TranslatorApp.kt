@@ -153,6 +153,7 @@ fun TranslatorApp(
 
   // Move all persistent state to this level so it survives navigation
   var input by remember { mutableStateOf(initialText) }
+  var inputTransliterated by remember { mutableStateOf<String?>(null) }
   var output by remember { mutableStateOf<TranslatedText?>(null) }
   val fromState = remember { mutableStateOf<Language?>(null) }
   val from by fromState
@@ -384,6 +385,9 @@ fun TranslatorApp(
     when (message) {
       is TranslatorMessage.TextInput -> {
         input = message.text
+        if (settings.showTransliterationOnInput && from != null) {
+          inputTransliterated = translationCoordinator.transliterate(message.text, from!!)
+        }
       }
 
       is TranslatorMessage.FromLang -> {
@@ -512,7 +516,7 @@ fun TranslatorApp(
       return@LaunchedEffect
     }
     scope.launch {
-      translationCoordinator.translateText(from!!, to, input)?.let {
+      translationCoordinator.translateText(from!!, to, input).let {
         output =
           when (it) {
             is TranslationResult.Success -> it.result
@@ -700,6 +704,7 @@ fun TranslatorApp(
                 onSettings = { navController.navigate("settings") },
                 // Current state (read-only)
                 input = input,
+                inputTransliteration = inputTransliterated,
                 output = output,
                 from = from!!,
                 to = to,

@@ -22,6 +22,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
+import android.widget.TextView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -63,6 +65,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
@@ -96,6 +99,7 @@ fun MainScreen(
   onSettings: () -> Unit,
   // Current state (read-only)
   input: String,
+  inputTransliteration: String?,
   output: TranslatedText?,
   from: Language,
   to: Language,
@@ -240,36 +244,73 @@ fun MainScreen(
             }
 
             if (displayImage == null || settings.showOCRDetection) {
-              Box(
+              val showTranslit = settings.showTransliterationOnInput && inputTransliteration != null
+              Column(
                 modifier =
                   Modifier
                     .fillMaxWidth()
                     .height(parentHeight * 0.5f),
               ) {
-                StyledTextField(
-                  text = input,
-                  onValueChange = { newInput ->
-                    onMessage(TranslatorMessage.TextInput(newInput))
-                  },
-                  onDictionaryLookup = { word ->
-                    onMessage(TranslatorMessage.DictionaryLookup(word, from))
-                  },
-                  placeholder = if (displayImage == null) "Enter text" else null,
+                Box(
                   modifier =
                     Modifier
-                      .fillMaxSize()
-                      .padding(end = if (displayImage == null) 24.dp else 0.dp),
-                  textStyle =
-                    MaterialTheme.typography.bodyLarge.copy(
-                      fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
-                      lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
-                    ),
-                )
-                if (displayImage == null) {
-                  if (input.isNotEmpty()) {
-                    ClearInput(onMessage)
-                  } else {
-                    PasteButton(onMessage)
+                      .fillMaxWidth().weight(3f, fill = false),
+                ) {
+                  StyledTextField(
+                    text = input,
+                    onValueChange = { newInput ->
+                      onMessage(TranslatorMessage.TextInput(newInput))
+                    },
+                    onDictionaryLookup = { word ->
+                      onMessage(TranslatorMessage.DictionaryLookup(word, from))
+                    },
+                    placeholder = if (displayImage == null) "Enter text" else null,
+                    modifier =
+                      Modifier
+                        .fillMaxWidth()
+                        .padding(end = if (displayImage == null) 24.dp else 0.dp),
+                    textStyle =
+                      MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                        lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                      ),
+                  )
+                  if (displayImage == null) {
+                    if (input.isNotEmpty()) {
+                      ClearInput(onMessage)
+                    } else {
+                      PasteButton(onMessage)
+                    }
+                  }
+                }
+                if (showTranslit) {
+                  val textStyle = MaterialTheme.typography.bodyLarge
+                  val fontSize = textStyle.fontSize.value
+                  val smallerFontSize = fontSize * 0.7f
+                  val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+                  Box(
+                    modifier =
+                      Modifier
+                        .fillMaxWidth().weight(1f, fill = true),
+                  ) {
+                    AndroidView(
+                      factory = { context ->
+                        TextView(context).apply {
+                          this.text = inputTransliteration
+                          this.textSize = smallerFontSize
+                          this.setTextColor(textColor)
+                          this.setTextIsSelectable(true)
+                          this.movementMethod =
+                            android.text.method.ScrollingMovementMethod
+                              .getInstance()
+                        }
+                      },
+                      update = { textView ->
+                        textView.text = inputTransliteration
+                        textView.textSize = smallerFontSize
+                      },
+                      modifier = Modifier.fillMaxWidth(),
+                    )
                   }
                 }
               }
@@ -463,6 +504,7 @@ fun PopupMode() {
       dictionaryWord = null,
       dictionaryStack = emptyList(),
       dictionaryLookupLanguage = null,
+      inputTransliteration = null,
     )
   }
 }
@@ -498,6 +540,47 @@ fun MainScreenPreview() {
       dictionaryWord = null,
       dictionaryStack = emptyList(),
       dictionaryLookupLanguage = null,
+      inputTransliteration = null,
+    )
+  }
+}
+
+@Preview(
+  showBackground = true,
+  uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun PreviewTranslitText() {
+  TranslatorTheme {
+    MainScreen(
+      onSettings = { },
+      input = "東京",
+      output =
+        TranslatedText(
+          "Tokyo",
+          null,
+        ),
+      from = Language.JAPANESE,
+      to = Language.ENGLISH,
+      detectedLanguage = null,
+      displayImage = null,
+      isTranslating = MutableStateFlow(false).asStateFlow(),
+      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      launchMode = LaunchMode.Normal,
+      onMessage = {},
+      availableLanguages =
+        mapOf(
+          Language.ENGLISH to LangAvailability(true, true, true),
+          Language.SPANISH to LangAvailability(true, true, true),
+          Language.FRENCH to LangAvailability(true, true, true),
+        ),
+      downloadStates = emptyMap(),
+      settings = AppSettings(showTransliterationOnInput = true),
+      languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
+      dictionaryWord = null,
+      dictionaryStack = emptyList(),
+      dictionaryLookupLanguage = null,
+      inputTransliteration = "tōkyō",
     )
   }
 }
@@ -533,11 +616,12 @@ fun PreviewVeryLongText() {
           Language.FRENCH to LangAvailability(true, true, true),
         ),
       downloadStates = emptyMap(),
-      settings = AppSettings(),
+      settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(Language.SPANISH to LanguageMetadata(favorite = true)),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
       dictionaryLookupLanguage = null,
+      inputTransliteration = "translit",
     )
   }
 }
@@ -582,6 +666,7 @@ fun PreviewVeryLongTextImage() {
       dictionaryWord = null,
       dictionaryStack = emptyList(),
       dictionaryLookupLanguage = null,
+      inputTransliteration = null,
     )
   }
 }

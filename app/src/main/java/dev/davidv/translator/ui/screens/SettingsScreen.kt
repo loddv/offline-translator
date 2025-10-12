@@ -603,6 +603,26 @@ fun SettingsScreen(
                 },
               )
             }
+
+            // Show Transliteration on Input Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Show transliteration on input",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.showTransliterationOnInput,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(showTransliterationOnInput = checked))
+                },
+              )
+            }
           }
         }
       }

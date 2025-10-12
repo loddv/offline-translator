@@ -47,7 +47,6 @@ fun StyledTextField(
   onDictionaryLookup: (String) -> Unit,
   modifier: Modifier = Modifier,
   placeholder: String? = null,
-  readOnly: Boolean = false,
   textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
   val context = LocalContext.current
@@ -60,7 +59,7 @@ fun StyledTextField(
   val hintColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
   val fontSize = textStyle.fontSize.value
 
-  Box(modifier = modifier.fillMaxSize()) {
+  Box(modifier = modifier) {
     AndroidView(
       factory = { context ->
         EditText(context).apply {
@@ -68,7 +67,7 @@ fun StyledTextField(
           this.layoutParams =
             ViewGroup.LayoutParams(
               ViewGroup.LayoutParams.MATCH_PARENT,
-              ViewGroup.LayoutParams.MATCH_PARENT,
+              ViewGroup.LayoutParams.WRAP_CONTENT,
             )
           this.gravity = Gravity.START
           this.setText(text)
@@ -76,9 +75,9 @@ fun StyledTextField(
           this.setTextColor(textColor)
           this.setHintTextColor(hintColor)
           this.hint = placeholder
-          this.isEnabled = !readOnly
-          this.isFocusable = !readOnly
-          this.isFocusableInTouchMode = !readOnly
+          this.isEnabled = true
+          this.isFocusable = true
+          this.isFocusableInTouchMode = true
           this.setTextIsSelectable(true)
           this.customSelectionActionModeCallback = actionModeCallback
           this.customInsertionActionModeCallback = actionModeCallback
@@ -120,9 +119,9 @@ fun StyledTextField(
         editText.setTextColor(textColor)
         editText.setHintTextColor(hintColor)
         editText.hint = placeholder
-        editText.isEnabled = !readOnly
-        editText.isFocusable = !readOnly
-        editText.isFocusableInTouchMode = !readOnly
+        editText.isEnabled = true
+        editText.isFocusable = true
+        editText.isFocusableInTouchMode = true
         editText.customSelectionActionModeCallback = actionModeCallback
         actionModeCallback.setTextView(editText)
       },
@@ -167,7 +166,7 @@ fun StyledTextFieldWeightedPreview() {
 @Composable
 fun ShortText() {
   TranslatorTheme {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box {
       StyledTextField(
         text = "very short text.",
         onValueChange = {},

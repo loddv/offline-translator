@@ -247,6 +247,11 @@ gemm-precision: int8shiftAlphaAll
 alignment: soft
 """
   }
+
+  fun transliterate(
+    text: String,
+    from: Language,
+  ): String? = TransliterationService.transliterate(text, from, mucabBinding = mucabBinding)
 }
 
 sealed class TranslationResult {

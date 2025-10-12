@@ -28,7 +28,7 @@ data class AppSettings(
   val maxImageSize: Int = 1500,
   val disableOcr: Boolean = false,
   val disableCLD: Boolean = false,
-  val disableTransliteration: Boolean = false,
+  val enableOutputTransliteration: Boolean = true,
   val useExternalStorage: Boolean = false,
   val fontFactor: Float = 1.0f,
   val showOCRDetection: Boolean = false,

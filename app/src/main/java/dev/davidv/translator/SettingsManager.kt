@@ -87,7 +87,7 @@ class SettingsManager(
     val maxImageSize = prefs.getInt("max_image_size", defaults.maxImageSize)
     val disableOcr = prefs.getBoolean("disable_ocr", defaults.disableOcr)
     val disableCLD = prefs.getBoolean("disable_cld", defaults.disableCLD)
-    val disableTransliteration = prefs.getBoolean("disable_transliteration", defaults.disableTransliteration)
+    val enableOutputTransliteration = prefs.getBoolean("enable_output_transliteration", defaults.enableOutputTransliteration)
     val useExternalStorage = prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
     val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
     val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
@@ -105,7 +105,7 @@ class SettingsManager(
       maxImageSize = maxImageSize,
       disableOcr = disableOcr,
       disableCLD = disableCLD,
-      disableTransliteration = disableTransliteration,
+      enableOutputTransliteration = enableOutputTransliteration,
       useExternalStorage = useExternalStorage,
       fontFactor = fontFactor,
       showOCRDetection = showOCRDetection,
@@ -163,9 +163,9 @@ class SettingsManager(
         putBoolean("disable_cld", newSettings.disableCLD)
         modifiedSettings.add("disable_cld")
       }
-      if (newSettings.disableTransliteration != currentSettings.disableTransliteration) {
-        putBoolean("disable_transliteration", newSettings.disableTransliteration)
-        modifiedSettings.add("disable_transliteration")
+      if (newSettings.enableOutputTransliteration != currentSettings.enableOutputTransliteration) {
+        putBoolean("enable_output_transliteration", newSettings.enableOutputTransliteration)
+        modifiedSettings.add("enable_output_transliteration")
       }
       if (newSettings.useExternalStorage != currentSettings.useExternalStorage) {
         putBoolean("use_external_storage", newSettings.useExternalStorage)

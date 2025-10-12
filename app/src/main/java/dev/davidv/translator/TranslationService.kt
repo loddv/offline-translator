@@ -111,7 +111,7 @@ class TranslationService(
       val translated =
         result.map { translatedText ->
           val transliterated =
-            if (!settingsManager.settings.value.disableTransliteration) {
+            if (settingsManager.settings.value.enableOutputTransliteration) {
               TransliterationService.transliterate(translatedText, to, mucabBinding = mucabBinding)
             } else {
               null
@@ -169,7 +169,7 @@ class TranslationService(
           }
         Log.d("TranslationService", "Translation took ${elapsed}ms")
         val transliterated =
-          if (!settingsManager.settings.value.disableTransliteration) {
+          if (settingsManager.settings.value.enableOutputTransliteration) {
             TransliterationService.transliterate(result, to, mucabBinding = mucabBinding)
           } else {
             null

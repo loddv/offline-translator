@@ -584,22 +584,42 @@ fun SettingsScreen(
               )
             }
 
-            // Disable Transliteration Toggle
+            // Show Transliteration for Output Toggle
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically,
             ) {
               Text(
-                text = "Disable transliteration",
+                text = "Show transliteration for output",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
               )
 
               Switch(
-                checked = settings.disableTransliteration,
+                checked = settings.enableOutputTransliteration,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(disableTransliteration = checked))
+                  onSettingsChange(settings.copy(enableOutputTransliteration = checked))
+                },
+              )
+            }
+
+            // Show Transliteration on Input Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Show transliteration for input",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.showTransliterationOnInput,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(showTransliterationOnInput = checked))
                 },
               )
             }

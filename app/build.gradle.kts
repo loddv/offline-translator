@@ -144,10 +144,36 @@ tasks.register("buildBindingsAarch64") {
   }
 }
 
+tasks.register("buildBindingsX86") {
+  group = "build"
+  description = "Build Rust bindings library for x86"
+
+  doLast {
+    exec {
+      workingDir = file(bindingsRootDir)
+      environment("ANDROID_NDK_ROOT", ndk)
+      environment("ANDROID_NDK_HOME", ndk)
+      commandLine(
+        "cargo",
+        "ndk",
+        "build",
+        "--target",
+        "x86",
+        "--release",
+        "--platform",
+        "28",
+        "--link-libcxx-shared",
+        "--output-dir",
+        "../jniLibs",
+      )
+    }
+  }
+}
+
 tasks.register("buildBindingsAll") {
   group = "build"
   description = "Build Rust bindings library for all architectures"
-  dependsOn("buildBindingsX86_64", "buildBindingsAarch64")
+  dependsOn("buildBindingsX86_64", "buildBindingsAarch64", "buildBindingsX86")
 }
 
 tasks.whenTaskAdded {
@@ -156,6 +182,9 @@ tasks.whenTaskAdded {
   }
   if (name.contains("preX86_64") && name.contains("Build")) {
     dependsOn("buildBindingsX86_64")
+  }
+  if (name.contains("preX86") && name.contains("Build") && !name.contains("preX86_64")) {
+    dependsOn("buildBindingsX86")
   }
 }
 

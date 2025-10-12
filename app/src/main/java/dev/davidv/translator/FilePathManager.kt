@@ -1,6 +1,7 @@
 package dev.davidv.translator
 
 import android.content.Context
+import android.os.Build
 import android.os.Environment
 import android.util.Log
 import kotlinx.coroutines.flow.StateFlow
@@ -13,10 +14,15 @@ class FilePathManager(
   private val baseDir: File
     get() =
       if (settingsFlow.value.useExternalStorage) {
-        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-        File(documentsDir, "dev.davidv.translator").also { dir ->
-          if (!dir.exists()) {
-            dir.mkdirs()
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+          val ext = context.getExternalFilesDir(null)
+          ext ?: context.filesDir
+        } else {
+          val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+          File(documentsDir, "dev.davidv.translator").also { dir ->
+            if (!dir.exists()) {
+              dir.mkdirs()
+            }
           }
         }
       } else {

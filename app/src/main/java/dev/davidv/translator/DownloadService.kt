@@ -581,6 +581,11 @@ class DownloadService : Service() {
 
     try {
       outputFile.parentFile?.mkdirs()
+    } catch (e: Exception) {
+      Log.e("DownloadService", "Failed to mkdirs", e)
+      return@withContext false
+    }
+    try {
       conn.getInputStream().use { rawInputStream ->
         val trackingStream =
           TrackingInputStream(rawInputStream, size) { incrementalProgress ->
@@ -611,7 +616,7 @@ class DownloadService : Service() {
       }
     } catch (e: Exception) {
       val operation = if (decompress) "decompressing" else "downloading"
-      Log.e("DownloadService", "Error $operation file", e)
+      Log.e("DownloadService", "Error $operation file from $url to $outputFile: ${e.javaClass.simpleName}: ${e.message}", e)
       if (tempFile.exists()) {
         tempFile.delete()
       }

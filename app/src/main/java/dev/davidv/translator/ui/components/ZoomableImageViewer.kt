@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +57,7 @@ import kotlin.math.roundToInt
 fun ZoomableImageViewer(
   bitmap: Bitmap,
   onDismiss: () -> Unit,
+  onShare: () -> Unit,
 ) {
   Dialog(
     onDismissRequest = onDismiss,
@@ -135,22 +137,36 @@ fun ZoomableImageViewer(
             .graphicsLayer(
               scaleX = scale,
               scaleY = scale,
-            )
-            .transformable(state = state),
+            ).transformable(state = state),
       )
 
-      // Close button
+      // Share button
       IconButton(
-        onClick = onDismiss,
+        onClick = onShare,
         modifier =
           Modifier
             .align(Alignment.TopEnd)
             .size(48.dp),
       ) {
         Icon(
-          painterResource(id = R.drawable.cancel),
+          painterResource(id = R.drawable.share),
+          contentDescription = "Share image",
+          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+        )
+      }
+
+      // Back button
+      IconButton(
+        onClick = onDismiss,
+        modifier =
+          Modifier
+            .align(Alignment.TopStart)
+            .size(48.dp),
+      ) {
+        Icon(
+          painterResource(id = R.drawable.arrow_back),
           contentDescription = "Close full screen view",
-          tint = Color.White,
+          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
         )
       }
     }

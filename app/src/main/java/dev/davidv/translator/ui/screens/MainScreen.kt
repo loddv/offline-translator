@@ -26,9 +26,9 @@ import android.widget.TextView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -239,7 +239,10 @@ fun MainScreen(
                   isTranslating = isTranslating,
                   onShowFullScreenImage = { showFullScreenImage = true },
                 )
-                ClearInput(onMessage)
+                Row(modifier = Modifier.align(Alignment.TopEnd)) {
+                  ClearInput(onMessage)
+                  ShareImage(onMessage)
+                }
               }
             }
 
@@ -254,7 +257,8 @@ fun MainScreen(
                 Box(
                   modifier =
                     Modifier
-                      .fillMaxWidth().weight(3f, fill = false),
+                      .fillMaxWidth()
+                      .weight(3f, fill = false),
                 ) {
                   StyledTextField(
                     text = input,
@@ -276,10 +280,12 @@ fun MainScreen(
                       ),
                   )
                   if (displayImage == null) {
-                    if (input.isNotEmpty()) {
-                      ClearInput(onMessage)
-                    } else {
-                      PasteButton(onMessage)
+                    Row(modifier = Modifier.align(Alignment.TopEnd)) {
+                      if (input.isNotEmpty()) {
+                        ClearInput(onMessage)
+                      } else {
+                        PasteButton(onMessage)
+                      }
                     }
                   }
                 }
@@ -291,7 +297,8 @@ fun MainScreen(
                   Box(
                     modifier =
                       Modifier
-                        .fillMaxWidth().weight(1f, fill = true),
+                        .fillMaxWidth()
+                        .weight(1f, fill = true),
                   ) {
                     AndroidView(
                       factory = { context ->
@@ -382,6 +389,9 @@ fun MainScreen(
     ZoomableImageViewer(
       bitmap = displayImage,
       onDismiss = { showFullScreenImage = false },
+      onShare = {
+        onMessage(TranslatorMessage.ShareTranslatedImage)
+      },
     )
   }
 
@@ -406,12 +416,27 @@ fun MainScreen(
 }
 
 @Composable
-fun BoxScope.ClearInput(onMessage: (TranslatorMessage) -> Unit) {
+fun ShareImage(onMessage: (TranslatorMessage) -> Unit) {
+  IconButton(
+    onClick = { onMessage(TranslatorMessage.ShareTranslatedImage) },
+    modifier =
+      Modifier
+        .size(32.dp),
+  ) {
+    Icon(
+      painterResource(id = R.drawable.share),
+      contentDescription = "Share image",
+      tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+    )
+  }
+}
+
+@Composable
+fun ClearInput(onMessage: (TranslatorMessage) -> Unit) {
   IconButton(
     onClick = { onMessage(TranslatorMessage.ClearInput) },
     modifier =
       Modifier
-        .align(Alignment.TopEnd)
         .size(32.dp),
   ) {
     Icon(
@@ -423,7 +448,7 @@ fun BoxScope.ClearInput(onMessage: (TranslatorMessage) -> Unit) {
 }
 
 @Composable
-fun BoxScope.PasteButton(onMessage: (TranslatorMessage) -> Unit) {
+fun PasteButton(onMessage: (TranslatorMessage) -> Unit) {
   val context = LocalContext.current
 
   IconButton(
@@ -437,7 +462,6 @@ fun BoxScope.PasteButton(onMessage: (TranslatorMessage) -> Unit) {
     },
     modifier =
       Modifier
-        .align(Alignment.TopEnd)
         .size(32.dp),
   ) {
     Icon(

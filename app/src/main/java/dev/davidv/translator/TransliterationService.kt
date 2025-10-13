@@ -61,6 +61,7 @@ object TransliterationService {
     language: Language,
     targetScript: String = "Latin",
     mucabBinding: MucabBinding? = null,
+    japaneseSpaced: Boolean,
   ): String? {
     if (!shouldTransliterate(language, targetScript) || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
       return null
@@ -71,7 +72,7 @@ object TransliterationService {
     val transliterator = getTransliterator(rule) ?: return null
     return try {
       if (language == Language.JAPANESE) {
-        transliterateJapanese(text, transliterator, mucabBinding)
+        transliterateJapanese(text, transliterator, mucabBinding, japaneseSpaced)
       } else {
         transliterator.transliterate(text)
       }
@@ -86,10 +87,11 @@ object TransliterationService {
     text: String,
     transliterator: Transliterator,
     mucabBinding: MucabBinding?,
+    spaced: Boolean,
   ): String {
     var toTranslate = text
     if (mucabBinding != null && mucabBinding.isOpen()) {
-      val res = mucabBinding.transliterateJP(text)
+      val res = mucabBinding.transliterateJP(text, spaced)
       if (res != null) {
         toTranslate = res
       }

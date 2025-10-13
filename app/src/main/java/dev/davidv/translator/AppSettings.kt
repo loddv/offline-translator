@@ -34,4 +34,5 @@ data class AppSettings(
   val showOCRDetection: Boolean = false,
   val showFilePickerInImagePicker: Boolean = false,
   val showTransliterationOnInput: Boolean = false,
+  val addSpacesForJapaneseTransliteration: Boolean = true,
 )

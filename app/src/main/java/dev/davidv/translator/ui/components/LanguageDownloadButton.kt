@@ -48,6 +48,7 @@ fun LanguageDownloadButton(
   isLanguageAvailable: Boolean,
   onEvent: (LanguageEvent) -> Unit,
   modifier: Modifier = Modifier,
+  enabled: Boolean,
 ) {
   val isDownloading = downloadState?.isDownloading == true
 
@@ -70,6 +71,7 @@ fun LanguageDownloadButton(
         modifier = Modifier.size(40.dp),
       )
       IconButton(
+        enabled = enabled,
         onClick = {
           onEvent(LanguageEvent.Cancel(language))
         },
@@ -84,6 +86,7 @@ fun LanguageDownloadButton(
   } else if (isLanguageAvailable) {
     // Delete button for available/completed languages
     IconButton(
+      enabled = enabled,
       onClick = {
         onEvent(LanguageEvent.Delete(language))
       },
@@ -92,15 +95,16 @@ fun LanguageDownloadButton(
       Icon(
         painterResource(id = R.drawable.delete),
         contentDescription = "Delete Language",
+        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.5f),
       )
     }
   } else {
     // Download/retry button
     IconButton(
+      enabled = enabled,
       onClick = {
         onEvent(LanguageEvent.Download(language))
       },
-      enabled = true,
       modifier = modifier,
     ) {
       when {
@@ -160,6 +164,7 @@ fun LanguageDownloadButtonPreview() {
           downloadState = null,
           isLanguageAvailable = false,
           onEvent = {},
+          enabled = true,
         )
 
         // Prog
@@ -168,6 +173,7 @@ fun LanguageDownloadButtonPreview() {
           downloadState = DownloadState(isDownloading = true, totalSize = 100, downloaded = 50),
           isLanguageAvailable = false,
           onEvent = {},
+          enabled = true,
         )
 
         // Complete
@@ -176,6 +182,7 @@ fun LanguageDownloadButtonPreview() {
           downloadState = null,
           isLanguageAvailable = true,
           onEvent = {},
+          enabled = false,
         )
         // Failed
         LanguageDownloadButton(
@@ -183,6 +190,7 @@ fun LanguageDownloadButtonPreview() {
           downloadState = DownloadState(error = "Failed"),
           isLanguageAvailable = false,
           onEvent = {},
+          enabled = true,
         )
         // Missing partial
         LanguageDownloadButton(
@@ -190,6 +198,7 @@ fun LanguageDownloadButtonPreview() {
           downloadState = null,
           isLanguageAvailable = true,
           onEvent = {},
+          enabled = true,
         )
       }
     }

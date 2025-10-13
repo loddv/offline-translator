@@ -102,6 +102,7 @@ fun DetectedLanguageToast(
         isLanguageAvailable = availableLanguages[detectedLanguage]!!.translatorFiles,
         onEvent = onEvent,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        enabled = true,
       )
     }
   }

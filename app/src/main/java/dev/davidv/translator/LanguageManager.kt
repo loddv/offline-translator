@@ -113,7 +113,7 @@ fun LanguageManagerScreen(
             )
           }
 
-          items(installedLanguages) { lang ->
+          items((installedLanguages + Language.ENGLISH).sortedBy { l -> l.displayName }) { lang ->
             LanguageItem(
               lang = lang,
               state = languageAvailabilityState.availableLanguageMap[lang]!!,
@@ -122,7 +122,8 @@ fun LanguageManagerScreen(
               availabilityCheck = availabilityCheck,
               onEvent = onEvent,
               onFavorite = onFavorite,
-              description = description,
+              description = if (lang == Language.ENGLISH) { _ -> "Built in" } else description,
+              stateEnabled = lang != Language.ENGLISH,
             )
           }
         }
@@ -166,6 +167,7 @@ fun LanguageManagerScreen(
               description = description,
               onEvent = onEvent,
               onFavorite = onFavorite,
+              stateEnabled = true,
             )
           }
         }
@@ -254,6 +256,7 @@ private fun LanguageItem(
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
   onFavorite: ((FavoriteEvent) -> Unit)?,
+  stateEnabled: Boolean,
 ) {
   val isAvailable = availabilityCheck(state)
   Row(
@@ -285,6 +288,7 @@ private fun LanguageItem(
         downloadState = downloadState,
         isLanguageAvailable = isAvailable,
         onEvent = onEvent,
+        enabled = stateEnabled,
       )
     }
   }

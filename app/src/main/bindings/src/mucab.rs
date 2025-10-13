@@ -43,6 +43,7 @@ pub unsafe extern "C" fn Java_dev_davidv_translator_MucabBinding_nativeTranslite
     _: JClass,
     dict_ptr: jlong,
     java_text: JString,
+    spaced: bool,
 ) -> jstring {
     android_log!("nativeTransliterateJP: Started");
 
@@ -64,7 +65,7 @@ pub unsafe extern "C" fn Java_dev_davidv_translator_MucabBinding_nativeTranslite
     };
 
     let dict = unsafe { &mut *(dict_ptr as *mut Dictionary) };
-    let result = transliterate(&text, dict);
+    let result = transliterate(&text, dict, spaced);
 
     android_log!(format!("nativeTransliterateJP: Result length: {}", result.len()));
 

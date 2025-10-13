@@ -93,6 +93,11 @@ class SettingsManager(
     val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
     val showFilePickerInImagePicker = prefs.getBoolean("show_file_picker_in_image_picker", defaults.showFilePickerInImagePicker)
     val showTransliterationOnInput = prefs.getBoolean("show_transliteration_on_input", defaults.showTransliterationOnInput)
+    val addSpacesForJapaneseTransliteration =
+      prefs.getBoolean(
+        "add_spaces_for_japanese_transliteration",
+        defaults.addSpacesForJapaneseTransliteration,
+      )
 
     return AppSettings(
       defaultTargetLanguage = defaultTargetLanguage,
@@ -111,6 +116,7 @@ class SettingsManager(
       showOCRDetection = showOCRDetection,
       showFilePickerInImagePicker = showFilePickerInImagePicker,
       showTransliterationOnInput = showTransliterationOnInput,
+      addSpacesForJapaneseTransliteration = addSpacesForJapaneseTransliteration,
     )
   }
 
@@ -186,6 +192,10 @@ class SettingsManager(
       if (newSettings.showTransliterationOnInput != currentSettings.showTransliterationOnInput) {
         putBoolean("show_transliteration_on_input", newSettings.showTransliterationOnInput)
         modifiedSettings.add("show_transliteration_on_input")
+      }
+      if (newSettings.addSpacesForJapaneseTransliteration != currentSettings.addSpacesForJapaneseTransliteration) {
+        putBoolean("add_spaces_for_japanese_transliteration", newSettings.addSpacesForJapaneseTransliteration)
+        modifiedSettings.add("add_spaces_for_japanese_transliteration")
       }
       apply()
     }

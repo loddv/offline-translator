@@ -623,6 +623,26 @@ fun SettingsScreen(
                 },
               )
             }
+
+            // Add Spaces for Japanese Transliteration Toggle
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Add spaces for Japanese transliteration",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+
+              Switch(
+                checked = settings.addSpacesForJapaneseTransliteration,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(addSpacesForJapaneseTransliteration = checked))
+                },
+              )
+            }
           }
         }
       }

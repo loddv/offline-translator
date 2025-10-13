@@ -21,13 +21,16 @@ class MucabBinding {
     }
   }
 
-  fun transliterateJP(text: String): String? =
+  fun transliterateJP(
+    text: String,
+    spaced: Boolean,
+  ): String? =
     synchronized(lock) {
       if (dictPtr != 0L) {
         val result: String?
         val elapsed =
           measureTimeMillis {
-            result = nativeTransliterateJP(dictPtr, text)
+            result = nativeTransliterateJP(dictPtr, text, spaced)
           }
         Log.d("MucabBindings", "Mucab transliteration took ${elapsed}ms")
         result
@@ -52,6 +55,7 @@ class MucabBinding {
   private external fun nativeTransliterateJP(
     dictPtr: Long,
     text: String,
+    spaced: Boolean,
   ): String?
 
   private external fun nativeClose(dictPtr: Long)

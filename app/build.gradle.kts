@@ -27,8 +27,8 @@ android {
     applicationId = "dev.davidv.translator"
     minSdk = 28 // iconv functions need 28?
     targetSdk = 34
-    versionCode = 7
-    versionName = "0.2.2"
+    versionCode = 8
+    versionName = "0.2.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

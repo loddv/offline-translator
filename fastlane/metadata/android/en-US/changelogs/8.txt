@@ -1,6 +1,7 @@
+- Implement cropping for OCR images
 - Implement 'share' for the translated image (@jheld)
 - Add option to add spaces for Japanese kanji transliteration
 - Fix external storage usage for Android 10
-- Add support for x86
 - Allow starring 'English'
-- Update Bulgarian, Czech, Dutch, Estonian, Finnish, French, German, Italian, Polish, Portuguese, Spanish (needs redownload)
+
+Update Bulgarian, Czech, Dutch, Estonian, Finnish, French, German, Italian, Polish, Portuguese, Spanish (needs redownload)

@@ -85,6 +85,10 @@
         </intent-filter>
       </activity>
 
+      <activity
+        android:name="com.canhub.cropper.CropImageActivity"
+        android:theme="@style/Theme.Translator.CropImage" />
+
         <service
             android:name=".DownloadService"
             android:enabled="true"

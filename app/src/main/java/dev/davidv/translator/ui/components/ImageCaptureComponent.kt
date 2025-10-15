@@ -48,6 +48,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorMessage
 import java.io.File
@@ -77,14 +80,34 @@ fun ImageCaptureHandler(
       }
     }
 
-  // Camera launcher using MediaStore intent with EXTRA_OUTPUT
+  val cropImage =
+    rememberLauncherForActivityResult(CropImageContract()) { result ->
+      if (result.isSuccessful) {
+        val croppedUri = result.uriContent
+        if (croppedUri != null) {
+          Log.d("ImageCrop", "Image cropped: $croppedUri")
+          onMessage(TranslatorMessage.SetImageUri(croppedUri))
+        } else {
+          Log.d("ImageCrop", "Crop successful but no URI returned")
+        }
+      } else {
+        val exception = result.error
+        Log.d("ImageCrop", "Crop cancelled or failed: ${exception?.message}")
+      }
+    }
+
   val takePictureIntent =
     rememberLauncherForActivityResult(
       ActivityResultContracts.StartActivityForResult(),
     ) { result ->
       if (result.resultCode == android.app.Activity.RESULT_OK) {
         Log.d("Camera", "Photo captured: $cameraImageUri")
-        onMessage(TranslatorMessage.SetImageUri(cameraImageUri))
+        cropImage.launch(
+          CropImageContractOptions(
+            uri = cameraImageUri,
+            cropImageOptions = CropImageOptions(),
+          ),
+        )
       } else {
         Log.d("Camera", "Photo capture cancelled or failed")
       }
@@ -94,7 +117,12 @@ fun ImageCaptureHandler(
     rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
       if (uri != null) {
         Log.d("PhotoPicker", "Selected URI: $uri")
-        onMessage(TranslatorMessage.SetImageUri(uri))
+        cropImage.launch(
+          CropImageContractOptions(
+            uri = uri,
+            cropImageOptions = CropImageOptions(),
+          ),
+        )
       } else {
         Log.d("PhotoPicker", "No media selected")
       }
@@ -106,7 +134,12 @@ fun ImageCaptureHandler(
         val imageUri = result.data?.data
         if (imageUri != null) {
           Log.d("Gallery", "Selected URI: $imageUri")
-          onMessage(TranslatorMessage.SetImageUri(imageUri))
+          cropImage.launch(
+            CropImageContractOptions(
+              uri = imageUri,
+              cropImageOptions = CropImageOptions(),
+            ),
+          )
         } else {
           Log.d("Gallery", "No image selected")
         }
@@ -117,7 +150,12 @@ fun ImageCaptureHandler(
     rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
       if (uri != null) {
         Log.d("FilePicker", "Selected URI: $uri")
-        onMessage(TranslatorMessage.SetImageUri(uri))
+        cropImage.launch(
+          CropImageContractOptions(
+            uri = uri,
+            cropImageOptions = CropImageOptions(),
+          ),
+        )
       } else {
         Log.d("FilePicker", "No file selected")
       }

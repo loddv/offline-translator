@@ -590,8 +590,32 @@ fun TranslatorApp(
       translationCoordinator.preloadModel(from!!, to)
     }
   }
-  LaunchedEffect(from, input, to) {
+  LaunchedEffect(input) {
+    // a hack for images
+    if (inputType == InputType.IMAGE) {
+      return@LaunchedEffect
+    }
     // don't check for empty, we may be translating an image
+    scope.launch {
+      currentDetectedLanguage =
+        if (!settings.disableCLD) {
+          translationCoordinator.detectLanguage(input, from)
+        } else {
+          null
+        }
+    }
+    // don't enqueue a new translation if busy; when we stop
+    // being busy, then-current state will be translated
+    if (isTranslating) {
+      return@LaunchedEffect
+    }
+    if (from != null) {
+      translateWithLanguages(from!!, to)
+    } else {
+      output = null
+    }
+  }
+  LaunchedEffect(from, to) {
     scope.launch {
       currentDetectedLanguage =
         if (!settings.disableCLD) {

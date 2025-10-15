@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
     Log.i("MainActivity", "cleaning up")
   }
 
-  public override fun onNewIntent(intent: Intent?) {
+  override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     handleIntent(intent)
   }

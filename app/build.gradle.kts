@@ -214,6 +214,7 @@ dependencies {
   implementation(libs.kotlinx.serialization.json)
   implementation(project(":app:bergamot"))
   implementation(libs.kotlinx.serialization.json.v162)
+  implementation("com.vanniktech:android-image-cropper:4.6.0")
 }
 
 ktlint {

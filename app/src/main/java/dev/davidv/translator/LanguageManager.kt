@@ -78,6 +78,7 @@ fun LanguageManagerScreen(
   openDialog: Boolean = false,
   description: (Language) -> String,
   sizeBytes: (Language) -> Long,
+  enabled: (Language) -> Boolean,
 ) {
   var showDownloadAllDialog by remember { mutableStateOf(openDialog) }
 
@@ -113,7 +114,7 @@ fun LanguageManagerScreen(
             )
           }
 
-          items((installedLanguages + Language.ENGLISH).sortedBy { l -> l.displayName }) { lang ->
+          items(installedLanguages) { lang ->
             LanguageItem(
               lang = lang,
               state = languageAvailabilityState.availableLanguageMap[lang]!!,
@@ -122,8 +123,8 @@ fun LanguageManagerScreen(
               availabilityCheck = availabilityCheck,
               onEvent = onEvent,
               onFavorite = onFavorite,
-              description = if (lang == Language.ENGLISH) { _ -> "Built in" } else description,
-              stateEnabled = lang != Language.ENGLISH,
+              description = description,
+              stateEnabled = enabled(lang),
             )
           }
         }
@@ -167,7 +168,7 @@ fun LanguageManagerScreen(
               description = description,
               onEvent = onEvent,
               onFavorite = onFavorite,
-              stateEnabled = true,
+              stateEnabled = enabled(lang),
             )
           }
         }
@@ -383,6 +384,7 @@ fun LanguageManagerPreviewDark() {
       onFavorite = {},
       description = { "3MB" },
       sizeBytes = { 5 },
+      enabled = { true },
     )
   }
 }
@@ -414,6 +416,7 @@ fun LanguageManagerPreview() {
       onFavorite = {},
       description = { "3MB" },
       sizeBytes = { 5 },
+      enabled = { true },
     )
   }
 }
@@ -439,6 +442,7 @@ fun LanguageManagerPreviewEmbedded() {
       onFavorite = {},
       description = { "4MB" },
       sizeBytes = { 5 },
+      enabled = { true },
     )
   }
 }
@@ -470,6 +474,7 @@ fun LanguageManagerDialogPreview() {
       openDialog = true,
       description = { "5MB" },
       sizeBytes = { it.sizeBytes.toLong() },
+      enabled = { true },
     )
   }
 }

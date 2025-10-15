@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -42,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -60,7 +58,6 @@ import dev.davidv.translator.LanguageManagerScreen
 import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
-import dev.davidv.translator.R
 import dev.davidv.translator.createPreviewStates
 import dev.davidv.translator.fromEnglishFiles
 import dev.davidv.translator.ui.components.LanguageEvent
@@ -129,7 +126,7 @@ fun TabbedLanguageManagerScreen(
           LanguageManagerScreen(
             embedded = true,
             title = "Language Packs",
-            installedLanguages = installedLanguages,
+            installedLanguages = (installedLanguages + Language.ENGLISH).sortedBy { l -> l.displayName },
             availableLanguages = availableLanguages,
             languageAvailabilityState = languageAvailabilityState,
             downloadStates = downloadStates,
@@ -157,6 +154,9 @@ fun TabbedLanguageManagerScreen(
               }
             },
             description = { lang ->
+              if (lang == Language.ENGLISH) {
+                return@LanguageManagerScreen "Built in"
+              }
               val size = lang.sizeBytes / (1024f * 1024f)
               if (size > 10f) {
                 "${size.roundToInt()} MB"
@@ -165,82 +165,12 @@ fun TabbedLanguageManagerScreen(
               }
             },
             sizeBytes = { it.sizeBytes.toLong() },
+            enabled = { it != Language.ENGLISH },
           )
         }
 
         1 -> {
-          if (installedLanguages.filterNot { it == Language.ENGLISH }.isNotEmpty()) {
-            if (dictionaryIndex == null) {
-              Column(
-                modifier =
-                  Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-              ) {
-                Text(
-                  text = "Download the index (~5KB) to browse available dictionaries",
-                  style = MaterialTheme.typography.bodyLarge,
-                  textAlign = TextAlign.Center,
-                  modifier = Modifier.padding(bottom = 16.dp),
-                )
-                Button(
-                  onClick = { DownloadService.fetchDictionaryIndex(context) },
-                ) {
-                  Text("Fetch Dictionary Index")
-                }
-              }
-            } else {
-              LanguageManagerScreen(
-                embedded = true,
-                title = "Dictionary Packs",
-                installedLanguages = installedDictionaries,
-                availableLanguages = availableDictionaries,
-                languageAvailabilityState = languageAvailabilityState,
-                downloadStates = dictionaryDownloadStates,
-                languageMetadata = emptyMap(),
-                availabilityCheck = { it.dictionaryFiles },
-                sizeBytes = { l ->
-                  val indexEntry = dictionaryIndex.dictionaries[l.code]
-                  (indexEntry?.size ?: 0)
-                },
-                description = { l ->
-                  val indexEntry = dictionaryIndex.dictionaries[l.code]
-                  val size = (indexEntry?.size ?: 0) / (1024f * 1024f)
-                  val entries = indexEntry?.wordCount ?: 0
-                  val type = indexEntry?.type ?: "unknown"
-                  val entriesStr =
-                    if (entries == 0L) {
-                      ""
-                    } else {
-                      " - ${humanCount(entries)} entries - $type"
-                    }
-                  if (size > 10f) {
-                    "${size.roundToInt()} MB$entriesStr"
-                  } else {
-                    String.format("%.2f MB$entriesStr", size)
-                  }
-                },
-                onFavorite = null,
-                onEvent = { ev ->
-                  when (ev) {
-                    is LanguageEvent.Download ->
-                      DownloadService.startDictDownload(
-                        context,
-                        ev.language,
-                        dictionaryIndex.dictionaries[ev.language.code],
-                      )
-                    is LanguageEvent.Delete -> languageStateManager.deleteDict(ev.language)
-                    is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
-                    else -> {
-                      Log.i("LanguageManager", "Got unexpected event $ev")
-                    }
-                  }
-                },
-              )
-            }
-          } else {
+          if (dictionaryIndex == null) {
             Column(
               modifier =
                 Modifier
@@ -249,19 +179,67 @@ fun TabbedLanguageManagerScreen(
               horizontalAlignment = Alignment.CenterHorizontally,
               verticalArrangement = Arrangement.Center,
             ) {
-              Icon(
-                painter = painterResource(id = R.drawable.question),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+              Text(
+                text = "Download the index (~5KB) to browse available dictionaries",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 16.dp),
               )
-              Text(
-                text = "To download dictionaries, you need to download translation packages first",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-              )
+              Button(
+                onClick = { DownloadService.fetchDictionaryIndex(context) },
+              ) {
+                Text("Fetch Dictionary Index")
+              }
             }
+          } else {
+            LanguageManagerScreen(
+              embedded = true,
+              title = "Dictionary Packs",
+              installedLanguages = installedDictionaries,
+              availableLanguages = availableDictionaries,
+              languageAvailabilityState = languageAvailabilityState,
+              downloadStates = dictionaryDownloadStates,
+              languageMetadata = emptyMap(),
+              availabilityCheck = { it.dictionaryFiles },
+              sizeBytes = { l ->
+                val indexEntry = dictionaryIndex.dictionaries[l.code]
+                (indexEntry?.size ?: 0)
+              },
+              description = { l ->
+                val indexEntry = dictionaryIndex.dictionaries[l.code]
+                val size = (indexEntry?.size ?: 0) / (1024f * 1024f)
+                val entries = indexEntry?.wordCount ?: 0
+                val type = indexEntry?.type ?: "unknown"
+                val entriesStr =
+                  if (entries == 0L) {
+                    ""
+                  } else {
+                    " - ${humanCount(entries)} entries - $type"
+                  }
+                if (size > 10f) {
+                  "${size.roundToInt()} MB$entriesStr"
+                } else {
+                  String.format("%.2f MB$entriesStr", size)
+                }
+              },
+              onFavorite = null,
+              onEvent = { ev ->
+                when (ev) {
+                  is LanguageEvent.Download ->
+                    DownloadService.startDictDownload(
+                      context,
+                      ev.language,
+                      dictionaryIndex.dictionaries[ev.language.code],
+                    )
+                  is LanguageEvent.Delete -> languageStateManager.deleteDict(ev.language)
+                  is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
+                  else -> {
+                    Log.i("LanguageManager", "Got unexpected event $ev")
+                  }
+                }
+              },
+              enabled = { true },
+            )
           }
         }
       }

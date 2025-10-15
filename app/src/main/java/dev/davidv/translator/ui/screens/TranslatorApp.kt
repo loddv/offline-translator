@@ -251,7 +251,7 @@ fun TranslatorApp(
       when (event) {
         is FileEvent.LanguageDeleted -> {
           val langs = languageStateManager.languageState.value.availableLanguageMap
-          val validLangs = langs.filter { it.key != event.language }
+          val validLangs = langs.filter { it.key != event.language }.filter { it.value.translatorFiles }
           val currentFrom = fromState.value
           val currentTo = toState.value
           if (currentFrom == event.language || currentFrom == null) {

@@ -53,8 +53,7 @@ jobs:
           -v ${{ github.workspace }}:/home/vagrant/build/dev.davidv.translator/ \
           --user $(id -u):$(id -g) \
           translator-app:latest \
-          ./gradlew assembleAarch64Release \
-          ls app/build/outputs/apk/**/*.apk
+          ./gradlew assembleAarch64Release
           
     - name: Set short SHA
       id: set_sha

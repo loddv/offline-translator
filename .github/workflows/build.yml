@@ -5,11 +5,28 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-
+  workflow_dispatch:
+    inputs:
+      build_type:
+        type: choice
+        description: 'Build Type:'
+        options:
+          - 'release'
+          - 'debug'
+        default: 'debug'
+      build_os_version:
+        type: choice
+        description: 'Choice a os build version machine:'
+        options:
+          - 'ubuntu-latest'
+          - 'ubuntu-24.04'
+          - 'ubuntu-22.04'
+        default: 'ubuntu-latest'
 jobs:
   build:
-    runs-on: ubuntu-latest
-    
+    runs-on: ${{ github.event.inputs.build_os_version }}
+    outputs:
+      short_sha: ${{ steps.set_sha.outputs.short_sha }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -37,10 +54,19 @@ jobs:
           --user $(id -u):$(id -g) \
           translator-app:latest \
           ./gradlew assembleAarch64Release
-    
+          
+    - name: Set short SHA
+      id: set_sha
+      run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+    - name: Rename APK with commit hash
+      run: |
+          mv app/build/outputs/apk/**/*.apk \
+             app/build/outputs/apk/**/*-${{ steps.set_sha.outputs.short_sha }}.apk
+
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
       with:
         name: apk-files
-        path: app/build/outputs/apk/**/*.apk
+        path: app/build/outputs/apk/**/*-${{ steps.set_sha.outputs.short_sha }}.apk
         retention-days: 30

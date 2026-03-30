@@ -1,0 +1,12 @@
+Update languages:
+- Add Thai and Chinese (Traditional) support
+- Add dictionaries for:
+  - Bosnian
+  - Croatian
+  - Norwegian Bokmål (nb)
+  - Norwegian (no)
+  - Serbian
+  - Thai (th)
+  - Vietnamese (vi)
+
+In the 'Dictionaries' tab, you need to pull-down to refresh the index. It does not refresh automatically.

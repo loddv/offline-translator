@@ -76,6 +76,7 @@ fun LanguageManagerScreen(
   onEvent: (LanguageEvent) -> Unit,
   onFavorite: ((FavoriteEvent) -> Unit)?,
   openDialog: Boolean = false,
+  label: (Language) -> String = { it.displayName },
   description: (Language) -> String,
   sizeBytes: (Language) -> Long,
   enabled: (Language) -> Boolean,
@@ -123,6 +124,7 @@ fun LanguageManagerScreen(
               availabilityCheck = availabilityCheck,
               onEvent = onEvent,
               onFavorite = onFavorite,
+              label = label,
               description = description,
               stateEnabled = enabled(lang),
             )
@@ -165,6 +167,7 @@ fun LanguageManagerScreen(
               downloadState = downloadStates[lang],
               isFavorite = languageMetadata[lang]?.favorite ?: false,
               availabilityCheck = availabilityCheck,
+              label = label,
               description = description,
               onEvent = onEvent,
               onFavorite = onFavorite,
@@ -253,6 +256,7 @@ private fun LanguageItem(
   state: LangAvailability,
   downloadState: DownloadState?,
   isFavorite: Boolean,
+  label: (Language) -> String,
   description: (Language) -> String,
   availabilityCheck: (LangAvailability) -> Boolean,
   onEvent: (LanguageEvent) -> Unit,
@@ -270,7 +274,7 @@ private fun LanguageItem(
   ) {
     Column {
       Text(
-        text = lang.displayName,
+        text = label(lang),
         style = MaterialTheme.typography.titleMedium,
       )
       Text(

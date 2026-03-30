@@ -49,7 +49,7 @@ fun isDictionaryAvailable(
 fun isDictionaryAvailable(
   dictFiles: Set<String>,
   language: Language,
-): Boolean = "${language.code}.dict" in dictFiles
+): Boolean = "${language.dictionaryCode()}.dict" in dictFiles
 
 class LanguageStateManager(
   private val scope: CoroutineScope,
@@ -61,6 +61,9 @@ class LanguageStateManager(
 
   private val _dictionaryIndex = MutableStateFlow<DictionaryIndex?>(null)
   val dictionaryIndex: StateFlow<DictionaryIndex?> = _dictionaryIndex.asStateFlow()
+
+  private val _dictionaryIndexVersion = MutableStateFlow(0)
+  val dictionaryIndexVersion: StateFlow<Int> = _dictionaryIndexVersion.asStateFlow()
 
   private val _fileEvents = MutableSharedFlow<FileEvent>()
   val fileEvents: SharedFlow<FileEvent> = _fileEvents.asSharedFlow()
@@ -95,6 +98,7 @@ class LanguageStateManager(
 
             is DownloadEvent.DictionaryIndexDownloaded -> {
               _dictionaryIndex.value = event.index
+              _dictionaryIndexVersion.value++
               Log.i("LanguageStateManager", "Dictionary index downloaded: ${event.index}")
             }
 
@@ -196,13 +200,7 @@ class LanguageStateManager(
   private fun addDictionaryLanguage(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
-    val existingAvailability = updatedLanguageMap[language]
-    updatedLanguageMap[language] =
-      LangAvailability(
-        translatorFiles = existingAvailability?.translatorFiles ?: false,
-        ocrFiles = existingAvailability?.ocrFiles ?: false,
-        dictionaryFiles = true,
-      )
+    updateDictionaryAvailability(updatedLanguageMap, language, available = true)
 
     _languageState.value =
       currentState.copy(
@@ -215,13 +213,7 @@ class LanguageStateManager(
   fun deleteDict(language: Language) {
     val currentState = _languageState.value
     val updatedLanguageMap = currentState.availableLanguageMap.toMutableMap()
-    val existingAvailability = updatedLanguageMap[language]
-    updatedLanguageMap[language] =
-      LangAvailability(
-        translatorFiles = existingAvailability?.translatorFiles ?: false,
-        ocrFiles = existingAvailability?.ocrFiles ?: false,
-        dictionaryFiles = false,
-      )
+    updateDictionaryAvailability(updatedLanguageMap, language, available = false)
 
     _languageState.value =
       currentState.copy(
@@ -253,7 +245,13 @@ class LanguageStateManager(
         availableLanguageMap = updatedLanguageMap,
       )
 
-    filePathManager.deleteLanguageFiles(language)
+    val hasSharedDictionaryLanguage =
+      updatedLanguageMap.any {
+        it.key != language &&
+          it.key.dictionaryCode() == language.dictionaryCode() &&
+          it.value.translatorFiles
+      }
+    filePathManager.deleteLanguageFiles(language, deleteDictionary = !hasSharedDictionaryLanguage)
     scope.launch {
       _fileEvents.emit(FileEvent.LanguageDeleted(language))
     }
@@ -301,5 +299,23 @@ class LanguageStateManager(
         }
       }
     }
+  }
+
+  private fun updateDictionaryAvailability(
+    languageMap: MutableMap<Language, LangAvailability>,
+    language: Language,
+    available: Boolean,
+  ) {
+    Language.entries
+      .filter { it.dictionaryCode() == language.dictionaryCode() }
+      .forEach { sharedLanguage ->
+        val existingAvailability = languageMap[sharedLanguage]
+        languageMap[sharedLanguage] =
+          LangAvailability(
+            translatorFiles = existingAvailability?.translatorFiles ?: false,
+            ocrFiles = existingAvailability?.ocrFiles ?: false,
+            dictionaryFiles = available,
+          )
+      }
   }
 }

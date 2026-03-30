@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
 import java.net.URL
+import java.util.zip.GZIPInputStream
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.math.max
@@ -489,7 +490,7 @@ class DownloadService : Service() {
           suspend {
             try {
               val success =
-                download(url, file) { incrementalProgress ->
+                download(url, file, decompress = modelFile.path.endsWith(".gz")) { incrementalProgress ->
                   incrementDownloadBytes(targetLanguage, incrementalProgress)
                 }
               Log.i("DownloadService", "Downloaded $url to $file = $success")
@@ -558,6 +559,7 @@ class DownloadService : Service() {
   private suspend fun download(
     url: String,
     outputFile: File,
+    decompress: Boolean = false,
     onProgress: (Long) -> Unit,
   ) = withContext(Dispatchers.IO) {
     val conn = URL(url).openConnection()
@@ -578,7 +580,8 @@ class DownloadService : Service() {
           }
 
         tempFile.outputStream().use { output ->
-          trackingStream.use { stream ->
+          val processedStream = if (decompress) GZIPInputStream(trackingStream) else trackingStream
+          processedStream.use { stream ->
             val buffer = ByteArray(16384)
             var bytesRead: Int
             while (stream.read(buffer).also { bytesRead = it } != -1) {
@@ -599,7 +602,8 @@ class DownloadService : Service() {
         false
       }
     } catch (e: Exception) {
-      Log.e("DownloadService", "Error downloading file from $url to $outputFile: ${e.javaClass.simpleName}: ${e.message}", e)
+      val operation = if (decompress) "downloading/decompressing" else "downloading"
+      Log.e("DownloadService", "Error $operation file from $url to $outputFile: ${e.javaClass.simpleName}: ${e.message}", e)
       if (tempFile.exists()) {
         tempFile.delete()
       }
@@ -614,7 +618,7 @@ class DownloadService : Service() {
     language: Language,
     outputFile: File,
   ): Boolean {
-    val url = "${settingsManager.settings.value.dictionaryBaseUrl}/${Constants.DICT_VERSION}/${language.code}.dict"
+    val url = "${settingsManager.settings.value.dictionaryBaseUrl}/${Constants.DICT_VERSION}/${language.dictionaryCode()}.dict"
 
     return try {
       download(url, outputFile) { incrementalProgress ->

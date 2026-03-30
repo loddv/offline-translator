@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-import os
-import sys
-import json
 import asyncio
-import aiohttp
-from typing import Dict, Set, Tuple
+import json
+import os
+import re
+import unicodedata
+from typing import Dict
 
-REMOTE_SETTINGS_URL = "https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models/records"
-CDN_BASE_URL = "https://firefox-settings-attachments.cdn.mozilla.net"
+import aiohttp
+
+MODELS_MANIFEST_URL = "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json"
+MODELS_MANIFEST_CACHE = "data/models_manifest_v2.json"
+MODEL_SIZE_CACHE = "data/model_sizes_v2.json"
 TESSERACT_BASE_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main"
 DICTIONARY_BASE_URL = "https://translator.davidv.dev/dictionaries"
 DICT_VERSION = 1
@@ -45,10 +48,10 @@ LANGUAGE_NAMES = {
     'lv': 'Latvian',
     'ml': 'Malayalam',
     'ms': 'Malay',
-    'mt': 'Maltese',
     'nb': 'Norwegian Bokmål',
     'nl': 'Dutch',
     'nn': 'Norwegian Nynorsk',
+    'no': 'Norwegian',
     'pl': 'Polish',
     'pt': 'Portuguese',
     'ro': 'Romanian',
@@ -60,10 +63,12 @@ LANGUAGE_NAMES = {
     'sv': 'Swedish',
     'ta': 'Tamil',
     'te': 'Telugu',
+    'th': 'Thai',
     'tr': 'Turkish',
     'uk': 'Ukrainian',
     'vi': 'Vietnamese',
-    'zh': 'Chinese'
+    'zh': 'Chinese (简体)',
+    'zh_hant': 'Chinese (繁體)',
 }
 
 TESSERACT_LANGUAGE_MAPPINGS = {
@@ -99,10 +104,10 @@ TESSERACT_LANGUAGE_MAPPINGS = {
     'lv': 'lav',
     'ml': 'mal',
     'ms': 'msa',
-    'mt': 'mlt',
     'nb': 'nor',
     'nl': 'nld',
     'nn': 'nor',
+    'no': 'nor',
     'pl': 'pol',
     'pt': 'por',
     'ro': 'ron',
@@ -114,10 +119,12 @@ TESSERACT_LANGUAGE_MAPPINGS = {
     'sv': 'swe',
     'ta': 'tam',
     'te': 'tel',
+    'th': 'tha',
     'tr': 'tur',
     'uk': 'ukr',
     'vi': 'vie',
     'zh': 'chi_sim',
+    'zh_hant': 'chi_tra',
 }
 
 LANGUAGE_SCRIPTS = {
@@ -153,10 +160,10 @@ LANGUAGE_SCRIPTS = {
     'lv': 'Latin',
     'ml': 'Malayalam',
     'ms': 'Latin',
-    'mt': 'Latin',
     'nb': 'Latin',
     'nl': 'Latin',
     'nn': 'Latin',
+    'no': 'Latin',
     'pl': 'Latin',
     'pt': 'Latin',
     'ro': 'Latin',
@@ -168,135 +175,175 @@ LANGUAGE_SCRIPTS = {
     'sv': 'Latin',
     'ta': 'Tamil',
     'te': 'Telugu',
+    'th': 'Thai',
     'tr': 'Latin',
     'uk': 'Cyrillic',
     'vi': 'Latin',
     'zh': 'Han',
+    'zh_hant': 'Han',
 }
 
-PAIR_CODE_MAPPING = {
-    'enzh-Hans': 'enzh',
-    'enzh-Hant': 'enzh',
-    'zh-Hansen': 'zhen',
-    'zh-Hanten': 'zhen',
-    'ensq': 'ensq',
+MODEL_TYPE_PRIORITY = {
+    'tiny': 1,
+    'base': 2,
+    'base-memory': 3,
 }
 
-def normalize_pair_code(pair_code: str) -> str | None:
-    if pair_code in PAIR_CODE_MAPPING:
-        return PAIR_CODE_MAPPING[pair_code]
-    if len(pair_code) == 4:
-        return pair_code
-    return None
+MANIFEST_FILE_TYPES = {
+    'model': 'model',
+    'lexicalShortlist': 'lex',
+    'vocab': 'vocab',
+    'srcVocab': 'srcVocab',
+    'trgVocab': 'tgtVocab',
+}
 
 
-def parse_language_pair(pair: str) -> Tuple[str, str]:
-    assert len(pair) == 4, f"Language pair '{pair}' must be exactly 4 characters"
-    return pair[:2], pair[2:]
+def sanitize_enum_name(name: str) -> str:
+    normalized_name = (
+        name.replace("简体", "sim")
+        .replace("繁體", "tra")
+        .replace("繁体", "tra")
+    )
+    ascii_name = unicodedata.normalize("NFKD", normalized_name).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^A-Z0-9]+", "_", ascii_name.upper()).strip("_")
 
 
-def get_best_model_type(model_types: Set[str]) -> str:
+def get_best_model_type(model_types: set[str]) -> str:
     if 'base-memory' in model_types:
         return 'base-memory'
-    elif 'base' in model_types:
+    if 'base' in model_types:
         return 'base'
-    elif 'tiny' in model_types:
+    if 'tiny' in model_types:
         return 'tiny'
-    else:
-        raise ValueError(f"No valid model type found in {model_types}")
+    raise ValueError(f"No valid model type found in {model_types}")
 
 
-async def fetch_records() -> list[dict]:
-    cache_file = "data/remote_settings_v1.json"
+def strip_compression_suffix(filename: str) -> str:
+    if filename.endswith(".gz"):
+        return filename[:-3]
+    return filename
+
+
+def load_json_cache(cache_file: str, default):
     if os.path.exists(cache_file):
         with open(cache_file) as f:
             return json.load(f)
+    return default
+
+
+def save_json_cache(cache_file: str, data) -> None:
+    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    with open(cache_file, "w") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+
+
+async def fetch_manifest() -> dict:
+    cached = load_json_cache(MODELS_MANIFEST_CACHE, None)
+    if cached is not None:
+        return cached
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(REMOTE_SETTINGS_URL) as resp:
-            data = await resp.json()
-            records = data["data"]
+        async with session.get(MODELS_MANIFEST_URL) as resp:
+            resp.raise_for_status()
+            manifest = await resp.json()
 
-    os.makedirs("data", exist_ok=True)
-    with open(cache_file, 'w') as f:
-        json.dump(records, f, indent=2)
-
-    return records
+    save_json_cache(MODELS_MANIFEST_CACHE, manifest)
+    return manifest
 
 
-def build_model_index(records: list[dict]) -> dict:
-    index = {}
-    for record in records:
-        from_lang = record.get("fromLang")
-        to_lang = record.get("toLang")
-        if not from_lang or not to_lang:
+def select_best_entry(entries: list[dict]) -> dict:
+    return max(entries, key=lambda entry: MODEL_TYPE_PRIORITY.get(entry.get("architecture", ""), 0))
+
+
+def build_pair_files(manifest: dict) -> dict[tuple[str, str], dict]:
+    pair_files = {}
+
+    for pair_key, entries in manifest["models"].items():
+        best_entry = select_best_entry(entries)
+        src, tgt = best_entry["sourceLanguage"], best_entry["targetLanguage"]
+
+        if src not in LANGUAGE_NAMES or tgt not in LANGUAGE_NAMES:
+            print(f"Skipping unsupported pair {pair_key}: {src}->{tgt}")
             continue
 
-        raw_pair = f"{from_lang}{to_lang}"
-        pair = normalize_pair_code(raw_pair)
-        if pair is None:
-            continue
+        files = {}
+        for manifest_file_type, file_type in MANIFEST_FILE_TYPES.items():
+            file_info = best_entry["files"].get(manifest_file_type)
+            if file_info is None:
+                continue
 
-        name = record.get("name", "")
-        attachment = record.get("attachment", {})
-        location = attachment.get("location", "")
-        size = attachment.get("size", 0)
-        file_type = record.get("fileType", "")
-        version = record.get("version", "")
+            path = file_info["path"]
+            files[file_type] = {
+                "name": strip_compression_suffix(os.path.basename(path)),
+                "size": 0,
+                "path": path,
+                "fileType": file_type,
+                "modelType": best_entry["architecture"],
+            }
 
-        if not location or not name:
-            continue
+        pair_files[(src, tgt)] = files
 
-        key = f"{pair}/{name}"
-
-        existing = index.get(key)
-        if existing and existing["version"] >= version:
-            continue
-
-        index[key] = {
-            "name": name,
-            "size": size,
-            "path": location,
-            "fileType": file_type,
-            "fromLang": from_lang,
-            "toLang": to_lang,
-            "version": version,
-        }
-
-    return index
+    return pair_files
 
 
-def build_language_data(index: dict) -> Tuple[dict, dict, set]:
+def collect_model_paths(pair_files: dict[tuple[str, str], dict]) -> set[str]:
+    return {entry["path"] for files in pair_files.values() for entry in files.values()}
+
+
+async def fetch_file_size(session: aiohttp.ClientSession, base_url: str, path: str, semaphore: asyncio.Semaphore) -> tuple[str, int]:
+    url = f"{base_url.rstrip('/')}/{path}"
+    async with semaphore:
+        try:
+            async with session.head(url) as resp:
+                if resp.status == 200:
+                    return path, int(resp.headers.get("Content-Length", 0))
+                print(f"Warning: HEAD failed for {path}: {resp.status}")
+        except Exception as exc:
+            print(f"Warning: HEAD error for {path}: {exc}")
+    return path, 0
+
+
+async def get_model_sizes(base_url: str, pair_files: dict[tuple[str, str], dict]) -> dict[str, int]:
+    cache = load_json_cache(MODEL_SIZE_CACHE, {})
+    paths = sorted(collect_model_paths(pair_files))
+    missing_paths = [path for path in paths if path not in cache]
+
+    if missing_paths:
+        timeout = aiohttp.ClientTimeout(total=60)
+        semaphore = asyncio.Semaphore(16)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            tasks = [fetch_file_size(session, base_url, path, semaphore) for path in missing_paths]
+            for path, size in await asyncio.gather(*tasks):
+                cache[path] = size
+        save_json_cache(MODEL_SIZE_CACHE, cache)
+
+    return {path: int(cache.get(path, 0)) for path in paths}
+
+
+def apply_model_sizes(pair_files: dict[tuple[str, str], dict], model_sizes: dict[str, int]) -> None:
+    for files in pair_files.values():
+        for entry in files.values():
+            entry["size"] = model_sizes.get(entry["path"], 0)
+
+
+def build_language_data(pair_files: dict[tuple[str, str], dict]) -> tuple[dict, dict, set]:
     from_english = {}
     to_english = {}
-    all_languages = set()
 
-    pair_files = {}
-    for key, entry in index.items():
-        pair = key.split("/")[0]
-        if pair not in pair_files:
-            pair_files[pair] = {}
-        pair_files[pair][entry["fileType"]] = entry
-
-    for pair, files in pair_files.items():
+    for (src, tgt), files in pair_files.items():
         if "model" not in files:
             continue
-
-        src, tgt = parse_language_pair(pair)
-        if src != 'en' and tgt != 'en':
+        if src != "en" and tgt != "en":
             continue
-
-        all_languages.add(src)
-        all_languages.add(tgt)
 
         model = files["model"]
         lex = files.get("lex")
         vocab = files.get("vocab")
-        src_vocab = files.get("srcvocab", vocab)
-        tgt_vocab = files.get("trgvocab", vocab)
+        src_vocab = files.get("srcVocab", vocab)
+        tgt_vocab = files.get("tgtVocab", vocab)
 
         if not all([model, lex, src_vocab, tgt_vocab]):
-            print(f"Warning: incomplete files for {pair}, skipping")
+            print(f"Warning: incomplete files for {src}->{tgt}, skipping")
             continue
 
         entry = {
@@ -306,28 +353,28 @@ def build_language_data(index: dict) -> Tuple[dict, dict, set]:
             "lex": lex,
         }
 
-        if src == 'en':
+        if src == "en":
             from_english[tgt] = entry
         else:
             to_english[src] = entry
 
     bidirectional = set(from_english.keys()) & set(to_english.keys())
-    from_english = {k: v for k, v in from_english.items() if k in bidirectional}
-    to_english = {k: v for k, v in to_english.items() if k in bidirectional}
-    all_languages = bidirectional | {'en'}
+    from_english = {lang: from_english[lang] for lang in bidirectional}
+    to_english = {lang: to_english[lang] for lang in bidirectional}
+    all_languages = bidirectional | {"en"}
 
     return from_english, to_english, all_languages
 
 
-async def get_tessdata_sizes(languages: set) -> dict:
+async def get_tessdata_sizes(languages: set[str]) -> dict[str, int]:
     sizes = {}
     async with aiohttp.ClientSession() as session:
         for lang_code in sorted(languages):
-            if lang_code not in TESSERACT_LANGUAGE_MAPPINGS:
+            tess_name = TESSERACT_LANGUAGE_MAPPINGS.get(lang_code)
+            if tess_name is None:
                 continue
-            tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
-            filename = f"{tess_name}.traineddata"
-            url = f"{TESSERACT_BASE_URL}/{filename}"
+
+            url = f"{TESSERACT_BASE_URL}/{tess_name}.traineddata"
             try:
                 async with session.head(url) as resp:
                     if resp.status == 200:
@@ -335,28 +382,25 @@ async def get_tessdata_sizes(languages: set) -> dict:
                     else:
                         print(f"Warning: tessdata HEAD failed for {lang_code}: {resp.status}")
                         sizes[lang_code] = 0
-            except Exception as e:
-                print(f"Warning: tessdata HEAD error for {lang_code}: {e}")
+            except Exception as exc:
+                print(f"Warning: tessdata HEAD error for {lang_code}: {exc}")
                 sizes[lang_code] = 0
     return sizes
 
 
-def compute_language_size(lang_code: str, from_english: dict, to_english: dict, tessdata_sizes: dict) -> int:
+def compute_language_size(lang_code: str, from_english: dict, to_english: dict, tessdata_sizes: dict[str, int]) -> int:
     total = 0
-    if lang_code in from_english:
-        seen = set()
-        for file_entry in from_english[lang_code].values():
-            name = file_entry["name"]
-            if name not in seen:
-                total += file_entry["size"]
-                seen.add(name)
-    if lang_code in to_english:
-        seen = set()
-        for file_entry in to_english[lang_code].values():
-            name = file_entry["name"]
-            if name not in seen:
-                total += file_entry["size"]
-                seen.add(name)
+    seen = set()
+
+    for mapping in (from_english.get(lang_code), to_english.get(lang_code)):
+        if mapping is None:
+            continue
+        for file_entry in mapping.values():
+            if file_entry["name"] in seen:
+                continue
+            total += file_entry["size"]
+            seen.add(file_entry["name"])
+
     total += tessdata_sizes.get(lang_code, 0)
     return total
 
@@ -365,49 +409,53 @@ def format_model_file(entry: dict) -> str:
     return f'ModelFile("{entry["name"]}", {entry["size"]}, "{entry["path"]}")'
 
 
-def generate_kotlin(from_english: dict, to_english: dict, all_languages: set, tessdata_sizes: dict) -> str:
+def generate_kotlin(
+    from_english: dict,
+    to_english: dict,
+    all_languages: set[str],
+    tessdata_sizes: dict[str, int],
+    translation_models_base_url: str,
+) -> str:
     language_entries = []
     for lang_code in sorted(all_languages):
         if lang_code not in LANGUAGE_NAMES:
             continue
-        if lang_code != 'en' and lang_code not in from_english:
+        if lang_code != "en" and lang_code not in from_english:
             continue
+
         lang_name = LANGUAGE_NAMES[lang_code]
         tess_name = TESSERACT_LANGUAGE_MAPPINGS[lang_code]
         script = LANGUAGE_SCRIPTS[lang_code]
-        enum_name = lang_name.upper().replace(' ', '_').replace('Å', 'A')
+        enum_name = sanitize_enum_name(lang_name)
         tess_size = tessdata_sizes.get(lang_code, 0)
         total_size = compute_language_size(lang_code, from_english, to_english, tessdata_sizes)
-        language_entries.append(f'  {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}", {total_size}, {tess_size})')
-
-    language_entries = sorted(language_entries)
+        language_entries.append(
+            f'  {enum_name}("{lang_code}", "{tess_name}", "{lang_name}", "{script}", {total_size}, {tess_size})'
+        )
 
     from_entries = []
     for lang_code in sorted(from_english.keys()):
-        lang_name = LANGUAGE_NAMES[lang_code]
-        lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
-        e = from_english[lang_code]
+        lang_enum = f'Language.{sanitize_enum_name(LANGUAGE_NAMES[lang_code])}'
+        entry = from_english[lang_code]
         from_entries.append(
-            f'  {lang_enum} to LanguageFiles({format_model_file(e["model"])}, '
-            f'{format_model_file(e["srcVocab"])}, {format_model_file(e["tgtVocab"])}, '
-            f'{format_model_file(e["lex"])})'
+            f'  {lang_enum} to LanguageFiles({format_model_file(entry["model"])}, '
+            f'{format_model_file(entry["srcVocab"])}, {format_model_file(entry["tgtVocab"])}, '
+            f'{format_model_file(entry["lex"])})'
         )
 
     to_entries = []
     for lang_code in sorted(to_english.keys()):
-        lang_name = LANGUAGE_NAMES[lang_code]
-        lang_enum = f'Language.{lang_name.upper().replace(" ", "_").replace("Å", "A")}'
-        e = to_english[lang_code]
+        lang_enum = f'Language.{sanitize_enum_name(LANGUAGE_NAMES[lang_code])}'
+        entry = to_english[lang_code]
         to_entries.append(
-            f'  {lang_enum} to LanguageFiles({format_model_file(e["model"])}, '
-            f'{format_model_file(e["srcVocab"])}, {format_model_file(e["tgtVocab"])}, '
-            f'{format_model_file(e["lex"])})'
+            f'  {lang_enum} to LanguageFiles({format_model_file(entry["model"])}, '
+            f'{format_model_file(entry["srcVocab"])}, {format_model_file(entry["tgtVocab"])}, '
+            f'{format_model_file(entry["lex"])})'
         )
 
-    language_lines = ",\n".join(language_entries)
+    language_lines = ",\n".join(sorted(language_entries))
     from_lines = ",\n".join(from_entries)
     to_lines = ",\n".join(to_entries)
-
     extra_files_lines = '  Language.JAPANESE to listOf("mucab.bin")'
 
     return f"""/*
@@ -434,7 +482,7 @@ package dev.davidv.translator
 object Constants {{
   const val DICT_VERSION = {DICT_VERSION}
   const val DEFAULT_TRANSLATION_MODELS_BASE_URL =
-    "{CDN_BASE_URL}"
+    "{translation_models_base_url}"
   const val DEFAULT_TESSERACT_MODELS_BASE_URL = "{TESSERACT_BASE_URL}"
   const val DEFAULT_DICTIONARY_BASE_URL = "{DICTIONARY_BASE_URL}"
 }}
@@ -475,23 +523,28 @@ val extraFiles = mapOf(
 
 
 async def main():
-    print("Fetching records from Remote Settings API...")
-    records = await fetch_records()
-    print(f"Got {len(records)} records")
+    print("Fetching model manifest...")
+    manifest = await fetch_manifest()
+    base_url = manifest["baseUrl"].rstrip("/")
+    print(f"Manifest generated at {manifest['generated']}")
 
-    index = build_model_index(records)
-    print(f"Built index with {len(index)} entries")
+    pair_files = build_pair_files(manifest)
+    print(f"Built file map for {len(pair_files)} language pairs")
 
-    from_english, to_english, all_languages = build_language_data(index)
+    print("Fetching model file sizes...")
+    model_sizes = await get_model_sizes(base_url, pair_files)
+    apply_model_sizes(pair_files, model_sizes)
+
+    from_english, to_english, all_languages = build_language_data(pair_files)
     print(f"Languages: {len(all_languages)}, from_english: {len(from_english)}, to_english: {len(to_english)}")
 
     print("Fetching tessdata sizes...")
     tessdata_sizes = await get_tessdata_sizes(all_languages)
 
-    kotlin_code = generate_kotlin(from_english, to_english, all_languages, tessdata_sizes)
+    kotlin_code = generate_kotlin(from_english, to_english, all_languages, tessdata_sizes, base_url)
 
     output_file = "app/src/main/java/dev/davidv/translator/Language.kt"
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write(kotlin_code)
 
     print(f"Generated {output_file}")

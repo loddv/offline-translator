@@ -27,15 +27,19 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,13 +63,16 @@ import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.createPreviewStates
+import dev.davidv.translator.dictionaryCode
 import dev.davidv.translator.fromEnglishFiles
+import dev.davidv.translator.infoFor
 import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TabbedLanguageManagerScreen(
   context: Context,
@@ -83,13 +90,13 @@ fun TabbedLanguageManagerScreen(
   val languageMetadata by languageMetadataManager.metadata.collectAsState()
 
   val installedDictionaries =
-    (installedLanguages + Language.ENGLISH).filter { lang ->
-      languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == true
-    }
+    (installedLanguages + Language.ENGLISH)
+      .filter { lang -> languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == true }
+      .distinctBy { it.dictionaryCode() }
   val availableDictionaries =
-    (installedLanguages + Language.ENGLISH).filter { lang ->
-      languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == false
-    }
+    (installedLanguages + Language.ENGLISH)
+      .filter { lang -> languageAvailabilityState.availableLanguageMap[lang]?.dictionaryFiles == false }
+      .distinctBy { it.dictionaryCode() }
 
   Scaffold(
     modifier =
@@ -132,6 +139,7 @@ fun TabbedLanguageManagerScreen(
             downloadStates = downloadStates,
             languageMetadata = languageMetadata,
             availabilityCheck = { it.translatorFiles },
+            label = { it.displayName },
             onEvent = { event ->
               when (event) {
                 is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
@@ -192,54 +200,74 @@ fun TabbedLanguageManagerScreen(
               }
             }
           } else {
-            LanguageManagerScreen(
-              embedded = true,
-              title = "Dictionary Packs",
-              installedLanguages = installedDictionaries,
-              availableLanguages = availableDictionaries,
-              languageAvailabilityState = languageAvailabilityState,
-              downloadStates = dictionaryDownloadStates,
-              languageMetadata = emptyMap(),
-              availabilityCheck = { it.dictionaryFiles },
-              sizeBytes = { l ->
-                val indexEntry = dictionaryIndex.dictionaries[l.code]
-                (indexEntry?.size ?: 0)
+            var isRefreshing by remember { mutableStateOf(false) }
+            val indexVersion by languageStateManager.dictionaryIndexVersion.collectAsState()
+            LaunchedEffect(indexVersion) {
+              isRefreshing = false
+            }
+            PullToRefreshBox(
+              isRefreshing = isRefreshing,
+              onRefresh = {
+                isRefreshing = true
+                DownloadService.fetchDictionaryIndex(context)
               },
-              description = { l ->
-                val indexEntry = dictionaryIndex.dictionaries[l.code]
-                val size = (indexEntry?.size ?: 0) / (1024f * 1024f)
-                val entries = indexEntry?.wordCount ?: 0
-                val type = indexEntry?.type ?: "unknown"
-                val entriesStr =
-                  if (entries == 0L) {
-                    ""
+            ) {
+              LanguageManagerScreen(
+                embedded = true,
+                title = "Dictionary Packs",
+                installedLanguages = installedDictionaries,
+                availableLanguages = availableDictionaries,
+                languageAvailabilityState = languageAvailabilityState,
+                downloadStates = dictionaryDownloadStates,
+                languageMetadata = emptyMap(),
+                availabilityCheck = { it.dictionaryFiles },
+                label = { language ->
+                  if (language.dictionaryCode() == Language.CHINESE_SIM.code) {
+                    "Chinese (Both)"
                   } else {
-                    " - ${humanCount(entries)} entries - $type"
+                    language.displayName
                   }
-                if (size > 10f) {
-                  "${size.roundToInt()} MB$entriesStr"
-                } else {
-                  String.format("%.2f MB$entriesStr", size)
-                }
-              },
-              onFavorite = null,
-              onEvent = { ev ->
-                when (ev) {
-                  is LanguageEvent.Download ->
-                    DownloadService.startDictDownload(
-                      context,
-                      ev.language,
-                      dictionaryIndex.dictionaries[ev.language.code],
-                    )
-                  is LanguageEvent.Delete -> languageStateManager.deleteDict(ev.language)
-                  is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
-                  else -> {
-                    Log.i("LanguageManager", "Got unexpected event $ev")
+                },
+                sizeBytes = { l ->
+                  val indexEntry = dictionaryIndex.infoFor(l)
+                  (indexEntry?.size ?: 0)
+                },
+                description = { l ->
+                  val indexEntry = dictionaryIndex.infoFor(l)
+                  val size = (indexEntry?.size ?: 0) / (1024f * 1024f)
+                  val entries = indexEntry?.wordCount ?: 0
+                  val type = indexEntry?.type ?: "unknown"
+                  val entriesStr =
+                    if (entries == 0L) {
+                      ""
+                    } else {
+                      " - ${humanCount(entries)} entries - $type"
+                    }
+                  if (size > 10f) {
+                    "${size.roundToInt()} MB$entriesStr"
+                  } else {
+                    String.format("%.2f MB$entriesStr", size)
                   }
-                }
-              },
-              enabled = { true },
-            )
+                },
+                onFavorite = null,
+                onEvent = { ev ->
+                  when (ev) {
+                    is LanguageEvent.Download ->
+                      DownloadService.startDictDownload(
+                        context,
+                        ev.language,
+                        dictionaryIndex.infoFor(ev.language),
+                      )
+                    is LanguageEvent.Delete -> languageStateManager.deleteDict(ev.language)
+                    is LanguageEvent.FetchDictionaryIndex -> DownloadService.fetchDictionaryIndex(context)
+                    else -> {
+                      Log.i("LanguageManager", "Got unexpected event $ev")
+                    }
+                  }
+                },
+                enabled = { true },
+              )
+            }
           }
         }
       }

@@ -37,13 +37,16 @@ class FilePathManager(
 
   fun getDictionariesDir(): File = File(baseDir, "dictionaries")
 
-  fun getDictionaryFile(language: Language): File = File(getDictionariesDir(), "${language.code}.dict")
+  fun getDictionaryFile(language: Language): File = File(getDictionariesDir(), "${language.dictionaryCode()}.dict")
 
   fun getDictionaryIndexFile(): File = File(baseDir, "dictionaries/index.json")
 
   fun getMucabFile(): File = File(getDataDir(), "mucab.bin")
 
-  fun deleteLanguageFiles(language: Language) {
+  fun deleteLanguageFiles(
+    language: Language,
+    deleteDictionary: Boolean = true,
+  ) {
     val dataPath = getDataDir()
 
     // Delete to English files
@@ -80,9 +83,11 @@ class FilePathManager(
     }
 
     // Delete dictionary file
-    val dictionaryFile = getDictionaryFile(language)
-    if (dictionaryFile.exists() && dictionaryFile.delete()) {
-      Log.i("FilePathManager", "Deleted: ${dictionaryFile.name}")
+    if (deleteDictionary) {
+      val dictionaryFile = getDictionaryFile(language)
+      if (dictionaryFile.exists() && dictionaryFile.delete()) {
+        Log.i("FilePathManager", "Deleted: ${dictionaryFile.name}")
+      }
     }
   }
 

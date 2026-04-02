@@ -379,6 +379,11 @@ class TranslatorVoiceInteractionSession(
       return
     }
 
+    if (capturedBlocks.isEmpty() && assistReady && screenshotExpected && !hasReceivedScreenshotCallback && !assistCollectionTimedOut) {
+      Log.d(tag, "Waiting for screenshot callback before failing empty assist capture")
+      return
+    }
+
     if (capturedBlocks.isNotEmpty() && (screenshotReady || assistReady)) {
       cancelAssistCollectionTimeout()
       if (screenshotReady && shouldUseOcrFallback(capturedBlocks)) {

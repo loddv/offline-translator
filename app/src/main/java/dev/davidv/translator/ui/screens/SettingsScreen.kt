@@ -17,7 +17,9 @@
 
 package dev.davidv.translator.ui.screens
 
+import android.app.role.RoleManager
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -128,6 +130,7 @@ fun SettingsScreen(
 ) {
   val context = LocalContext.current
   var showPermissionDialog by remember { mutableStateOf(false) }
+  var assistantRoleHeld by remember { mutableStateOf(isAssistantRoleHeld(context)) }
 
   val permissionLauncher =
     rememberLauncherForActivityResult(
@@ -147,6 +150,13 @@ fun SettingsScreen(
     ) { _ ->
       val gotPerms = PermissionHelper.hasExternalStoragePermission(context)
       onSettingsChange(settings.copy(useExternalStorage = gotPerms))
+    }
+
+  val assistantRoleLauncher =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.StartActivityForResult(),
+    ) { _ ->
+      assistantRoleHeld = isAssistantRoleHeld(context)
     }
   Scaffold(
     topBar = {
@@ -241,26 +251,6 @@ fun SettingsScreen(
             },
           )
 
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
-            Text(
-              text = "Overlay Translate",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            TextButton(
-              onClick = {
-                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-              },
-            ) {
-              Text("Manage")
-            }
-          }
-
           Text(
             text = "Font Size",
             style = MaterialTheme.typography.bodyMedium,
@@ -299,6 +289,106 @@ fun SettingsScreen(
               maxLines = 1,
               overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
+          }
+        }
+      }
+
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Text(
+            text = "Screen translation",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+
+          Text(
+            text = "Translate text directly on top of other apps.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Device Assistant",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = "Requires assistant gesture. Higher quality.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+
+            TextButton(
+              onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                  val roleManager = context.getSystemService(RoleManager::class.java)
+                  val canRequestRole =
+                    roleManager != null &&
+                      roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT) &&
+                      !roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)
+                  if (canRequestRole) {
+                    assistantRoleLauncher.launch(
+                      roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),
+                    )
+                  } else {
+                    context.startActivity(
+                      Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                  }
+                } else {
+                  context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+                      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                  )
+                }
+              },
+            ) {
+              Text(if (assistantRoleHeld) "Manage" else "Request")
+            }
+          }
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Floating shortcut",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = "Quality depends on target app.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+
+            TextButton(
+              onClick = {
+                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+              },
+            ) {
+              Text("Manage")
+            }
           }
         }
       }
@@ -707,6 +797,13 @@ fun SettingsScreen(
       },
     )
   }
+}
+
+private fun isAssistantRoleHeld(context: android.content.Context): Boolean {
+  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+  val roleManager = context.getSystemService(RoleManager::class.java) ?: return false
+  if (!roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT)) return false
+  return roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)
 }
 
 @Preview(showBackground = true)

@@ -1,0 +1,6 @@
+Add the ability to translate on-screen text directly via 2 mechanisms:
+
+- Accessibility hooks
+- Device Assitant role
+
+Also, fix crashes if the default camera is uninstalled and bump support back to Android 5.0.

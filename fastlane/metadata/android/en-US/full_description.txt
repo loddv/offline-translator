@@ -3,23 +3,23 @@ A translator app that performs on-device translation of text and images without 
 Features:
 • On-device translation using Mozilla's translation models
   • No internet required for translation once models are downloaded
-• Transliteration of non-latin script
-• OCR (Optical Character Recognition) for translating text in images
 • Automatic language detection
+• OCR (Optical Character Recognition) for translating text in images
+• Transliteration of non-latin script
 • Image translation overlay that preserves original formatting
-• Support for multiple language pairs
-• Accessibility service for quick translation of on-screen content
+• Quick translation of on-screen content via Accessibility service or Device Assistant role
 
-
-Supports 43 languages:
+Supports 50 languages:
 
 - Albanian
 - Arabic
 - Azerbaijani
 - Bengali
+- Bosnian
 - Bulgarian
 - Catalan
-- Chinese
+- Chinese (简体)
+- Chinese (繁體)
 - Croatian
 - Czech
 - Danish
@@ -44,16 +44,21 @@ Supports 43 languages:
 - Lithuanian
 - Malay
 - Malayalam
+- Norwegian
+- Norwegian Bokmål
 - Persian
 - Polish
 - Portuguese
 - Romanian
 - Russian
+- Serbian
 - Slovak
 - Slovenian
 - Spanish
 - Swedish
 - Tamil
 - Telugu
+- Thai
 - Turkish
 - Ukrainian
+- Vietnamese

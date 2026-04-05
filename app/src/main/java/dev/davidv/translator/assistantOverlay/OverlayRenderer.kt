@@ -114,6 +114,19 @@ class OverlayRenderer(
 
     val hasBold = block.styleSpans.any { it.style?.bold == true }
 
+    val fittedTextSizePx =
+      findFittingTextSizePx(
+        translatedText = ssb.toString(),
+        width = width,
+        targetHeight = targetHeight,
+        initialTextSizePx = initialTextSizePx,
+        bold = hasBold,
+      )
+    val measuredHeight = measuredTextHeight(ssb.toString(), width, fittedTextSizePx, hasBold)
+    val useWrapHeight = measuredHeight < targetHeight / 2
+    val actualHeight = if (useWrapHeight) measuredHeight else targetHeight
+    val actualTop = if (useWrapHeight) top + targetHeight - measuredHeight else top
+
     val overlayFrame =
       FrameLayout(context).apply {
         background =
@@ -131,16 +144,7 @@ class OverlayRenderer(
         gravity = Gravity.START or Gravity.CENTER_VERTICAL
         maxLines = Int.MAX_VALUE
         setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
-        setTextSize(
-          TypedValue.COMPLEX_UNIT_PX,
-          findFittingTextSizePx(
-            translatedText = ssb.toString(),
-            width = width,
-            targetHeight = targetHeight,
-            initialTextSizePx = initialTextSizePx,
-            bold = hasBold,
-          ),
-        )
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, fittedTextSizePx)
       }
 
     overlayFrame.addView(
@@ -155,10 +159,10 @@ class OverlayRenderer(
       FrameLayout
         .LayoutParams(
           width,
-          targetHeight,
+          actualHeight,
         ).apply {
           leftMargin = left
-          topMargin = top
+          topMargin = actualTop
         }
     container.addView(overlayFrame, params)
   }

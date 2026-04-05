@@ -25,6 +25,7 @@ data class StyledFragment(
   val style: TextStyle? = null,
   val layoutGroup: Int = 0,
   val translationGroup: Int = 0,
+  val clusterGroup: Int = 0,
 )
 
 data class StyleSpan(
@@ -61,11 +62,13 @@ fun clusterFragmentsIntoBlocks(fragments: List<StyledFragment>): List<Translatab
   val blockGroups = mutableListOf<MutableList<StyledFragment>>()
   val blockBounds = mutableListOf<Rect>()
   val blockLayoutGroupIds = mutableListOf<Int>()
+  val blockClusterGroupIds = mutableListOf<Int>()
 
   for (fragment in fragments) {
     var merged = false
     for (i in blockGroups.indices) {
       if (blockLayoutGroupIds[i] != fragment.layoutGroup) continue
+      if (blockClusterGroupIds[i] != fragment.clusterGroup) continue
       val bb = blockBounds[i]
       val vOverlap = minOf(bb.bottom, fragment.bounds.bottom) - maxOf(bb.top, fragment.bounds.top)
       val vGap = fragment.bounds.top - bb.bottom
@@ -85,6 +88,7 @@ fun clusterFragmentsIntoBlocks(fragments: List<StyledFragment>): List<Translatab
       blockGroups.add(mutableListOf(fragment))
       blockBounds.add(Rect(fragment.bounds))
       blockLayoutGroupIds.add(fragment.layoutGroup)
+      blockClusterGroupIds.add(fragment.clusterGroup)
     }
   }
 

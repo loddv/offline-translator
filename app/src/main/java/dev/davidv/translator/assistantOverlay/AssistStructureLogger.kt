@@ -11,6 +11,47 @@ class AssistStructureLogger(
   private val isDebuggable: Boolean,
   private val parser: AssistStructureParser,
 ) {
+  fun dumpTree(structure: AssistStructure) {
+    if (!isDebuggable) return
+    val sb = StringBuilder()
+    sb.appendLine("AssistStructure tree (windows=${structure.windowNodeCount})")
+    for (windowIndex in 0 until structure.windowNodeCount) {
+      val window = structure.getWindowNodeAt(windowIndex)
+      sb.appendLine(
+        "Window[$windowIndex] title=${window.title} bounds=[${window.left},${window.top},${window.left + window.width},${window.top + window.height}]",
+      )
+      dumpNode(sb, window.rootViewNode, window.left, window.top, depth = 1)
+    }
+    for (line in sb.lines()) {
+      if (line.isNotEmpty()) Log.d(tag, line)
+    }
+  }
+
+  private fun dumpNode(
+    sb: StringBuilder,
+    node: AssistStructure.ViewNode,
+    baseLeft: Int,
+    baseTop: Int,
+    depth: Int,
+  ) {
+    val indent = "  ".repeat(depth)
+    val left = baseLeft + node.left - node.scrollX
+    val top = baseTop + node.top - node.scrollY
+    val vis = visibilityName(node.visibility)
+    sb.append(indent)
+    sb.append(node.className ?: "?")
+    if (node.idEntry != null) sb.append(" #${node.idEntry}")
+    if (node.text != null) sb.append(" text=\"${node.text}\"")
+    sb.append(" [$left,$top,${left + node.width},${top + node.height}]")
+    if (vis != "VISIBLE") sb.append(" $vis")
+    if (node.childCount > 0) sb.append(" children=${node.childCount}")
+    sb.appendLine()
+    for (childIndex in 0 until node.childCount) {
+      val child = node.getChildAt(childIndex) ?: continue
+      dumpNode(sb, child, left, top, depth + 1)
+    }
+  }
+
   fun log(
     state: VoiceInteractionSession.AssistState,
     structure: AssistStructure,

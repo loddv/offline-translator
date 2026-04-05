@@ -14,6 +14,7 @@ class AssistStructureParser(
   private val displayDensity: Float = 1f,
 ) {
   fun parse(structure: AssistStructure): List<StyledFragment> {
+    nextRecyclerViewItemId = 0
     val fragments = mutableListOf<InternalFragment>()
     for (windowIndex in 0 until structure.windowNodeCount) {
       val window = structure.getWindowNodeAt(windowIndex)
@@ -39,21 +40,26 @@ class AssistStructureParser(
     val distinct = deduped.groupBy { it.bounds.flattenToString() }.values.map { it.first() }
     var currentTransGroup = 0
     var lastBgColor: Int? = null
+    var lastRecyclerItemId: Int = -1
     return distinct.map {
       val bgColor = it.style?.bgColor
-      if (bgColor != lastBgColor) {
+      if (bgColor != lastBgColor || (it.recyclerViewItemId >= 0 && it.recyclerViewItemId != lastRecyclerItemId)) {
         currentTransGroup++
         lastBgColor = bgColor
       }
+      lastRecyclerItemId = it.recyclerViewItemId
       StyledFragment(
         it.text,
         TranslatorRect(it.bounds.left, it.bounds.top, it.bounds.right, it.bounds.bottom),
         it.style,
         layoutGroup = if (!it.fromWebView) 1 else 0,
         translationGroup = currentTransGroup,
+        clusterGroup = if (it.recyclerViewItemId >= 0) it.recyclerViewItemId + 1 else 0,
       )
     }
   }
+
+  private var nextRecyclerViewItemId = 0
 
   private fun collectFragmentsRecursive(
     node: AssistStructure.ViewNode,
@@ -63,6 +69,7 @@ class AssistStructureParser(
     insideWebView: Boolean,
     inheritedBg: Int?,
     results: MutableList<InternalFragment>,
+    recyclerViewItemId: Int = -1,
   ): Boolean {
     if (node.visibility != View.VISIBLE) return false
     if (node.idEntry == "url_bar") return false
@@ -87,10 +94,12 @@ class AssistStructureParser(
       )
     applyTransform(node.transformation, bounds)
 
+    val isRecyclerView = className.endsWith("RecyclerView")
     val childStartIndex = results.size
     for (childIndex in 0 until node.childCount) {
       val child = node.getChildAt(childIndex) ?: continue
-      collectFragmentsRecursive(child, nodeLeft, nodeTop, viewport, nestedInWebView, effectiveBg, results)
+      val childItemId = if (isRecyclerView) nextRecyclerViewItemId++ else recyclerViewItemId
+      collectFragmentsRecursive(child, nodeLeft, nodeTop, viewport, nestedInWebView, effectiveBg, results, childItemId)
     }
 
     val text = node.text?.toString()?.trim()
@@ -142,6 +151,7 @@ class AssistStructureParser(
             strikethrough = styleBits and AssistStructure.ViewNode.TEXT_STYLE_STRIKE_THRU != 0,
           ),
         fromWebView = nestedInWebView,
+        recyclerViewItemId = recyclerViewItemId,
       )
     return true
   }
@@ -168,7 +178,7 @@ class AssistStructureParser(
       .trim()
       .lowercase()
 
-  private fun isTransparentText(textColor: Int): Boolean = textColor == 0 || Color.alpha(textColor) == 0
+  private fun isTransparentText(textColor: Int): Boolean = textColor == 0 || (textColor != 1 && Color.alpha(textColor) == 0)
 
   private fun shouldPreferChildren(
     node: AssistStructure.ViewNode,
@@ -209,5 +219,6 @@ class AssistStructureParser(
     val bounds: Rect,
     val style: TextStyle?,
     val fromWebView: Boolean,
+    val recyclerViewItemId: Int = -1,
   )
 }

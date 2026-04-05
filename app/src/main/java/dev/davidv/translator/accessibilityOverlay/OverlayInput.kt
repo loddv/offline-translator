@@ -24,6 +24,7 @@ data class TapTextBlock(
 private data class TextFragment(
   val text: String,
   val bounds: Rect,
+  val recyclerViewItemId: Int = -1,
 )
 
 class OverlayInput(
@@ -32,6 +33,7 @@ class OverlayInput(
   private val ui: OverlayUI,
   private val settingsManager: SettingsManager,
 ) {
+  private val isDebuggable = (service.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
   private var touchInterceptOverlay: View? = null
   private var selectionRectView: View? = null
   private var selectionRectDrawView: SelectionRectView? = null
@@ -292,9 +294,7 @@ class OverlayInput(
       webView = webView.parent
     }
     if (webView != null) {
-      android.util.Log.d("A11yTap", "=== WebView tree dump ===")
-      dumpA11yTree(webView, 0)
-      android.util.Log.d("A11yTap", "=== End dump ===")
+      dumpA11yTree(webView)
     }
 
     var bestFragments = emptyList<TextFragment>()
@@ -335,11 +335,16 @@ class OverlayInput(
           android.util.Log.d("A11yTap", "Found ${childFragments.size} total, ${nearFragments.size} near tap")
           if (nearFragments.isNotEmpty()) {
             val anchor = nearFragments.first()
+            val anchorClusterGroup = anchor.recyclerViewItemId
             bestFragments =
-              childFragments.filter { fragment ->
-                val hMargin = ui.dpToPx(4)
-                fragment.bounds.right > anchor.bounds.left - hMargin &&
-                  fragment.bounds.left < anchor.bounds.right + hMargin
+              if (anchorClusterGroup >= 0) {
+                childFragments.filter { it.recyclerViewItemId == anchorClusterGroup }
+              } else {
+                childFragments.filter { fragment ->
+                  val hMargin = ui.dpToPx(4)
+                  fragment.bounds.right > anchor.bounds.left - hMargin &&
+                    fragment.bounds.left < anchor.bounds.right + hMargin
+                }
               }
             android.util.Log.d("A11yTap", "Filtered to ${bestFragments.size} aligned fragments")
           }
@@ -391,6 +396,7 @@ class OverlayInput(
       StyledFragment(
         fragment.text,
         TranslatorRect(fragment.bounds.left, fragment.bounds.top, fragment.bounds.right, fragment.bounds.bottom),
+        clusterGroup = if (fragment.recyclerViewItemId >= 0) fragment.recyclerViewItemId + 1 else 0,
       )
     }
   }
@@ -401,6 +407,7 @@ class OverlayInput(
       StyledFragment(
         fragment.text,
         TranslatorRect(fragment.bounds.left, fragment.bounds.top, fragment.bounds.right, fragment.bounds.bottom),
+        clusterGroup = if (fragment.recyclerViewItemId >= 0) fragment.recyclerViewItemId + 1 else 0,
       )
     }
   }
@@ -414,10 +421,13 @@ class OverlayInput(
     return getOverlayColors(bitmap, translatorBounds, bgMode)
   }
 
+  private var nextRecyclerViewItemId = 0
+
   private fun collectTextFragments(
     node: AccessibilityNodeInfo,
     skipButtons: Boolean = false,
   ): List<TextFragment> {
+    nextRecyclerViewItemId = 0
     val screenWidth = service.resources.displayMetrics.widthPixels
     val screenHeight = service.resources.displayMetrics.heightPixels
     val screenArea = screenWidth.toLong() * screenHeight.toLong()
@@ -455,6 +465,7 @@ class OverlayInput(
     screenArea: Long,
     skipButtons: Boolean,
     results: MutableList<TextFragment>,
+    recyclerViewItemId: Int = -1,
   ): Boolean {
     if (!node.isVisibleToUser) {
       val bounds = Rect()
@@ -465,10 +476,12 @@ class OverlayInput(
     if (cls == "android.widget.Image") return false
     if (skipButtons && cls in skipClasses) return false
 
+    val isRecyclerView = cls?.endsWith("RecyclerView") == true
     val childStartIndex = results.size
     for (i in 0 until node.childCount) {
       val child = node.getChild(i) ?: continue
-      collectTextFragmentsRecursive(child, screenWidth, screenHeight, screenArea, skipButtons, results)
+      val childItemId = if (isRecyclerView) nextRecyclerViewItemId++ else recyclerViewItemId
+      collectTextFragmentsRecursive(child, screenWidth, screenHeight, screenArea, skipButtons, results, childItemId)
     }
 
     val text = node.text?.toString()?.trim()
@@ -495,7 +508,7 @@ class OverlayInput(
 //      "A11yTree",
 //      "FRAGMENT: '${text.take(40)}' bounds=${bounds.toShortString()} ${bounds.width()}x${bounds.height()} clickable=${node.isClickable} focusable=${node.isFocusable} class=${node.className} id=${node.viewIdResourceName} actions=${node.actionList.map { it.id }} parent=${node.parent?.className}",
 //    )
-    results.add(TextFragment(text, Rect(bounds)))
+    results.add(TextFragment(text, Rect(bounds), recyclerViewItemId))
     return true
   }
 
@@ -637,7 +650,18 @@ class OverlayInput(
     second: Rect,
   ): Boolean = minOf(first.bottom, second.bottom) - maxOf(first.top, second.top) >= -ui.dpToPx(4)
 
-  private fun dumpA11yTree(
+  fun dumpA11yTree(root: AccessibilityNodeInfo) {
+    if (!isDebuggable) return
+    val sb = StringBuilder()
+    sb.appendLine("A11y tree (root=${root.className})")
+    dumpA11yNode(sb, root, depth = 0)
+    for (line in sb.lines()) {
+      if (line.isNotEmpty()) android.util.Log.d("A11yTap", line)
+    }
+  }
+
+  private fun dumpA11yNode(
+    sb: StringBuilder,
     node: AccessibilityNodeInfo,
     depth: Int,
   ) {
@@ -646,10 +670,21 @@ class OverlayInput(
     node.getBoundsInScreen(bounds)
     val text = node.text?.toString()?.take(40) ?: ""
     val vis = if (node.isVisibleToUser) "V" else "H"
-    android.util.Log.d("A11yTap", "$indent${node.className} text='$text' bounds=${bounds.toShortString()} $vis children=${node.childCount}")
+    sb.append(indent)
+    sb.append(node.className ?: "?")
+    if (text.isNotEmpty()) sb.append(" text='$text'")
+    sb.append(" ${bounds.toShortString()}")
+    if (vis != "V") sb.append(" $vis")
+    if (node.childCount > 0) sb.append(" children=${node.childCount}")
+    val desc = node.contentDescription?.toString()?.take(40)
+    if (desc != null) sb.append(" desc='$desc'")
+    if (node.isClickable) sb.append(" clickable")
+    val id = node.viewIdResourceName
+    if (id != null) sb.append(" id=$id")
+    sb.appendLine()
     for (i in 0 until node.childCount) {
       val child = node.getChild(i) ?: continue
-      dumpA11yTree(child, depth + 1)
+      dumpA11yNode(sb, child, depth + 1)
     }
   }
 

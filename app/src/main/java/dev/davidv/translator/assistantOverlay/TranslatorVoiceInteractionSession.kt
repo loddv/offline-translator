@@ -167,7 +167,7 @@ class TranslatorVoiceInteractionSession(
 
     screenshotView =
       ImageView(context).apply {
-        scaleType = ImageView.ScaleType.FIT_XY
+        scaleType = ImageView.ScaleType.FIT_START
         setBackgroundColor(Color.TRANSPARENT)
       }
     rootView.addView(
@@ -561,7 +561,9 @@ class TranslatorVoiceInteractionSession(
 
     val targetLanguage = forcedTargetLanguage ?: settingsManager.settings.value.defaultTargetLanguage
     val maxImageSize = settingsManager.settings.value.maxImageSize
-    val copy = screenshot.copy(Bitmap.Config.ARGB_8888, false)
+    val cropped = cropSystemBars(screenshot)
+    val copy = cropped.copy(Bitmap.Config.ARGB_8888, false)
+    if (cropped !== screenshot) cropped.recycle()
     val workingBitmap = imageProcessor.downscaleImage(copy, maxImageSize)
     if (workingBitmap !== copy) copy.recycle()
     translationJob =
@@ -582,7 +584,7 @@ class TranslatorVoiceInteractionSession(
           if (oldCropped === screenshotBitmap) screenshotBitmap = null
           oldCropped.recycle()
         }
-        croppedBitmap = cropSystemBars(result.correctedBitmap)
+        croppedBitmap = result.correctedBitmap
         screenshotView.setImageBitmap(croppedBitmap)
         updateBackdrop()
         if (assistFallbackStatusPendingHide) {
@@ -756,7 +758,7 @@ class TranslatorVoiceInteractionSession(
       fragments.count { fragment ->
         fragment.bounds.height() > screenHeight / 3 && fragment.bounds.width() > screenWidth / 2
       }
-    if (veryTallFragments > 0 && averageChars > 40f) return true
+    if (veryTallFragments > fragments.size / 2 && averageChars > 40f) return true
 
     return false
   }

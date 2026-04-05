@@ -200,12 +200,13 @@ tasks.register("buildBindingsArmeabiV7a") {
   }
 }
 
-val abiToBindingsTask = mapOf(
-  "arm64-v8a" to "buildBindingsAarch64",
-  "armeabi-v7a" to "buildBindingsArmeabiV7a",
-  "x86_64" to "buildBindingsX86_64",
-  "x86" to "buildBindingsX86",
-)
+val abiToBindingsTask =
+  mapOf(
+    "arm64-v8a" to "buildBindingsAarch64",
+    "armeabi-v7a" to "buildBindingsArmeabiV7a",
+    "x86_64" to "buildBindingsX86_64",
+    "x86" to "buildBindingsX86",
+  )
 
 tasks.register("buildBindingsAll") {
   group = "build"
@@ -214,11 +215,12 @@ tasks.register("buildBindingsAll") {
 }
 
 val targetAbi = project.findProperty("targetAbi")?.toString()
-val bindingsTasks = if (targetAbi != null) {
-  listOfNotNull(abiToBindingsTask[targetAbi])
-} else {
-  abiToBindingsTask.values.toList()
-}
+val bindingsTasks =
+  if (targetAbi != null) {
+    listOfNotNull(abiToBindingsTask[targetAbi])
+  } else {
+    abiToBindingsTask.values.toList()
+  }
 
 tasks.named("preBuild") {
   dependsOn(bindingsTasks)

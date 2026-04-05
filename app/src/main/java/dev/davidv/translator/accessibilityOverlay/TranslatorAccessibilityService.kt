@@ -190,6 +190,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
       return
     }
 
+    input.dumpA11yTree(root)
     val fragments = input.collectVisibleStyledFragments(root)
     if (fragments.isEmpty()) {
       ui.showOverlayMessage("No visible text found")
@@ -291,6 +292,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
       return
     }
 
+    input.dumpA11yTree(root)
     val fragments = input.extractStyledFragmentsAtPoint(root, x, y)
     Log.d(tag, "extractStyledFragmentsAtPoint($x, $y) returned ${fragments.size} fragments")
     for ((idx, f) in fragments.withIndex()) {

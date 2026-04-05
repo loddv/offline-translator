@@ -145,6 +145,11 @@ class TranslatorAccessibilityService : AccessibilityService() {
     input.showInteractionOverlay()
     ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage)
     ui.showBorderWave()
+    android.os.Handler(android.os.Looper.getMainLooper()).post {
+      if (active) {
+        handleTranslateVisible()
+      }
+    }
   }
 
   fun deactivate() {
@@ -165,6 +170,9 @@ class TranslatorAccessibilityService : AccessibilityService() {
     forcedSourceLanguage = oldTarget
     forcedTargetLanguage = if (oldSource != null) oldSource else null
     ui.updateToolbarLabels(forcedSourceLanguage, forcedTargetLanguage)
+    if (active) {
+      handleTranslateVisible()
+    }
   }
 
   fun showLanguagePicker(isSource: Boolean) {
@@ -176,6 +184,9 @@ class TranslatorAccessibilityService : AccessibilityService() {
         forcedTargetLanguage = lang
       }
       ui.updateToolbarLabels(forcedSourceLanguage, forcedTargetLanguage)
+      if (active) {
+        handleTranslateVisible()
+      }
     }
   }
 
@@ -183,17 +194,29 @@ class TranslatorAccessibilityService : AccessibilityService() {
     ui.showDotsMenu()
   }
 
+  fun startManualOcrSelection() {
+    ui.removeTranslationOverlays()
+    ui.setOcrButtonVisible(true)
+    ui.setOcrButtonActive(true)
+    input.startRegionSelection()
+  }
+
+  fun stopManualOcrSelection() {
+    ui.setOcrButtonActive(false)
+  }
+
   fun handleTranslateVisible() {
     val root = rootInActiveWindow
     if (root == null) {
-      ui.showOverlayMessage("No active window")
+      ui.showOverlayMessage("No active window. Try OCR.")
       return
     }
 
     input.dumpA11yTree(root)
     val fragments = input.collectVisibleStyledFragments(root)
     if (fragments.isEmpty()) {
-      ui.showOverlayMessage("No visible text found")
+      ui.setOcrButtonVisible(true)
+      ui.showOverlayMessage("No visible text found. Try OCR.")
       return
     }
 
@@ -205,9 +228,11 @@ class TranslatorAccessibilityService : AccessibilityService() {
 
   fun handleRegionCapture(region: Rect) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    ui.setOcrButtonActive(false)
 
     val sourceLang = forcedSourceLanguage
     if (sourceLang == null) {
+      ui.setOcrButtonVisible(true)
       ui.showOverlayMessage("Set source language first")
       return
     }
@@ -254,6 +279,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
             Log.w(tag, "Screenshot failed: $errorCode")
             input.showInteractionOverlay()
             ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage)
+            ui.setOcrButtonVisible(true)
           }
         },
       )
@@ -266,19 +292,19 @@ class TranslatorAccessibilityService : AccessibilityService() {
   ) {
     val sourceLang = forcedSourceLanguage ?: return
     val targetLang = forcedTargetLanguage ?: settingsManager.settings.value.defaultTargetLanguage
-    val maxImageSize = settingsManager.settings.value.maxImageSize
-    val downscaled = imageProcessor.downscaleImage(bitmap, maxImageSize)
 
     val result =
       withContext(Dispatchers.IO) {
-        translationCoordinator.translateImageWithOverlay(sourceLang, targetLang, downscaled) {}
+        translationCoordinator.translateImageWithOverlay(sourceLang, targetLang, bitmap) {}
       }
 
     if (result != null) {
       ui.removeTranslationOverlays()
+      ui.setOcrButtonVisible(true)
       ui.showBitmapOverlay(result.correctedBitmap, region)
     } else {
       ui.removeTranslationOverlays()
+      ui.setOcrButtonVisible(true)
     }
   }
 
@@ -303,7 +329,8 @@ class TranslatorAccessibilityService : AccessibilityService() {
     }
     if (fragments.isEmpty()) {
       Log.d(tag, "No text block at ($x, $y)")
-      ui.showOverlayMessage("No element found at position")
+      ui.setOcrButtonVisible(true)
+      ui.showOverlayMessage("No element found at position. Try OCR.")
       return
     }
 
@@ -378,11 +405,15 @@ class TranslatorAccessibilityService : AccessibilityService() {
               TranslatedStyledBlock(translatedText.toString(), sourceBlock.bounds, styleSpans)
             }
           ui.removeTranslationOverlays()
+          ui.setOcrButtonVisible(true)
+          ui.setOcrButtonActive(false)
           ui.showStyledTranslationOverlays(translatedBlocks, screenshot)
         }
         is BatchAlignedTranslationResult.Error -> {
           Log.e(tag, "Translation error: ${result.message}")
           ui.removeTranslationOverlays()
+          ui.setOcrButtonVisible(false)
+          ui.setOcrButtonActive(false)
         }
       }
     }

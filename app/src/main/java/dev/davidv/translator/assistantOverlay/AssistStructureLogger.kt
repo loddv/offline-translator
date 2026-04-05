@@ -2,15 +2,17 @@ package dev.davidv.translator.assistantOverlay
 
 import android.app.assist.AssistStructure
 import android.graphics.Rect
-import android.service.voice.VoiceInteractionSession
+import android.os.Build
 import android.util.Log
 import android.view.View
+import androidx.annotation.RequiresApi
 
 class AssistStructureLogger(
   private val tag: String,
   private val isDebuggable: Boolean,
   private val parser: AssistStructureParser,
 ) {
+  @RequiresApi(Build.VERSION_CODES.M)
   fun dumpTree(structure: AssistStructure) {
     if (!isDebuggable) return
     val sb = StringBuilder()
@@ -27,6 +29,7 @@ class AssistStructureLogger(
     }
   }
 
+  @RequiresApi(Build.VERSION_CODES.M)
   private fun dumpNode(
     sb: StringBuilder,
     node: AssistStructure.ViewNode,
@@ -52,12 +55,10 @@ class AssistStructureLogger(
     }
   }
 
-  fun log(
-    state: VoiceInteractionSession.AssistState,
-    structure: AssistStructure,
-  ) {
+  @RequiresApi(Build.VERSION_CODES.M)
+  fun log(structure: AssistStructure) {
     if (!isDebuggable) return
-    Log.d(tag, "AssistStructure index=${state.index}/${state.count} windows=${structure.windowNodeCount}")
+    Log.d(tag, "AssistStructure windows=${structure.windowNodeCount}")
     for (windowIndex in 0 until structure.windowNodeCount) {
       val window = structure.getWindowNodeAt(windowIndex)
       Log.d(
@@ -77,6 +78,7 @@ class AssistStructureLogger(
     }
   }
 
+  @RequiresApi(Build.VERSION_CODES.M)
   private fun logViewNode(
     node: AssistStructure.ViewNode,
     baseLeft: Int,

@@ -37,6 +37,7 @@ class OverlayInput(
   private var touchInterceptOverlay: View? = null
   private var selectionRectView: View? = null
   private var selectionRectDrawView: SelectionRectView? = null
+  private var regionSelectionArmed = false
 
   fun showInteractionOverlay() {
     if (touchInterceptOverlay != null) return
@@ -101,9 +102,15 @@ class OverlayInput(
                 maxOf(startX, endX),
                 maxOf(startY, endY),
               )
+            regionSelectionArmed = false
+            service.stopManualOcrSelection()
             if (region.width() > ui.dpToPx(20) && region.height() > ui.dpToPx(20)) {
               service.handleRegionCapture(region)
             }
+          } else if (regionSelectionArmed) {
+            regionSelectionArmed = false
+            service.stopManualOcrSelection()
+            removeSelectionRect()
           } else if (hadOverlayOnDown || ui.hasTranslationOverlays()) {
             ui.removeTranslationOverlays()
           } else {
@@ -124,6 +131,10 @@ class OverlayInput(
       windowManager.removeView(it)
       touchInterceptOverlay = null
     }
+  }
+
+  fun startRegionSelection() {
+    regionSelectionArmed = true
   }
 
   private fun ensureSelectionRectOverlay() {

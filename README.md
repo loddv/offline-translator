@@ -32,8 +32,30 @@ Language packs contain the full translation models, translation happens _on your
 - Dictionary is based on data from Wiktionary, exported by [Kaikki](https://kaikki.org/)
   - For Japanese specifically, there's a second "word dictionary" (Mecab) for transliterating Kanji
 
-This app also offers an API to other apps (check `ITranslationService.aidl`), so that they can request translations to be performed for
-them.
+### Translating other apps
+
+There are two ways to translate content from other apps.
+
+#### Digital assistant
+
+Press a button or use a gesture to translate whatever's on your screen. To enable it, go through the app settings, or on your phone:
+
+**Settings > Apps > Default apps > Digital assistant app** and select 'Translator'.
+
+Note: voice integration is not supported yet, and Android only allows one assistant at a time.
+
+#### Accessibility service
+
+Places a floating bubble on screen that you can tap to translate the current screen at any time. To enable it:
+
+**Settings > Accessibility** and enable 'Translator'.
+
+Apps tend to provide better data through accessibility than through the assistant interface, but your mileage may vary.
+
+#### For developers
+
+This app exposes an API (see `ITranslationService.aidl`) that other apps can use to request translations.
+
 
 ## Manual offline setup
 

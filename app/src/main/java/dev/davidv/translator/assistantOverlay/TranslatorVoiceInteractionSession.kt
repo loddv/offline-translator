@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
@@ -12,6 +15,7 @@ import android.service.voice.VoiceInteractionSession
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -78,8 +82,11 @@ class TranslatorVoiceInteractionSession(
   private lateinit var topBarView: View
   private var sourceLabelView: TextView? = null
   private var targetLabelView: TextView? = null
+  private var ocrButtonView: View? = null
+  private var ocrIconView: ImageView? = null
   private var menuManager: OverlayMenuManager? = null
   private var borderView: BorderWaveView? = null
+  private var manualOcrSelectionView: ManualOcrSelectionView? = null
 
   private val systemBarTop: Int by lazy {
     val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
@@ -260,6 +267,7 @@ class TranslatorVoiceInteractionSession(
     updateBackdrop()
     showStatus("Collecting screen context...")
     showLoading(true)
+    setOcrButtonVisible(false)
     startBorderPulse()
 
     val assistStructureEnabled = isAssistStructureEnabled()
@@ -288,7 +296,7 @@ class TranslatorVoiceInteractionSession(
         showStatus("Text from screen is disabled. Enable it or set a default source language for OCR fallback.")
         return
       }
-      showStatus("Text from screen is disabled, waiting for screenshot OCR fallback...")
+      showStatus("Text from screen is disabled. Try OCR.")
     }
 
     scheduleAssistCollectionTimeout()
@@ -305,6 +313,7 @@ class TranslatorVoiceInteractionSession(
     clearCapture()
     overlayContainer.removeAllViews()
     dismissMenu()
+    removeManualOcrSelection()
     screenshotView.setImageDrawable(null)
     updateBackdrop()
     showLoading(false)
@@ -314,6 +323,7 @@ class TranslatorVoiceInteractionSession(
     stopBorderPulse()
     sessionScope.cancel()
     clearCapture()
+    removeManualOcrSelection()
     super.onDestroy()
   }
 
@@ -339,14 +349,14 @@ class TranslatorVoiceInteractionSession(
       if (!assistFallbackMessageShown) {
         assistFallbackMessageShown = true
         assistFallbackStatusPendingHide = true
-        showStatus("App does not provide data, falling back to OCR")
+        showStatus("App does not provide screen text. Try OCR.")
       }
       maybeProcessCapture()
       return
     }
 
     Log.d(tag, "AssistStructure received index=${state.index}/${state.count} windows=${structure.windowNodeCount}")
-    logger.log(state, structure)
+    logger.log(structure)
     capturedFragments += parser.parse(structure)
     maybeProcessCapture()
   }
@@ -392,12 +402,6 @@ class TranslatorVoiceInteractionSession(
 
     if (capturedFragments.isNotEmpty() && (screenshotReady || assistReady)) {
       cancelAssistCollectionTimeout()
-      if (screenshotReady && shouldUseOcrFallback()) {
-        processing = true
-        Log.d(tag, "Using OCR fallback because parsed AssistStructure is too coarse")
-        runOcrFallback(screenshotBitmap ?: return)
-        return
-      }
       processing = true
       translateStructuredFragments(capturedFragments.toList(), screenshotBitmap)
       return
@@ -405,8 +409,11 @@ class TranslatorVoiceInteractionSession(
 
     if (capturedFragments.isEmpty() && screenshotReady && assistReady) {
       cancelAssistCollectionTimeout()
-      processing = true
-      runOcrFallback(screenshotBitmap ?: return)
+      processing = false
+      showLoading(false)
+      stopBorderPulse()
+      setOcrButtonVisible(true)
+      showStatus("Can't detect anything. Try OCR.")
       return
     }
 
@@ -416,7 +423,7 @@ class TranslatorVoiceInteractionSession(
       processing = false
       showLoading(false)
       stopBorderPulse()
-      showStatus("No usable screen data received. Enable screenshots for the assistant or use the floating shortcut.")
+      showStatus("No usable screen data received. Enable screenshots or try OCR.")
       return
     }
 
@@ -473,7 +480,8 @@ class TranslatorVoiceInteractionSession(
         if (blocks.isEmpty()) {
           processing = false
           showLoading(false)
-          showStatus("No visible structured text found")
+          setOcrButtonVisible(screenshot != null)
+          showStatus("No visible structured text found. Try OCR.")
           return@launch
         }
 
@@ -490,19 +498,24 @@ class TranslatorVoiceInteractionSession(
         if (sourceLanguage == null) {
           processing = false
           showLoading(false)
+          setOcrButtonVisible(screenshot != null)
           showStatus("Could not detect language — set source language manually")
           return@launch
         }
         if (sourceLanguage == targetLanguage) {
           processing = false
           showLoading(false)
+          setOcrButtonVisible(screenshot != null)
           showStatus("Already in ${targetLanguage.displayName}")
           return@launch
         }
 
         val allSegmentTexts = mutableListOf<String>()
 
-        data class SegmentRef(val blockIdx: Int, val segment: TranslationSegment)
+        data class SegmentRef(
+          val blockIdx: Int,
+          val segment: TranslationSegment,
+        )
         val segmentRefs = mutableListOf<SegmentRef>()
         for ((blockIdx, block) in blocks.withIndex()) {
           for (segment in block.segments) {
@@ -537,11 +550,13 @@ class TranslatorVoiceInteractionSession(
             overlayRenderer.renderStyledBlocks(overlayContainer, translatedBlocks, screenshot, systemBarTop)
             processing = false
             showLoading(false)
+            setOcrButtonVisible(true)
             hideStatus()
           }
           is BatchAlignedTranslationResult.Error -> {
             processing = false
             showLoading(false)
+            setOcrButtonVisible(screenshot != null)
             showStatus("Translation error")
           }
         }
@@ -549,6 +564,7 @@ class TranslatorVoiceInteractionSession(
   }
 
   private fun runOcrFallback(screenshot: Bitmap) {
+    setOcrButtonVisible(false)
     val sourceLanguage =
       forcedSourceLanguage
         ?: settingsManager.settings.value.defaultSourceLanguage
@@ -629,6 +645,180 @@ class TranslatorVoiceInteractionSession(
     return container
   }
 
+  private fun startManualOcrSelection() {
+    if (processing) return
+    val screenshot = screenshotBitmap
+    if (screenshot == null) {
+      showStatus("No screenshot available for OCR")
+      return
+    }
+    if (manualOcrSelectionView != null) return
+
+    dismissMenu()
+    hideStatus()
+    overlayContainer.removeAllViews()
+    setOcrButtonActive(true)
+
+    val selectionView = ManualOcrSelectionView(context)
+    selectionView.setOnTouchListener(
+      object : View.OnTouchListener {
+        private var startX = 0
+        private var startY = 0
+        private var dragging = false
+
+        override fun onTouch(
+          v: View,
+          event: MotionEvent,
+        ): Boolean =
+          when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+              startX = event.x.toInt()
+              startY = event.y.toInt()
+              dragging = false
+              selectionView.clearRect()
+              true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+              val currentX = event.x.toInt()
+              val currentY = event.y.toInt()
+              val dx = kotlin.math.abs(currentX - startX)
+              val dy = kotlin.math.abs(currentY - startY)
+              if (dx > dpToPx(10) || dy > dpToPx(10)) {
+                dragging = true
+                selectionView.setRect(
+                  minOf(startX, currentX).toFloat(),
+                  minOf(startY, currentY).toFloat(),
+                  maxOf(startX, currentX).toFloat(),
+                  maxOf(startY, currentY).toFloat(),
+                )
+              }
+              true
+            }
+
+            MotionEvent.ACTION_UP -> {
+              val endX = event.x.toInt()
+              val endY = event.y.toInt()
+              removeManualOcrSelection()
+              if (dragging) {
+                val region =
+                  Rect(
+                    minOf(startX, endX),
+                    minOf(startY, endY),
+                    maxOf(startX, endX),
+                    maxOf(startY, endY),
+                  )
+                if (region.width() > dpToPx(20) && region.height() > dpToPx(20)) {
+                  runManualOcrRegion(region, screenshot)
+                }
+              }
+              true
+            }
+
+            else -> false
+          }
+      },
+    )
+    rootView.addView(
+      selectionView,
+      FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT,
+      ),
+    )
+    manualOcrSelectionView = selectionView
+  }
+
+  private fun removeManualOcrSelection() {
+    manualOcrSelectionView?.let {
+      rootView.removeView(it)
+      manualOcrSelectionView = null
+    }
+    setOcrButtonActive(false)
+  }
+
+  private fun runManualOcrRegion(
+    region: Rect,
+    screenshot: Bitmap,
+  ) {
+    val sourceLanguage = forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguage
+    if (sourceLanguage == null) {
+      showStatus("Set source language first for OCR")
+      return
+    }
+    val targetLanguage = forcedTargetLanguage ?: settingsManager.settings.value.defaultTargetLanguage
+
+    val cropLeft = region.left.coerceIn(0, screenshot.width - 1)
+    val cropTop = (region.top + systemBarTop).coerceIn(0, screenshot.height - 1)
+    val cropWidth = region.width().coerceAtMost(screenshot.width - cropLeft)
+    val cropHeight = region.height().coerceAtMost(screenshot.height - cropTop)
+    if (cropWidth <= 0 || cropHeight <= 0) {
+      showStatus("Invalid OCR region")
+      return
+    }
+
+    val workingBitmap = Bitmap.createBitmap(screenshot, cropLeft, cropTop, cropWidth, cropHeight)
+
+    overlayContainer.removeAllViews()
+    processing = true
+    showLoading(true)
+    setOcrButtonVisible(false)
+    setOcrButtonActive(false)
+    hideStatus()
+
+    translationJob =
+      sessionScope.launch {
+        val result =
+          withContext(Dispatchers.IO) {
+            translationCoordinator.translateImageWithOverlay(sourceLanguage, targetLanguage, workingBitmap) {}
+          }
+        ensureActive()
+        processing = false
+        showLoading(false)
+        if (result == null) {
+          setOcrButtonVisible(true)
+          showStatus("OCR failed")
+          return@launch
+        }
+        setOcrButtonVisible(true)
+        setOcrButtonActive(false)
+        showBitmapOverlay(result.correctedBitmap, region)
+      }
+  }
+
+  private fun showBitmapOverlay(
+    bitmap: Bitmap,
+    bounds: Rect,
+  ) {
+    val screenWidth = context.resources.displayMetrics.widthPixels
+    val screenHeight = context.resources.displayMetrics.heightPixels - systemBarTop
+    val left = bounds.left.coerceAtLeast(0)
+    val top = bounds.top.coerceAtLeast(0)
+    val width = minOf(bitmap.width, screenWidth - left)
+    val height = minOf(bitmap.height, screenHeight - top)
+    if (width <= 0 || height <= 0) return
+
+    val displayBitmap =
+      if (width == bitmap.width && height == bitmap.height) {
+        bitmap
+      } else {
+        Bitmap.createBitmap(bitmap, 0, 0, width, height)
+      }
+
+    val imageView =
+      ImageView(context).apply {
+        setImageBitmap(displayBitmap)
+        scaleType = ImageView.ScaleType.FIT_XY
+      }
+    overlayContainer.addView(
+      imageView,
+      FrameLayout.LayoutParams(width, height).apply {
+        leftMargin = left
+        topMargin = top
+      },
+    )
+  }
+
   @Suppress("DEPRECATION")
   private fun configureSessionWindow() {
     val dialog = window ?: return
@@ -701,6 +891,7 @@ class TranslatorVoiceInteractionSession(
     assistCollectionTimedOut = false
     hasReceivedAssistCallback = false
     hasReceivedScreenshotCallback = false
+    setOcrButtonVisible(false)
     cancelAssistCollectionTimeout()
     statusHideJob?.cancel()
     statusHideJob = null
@@ -731,11 +922,26 @@ class TranslatorVoiceInteractionSession(
         onSourceClick = { showLanguagePicker(true) },
         onSwap = { swapLanguages() },
         onTargetClick = { showLanguagePicker(false) },
+        showOcrButton = true,
+        onOcrClick = { startManualOcrSelection() },
         onMenuClick = { showDotsMenu() },
       )
     sourceLabelView = toolbarViews.sourceLabel
     targetLabelView = toolbarViews.targetLabel
+    ocrButtonView = toolbarViews.ocrButton
+    ocrIconView = toolbarViews.ocrIcon
     return toolbarViews.root
+  }
+
+  private fun setOcrButtonVisible(visible: Boolean) {
+    ocrButtonView?.visibility = View.VISIBLE
+    if (!visible) {
+      setOcrButtonActive(false)
+    }
+  }
+
+  private fun setOcrButtonActive(active: Boolean) {
+    OverlayChromeFactory.setOcrButtonActive(ocrButtonView, ocrIconView, active)
   }
 
   private fun shouldUseOcrFallback(): Boolean {
@@ -777,6 +983,7 @@ class TranslatorVoiceInteractionSession(
     translationJob = null
     processing = false
     overlayContainer.removeAllViews()
+    setOcrButtonVisible(false)
     showLoading(true)
     hideStatus()
     maybeProcessCapture()
@@ -818,5 +1025,49 @@ class TranslatorVoiceInteractionSession(
 
   private fun dismissMenu() {
     menuManager?.dismiss()
+  }
+
+  private class ManualOcrSelectionView(
+    context: Context,
+  ) : View(context) {
+    private val fillPaint =
+      Paint().apply {
+        color = Color.parseColor("#220088FF")
+        style = Paint.Style.FILL
+      }
+    private val strokePaint =
+      Paint().apply {
+        color = Color.parseColor("#4488FF")
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+      }
+    private val rect = RectF()
+    private val cornerRadius = 8f
+
+    init {
+      setBackgroundColor(Color.TRANSPARENT)
+    }
+
+    fun setRect(
+      left: Float,
+      top: Float,
+      right: Float,
+      bottom: Float,
+    ) {
+      rect.set(left, top, right, bottom)
+      invalidate()
+    }
+
+    fun clearRect() {
+      rect.setEmpty()
+      invalidate()
+    }
+
+    override fun onDraw(canvas: android.graphics.Canvas) {
+      if (!rect.isEmpty) {
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, fillPaint)
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, strokePaint)
+      }
+    }
   }
 }

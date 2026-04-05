@@ -47,6 +47,8 @@ class OverlayUI(
   private var toolbarView: View? = null
   private var sourceLabelView: TextView? = null
   private var targetLabelView: TextView? = null
+  private var ocrButtonView: View? = null
+  private var ocrIconView: ImageView? = null
   private val translationOverlays = mutableListOf<View>()
   private var borderView: BorderWaveView? = null
 
@@ -207,11 +209,15 @@ class OverlayUI(
         onSourceClick = { service.showLanguagePicker(true) },
         onSwap = { service.swapLanguages() },
         onTargetClick = { service.showLanguagePicker(false) },
+        showOcrButton = true,
+        onOcrClick = { service.startManualOcrSelection() },
         onMenuClick = { service.showDotsMenu() },
       )
     val toolbar = toolbarViews.root
     sourceLabelView = toolbarViews.sourceLabel
     targetLabelView = toolbarViews.targetLabel
+    ocrButtonView = toolbarViews.ocrButton
+    ocrIconView = toolbarViews.ocrIcon
 
     val params =
       WindowManager.LayoutParams(
@@ -235,6 +241,8 @@ class OverlayUI(
       toolbarView = null
       sourceLabelView = null
       targetLabelView = null
+      ocrButtonView = null
+      ocrIconView = null
     }
   }
 
@@ -247,10 +255,20 @@ class OverlayUI(
     targetLabelView?.text = currentTarget.shortDisplayName
   }
 
+  fun setOcrButtonVisible(visible: Boolean) {
+    ocrButtonView?.visibility = View.VISIBLE
+    if (!visible) {
+      setOcrButtonActive(false)
+    }
+  }
+
+  fun setOcrButtonActive(active: Boolean) {
+    OverlayChromeFactory.setOcrButtonActive(ocrButtonView, ocrIconView, active)
+  }
+
   fun showDotsMenu() {
     menuManager.showDotsMenu(
       listOf(
-        "Translate visible" to { service.handleTranslateVisible() },
         "Open App" to {
           service.deactivate()
           val intent = Intent(service, MainActivity::class.java)

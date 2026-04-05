@@ -16,12 +16,16 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.R
 
 data class LanguageToolbarViews(
-  val root: LinearLayout,
+  val root: View,
   val sourceLabel: TextView,
   val targetLabel: TextView,
+  val ocrButton: View? = null,
+  val ocrIcon: ImageView? = null,
 )
 
 object OverlayChromeFactory {
+  private const val ACTIVE_OCR_BLUE = "#4488FF"
+
   fun createLanguageToolbar(
     context: Context,
     dpToPx: (Int) -> Int,
@@ -32,11 +36,11 @@ object OverlayChromeFactory {
     onSourceClick: () -> Unit,
     onSwap: () -> Unit,
     onTargetClick: () -> Unit,
+    showOcrButton: Boolean = false,
+    onOcrClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit,
   ): LanguageToolbarViews {
-    val toolbar = LinearLayout(context)
-    toolbar.orientation = LinearLayout.HORIZONTAL
-    toolbar.gravity = Gravity.CENTER_VERTICAL
+    val toolbar = FrameLayout(context)
     val pad = dpToPx(6)
     toolbar.setPadding(pad, pad, pad, pad)
 
@@ -47,10 +51,12 @@ object OverlayChromeFactory {
     closeBtn.setPadding(iconPad, iconPad, iconPad, iconPad)
     closeBtn.setOnClickListener { onClose() }
     val closePill = makePill(context, dpToPx, closeBtn)
-    toolbar.addView(closePill, LinearLayout.LayoutParams(btnSize, btnSize))
-
-    val spacerLeft = View(context)
-    toolbar.addView(spacerLeft, LinearLayout.LayoutParams(0, 1, 1f))
+    toolbar.addView(
+      closePill,
+      FrameLayout.LayoutParams(btnSize, btnSize).apply {
+        gravity = Gravity.START or Gravity.CENTER_VERTICAL
+      },
+    )
 
     val langRow = LinearLayout(context)
     langRow.orientation = LinearLayout.HORIZONTAL
@@ -87,19 +93,67 @@ object OverlayChromeFactory {
     targetLabel.setOnClickListener { onTargetClick() }
     langRow.addView(targetLabel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
 
-    toolbar.addView(makePill(context, dpToPx, langRow), LinearLayout.LayoutParams(dpToPx(200), LinearLayout.LayoutParams.WRAP_CONTENT))
+    val langPill = makePill(context, dpToPx, langRow)
+    toolbar.addView(
+      langPill,
+      FrameLayout.LayoutParams(dpToPx(200), FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+        gravity = Gravity.CENTER
+      },
+    )
 
-    val spacerRight = View(context)
-    toolbar.addView(spacerRight, LinearLayout.LayoutParams(0, 1, 1f))
+    val rightActions =
+      LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+      }
+
+    var ocrIcon: ImageView? = null
+    val ocrPill =
+      onOcrClick?.let {
+        val ocrBtn =
+          ImageView(context).apply {
+            setImageResource(R.drawable.activity_zone)
+            setColorFilter(Color.WHITE)
+            setPadding(iconPad, iconPad, iconPad, iconPad)
+            setOnClickListener { onOcrClick() }
+          }
+        ocrIcon = ocrBtn
+        makePill(context, dpToPx, ocrBtn).also { pill ->
+          pill.visibility = if (showOcrButton) View.VISIBLE else View.GONE
+          rightActions.addView(
+            pill,
+            LinearLayout.LayoutParams(btnSize, btnSize).apply {
+              marginEnd = dpToPx(6)
+            },
+          )
+        }
+      }
 
     val menuBtn = ImageView(context)
     menuBtn.setImageResource(R.drawable.more_vert)
     menuBtn.setPadding(iconPad, iconPad, iconPad, iconPad)
     menuBtn.setOnClickListener { onMenuClick() }
     val menuPill = makePill(context, dpToPx, menuBtn)
-    toolbar.addView(menuPill, LinearLayout.LayoutParams(btnSize, btnSize))
+    rightActions.addView(menuPill, LinearLayout.LayoutParams(btnSize, btnSize))
+    toolbar.addView(
+      rightActions,
+      FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+        gravity = Gravity.END or Gravity.CENTER_VERTICAL
+      },
+    )
 
-    return LanguageToolbarViews(toolbar, sourceLabel, targetLabel)
+    return LanguageToolbarViews(toolbar, sourceLabel, targetLabel, ocrPill, ocrIcon)
+  }
+
+  fun setOcrButtonActive(
+    ocrButton: View?,
+    ocrIcon: ImageView?,
+    active: Boolean,
+  ) {
+    ocrIcon?.setColorFilter(Color.parseColor(if (active) ACTIVE_OCR_BLUE else "#FFFFFF"))
+    if (ocrButton != null && !active) {
+      ocrButton.alpha = 1f
+    }
   }
 
   fun createLanguagePicker(

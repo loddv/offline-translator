@@ -48,6 +48,8 @@ class TranslatorAccessibilityService : AccessibilityService() {
   private lateinit var settingsManager: SettingsManager
   private lateinit var imageProcessor: ImageProcessor
   private lateinit var translationCoordinator: TranslationCoordinator
+  private var lastOcrBitmap: Bitmap? = null
+  private var lastOcrRegion: Rect? = null
   private lateinit var overlayTextTranslationHelper: OverlayTextTranslationHelper
   private lateinit var langStateManager: LanguageStateManager
 
@@ -81,7 +83,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
     val translationService = TranslationService(settingsManager, filePathManager)
     val languageDetector = LanguageDetector()
     imageProcessor = ImageProcessor(this, OCRService(filePathManager))
-    translationCoordinator = TranslationCoordinator(this, translationService, languageDetector, imageProcessor, settingsManager, false)
+    translationCoordinator = TranslationCoordinator(translationService, languageDetector, imageProcessor, settingsManager)
     langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
     overlayTextTranslationHelper =
       OverlayTextTranslationHelper(
@@ -171,7 +173,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
     forcedTargetLanguage = if (oldSource != null) oldSource else null
     ui.updateToolbarLabels(forcedSourceLanguage, forcedTargetLanguage)
     if (active) {
-      handleTranslateVisible()
+      retranslate()
     }
   }
 
@@ -185,8 +187,18 @@ class TranslatorAccessibilityService : AccessibilityService() {
       }
       ui.updateToolbarLabels(forcedSourceLanguage, forcedTargetLanguage)
       if (active) {
-        handleTranslateVisible()
+        retranslate()
       }
+    }
+  }
+
+  private fun retranslate() {
+    val bitmap = lastOcrBitmap
+    val region = lastOcrRegion
+    if (bitmap != null && region != null) {
+      serviceScope.launch { translateRegionBitmap(bitmap, region) }
+    } else {
+      handleTranslateVisible()
     }
   }
 
@@ -206,6 +218,8 @@ class TranslatorAccessibilityService : AccessibilityService() {
   }
 
   fun handleTranslateVisible() {
+    lastOcrBitmap = null
+    lastOcrRegion = null
     val root = rootInActiveWindow
     if (root == null) {
       ui.showOverlayMessage("No active window. Try OCR.")
@@ -267,6 +281,9 @@ class TranslatorAccessibilityService : AccessibilityService() {
             val croppedBitmap = Bitmap.createBitmap(fullBitmap, cropLeft, cropTop, cropWidth, cropHeight)
             val colors = input.sampleColorsFromScreenshot(fullBitmap, region)
             fullBitmap.recycle()
+
+            lastOcrBitmap = croppedBitmap
+            lastOcrRegion = region
 
             ui.showLoadingOverlay(region, colors)
 

@@ -107,6 +107,8 @@ class TranslatorVoiceInteractionSession(
   private var translationJob: Job? = null
   private var forcedSourceLanguage: Language? = null
   private var forcedTargetLanguage: Language? = null
+  private var lastOcrBitmap: Bitmap? = null
+  private var lastOcrRegion: Rect? = null
   private var assistFallbackMessageShown = false
   private var assistFallbackStatusPendingHide = false
   private var assistCollectionTimedOut = false
@@ -411,7 +413,6 @@ class TranslatorVoiceInteractionSession(
       cancelAssistCollectionTimeout()
       processing = false
       showLoading(false)
-      stopBorderPulse()
       setOcrButtonVisible(true)
       showStatus("Can't detect anything. Try OCR.")
       return
@@ -741,13 +742,6 @@ class TranslatorVoiceInteractionSession(
     region: Rect,
     screenshot: Bitmap,
   ) {
-    val sourceLanguage = forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguage
-    if (sourceLanguage == null) {
-      showStatus("Set source language first for OCR")
-      return
-    }
-    val targetLanguage = forcedTargetLanguage ?: settingsManager.settings.value.defaultTargetLanguage
-
     val cropLeft = region.left.coerceIn(0, screenshot.width - 1)
     val cropTop = (region.top + systemBarTop).coerceIn(0, screenshot.height - 1)
     val cropWidth = region.width().coerceAtMost(screenshot.width - cropLeft)
@@ -758,6 +752,21 @@ class TranslatorVoiceInteractionSession(
     }
 
     val workingBitmap = Bitmap.createBitmap(screenshot, cropLeft, cropTop, cropWidth, cropHeight)
+    lastOcrBitmap = workingBitmap
+    lastOcrRegion = region
+    translateOcrBitmap(workingBitmap, region)
+  }
+
+  private fun translateOcrBitmap(
+    bitmap: Bitmap,
+    region: Rect,
+  ) {
+    val sourceLanguage = forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguage
+    if (sourceLanguage == null) {
+      showStatus("Set source language first for OCR")
+      return
+    }
+    val targetLanguage = forcedTargetLanguage ?: settingsManager.settings.value.defaultTargetLanguage
 
     overlayContainer.removeAllViews()
     processing = true
@@ -770,7 +779,7 @@ class TranslatorVoiceInteractionSession(
       sessionScope.launch {
         val result =
           withContext(Dispatchers.IO) {
-            translationCoordinator.translateImageWithOverlay(sourceLanguage, targetLanguage, workingBitmap) {}
+            translationCoordinator.translateImageWithOverlay(sourceLanguage, targetLanguage, bitmap) {}
           }
         ensureActive()
         processing = false
@@ -982,11 +991,17 @@ class TranslatorVoiceInteractionSession(
     translationJob?.cancel()
     translationJob = null
     processing = false
-    overlayContainer.removeAllViews()
-    setOcrButtonVisible(false)
-    showLoading(true)
-    hideStatus()
-    maybeProcessCapture()
+    val bitmap = lastOcrBitmap
+    val region = lastOcrRegion
+    if (bitmap != null && region != null) {
+      translateOcrBitmap(bitmap, region)
+    } else {
+      overlayContainer.removeAllViews()
+      setOcrButtonVisible(false)
+      showLoading(true)
+      hideStatus()
+      maybeProcessCapture()
+    }
   }
 
   private fun updateToolbarLabels() {

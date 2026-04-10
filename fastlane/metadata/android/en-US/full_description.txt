@@ -4,10 +4,10 @@ Features:
 • On-device translation using Mozilla's translation models
   • No internet required for translation once models are downloaded
 • Automatic language detection
-• OCR (Optical Character Recognition) for translating text in images
 • Transliteration of non-latin script
-• Image translation overlay that preserves original formatting
+• Image translation overlay that preserves original formatting (OCR)
 • Quick translation of on-screen content via Accessibility service or Device Assistant role
+• Text-to-speech (TTS) for most languages
 
 Supports 50 languages:
 

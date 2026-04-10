@@ -1,0 +1,9 @@
+- Allow unidirectional languages to be used (Adds Belarusian and Norwegian Nynorsk -> English)
+- Implement TTS via Piper
+
+When using TTS, I recommend skipping the 'high quality' voices (they are downranked in the app) because they are much slower.
+
+These languages are not yet supported in TTS (I didn't find voices for them yet):
+
+Azerbaijani, Bengali, Bosnian, Croatian, Estonian, Gujarati, Hebrew, Japanese, Kannada, Korean, Lithuanian, Malay,
+Norwegian Bokmål, Tamil, Thai

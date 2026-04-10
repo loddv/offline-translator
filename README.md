@@ -31,6 +31,7 @@ Language packs contain the full translation models, translation happens _on your
 - Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
 - Dictionary is based on data from Wiktionary, exported by [Kaikki](https://kaikki.org/)
   - For Japanese specifically, there's a second "word dictionary" (Mecab) for transliterating Kanji
+- TTS uses [Piper](https://github.com/OHF-Voice/piper1-gpl) voices
 
 ### Translating other apps
 
@@ -89,7 +90,7 @@ will trigger a build in a docker container, matching the CI environment.
 ## Releasing
 
 - Bump `app/build.gradle.kts` versionName and versionCode
-- Create a changelog in `fastlane/metadata/android/en-US/changelogs` as `${versionCode}.txt`
+- Create a changelog in `fastlane/metadata/android/en-US/changelogs` as `${versionCode*10+1}.txt` (and `+2`)
 - Build: `bash build.sh`
 - Sign: `bash sign-apk.sh keystore.jks keystorepass pass alias`
 - Create a tag that is `v${versionName}` (eg: `v0.1.0`)

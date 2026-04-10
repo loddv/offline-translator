@@ -60,6 +60,7 @@ for entry in "${ARCHS[@]}"; do
 
   echo "APK successfully signed: $signed_fname"
   signed_count=$((signed_count + 1))
+  rm -f "$aligned_apk"
 done
 
 if [ "$signed_count" -eq 0 ]; then

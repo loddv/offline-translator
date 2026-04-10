@@ -48,6 +48,10 @@
 # Keep Mucab native library integration
 -keep class dev.davidv.translator.MucabBinding { *; }
 
+# Keep classes instantiated directly from Rust/JNI
+-keep class dev.davidv.translator.PcmAudio { *; }
+-keep class dev.davidv.translator.NativePhonemeChunk { *; }
+
 -keepclasseswithmembernames class * {
     native <methods>;
 }

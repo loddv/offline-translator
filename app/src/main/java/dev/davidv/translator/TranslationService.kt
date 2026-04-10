@@ -34,6 +34,10 @@ class TranslationService(
   private val english: Language,
 ) {
   companion object {
+    private const val CLAUSE_PAUSE_MS = 120
+    private const val SENTENCE_PAUSE_MS = 180
+    private const val PARAGRAPH_PAUSE_MS = 320
+
     @Volatile
     private var nativeLibInstance: NativeLib? = null
 
@@ -360,7 +364,19 @@ alignment: soft
           "Speech synthesis failed for ${language.displayName}",
         )
 
-      val chunkRequests = buildSpeechChunkRequests(text, phonemeChunks)
+      val chunkRequests =
+        buildSpeechChunkRequests(
+          text = text,
+          phonemeChunks = phonemeChunks,
+          phonemizeText = { chunkText ->
+            speechBinding.phonemizeChunks(
+              modelPath = voiceFiles.model.absolutePath,
+              configPath = voiceFiles.config.absolutePath,
+              espeakDataPath = espeakDataPath,
+              text = chunkText,
+            )
+          },
+        )
 
       SpeechSynthesisResult.Success(
         flow {
@@ -372,12 +388,18 @@ alignment: soft
                 configPath = voiceFiles.config.absolutePath,
                 espeakDataPath = espeakDataPath,
                 text = chunkRequest.content,
+                speakerId = voiceFiles.speakerId,
                 isPhonemes = chunkRequest.isPhonemes,
               ) ?: throw IllegalStateException(
                 "Speech synthesis failed for ${language.displayName}",
               )
             currentCoroutineContext().ensureActive()
             emit(pcmAudio)
+
+            val silenceChunk = pauseChunkFor(chunkRequest, pcmAudio.sampleRate)
+            if (silenceChunk != null) {
+              emit(silenceChunk)
+            }
           }
         },
       )
@@ -385,29 +407,216 @@ alignment: soft
 
   private fun buildSpeechChunkRequests(
     text: String,
-    phonemeChunks: List<String>,
+    phonemeChunks: List<PhonemeChunk>,
+    phonemizeText: (String) -> List<PhonemeChunk>?,
   ): List<SpeechChunkRequest> {
-    val firstChunk = phonemeChunks.firstOrNull()
-    if (firstChunk != null && firstChunk.length > 100) {
-      val splitText = splitAtFirstPause(text)
-      if (splitText != null) {
-        Log.d(
-          "TranslationService",
-          "Forcing fast first speech chunk at first pause for long utterance (${firstChunk.length} phoneme chars)",
-        )
+    val sourceChunks = splitTextIntoSpeechChunks(text)
+    if (sourceChunks.size == phonemeChunks.size) {
+      val expandedRequests =
+        buildList {
+          for ((sourceChunk, phonemeChunk) in sourceChunks.zip(phonemeChunks)) {
+            val splitRequests = buildSplitChunkRequests(sourceChunk, phonemeChunk, phonemizeText)
+            if (splitRequests != null) {
+              addAll(splitRequests)
+            } else {
+              add(
+                SpeechChunkRequest(
+                  content = phonemeChunk.content,
+                  isPhonemes = true,
+                  boundaryAfter = phonemeChunk.boundaryAfter,
+                  pauseAfterMsOverride = null,
+                ),
+              )
+            }
+          }
+        }
 
-        return listOf(
-          SpeechChunkRequest(content = splitText.first, isPhonemes = false),
-          SpeechChunkRequest(content = splitText.second, isPhonemes = false),
-        )
+      if (expandedRequests.size > 1) {
+        return clearFinalBoundary(expandedRequests)
       }
+    } else {
+      Log.w(
+        "TranslationService",
+        "Speech text chunk count mismatch: source=${sourceChunks.size} phonemes=${phonemeChunks.size}; skipping clause-level fast split",
+      )
     }
 
     if (phonemeChunks.size > 1) {
-      return phonemeChunks.map { SpeechChunkRequest(content = it, isPhonemes = true) }
+      return clearFinalBoundary(
+        phonemeChunks.map { chunk ->
+          SpeechChunkRequest(
+            content = chunk.content,
+            isPhonemes = true,
+            boundaryAfter = chunk.boundaryAfter,
+            pauseAfterMsOverride = null,
+          )
+        },
+      )
     }
 
-    return listOf(SpeechChunkRequest(content = text, isPhonemes = false))
+    return listOf(
+      SpeechChunkRequest(
+        content = text,
+        isPhonemes = false,
+        boundaryAfter = SpeechChunkBoundary.None,
+        pauseAfterMsOverride = null,
+      ),
+    )
+  }
+
+  private fun buildSplitChunkRequests(
+    sourceChunk: String,
+    phonemeChunk: PhonemeChunk,
+    phonemizeText: (String) -> List<PhonemeChunk>?,
+  ): List<SpeechChunkRequest>? {
+    if (phonemeChunk.content.length <= 100) {
+      return null
+    }
+
+    val splitText = splitAtFirstPause(sourceChunk) ?: return null
+    val remainingPhonemeChunks = phonemizeText(splitText.second)?.filter { it.content.isNotBlank() }.orEmpty()
+    if (remainingPhonemeChunks.isEmpty()) {
+      return null
+    }
+
+    Log.d(
+      "TranslationService",
+      "Forcing fast speech chunk at first pause for long utterance (${phonemeChunk.content.length} phoneme chars); remainder re-chunked into ${remainingPhonemeChunks.size} chunk(s)",
+    )
+
+    return buildList {
+      add(
+        SpeechChunkRequest(
+          content = splitText.first,
+          isPhonemes = false,
+          boundaryAfter = SpeechChunkBoundary.None,
+          pauseAfterMsOverride = CLAUSE_PAUSE_MS,
+        ),
+      )
+      addAll(
+        remainingPhonemeChunks.map { chunk ->
+          SpeechChunkRequest(
+            content = chunk.content,
+            isPhonemes = true,
+            boundaryAfter = chunk.boundaryAfter,
+            pauseAfterMsOverride = null,
+          )
+        },
+      )
+    }
+  }
+
+  private fun splitTextIntoSpeechChunks(text: String): List<String> =
+    splitIntoParagraphs(text).flatMap { paragraph -> splitParagraphIntoSentenceishSegments(paragraph) }
+
+  private fun splitIntoParagraphs(text: String): List<String> {
+    val paragraphs = mutableListOf<String>()
+    val current = StringBuilder()
+    var previousLineEndedSentence = false
+
+    for (line in text.lines()) {
+      val trimmed = line.trim()
+      if (trimmed.isEmpty()) {
+        if (current.isNotEmpty()) {
+          paragraphs.add(current.toString())
+          current.clear()
+        }
+        previousLineEndedSentence = false
+        continue
+      }
+
+      if (current.isNotEmpty() && previousLineEndedSentence) {
+        paragraphs.add(current.toString())
+        current.clear()
+      } else if (current.isNotEmpty()) {
+        current.append(' ')
+      }
+
+      current.append(trimmed)
+      previousLineEndedSentence = trimmed.lastOrNull()?.let(::isSentenceBoundaryChar) == true
+    }
+
+    if (current.isNotEmpty()) {
+      paragraphs.add(current.toString())
+    }
+
+    return paragraphs
+  }
+
+  private fun splitParagraphIntoSentenceishSegments(paragraph: String): List<String> {
+    val segments = mutableListOf<String>()
+    val current = StringBuilder()
+    var index = 0
+
+    while (index < paragraph.length) {
+      val ch = paragraph[index]
+      current.append(ch)
+      index += 1
+
+      if (isSentenceBoundaryChar(ch)) {
+        while (index < paragraph.length && isSentenceBoundaryChar(paragraph[index])) {
+          current.append(paragraph[index])
+          index += 1
+        }
+
+        val isBoundary = index == paragraph.length || paragraph[index].isWhitespace()
+        if (isBoundary) {
+          val segment = current.toString().trim()
+          if (segment.isNotEmpty()) {
+            segments.add(segment)
+          }
+          current.clear()
+          while (index < paragraph.length && paragraph[index].isWhitespace()) {
+            index += 1
+          }
+        }
+      }
+    }
+
+    val tail = current.toString().trim()
+    if (tail.isNotEmpty()) {
+      segments.add(tail)
+    }
+
+    if (segments.isEmpty()) {
+      val trimmed = paragraph.trim()
+      if (trimmed.isNotEmpty()) {
+        segments.add(trimmed)
+      }
+    }
+
+    return segments
+  }
+
+  private fun isSentenceBoundaryChar(ch: Char): Boolean = ch == '.' || ch == '?' || ch == '!'
+
+  private fun clearFinalBoundary(chunks: List<SpeechChunkRequest>): List<SpeechChunkRequest> {
+    if (chunks.isEmpty()) {
+      return chunks
+    }
+
+    return chunks.mapIndexed { index, chunk ->
+      if (index == chunks.lastIndex && chunk.boundaryAfter != SpeechChunkBoundary.None) {
+        chunk.copy(boundaryAfter = SpeechChunkBoundary.None)
+      } else {
+        chunk
+      }
+    }
+  }
+
+  private fun pauseChunkFor(
+    chunkRequest: SpeechChunkRequest,
+    sampleRate: Int,
+  ): PcmAudio? {
+    val pauseMs =
+      chunkRequest.pauseAfterMsOverride
+        ?: when (chunkRequest.boundaryAfter) {
+          SpeechChunkBoundary.None -> return null
+          SpeechChunkBoundary.Sentence -> SENTENCE_PAUSE_MS
+          SpeechChunkBoundary.Paragraph -> PARAGRAPH_PAUSE_MS
+        }
+
+    return PcmAudio.silence(sampleRate, pauseMs)
   }
 
   private fun splitAtFirstPause(text: String): Pair<String, String>? {
@@ -466,7 +675,9 @@ sealed class SpeechSynthesisResult {
   ) : SpeechSynthesisResult()
 }
 
-private data class SpeechChunkRequest(
+internal data class SpeechChunkRequest(
   val content: String,
   val isPhonemes: Boolean,
+  val boundaryAfter: SpeechChunkBoundary,
+  val pauseAfterMsOverride: Int?,
 )

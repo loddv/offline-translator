@@ -153,12 +153,13 @@ class TranslationCoordinator(
     to: Language,
     finalBitmap: Bitmap,
     onMessage: (TranslatorMessage.ImageTextDetected) -> Unit,
+    readingOrder: ReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
   ): ProcessedImageResult? {
     _isTranslating.value = true
     return try {
       _isOcrInProgress.value = true
       val minConfidence = settingsManager.settings.value.minConfidence
-      val processedImage = imageProcessor.processImage(finalBitmap, from, minConfidence)
+      val processedImage = imageProcessor.processImage(finalBitmap, from, minConfidence, readingOrder)
       _isOcrInProgress.value = false
 
       Log.d("OCR", "complete, result ${processedImage.textBlocks}")
@@ -193,12 +194,23 @@ class TranslationCoordinator(
       val translatePaint =
         measureTimeMillis {
           val pair =
-            paintTranslatedTextOver(
-              processedImage.bitmap,
-              processedImage.textBlocks,
-              translatedBlocks,
-              settingsManager.settings.value.backgroundMode,
-            )
+            when (readingOrder) {
+              ReadingOrder.LEFT_TO_RIGHT ->
+                paintTranslatedTextOver(
+                  processedImage.bitmap,
+                  processedImage.textBlocks,
+                  translatedBlocks,
+                  settingsManager.settings.value.backgroundMode,
+                )
+
+              ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT ->
+                paintTranslatedTextOverVerticalBlocks(
+                  processedImage.bitmap,
+                  processedImage.textBlocks,
+                  translatedBlocks,
+                  settingsManager.settings.value.backgroundMode,
+                )
+            }
           overlayBitmap = pair.first
           allTranslatedText = pair.second
         }

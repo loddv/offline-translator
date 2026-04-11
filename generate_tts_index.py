@@ -34,7 +34,10 @@ ESPEAK_DICT_OVERRIDES = {
     "zh": "cmn",
     "zh_hant": "yue",
 }
+
 EXTRA_PIPER_VOICES = {
+    # External Polish Piper voice metadata source:
+    # https://huggingface.co/WitoldG/polish_piper_models/resolve/main/pl_PL-jarvis_wg_glos-medium.onnx.json
     "pl_PL-jarvis_wg_glos-medium": {
         "key": "pl_PL-jarvis_wg_glos-medium",
         "name": "jarvis_wg_glos",

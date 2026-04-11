@@ -1,6 +1,6 @@
 {
   "formatVersion": 2,
-  "generatedAt": 1775911636,
+  "generatedAt": 1775919157,
   "translationModelsBaseUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data",
   "tesseractModelsBaseUrl": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main",
   "dictionaryBaseUrl": "https://translator.davidv.dev/dictionaries",
@@ -626,6 +626,18 @@
           "tesseract": "ocr-tesseract-he"
         },
         "dictionary": "dict-he"
+      },
+      "tts": {
+        "defaultRegion": "IL",
+        "regions": {
+          "IL": {
+            "displayName": "Israel",
+            "voices": [
+              "tts-piper-he-il-community-female-medium",
+              "tts-piper-he-il-community-male-medium"
+            ]
+          }
+        }
       }
     },
     "hi": {
@@ -6772,6 +6784,21 @@
         "tts-espeak-core-v1"
       ]
     },
+    "tts-espeak-dict-he": {
+      "feature": "support",
+      "kind": "tts-espeak-dict",
+      "files": [
+        {
+          "name": "he_dict",
+          "sizeBytes": 0,
+          "installPath": "bin/espeak-ng-data/he_dict",
+          "url": "https://translator.davidv.dev/tts/1/espeak-ng-data/he_dict"
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-core-v1"
+      ]
+    },
     "tts-espeak-dict-hi": {
       "feature": "support",
       "kind": "tts-espeak-dict",
@@ -8241,6 +8268,62 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fr"
+      ]
+    },
+    "tts-piper-he-il-community-female-medium": {
+      "feature": "tts",
+      "engine": "piper",
+      "language": "he",
+      "locale": "he_IL",
+      "region": "IL",
+      "voice": "community_female",
+      "quality": "medium",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [
+        {
+          "name": "he_IL-community_female-medium.onnx",
+          "sizeBytes": 63461522,
+          "installPath": "bin/piper/he/he_IL/community_female/medium/he_IL-community_female-medium.onnx",
+          "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/piper_medium_female.onnx"
+        },
+        {
+          "name": "he_IL-community_female-medium.onnx.json",
+          "sizeBytes": 8276,
+          "installPath": "bin/piper/he/he_IL/community_female/medium/he_IL-community_female-medium.onnx.json",
+          "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/model.config.json"
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-dict-he"
+      ]
+    },
+    "tts-piper-he-il-community-male-medium": {
+      "feature": "tts",
+      "engine": "piper",
+      "language": "he",
+      "locale": "he_IL",
+      "region": "IL",
+      "voice": "community_male",
+      "quality": "medium",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [
+        {
+          "name": "he_IL-community_male-medium.onnx",
+          "sizeBytes": 63461522,
+          "installPath": "bin/piper/he/he_IL/community_male/medium/he_IL-community_male-medium.onnx",
+          "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/piper_medium_male.onnx"
+        },
+        {
+          "name": "he_IL-community_male-medium.onnx.json",
+          "sizeBytes": 8276,
+          "installPath": "bin/piper/he/he_IL/community_male/medium/he_IL-community_male-medium.onnx.json",
+          "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/model.config.json"
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-dict-he"
       ]
     },
     "tts-piper-hi-in-rohan-medium": {

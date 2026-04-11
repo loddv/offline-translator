@@ -63,7 +63,63 @@ EXTRA_PIPER_VOICES = {
             },
         },
         "aliases": [],
-    }
+    },
+    # External Hebrew Piper voice metadata source:
+    # https://huggingface.co/notmax123/piper-medium-heb/resolve/main/model.config.json
+    "he_IL-community_female-medium": {
+        "key": "he_IL-community_female-medium",
+        "name": "community_female",
+        "language": {
+            "code": "he_IL",
+            "family": "he",
+            "region": "IL",
+            "name_native": "עברית",
+            "name_english": "Hebrew",
+            "country_english": "Israel",
+        },
+        "quality": "medium",
+        "num_speakers": 1,
+        "speaker_id_map": {},
+        "files": {
+            "he/he_IL/community_female/medium/he_IL-community_female-medium.onnx": {
+                "size_bytes": 63461522,
+                "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/piper_medium_female.onnx",
+            },
+            "he/he_IL/community_female/medium/he_IL-community_female-medium.onnx.json": {
+                "size_bytes": 8276,
+                "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/model.config.json",
+            },
+        },
+        "aliases": [],
+    },
+    # External Hebrew Piper voice metadata source:
+    # https://huggingface.co/notmax123/piper-medium-heb/resolve/main/model.config.json
+    "he_IL-community_male-medium": {
+        "key": "he_IL-community_male-medium",
+        "name": "community_male",
+        "language": {
+            "code": "he_IL",
+            "family": "he",
+            "region": "IL",
+            "name_native": "עברית",
+            "name_english": "Hebrew",
+            "country_english": "Israel",
+        },
+        "quality": "medium",
+        "num_speakers": 1,
+        "speaker_id_map": {},
+        "files": {
+            "he/he_IL/community_male/medium/he_IL-community_male-medium.onnx": {
+                "size_bytes": 63461522,
+                "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/piper_medium_male.onnx",
+            },
+            "he/he_IL/community_male/medium/he_IL-community_male-medium.onnx.json": {
+                "size_bytes": 8276,
+                "url": "https://huggingface.co/notmax123/piper-medium-heb/resolve/main/model.config.json",
+            },
+        },
+        "aliases": [],
+    },
 }
 
 

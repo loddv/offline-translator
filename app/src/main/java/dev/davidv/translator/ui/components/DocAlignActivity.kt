@@ -134,7 +134,7 @@ class DocAlignActivity : ComponentActivity() {
     quad: DocumentQuad,
     outputUri: Uri,
   ): Boolean {
-    val catalog = (application as TranslatorApplication).languageCatalog
+    val catalog = (application as TranslatorApplication).filePathManager.loadCatalog()
     if (catalog == null) {
       Log.e(TAG, "no catalog available for warp")
       return false
@@ -182,7 +182,7 @@ private fun DocAlignScreen(
   onConfirm: (Bitmap, DocumentQuad) -> Unit,
 ) {
   val context = androidx.compose.ui.platform.LocalContext.current
-  val catalog = (context.applicationContext as TranslatorApplication).languageCatalog
+  val catalog = (context.applicationContext as TranslatorApplication).filePathManager.loadCatalog()
 
   var bitmap by remember(inputUri) { mutableStateOf<Bitmap?>(null) }
   var imageBmp by remember(inputUri) { mutableStateOf<ImageBitmap?>(null) }

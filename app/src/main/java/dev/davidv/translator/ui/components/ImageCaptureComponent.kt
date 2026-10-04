@@ -107,7 +107,7 @@ private fun shouldStartInDocAlign(
   val isPhotoMime = mime == "image/jpeg" || mime == "image/jpg" || mime == "image/heic" || mime == "image/heif"
   if (!isPhotoMime) return false
   val catalog =
-    (context.applicationContext as? dev.davidv.translator.TranslatorApplication)?.languageCatalog
+    (context.applicationContext as? dev.davidv.translator.TranslatorApplication)?.filePathManager?.loadCatalog()
   return catalog?.supportInstalledByKind("doc_detect") == true
 }
 

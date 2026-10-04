@@ -99,8 +99,8 @@ class TrackingInputStream(
 class DownloadService : Service() {
   private val binder = DownloadBinder()
   private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-  private val settingsManager by lazy { SettingsManager(this) }
-  private val filePathManager by lazy { FilePathManager(this, settingsManager.settings) }
+  private val settingsManager by lazy { (application as TranslatorApplication).settingsManager }
+  private val filePathManager by lazy { (application as TranslatorApplication).filePathManager }
 
   private fun getCatalog(): LanguageCatalog? = filePathManager.loadCatalog()
 

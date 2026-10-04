@@ -160,7 +160,7 @@ class ScreenTranslateService : Service() {
     startForegroundNotification()
 
     val app = applicationContext as TranslatorApplication
-    val catalog = app.languageCatalog
+    val catalog = app.filePathManager.loadCatalog()
     if (catalog == null) {
       Log.e(TAG, "No language catalog; stopping")
       stopEverything()
@@ -214,7 +214,7 @@ class ScreenTranslateService : Service() {
     targetCode: String?,
     isAutoSource: Boolean,
   ) {
-    val catalog = app.languageCatalog ?: return
+    val catalog = app.filePathManager.loadCatalog() ?: return
     val settings = app.settingsManager.settings.value
     // Target: the caller's choice (assistant selection) → app default → en.
     val to =

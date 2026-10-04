@@ -4,7 +4,9 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import java.io.File
 
@@ -18,6 +20,11 @@ class FilePathManager(
   // FilePathManager owns the current cached snapshot reference and swaps it on reload.
   private var cachedCatalog: LanguageCatalog? = null
   private var cachedCatalogBaseDir: String? = null
+
+  // Every snapshot opened in this process, so long-lived holders (services, language state) see
+  // installs and deletes made by any component rather than the install state at their creation.
+  private val openedCatalog = MutableStateFlow<LanguageCatalog?>(null)
+  val catalog: StateFlow<LanguageCatalog?> = openedCatalog.asStateFlow()
 
   private val baseDir: File
     get() =
@@ -112,6 +119,7 @@ class FilePathManager(
       cachedCatalog?.takeIf { cachedCatalogBaseDir == baseDirPath }?.let { return it }
       val catalog = openCatalog(baseDirPath)
       replaceCachedCatalogLocked(catalog, baseDirPath)
+      openedCatalog.value = catalog
       return catalog
     }
   }
@@ -121,6 +129,7 @@ class FilePathManager(
       val baseDirPath = currentBaseDir().absolutePath
       val catalog = openCatalog(baseDirPath)
       replaceCachedCatalogLocked(catalog, baseDirPath)
+      openedCatalog.value = catalog
       catalog
     }
 

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -64,8 +65,7 @@ class LanguageStateManager(
   private val filePathManager: FilePathManager,
   downloadEvents: SharedFlow<DownloadEvent>? = null,
 ) {
-  private val catalogState = MutableStateFlow<LanguageCatalog?>(null)
-  val catalog: StateFlow<LanguageCatalog?> = catalogState.asStateFlow()
+  val catalog: StateFlow<LanguageCatalog?> = filePathManager.catalog
   private val _languageState = MutableStateFlow(LanguageAvailabilityState())
   val languageState: StateFlow<LanguageAvailabilityState> = _languageState.asStateFlow()
 
@@ -77,22 +77,21 @@ class LanguageStateManager(
 
   private var downloadEventsJob: kotlinx.coroutines.Job? = null
 
-  fun languageByCode(code: String): Language? = catalogState.value?.languageByCode(code)
+  fun languageByCode(code: String): Language? = catalog.value?.languageByCode(code)
 
   init {
     if (downloadEvents != null) {
       connectToDownloadEvents(downloadEvents)
     }
-    loadCatalog()
-  }
-
-  private fun loadCatalog() {
     scope.launch {
-      withContext(Dispatchers.IO) {
-        setCatalog(filePathManager.loadCatalog())
-        Log.i("LanguageStateManager", "Catalog loaded from file: ${catalogState.value != null}")
+      catalog.filterNotNull().collect(::publishAvailability)
+    }
+    scope.launch {
+      val loaded = withContext(Dispatchers.IO) { filePathManager.loadCatalog() }
+      Log.i("LanguageStateManager", "Catalog loaded from file: ${loaded != null}")
+      if (loaded == null) {
+        _languageState.value = _languageState.value.copy(isChecking = false)
       }
-      refreshLanguageAvailability()
     }
   }
 
@@ -102,31 +101,19 @@ class LanguageStateManager(
       scope.launch {
         downloadEvents.collect { event ->
           when (event) {
-            is DownloadEvent.NewTranslationAvailable -> {
-              setCatalog(withContext(Dispatchers.IO) { filePathManager.reloadCatalog() })
-              refreshLanguageAvailability()
-            }
-
-            is DownloadEvent.NewDictionaryAvailable -> {
-              setCatalog(withContext(Dispatchers.IO) { filePathManager.reloadCatalog() })
-              refreshLanguageAvailability()
-            }
-
-            is DownloadEvent.NewTtsAvailable -> {
-              setCatalog(withContext(Dispatchers.IO) { filePathManager.reloadCatalog() })
-              refreshLanguageAvailability()
-            }
+            // DownloadService reloads the shared catalog before emitting, so availability
+            // already follows through `catalog`.
+            is DownloadEvent.NewTranslationAvailable,
+            is DownloadEvent.NewDictionaryAvailable,
+            is DownloadEvent.NewTtsAvailable,
+            -> Unit
 
             is DownloadEvent.NewSupportAvailable -> {
-              setCatalog(withContext(Dispatchers.IO) { filePathManager.reloadCatalog() })
               _catalogRefreshToken.value++
-              refreshLanguageAvailability()
             }
 
             is DownloadEvent.CatalogDownloaded -> {
-              setCatalog(withContext(Dispatchers.IO) { filePathManager.reloadCatalog() })
               _catalogRefreshToken.value++
-              refreshLanguageAvailability()
               Log.i("LanguageStateManager", "Catalog downloaded")
             }
 
@@ -142,28 +129,27 @@ class LanguageStateManager(
   fun refreshLanguageAvailability() {
     _languageState.value = _languageState.value.copy(isChecking = true)
     scope.launch {
-      val catalog =
-        withContext(Dispatchers.IO) { filePathManager.reloadCatalog() } ?: run {
-          _languageState.value = _languageState.value.copy(isChecking = false)
-          return@launch
-        }
-      setCatalog(catalog)
-
-      Log.i("LanguageStateManager", "Refreshing language availability")
-      val availableLanguages = catalog.languageRows
-      val hasLanguages = availableLanguages.any { !it.language.isEnglish && it.availability.translatorFiles }
-      Log.i("LanguageStateManager", "hasLanguages = $hasLanguages")
-      _languageState.value =
-        LanguageAvailabilityState(
-          hasLanguages = hasLanguages,
-          availableLanguages = availableLanguages,
-          isChecking = false,
-        )
+      if (withContext(Dispatchers.IO) { filePathManager.reloadCatalog() } == null) {
+        _languageState.value = _languageState.value.copy(isChecking = false)
+      }
     }
   }
 
+  private fun publishAvailability(catalog: LanguageCatalog) {
+    Log.i("LanguageStateManager", "Refreshing language availability")
+    val availableLanguages = catalog.languageRows
+    val hasLanguages = availableLanguages.any { !it.language.isEnglish && it.availability.translatorFiles }
+    Log.i("LanguageStateManager", "hasLanguages = $hasLanguages")
+    _languageState.value =
+      LanguageAvailabilityState(
+        hasLanguages = hasLanguages,
+        availableLanguages = availableLanguages,
+        isChecking = false,
+      )
+  }
+
   fun deleteDict(language: Language) {
-    val catalog = catalogState.value ?: filePathManager.loadCatalog() ?: return
+    val catalog = this.catalog.value ?: filePathManager.loadCatalog() ?: return
     filePathManager.applyDeletePlan(catalog.prepareDelete(language.code, Feature.DICTIONARY))
 
     refreshLanguageAvailability()
@@ -171,7 +157,7 @@ class LanguageStateManager(
   }
 
   fun deleteLanguage(language: Language) {
-    val catalog = catalogState.value ?: filePathManager.loadCatalog() ?: return
+    val catalog = this.catalog.value ?: filePathManager.loadCatalog() ?: return
     filePathManager.applyDeletePlan(catalog.prepareDelete(language.code, Feature.CORE))
     refreshLanguageAvailability()
     scope.launch { _fileEvents.emit(FileEvent.LanguageDeleted(language)) }
@@ -180,7 +166,7 @@ class LanguageStateManager(
   }
 
   fun deleteTts(language: Language) {
-    val catalog = catalogState.value ?: filePathManager.loadCatalog() ?: return
+    val catalog = this.catalog.value ?: filePathManager.loadCatalog() ?: return
     filePathManager.applyDeletePlan(catalog.prepareDelete(language.code, Feature.TTS))
     refreshLanguageAvailability()
     TranslatorTtsEngine.notifyVoiceDataChanged(filePathManager.context)
@@ -191,7 +177,7 @@ class LanguageStateManager(
     language: Language,
     packId: String,
   ) {
-    val catalog = catalogState.value ?: filePathManager.loadCatalog() ?: return
+    val catalog = this.catalog.value ?: filePathManager.loadCatalog() ?: return
     filePathManager.applyDeletePlan(catalog.prepareDeleteTtsPack(packId))
     refreshLanguageAvailability()
     TranslatorTtsEngine.notifyVoiceDataChanged(filePathManager.context)
@@ -199,7 +185,7 @@ class LanguageStateManager(
   }
 
   fun deleteSupportByKind(kind: String) {
-    val catalog = catalogState.value ?: filePathManager.loadCatalog() ?: return
+    val catalog = this.catalog.value ?: filePathManager.loadCatalog() ?: return
     filePathManager.applyDeletePlan(catalog.prepareDeleteSupportByKind(kind))
     refreshLanguageAvailability()
     Log.i("LanguageStateManager", "Removed support files for kind: $kind")
@@ -209,7 +195,7 @@ class LanguageStateManager(
     from: Language,
     to: Language,
   ): Boolean {
-    val catalog = catalogState.value ?: return false
+    val catalog = this.catalog.value ?: return false
     return catalog.canSwapLanguages(from, to)
   }
 
@@ -217,7 +203,7 @@ class LanguageStateManager(
     from: Language,
     to: Language,
   ): Boolean {
-    val catalog = catalogState.value ?: return false
+    val catalog = this.catalog.value ?: return false
     return catalog.canTranslate(from, to)
   }
 
@@ -248,10 +234,5 @@ class LanguageStateManager(
       .filterNot { it == excluding }
       .filter { canTranslate(source, it) }
       .firstOrNull()
-  }
-
-  private fun setCatalog(newCatalog: LanguageCatalog?) {
-    if (catalogState.value === newCatalog) return
-    catalogState.value = newCatalog
   }
 }

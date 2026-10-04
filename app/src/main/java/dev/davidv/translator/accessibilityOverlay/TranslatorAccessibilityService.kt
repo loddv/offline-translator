@@ -12,11 +12,9 @@ import android.util.Log
 import android.view.Display
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.ImageProcessor
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageDetector
-import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.OverlayTextTranslationHelper
 import dev.davidv.translator.R
@@ -25,6 +23,7 @@ import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.SpeechService
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationService
+import dev.davidv.translator.TranslatorApplication
 import dev.davidv.translator.overlayChrome.OverlayInsets
 import dev.davidv.translator.screenTranslate.ScreenTranslateService
 import dev.davidv.translator.ui.components.DetectedRegions
@@ -106,26 +105,21 @@ class TranslatorAccessibilityService : AccessibilityService() {
     Log.d(tag, "Service connected")
     windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-    settingsManager = SettingsManager(this)
-    val filePathManager = FilePathManager(this, settingsManager.settings)
+    val app = application as TranslatorApplication
+    app.ensureServicesInitialized()
+    settingsManager = app.settingsManager
+    val filePathManager = app.filePathManager
     langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
     val languageDetector = LanguageDetector(langStateManager::languageByCode)
     imageProcessor = ImageProcessor(this, filePathManager)
-
-    serviceScope.launch {
-      langStateManager.catalog.collect { catalog ->
-        if (catalog == null) return@collect
-        val translationService = TranslationService(settingsManager, filePathManager)
-        val speechService = SpeechService(settingsManager, filePathManager)
-        translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
-        val languagesFlow = kotlinx.coroutines.flow.MutableStateFlow(catalog.languageList)
-        overlayTextTranslationHelper =
-          OverlayTextTranslationHelper(
-            langStateManager = langStateManager,
-            languageMetadataManager = LanguageMetadataManager(this@TranslatorAccessibilityService, languagesFlow),
-          )
-      }
-    }
+    val translationService = TranslationService(settingsManager, filePathManager)
+    val speechService = SpeechService(settingsManager, filePathManager)
+    translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
+    overlayTextTranslationHelper =
+      OverlayTextTranslationHelper(
+        langStateManager = langStateManager,
+        languageMetadataManager = app.languageMetadataManager,
+      )
 
     ui = OverlayUI(this, windowManager, settingsManager)
 

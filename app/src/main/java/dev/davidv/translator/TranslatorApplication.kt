@@ -26,6 +26,12 @@ import android.os.Build
 import android.os.UserManager
 import android.util.Log
 import dev.davidv.translator.adblock.AdblockManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 class TranslatorApplication : Application() {
   lateinit var settingsManager: SettingsManager
@@ -37,16 +43,7 @@ class TranslatorApplication : Application() {
   lateinit var languageDetector: LanguageDetector
   lateinit var translationCoordinator: TranslationCoordinator
   lateinit var adblockManager: AdblockManager
-  val languagesFlow = kotlinx.coroutines.flow.MutableStateFlow<List<Language>>(emptyList())
-  var languageCatalog: LanguageCatalog? = null
-    private set
-
-  /** Re-open the app-level catalog after on-disk model files change (e.g. the
-   *  ONNX→MNN migration), so gates like doc-align see the new state. */
-  fun reloadLanguageCatalog() {
-    languageCatalog = filePathManager.reloadCatalog()
-    languagesFlow.value = languageCatalog?.languageList ?: emptyList()
-  }
+  private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
   private var servicesInitialized = false
 
@@ -75,11 +72,19 @@ class TranslatorApplication : Application() {
           intent: Intent,
         ) {
           Log.d("TranslatorApplication", "User unlocked; running deferred service init")
-          initializeServices()
+          ensureServicesInitialized()
           unregisterReceiver(this)
         }
       }
     registerReceiver(receiver, IntentFilter(Intent.ACTION_USER_UNLOCKED))
+  }
+
+  /** Services started in a process that came up during direct boot can be created after
+   *  unlock but before ACTION_USER_UNLOCKED reaches [registerUnlockReceiver], so they call
+   *  this before touching the shared instances instead of racing the broadcast. */
+  fun ensureServicesInitialized() {
+    check(Build.VERSION.SDK_INT < Build.VERSION_CODES.N || isUserUnlocked()) { "Application services require an unlocked user" }
+    initializeServices()
   }
 
   private fun initializeServices() {
@@ -97,13 +102,16 @@ class TranslatorApplication : Application() {
       return
     }
 
-    languageCatalog = filePathManager.loadCatalog()
-    languagesFlow.value = languageCatalog?.languageList ?: emptyList()
+    filePathManager.loadCatalog()
+    val languagesFlow =
+      filePathManager.catalog
+        .map { it?.languageList ?: emptyList() }
+        .stateIn(appScope, SharingStarted.Eagerly, filePathManager.catalog.value?.languageList ?: emptyList())
     languageMetadataManager = LanguageMetadataManager(this, languagesFlow)
     imageProcessor = ImageProcessor(this, filePathManager)
     translationService = TranslationService(settingsManager, filePathManager)
     speechService = SpeechService(settingsManager, filePathManager)
-    languageDetector = LanguageDetector { code -> languageCatalog?.languageByCode(code) }
+    languageDetector = LanguageDetector { code -> filePathManager.catalog.value?.languageByCode(code) }
     translationCoordinator =
       TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     adblockManager = AdblockManager(filePathManager)

@@ -22,21 +22,16 @@ class AidlTranslationService : Service() {
 
   override fun onCreate() {
     super.onCreate()
-    settingsManager = SettingsManager(this)
-    val filePathManager = FilePathManager(this, settingsManager.settings)
+    val app = application as TranslatorApplication
+    app.ensureServicesInitialized()
+    settingsManager = app.settingsManager
+    val filePathManager = app.filePathManager
     langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
     val languageDetector = LanguageDetector(langStateManager::languageByCode)
     val imageProcessor = ImageProcessor(this, filePathManager)
-
-    serviceScope.launch {
-      langStateManager.catalog.collect { catalog ->
-        if (catalog == null) return@collect
-        val translationService = TranslationService(settingsManager, filePathManager)
-        val speechService = SpeechService(settingsManager, filePathManager)
-        translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
-        Log.d(tag, "TranslationCoordinator initialized")
-      }
-    }
+    val translationService = TranslationService(settingsManager, filePathManager)
+    val speechService = SpeechService(settingsManager, filePathManager)
+    translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     Log.d(tag, "onCreate")
   }
 

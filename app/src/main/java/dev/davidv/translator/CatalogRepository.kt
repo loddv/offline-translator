@@ -95,6 +95,14 @@ class CatalogRepository private constructor(
 
   fun applyDeletePlan(plan: DeletePlan) = publishAfter { handle.applyDeletePlan(plan) }
 
+  fun commitInstall(
+    staging: StagedInstall,
+    deleteAfter: DeletePlan,
+  ) = publishAfter {
+    staging.moveIntoPlace()
+    handle.applyDeletePlan(deleteAfter)
+  }
+
   fun discardMigration(jobs: List<MigrationJobRecord>) = publishAfter { handle.discardMigration(jobs) }
 
   private inline fun publishAfter(change: () -> Unit) {

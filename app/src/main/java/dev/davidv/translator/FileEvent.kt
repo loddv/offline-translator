@@ -18,10 +18,6 @@
 package dev.davidv.translator
 
 sealed class FileEvent {
-  data class LanguageDeleted(
-    val language: Language,
-  ) : FileEvent()
-
   data class Error(
     val message: String,
   ) : FileEvent()

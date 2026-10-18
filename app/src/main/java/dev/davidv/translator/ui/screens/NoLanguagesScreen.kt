@@ -109,15 +109,11 @@ fun NoLanguagesScreen(
         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
       )
 
-      val catalog by languageStateManager.catalog.collectAsState()
-
       LanguageAssetManagerScreen(
         context = context,
         languageStateManager = languageStateManager,
         languageMetadataManager = languageMetadataManager,
         settingsManager = settingsManager,
-        catalog = catalog,
-        languageAvailabilityState = state,
         downloadManager = downloadManager,
       )
     }

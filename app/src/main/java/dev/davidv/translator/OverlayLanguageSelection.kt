@@ -21,11 +21,17 @@ private const val JAPANESE_CODE = "ja"
 enum class OverlayLanguageSide { SOURCE, TARGET }
 
 sealed interface OverlaySource {
-  data object Auto : OverlaySource
+  val readingOrder: ReadingOrder?
+
+  // OCR applies a requested order to the whole page whatever it detects; the main screen asks
+  // for one while auto-detecting because its last detection was Japanese.
+  data class Auto(
+    override val readingOrder: ReadingOrder?,
+  ) : OverlaySource
 
   data class Fixed(
     val language: Language,
-    val readingOrder: ReadingOrder? = null,
+    override val readingOrder: ReadingOrder? = null,
   ) : OverlaySource {
     init {
       // Only the Japanese OCR model reads a reading order; on any other source it would be
@@ -43,16 +49,16 @@ data class OverlayLanguageSelection(
 ) {
   val sourceLanguage: Language? get() = (source as? OverlaySource.Fixed)?.language
 
-  val readingOrder: ReadingOrder? get() = (source as? OverlaySource.Fixed)?.readingOrder
+  val readingOrder: ReadingOrder? get() = source.readingOrder
 
-  val isAutoSource: Boolean get() = source == OverlaySource.Auto
+  val isAutoSource: Boolean get() = source is OverlaySource.Auto
 
   val offersReadingOrder: Boolean get() = sourceLanguage?.code == JAPANESE_CODE
 
   fun withSource(language: Language): OverlayLanguageSelection =
     copy(source = OverlaySource.Fixed(language, readingOrder.takeIf { sourceLanguage == language }))
 
-  fun withAutoSource(): OverlayLanguageSelection = copy(source = OverlaySource.Auto)
+  fun withAutoSource(): OverlayLanguageSelection = copy(source = OverlaySource.Auto(readingOrder = null))
 
   fun withTarget(language: Language): OverlayLanguageSelection = copy(target = language)
 
@@ -66,13 +72,7 @@ data class OverlayLanguageSelection(
   fun withNextReadingOrder(): OverlayLanguageSelection {
     val fixed = source as? OverlaySource.Fixed
     check(fixed != null && offersReadingOrder) { "reading order toggled for source $source" }
-    val next =
-      when (fixed.readingOrder) {
-        null -> ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT
-        ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> ReadingOrder.LEFT_TO_RIGHT
-        ReadingOrder.LEFT_TO_RIGHT -> null
-      }
-    return copy(source = fixed.copy(readingOrder = next))
+    return copy(source = fixed.copy(readingOrder = nextReadingOrder(fixed.readingOrder)))
   }
 
   companion object {
@@ -87,10 +87,17 @@ data class OverlayLanguageSelection(
       val target =
         languages.firstOrNull { it.code == settings.defaultTargetLanguageCode }
           ?: languages.first { it.isEnglish }
-      return OverlayLanguageSelection(OverlaySource.Auto, target)
+      return OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), target)
     }
   }
 }
+
+fun nextReadingOrder(current: ReadingOrder?): ReadingOrder? =
+  when (current) {
+    null -> ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT
+    ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> ReadingOrder.LEFT_TO_RIGHT
+    ReadingOrder.LEFT_TO_RIGHT -> null
+  }
 
 // Overlay sources are always read through OCR, so a source without OCR models can't be offered.
 fun overlayPickerLanguages(

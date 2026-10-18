@@ -154,7 +154,7 @@ class TranslationService(
    * button can call it directly; the cached catalog is the same instance
    * running the translation, so slimt's workers stop within ~one batch.
    */
-  fun cancelOngoingWork() {
+  fun cancelDocumentTranslation() {
     catalogRepository.catalog.value.cancelOngoingWork()
   }
 

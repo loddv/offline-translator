@@ -24,6 +24,7 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import dev.davidv.translator.Language
+import dev.davidv.translator.OverlaySource
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationService
 import kotlinx.coroutines.CoroutineScope
@@ -144,7 +145,7 @@ class TranslatorJsBridge(
     val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return ""
     val result =
       translationCoordinator.translateImageWithOverlay(
-        from = sourceLanguage,
+        source = OverlaySource.Fixed(sourceLanguage),
         to = targetLanguage,
         finalBitmap = source,
         onMessage = {},

@@ -108,7 +108,6 @@ private fun convertGroup(
 @Composable
 fun MigrationGate(
   catalogRepository: CatalogRepository,
-  onMigrated: () -> Unit,
   content: @Composable () -> Unit,
 ) {
   var state by remember { mutableStateOf<MigrationUiState>(MigrationUiState.Working) }
@@ -125,16 +124,15 @@ fun MigrationGate(
 
   // Phase 1: plan + convert the required doc-detect models silently (no per-file
   // bar — just the spinner). Then either pass (no TTS) or surface the mandatory
-  // TTS decision. `migrated` distinguishes "did real work" from "nothing to do"
-  // so we only refresh availability when something actually changed.
+  // TTS decision.
   LaunchedEffect(Unit) {
     Log.i(TAG, "phase1 LaunchedEffect ENTER")
-    val (outcome, migrated) =
+    state =
       withContext(Dispatchers.IO) {
         val catalog = catalogRepository.catalog.value
         val plan = catalog.planMigration()
         Log.i(TAG, "phase1 plan size=${plan.size}")
-        if (plan.isEmpty()) return@withContext MigrationUiState.Passed to false
+        if (plan.isEmpty()) return@withContext MigrationUiState.Passed
 
         val (docDetect, tts) = plan.partition { it.feature == FEATURE_DOC_DETECT }
         if (docDetect.isNotEmpty()) {
@@ -142,16 +140,14 @@ fun MigrationGate(
         }
         ttsJobs = tts
         if (tts.isEmpty()) {
-          MigrationUiState.Passed to true
+          MigrationUiState.Passed
         } else {
           MigrationUiState.AwaitTtsDecision(
             ttsCount = tts.count { it.needsConvert },
             savedBytes = savedBytes(tts.filter { it.needsConvert }),
-          ) to false
+          )
         }
       }
-    state = outcome
-    if (migrated) onMigrated()
   }
 
   val finishTts: (convert: Boolean) -> Unit = { convert ->
@@ -168,7 +164,6 @@ fun MigrationGate(
             catalogRepository.discardMigration(ttsJobs)
           }
         }
-        onMigrated()
         state = MigrationUiState.Passed
       }
     }

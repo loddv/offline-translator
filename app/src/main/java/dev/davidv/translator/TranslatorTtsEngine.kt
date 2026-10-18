@@ -38,7 +38,7 @@ class TranslatorTtsService : TextToSpeechService() {
   private var currentVoice: TranslatorTtsVoice? = null
 
   override fun onGetVoices(): List<Voice> {
-    val ttsVoices = TranslatorTtsEngine.systemTtsVoices(this)
+    val ttsVoices = TranslatorTtsEngine.systemTtsVoices(applicationServices().catalogRepository.catalog.value)
     Log.i(
       "TranslatorTtsService",
       "onGetVoices: returning ${ttsVoices.size} voices: " +
@@ -75,7 +75,7 @@ class TranslatorTtsService : TextToSpeechService() {
     variant: String,
   ): String? {
     TranslatorTtsEngine.resolveUserPreferredVoice(this, lang)?.let { return it.androidName }
-    val voices = TranslatorTtsEngine.systemTtsVoices(this)
+    val voices = TranslatorTtsEngine.systemTtsVoices(applicationServices().catalogRepository.catalog.value)
     val match =
       voices.firstOrNull {
         it.locale.safeIso3Language() == lang && it.locale.safeIso3Country() == country
@@ -248,7 +248,10 @@ class TranslatorTtsDataActivity : Activity() {
 
   private fun finishCheckTtsData() {
     val installedLanguages =
-      TranslatorTtsEngine.installedTtsLocales(this).map { it.language }.distinct()
+      TranslatorTtsEngine
+        .installedTtsLocales((application as TranslatorApplication).catalogRepository.catalog.value)
+        .map { it.language }
+        .distinct()
     val systemDefault = Locale.getDefault()
     val voices =
       installedLanguages
@@ -325,23 +328,17 @@ object TranslatorTtsEngine {
   private const val BOOTSTRAP_VOICE_PREFIX = "default|"
   private const val VOICE_SEPARATOR = "|"
 
-  @Volatile
-  private var cachedInstalledLocales: List<Locale>? = null
-
   fun sampleText(
     context: Context,
     iso3Language: String,
   ): String? {
-    val app = context.applicationContext as? TranslatorApplication ?: return null
+    val app = context.applicationContext as TranslatorApplication
     val catalog = app.catalogRepository.catalog.value
     val iso2 = iso3LanguageToIso2(iso3Language).ifBlank { iso3Language }
     return catalog.ttsSampleText(iso2)
   }
 
-  fun installedTtsLocales(context: Context): List<Locale> {
-    cachedInstalledLocales?.let { return it }
-    val app = context.applicationContext as? TranslatorApplication ?: return emptyList()
-    val catalog = app.catalogRepository.catalog.value
+  fun installedTtsLocales(catalog: LanguageCatalog): List<Locale> {
     val result = mutableListOf<Locale>()
     for (row in catalog.languageRows) {
       if (!row.availability.ttsFiles) continue
@@ -354,24 +351,12 @@ object TranslatorTtsEngine {
         }
       }
     }
-    cachedInstalledLocales = result
     return result
   }
 
-  fun invalidateInstalledLocales() {
-    cachedInstalledLocales = null
-  }
-
-  fun notifyVoiceDataChanged(context: Context) {
-    cachedInstalledLocales = null
-    context.applicationContext.sendBroadcast(
-      android.content.Intent(TextToSpeech.Engine.ACTION_TTS_DATA_INSTALLED),
-    )
-  }
-
-  fun bootstrapVoices(context: Context): List<TranslatorTtsVoice> {
+  fun bootstrapVoices(catalog: LanguageCatalog): List<TranslatorTtsVoice> {
     val seenLanguages = mutableSetOf<String>()
-    return installedTtsLocales(context).mapNotNull { locale ->
+    return installedTtsLocales(catalog).mapNotNull { locale ->
       val iso3Language = locale.safeIso3Language()
       if (iso3Language.isBlank() || !seenLanguages.add(iso3Language)) return@mapNotNull null
 
@@ -386,9 +371,7 @@ object TranslatorTtsEngine {
     }
   }
 
-  fun systemTtsVoices(context: Context): List<TranslatorTtsVoice> {
-    val app = context.applicationContext as? TranslatorApplication ?: return emptyList()
-    val catalog = app.catalogRepository.catalog.value
+  fun systemTtsVoices(catalog: LanguageCatalog): List<TranslatorTtsVoice> {
     val voices = mutableListOf<TranslatorTtsVoice>()
     for (row in catalog.languageRows) {
       if (!row.availability.ttsFiles) continue
@@ -418,7 +401,7 @@ object TranslatorTtsEngine {
     language: String,
   ): TranslatorTtsVoice? {
     if (language.isBlank()) return null
-    val app = context.applicationContext as? TranslatorApplication ?: return null
+    val app = context.applicationContext as TranslatorApplication
     val catalog = app.catalogRepository.catalog.value
     val iso2 = iso3LanguageToIso2(language).ifBlank { language }
     val packs = catalog.installedTtsVoices(iso2)

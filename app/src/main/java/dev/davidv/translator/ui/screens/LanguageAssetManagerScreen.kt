@@ -237,12 +237,12 @@ private fun VoicePickerDialog(
   }
 
   val setDefault: (String, String) -> Unit = { packId, voiceName ->
-    settingsManager.updateSettings(
-      settings.copy(
+    settingsManager.update { current ->
+      current.copy(
         ttsVoiceOverrides =
-          settings.ttsVoiceOverrides + (language.code to encodeVoiceOverride(packId, voiceName)),
-      ),
-    )
+          current.ttsVoiceOverrides + (language.code to encodeVoiceOverride(packId, voiceName)),
+      )
+    }
   }
 
   BasicAlertDialog(onDismissRequest = onDismiss) {
@@ -308,14 +308,16 @@ private fun VoicePickerDialog(
                   if (entry.pack.displayName == effectiveDefaultVoiceName) {
                     val nextPack =
                       downloaded.firstOrNull { it.pack.packId != entry.pack.packId }?.pack
-                    val newOverrides =
-                      if (nextPack != null) {
-                        settings.ttsVoiceOverrides +
-                          (language.code to encodeVoiceOverride(nextPack.packId, nextPack.displayName))
-                      } else {
-                        settings.ttsVoiceOverrides - language.code
-                      }
-                    settingsManager.updateSettings(settings.copy(ttsVoiceOverrides = newOverrides))
+                    settingsManager.update { current ->
+                      val newOverrides =
+                        if (nextPack != null) {
+                          current.ttsVoiceOverrides +
+                            (language.code to encodeVoiceOverride(nextPack.packId, nextPack.displayName))
+                        } else {
+                          current.ttsVoiceOverrides - language.code
+                        }
+                      current.copy(ttsVoiceOverrides = newOverrides)
+                    }
                   }
                   languageStateManager.deleteTtsPack(language, entry.pack.packId)
                 },

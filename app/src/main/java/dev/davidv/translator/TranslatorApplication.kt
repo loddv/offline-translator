@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -103,13 +102,7 @@ class TranslatorApplication : Application() {
     settingsManager = SettingsManager(this)
     filePathManager = FilePathManager(this, settingsManager.settings)
     catalogRepository = CatalogRepository.open(this, filePathManager)
-    appScope.launch(Dispatchers.IO) {
-      settingsManager.settings
-        .map { it.useExternalStorage }
-        .distinctUntilChanged()
-        .drop(1)
-        .collect { catalogRepository.reloadIndex() }
-    }
+    launchAppEffects(appScope, this, settingsManager.settings, catalogRepository)
 
     val languagesFlow =
       catalogRepository.catalog
@@ -131,15 +124,5 @@ class TranslatorApplication : Application() {
         .filter { it }
         .collect { DownloadService.start(this@TranslatorApplication) }
     }
-
-    if (settingsManager.settings.value.tapToTranslateEnabled) {
-      TapToTranslateNotification.show(this)
-    }
-
-    if (settingsManager.settings.value.httpServerEnabled) {
-      settingsManager.applyHttpServerState(settingsManager.settings.value)
-    }
-
-    settingsManager.applyBrowserAliasState(settingsManager.settings.value.registerAsBrowser)
   }
 }

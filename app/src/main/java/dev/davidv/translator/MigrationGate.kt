@@ -107,7 +107,7 @@ private fun convertGroup(
  */
 @Composable
 fun MigrationGate(
-  filePathManager: FilePathManager,
+  catalogRepository: CatalogRepository,
   onMigrated: () -> Unit,
   content: @Composable () -> Unit,
 ) {
@@ -131,19 +131,17 @@ fun MigrationGate(
     Log.i(TAG, "phase1 LaunchedEffect ENTER")
     val (outcome, migrated) =
       withContext(Dispatchers.IO) {
-        val catalog =
-          filePathManager.loadCatalog() ?: return@withContext MigrationUiState.Passed to false
+        val catalog = catalogRepository.catalog.value
         val plan = catalog.planMigration()
         Log.i(TAG, "phase1 plan size=${plan.size}")
         if (plan.isEmpty()) return@withContext MigrationUiState.Passed to false
 
         val (docDetect, tts) = plan.partition { it.feature == FEATURE_DOC_DETECT }
         if (docDetect.isNotEmpty()) {
-          convertGroup(catalog.baseDir, docDetect, { _, _, _ -> }) { catalog.discardMigration(listOf(it)) }
+          convertGroup(catalog.baseDir, docDetect, { _, _, _ -> }) { catalogRepository.discardMigration(listOf(it)) }
         }
         ttsJobs = tts
         if (tts.isEmpty()) {
-          filePathManager.invalidateCatalog()
           MigrationUiState.Passed to true
         } else {
           MigrationUiState.AwaitTtsDecision(
@@ -162,16 +160,13 @@ fun MigrationGate(
       ttsHandled = true
       scope.launch {
         withContext(Dispatchers.IO) {
-          val catalog = filePathManager.loadCatalog()
-          if (catalog != null) {
-            if (convert) {
-              convertGroup(catalog.baseDir, ttsJobs, ttsProgress) { catalog.discardMigration(listOf(it)) }
-            } else {
-              // Drop the voices: delete every source .onnx without converting.
-              catalog.discardMigration(ttsJobs)
-            }
+          val catalog = catalogRepository.catalog.value
+          if (convert) {
+            convertGroup(catalog.baseDir, ttsJobs, ttsProgress) { catalogRepository.discardMigration(listOf(it)) }
+          } else {
+            // Drop the voices: delete every source .onnx without converting.
+            catalogRepository.discardMigration(ttsJobs)
           }
-          filePathManager.invalidateCatalog()
         }
         onMigrated()
         state = MigrationUiState.Passed

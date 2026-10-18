@@ -134,11 +134,7 @@ class DocAlignActivity : ComponentActivity() {
     quad: DocumentQuad,
     outputUri: Uri,
   ): Boolean {
-    val catalog = (application as TranslatorApplication).filePathManager.loadCatalog()
-    if (catalog == null) {
-      Log.e(TAG, "no catalog available for warp")
-      return false
-    }
+    val catalog = (application as TranslatorApplication).catalogRepository.catalog.value
     return try {
       val warped = catalog.warpDocumentRgba(bitmap, quad, postprocess = false)
       val out = Bitmap.createBitmap(warped.width.toInt(), warped.height.toInt(), Bitmap.Config.ARGB_8888)
@@ -182,7 +178,7 @@ private fun DocAlignScreen(
   onConfirm: (Bitmap, DocumentQuad) -> Unit,
 ) {
   val context = androidx.compose.ui.platform.LocalContext.current
-  val catalog = (context.applicationContext as TranslatorApplication).filePathManager.loadCatalog()
+  val catalog = (context.applicationContext as TranslatorApplication).catalogRepository.catalog.value
 
   var bitmap by remember(inputUri) { mutableStateOf<Bitmap?>(null) }
   var imageBmp by remember(inputUri) { mutableStateOf<ImageBitmap?>(null) }
@@ -214,14 +210,10 @@ private fun DocAlignScreen(
   val detectFn: suspend (Bitmap) -> DocumentDetection? =
     remember(catalog) {
       { bmp ->
-        if (catalog == null) {
-          null
-        } else {
-          withContext(Dispatchers.Default) {
-            runCatching { catalog.detectDocumentQuad(bmp) }
-              .onFailure { Log.e(TAG, "detect failed", it) }
-              .getOrNull()
-          }
+        withContext(Dispatchers.Default) {
+          runCatching { catalog.detectDocumentQuad(bmp) }
+            .onFailure { Log.e(TAG, "detect failed", it) }
+            .getOrNull()
         }
       }
     }

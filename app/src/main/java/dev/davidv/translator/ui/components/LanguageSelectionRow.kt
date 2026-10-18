@@ -198,7 +198,6 @@ private fun previewAvailability() =
           LangAvailability(hasFromEnglish = true, hasToEnglish = true, ocrFiles = true, dictionaryFiles = false),
         ),
       ),
-    isChecking = false,
   )
 
 @Preview(

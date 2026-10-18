@@ -108,12 +108,12 @@ class TranslatorAccessibilityService : AccessibilityService() {
     val app = application as TranslatorApplication
     app.ensureServicesInitialized()
     settingsManager = app.settingsManager
-    val filePathManager = app.filePathManager
-    langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
+    val catalogRepository = app.catalogRepository
+    langStateManager = LanguageStateManager(serviceScope, catalogRepository)
     val languageDetector = LanguageDetector(langStateManager::languageByCode)
-    imageProcessor = ImageProcessor(this, filePathManager)
-    val translationService = TranslationService(settingsManager, filePathManager)
-    val speechService = SpeechService(settingsManager, filePathManager)
+    imageProcessor = ImageProcessor(this, catalogRepository)
+    val translationService = TranslationService(settingsManager, app.filePathManager, catalogRepository)
+    val speechService = SpeechService(settingsManager, catalogRepository)
     translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     overlayTextTranslationHelper =
       OverlayTextTranslationHelper(
@@ -181,7 +181,6 @@ class TranslatorAccessibilityService : AccessibilityService() {
     if (active) return
     active = true
     serviceInfo = serviceInfo.apply { eventTypes = liveEventTypes() }
-    langStateManager.refreshLanguageAvailability()
     ui.removeFloatingButton()
     ui.removeTranslationOverlays()
     ui.showBorderWave()
@@ -265,8 +264,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
 
   fun showLanguagePicker(isSource: Boolean) {
     serviceScope.launch {
-      langStateManager.refreshLanguageAvailability()
-      val availableLangs = overlayTextTranslationHelper.awaitAvailableLanguages(isSource)
+      val availableLangs = overlayTextTranslationHelper.availableLanguages(isSource)
       ui.showLanguagePicker(isSource, availableLangs) { lang ->
         if (isSource) {
           if (lang == null) {

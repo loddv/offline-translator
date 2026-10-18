@@ -170,7 +170,7 @@ class TranslationCoordinator(
       val totalStart = System.currentTimeMillis()
       try {
         _isOcrInProgress.value = true
-        val catalog = imageProcessor.loadCatalog() ?: return@withContext null
+        val catalog = imageProcessor.loadCatalog()
         val minConfidence = settingsManager.settings.value.minConfidence
         val backgroundMode = settingsManager.settings.value.backgroundMode
         val maxImageSize = settingsManager.settings.value.maxImageSize
@@ -301,7 +301,7 @@ class TranslationCoordinator(
     withContext(Dispatchers.IO) {
       _isTranslating.value = true
       try {
-        val catalog = imageProcessor.loadCatalog() ?: return@withContext null
+        val catalog = imageProcessor.loadCatalog()
 
         // Fast path: the source pixels are still owned rust-side, so re-render the cached OCR
         // result into a fresh display bitmap without re-OCR or any image copy across the FFI.

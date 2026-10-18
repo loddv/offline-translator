@@ -195,9 +195,7 @@ class DocumentTranslationService : Service() {
     val app = application as TranslatorApplication
     val inputFile = File(request.inputPath)
     try {
-      val catalog =
-        app.filePathManager.loadCatalog()
-          ?: throw IllegalStateException("Catalog unavailable")
+      val catalog = app.catalogRepository.catalog.value
       val from = catalog.languageByCode(request.fromCode) ?: throw IllegalStateException("Source language unavailable")
       val to = catalog.languageByCode(request.toCode) ?: throw IllegalStateException("Target language unavailable")
 

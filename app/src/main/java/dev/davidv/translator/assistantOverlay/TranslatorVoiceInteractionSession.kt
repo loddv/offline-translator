@@ -98,7 +98,6 @@ class TranslatorVoiceInteractionSession(
   override fun onCreate() {
     super.onCreate()
     configureSessionWindow()
-    langStateManager.refreshLanguageAvailability()
   }
 
   override fun onCreateContentView(): View {
@@ -659,8 +658,7 @@ class TranslatorVoiceInteractionSession(
 
   private fun showLanguagePicker(isSource: Boolean) {
     sessionScope.launch {
-      langStateManager.refreshLanguageAvailability()
-      val availableLangs = overlayTextTranslationHelper.awaitAvailableLanguages(isSource)
+      val availableLangs = overlayTextTranslationHelper.availableLanguages(isSource)
       menuManager?.showLanguagePicker(
         isSource = isSource,
         availableLangs = availableLangs,

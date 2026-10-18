@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AidlTranslationService : Service() {
@@ -25,12 +24,12 @@ class AidlTranslationService : Service() {
     val app = application as TranslatorApplication
     app.ensureServicesInitialized()
     settingsManager = app.settingsManager
-    val filePathManager = app.filePathManager
-    langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
+    val catalogRepository = app.catalogRepository
+    langStateManager = LanguageStateManager(serviceScope, catalogRepository)
     val languageDetector = LanguageDetector(langStateManager::languageByCode)
-    val imageProcessor = ImageProcessor(this, filePathManager)
-    val translationService = TranslationService(settingsManager, filePathManager)
-    val speechService = SpeechService(settingsManager, filePathManager)
+    val imageProcessor = ImageProcessor(this, catalogRepository)
+    val translationService = TranslationService(settingsManager, app.filePathManager, catalogRepository)
+    val speechService = SpeechService(settingsManager, catalogRepository)
     translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     Log.d(tag, "onCreate")
   }
@@ -59,7 +58,6 @@ class AidlTranslationService : Service() {
         val toLanguage = toLanguageStr?.takeIf { it.isNotEmpty() }?.let { langStateManager.languageByCode(it) }
 
         CoroutineScope(Dispatchers.IO).launch {
-          langStateManager.languageState.first { !it.isChecking }
           val langs = langStateManager.languageState.value.translatorLanguages()
           while (translationCoordinator.isTranslating.value) {
             delay(100)

@@ -131,7 +131,7 @@ class TranslationApiService : Service() {
         startHttpServer(
           config,
           object : HttpSessionSource {
-            override fun catalog(): CatalogHandle? = app.filePathManager.loadCatalog()?.planarHandle()
+            override fun catalog(): CatalogHandle? = app.catalogRepository.catalog.value.planarHandle()
           },
         )
       currentConfig = config

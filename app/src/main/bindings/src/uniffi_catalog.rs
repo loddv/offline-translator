@@ -511,6 +511,29 @@ impl CatalogHandle {
         }))
     }
 
+    fn replace_catalog(
+        &self,
+        bundled_json: String,
+        disk_json: Option<String>,
+        base_dir: String,
+    ) -> Result<(), CatalogOpenError> {
+        self.session
+            .replace_catalog(&bundled_json, disk_json.as_deref(), base_dir)
+            .map_err(|_| CatalogOpenError::ParseFailed)
+    }
+
+    fn refresh(&self) {
+        self.session.refresh_snapshot();
+    }
+
+    fn apply_delete_plan(&self, plan: translator::DeletePlan) {
+        self.session.apply_delete_plan(&plan);
+    }
+
+    fn base_dir(&self) -> String {
+        self.snapshot().base_dir.clone()
+    }
+
     fn format_version(&self) -> i32 {
         self.snapshot().catalog.format_version
     }

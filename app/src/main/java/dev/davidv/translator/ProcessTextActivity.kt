@@ -60,6 +60,7 @@ class ProcessTextActivity : ComponentActivity() {
           translationCoordinator = app.translationCoordinator,
           settingsManager = app.settingsManager,
           filePathManager = app.filePathManager,
+          catalogRepository = app.catalogRepository,
           languageMetadataManager = app.languageMetadataManager,
           initialText = textToTranslate,
           initialLaunchMode = launchMode,

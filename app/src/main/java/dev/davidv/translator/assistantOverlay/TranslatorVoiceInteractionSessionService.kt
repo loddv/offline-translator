@@ -30,14 +30,14 @@ class TranslatorVoiceInteractionSessionService : VoiceInteractionSessionService(
     val app = application as TranslatorApplication
     app.ensureServicesInitialized()
     settingsManager = app.settingsManager
-    val filePathManager = app.filePathManager
-    langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
-    val imageProcessor = ImageProcessor(this, filePathManager)
-    val translationService = TranslationService(settingsManager, filePathManager)
+    val catalogRepository = app.catalogRepository
+    langStateManager = LanguageStateManager(serviceScope, catalogRepository)
+    val imageProcessor = ImageProcessor(this, catalogRepository)
+    val translationService = TranslationService(settingsManager, app.filePathManager, catalogRepository)
     translationCoordinator =
       TranslationCoordinator(
         translationService = translationService,
-        speechService = SpeechService(settingsManager, filePathManager),
+        speechService = SpeechService(settingsManager, catalogRepository),
         languageDetector = LanguageDetector(langStateManager::languageByCode),
         imageProcessor = imageProcessor,
         settingsManager = settingsManager,

@@ -25,9 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,13 +113,7 @@ class DownloadManager(
   ) {
     val plan = planFor(request, catalogRepository.catalog.value) ?: error("Catalog has nothing to download for $request")
     publish(request.id, run, DownloadStatus.Running(0, plan.totalSize.toLong()))
-    coroutineScope {
-      plan.tasks
-        .map { task -> async { installer.install(task) { bytes -> addProgress(request.id, run, bytes) } } }
-        .awaitAll()
-    }
-    // Applying the plan's deletes also republishes the catalog, so plans without any still refresh it.
-    catalogRepository.applyDeletePlan(plan.deleteAfter)
+    installer.installPlan(plan) { bytes -> addProgress(request.id, run, bytes) }
     when (request) {
       is DownloadRequest.Support ->
         when (request.kind) {

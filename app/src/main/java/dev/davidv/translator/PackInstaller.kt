@@ -19,17 +19,21 @@ package dev.davidv.translator
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uniffi.bindings.planZipExtraction
+import uniffi.translator_core.InstallMarker
 import uniffi.translator_core.TaskInstall
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.net.URL
-import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
@@ -38,45 +42,129 @@ import kotlin.math.max
 private const val TAG = "PackInstaller"
 private const val COPY_BUFFER_BYTES = 16 * 1024
 private const val MIN_PROGRESS_STEP_BYTES = 128L * 1024
+private const val STAGING_DIR = ".staging"
 
 private enum class Encoding {
   IDENTITY,
   GZIP,
 }
 
+// A plan's files land here first and move into the install root together under the catalog's
+// publish lock, so a rescan never sees a pack with only some of its files.
+class StagedInstall(
+  private val root: File,
+  private val filePathManager: FilePathManager,
+) {
+  private val files = ConcurrentLinkedQueue<String>()
+  private val directories = ConcurrentLinkedQueue<String>()
+  private val replacedPaths = ConcurrentLinkedQueue<String>()
+  private val markers = ConcurrentLinkedQueue<InstallMarker>()
+
+  fun stagedFile(installPath: String): File = File(root, installPath)
+
+  fun keepFile(installPath: String) = files.add(installPath)
+
+  fun keepDirectory(installPath: String) = directories.add(installPath)
+
+  fun replacePath(installPath: String) = replacedPaths.add(installPath)
+
+  fun writeMarker(marker: InstallMarker) = markers.add(marker)
+
+  // Markers go last: an archive only reads as installed once every extracted file is in place.
+  fun moveIntoPlace() {
+    replacedPaths.forEach { filePathManager.resolveInstallPath(it).deleteRecursively() }
+    directories.forEach { filePathManager.resolveInstallPath(it).mkdirs() }
+    files.forEach { path ->
+      val target = filePathManager.resolveInstallPath(path)
+      target.parentFile?.mkdirs()
+      if (!stagedFile(path).renameTo(target)) {
+        throw IOException("Failed to move staged $path to $target")
+      }
+    }
+    markers.forEach { filePathManager.writeInstallMarker(it.path, it.version) }
+  }
+
+  fun discard() {
+    root.deleteRecursively()
+  }
+}
+
 class PackInstaller(
   private val filePathManager: FilePathManager,
   private val catalogRepository: CatalogRepository,
 ) {
-  private val fileLocks = ConcurrentHashMap<String, Mutex>()
+  // Plans can share files (every TTS voice depends on the espeak pack). Each file is fetched by
+  // the first in-flight run that needs it; later runs wait for that run to finish and then find
+  // it installed. Waits only ever point at earlier runs, so they can't form a cycle.
+  private val fileOwners = mutableMapOf<String, Job>()
 
-  // Reports deltas through onProgress, adding up to exactly task.sizeBytes once the task lands.
-  suspend fun install(
-    task: DownloadTask,
+  init {
+    // Staging left behind by a killed process is never committed.
+    File(filePathManager.currentBaseDir(), STAGING_DIR).deleteRecursively()
+  }
+
+  // The whole plan commits at once: the catalog reads a language with one direction installed and
+  // the other still missing files as needing repair, so packs can't land one by one.
+  suspend fun installPlan(
+    plan: DownloadPlan,
     onProgress: (Long) -> Unit,
   ) {
-    val target = filePathManager.resolveInstallPath(task.installPath)
-    val expected = task.sizeBytes.toLong()
-    // Concurrent plans can share a file; the lock makes the later one find it installed.
-    fileLocks.computeIfAbsent(target.absolutePath) { Mutex() }.withLock {
-      if (catalogRepository.catalog.value.downloadTaskInstalled(task)) {
-        Log.i(TAG, "Reusing installed ${task.packId}:${task.installPath}")
-        onProgress(expected)
-        return
+    val done = Job()
+    val earlierOwners =
+      synchronized(fileOwners) {
+        plan.tasks.associateWith { task -> fileOwners.putIfAbsent(task.installPath, done) }
       }
-      val reported =
-        when (val install = task.install) {
-          TaskInstall.Raw -> download(task.url, target, Encoding.IDENTITY, expected, onProgress)
-          TaskInstall.Gunzip -> download(task.url, target, Encoding.GZIP, expected, onProgress)
-          is TaskInstall.Zip -> {
-            val reported = download(task.url, target, Encoding.IDENTITY, expected, onProgress)
-            extractZip(target, install)
-            reported
-          }
-        }
-      onProgress(max(0L, expected - reported))
-      Log.i(TAG, "Installed ${task.packId}:${task.installPath} from ${task.url}")
+    val staging =
+      StagedInstall(File(File(filePathManager.currentBaseDir(), STAGING_DIR), UUID.randomUUID().toString()), filePathManager)
+    try {
+      coroutineScope {
+        earlierOwners
+          .map { (task, owner) ->
+            async {
+              // join rather than await: the owner failing or being cancelled must not end this run;
+              // install then fetches the file itself.
+              owner?.join()
+              install(task, staging, onProgress)
+            }
+          }.awaitAll()
+      }
+      catalogRepository.commitInstall(staging, plan.deleteAfter)
+    } finally {
+      synchronized(fileOwners) { fileOwners.values.removeAll { it === done } }
+      done.complete()
+      staging.discard()
     }
+  }
+
+  // Reports deltas through onProgress, adding up to exactly task.sizeBytes once the task lands.
+  private suspend fun install(
+    task: DownloadTask,
+    staging: StagedInstall,
+    onProgress: (Long) -> Unit,
+  ) {
+    val expected = task.sizeBytes.toLong()
+    if (catalogRepository.catalog.value.downloadTaskInstalled(task)) {
+      Log.i(TAG, "Reusing installed ${task.packId}:${task.installPath}")
+      onProgress(expected)
+      return
+    }
+    val target = staging.stagedFile(task.installPath)
+    val reported =
+      when (val install = task.install) {
+        TaskInstall.Raw -> download(task.url, target, Encoding.IDENTITY, expected, onProgress)
+        TaskInstall.Gunzip -> download(task.url, target, Encoding.GZIP, expected, onProgress)
+        is TaskInstall.Zip -> {
+          val reported = download(task.url, target, Encoding.IDENTITY, expected, onProgress)
+          extractZip(target, install, staging)
+          reported
+        }
+      }
+    val install = task.install
+    if (install !is TaskInstall.Zip || !install.deleteAfterExtract) {
+      staging.keepFile(task.installPath)
+    }
+    onProgress(max(0L, expected - reported))
+    Log.i(TAG, "Staged ${task.packId}:${task.installPath} from ${task.url}")
   }
 
   suspend fun downloadFile(
@@ -128,38 +216,31 @@ class PackInstaller(
   private suspend fun extractZip(
     archive: File,
     zip: TaskInstall.Zip,
+    staging: StagedInstall,
   ) = withContext(Dispatchers.IO) {
-    try {
-      val entryNames = ZipFile(archive).use { file -> file.entries().asSequence().map { it.name }.toList() }
-      val plan = planZipExtraction(zip.extractTo, zip.marker, entryNames)
-      plan.replacePaths.forEach { filePathManager.resolveInstallPath(it).deleteRecursively() }
-      val targets = plan.entries.associateBy { it.entryName }
-      ZipInputStream(archive.inputStream().buffered()).use { input ->
-        var entry = input.nextEntry
-        while (entry != null) {
-          ensureActive()
-          val target = targets[entry.name]
-          when {
-            target == null -> Unit
-            target.isDirectory -> filePathManager.resolveInstallPath(target.installPath).mkdirs()
-            else -> {
-              val output = filePathManager.resolveInstallPath(target.installPath)
-              output.parentFile?.mkdirs()
-              output.outputStream().use { input.copyTo(it, COPY_BUFFER_BYTES) }
-            }
+    val entryNames = ZipFile(archive).use { file -> file.entries().asSequence().map { it.name }.toList() }
+    val plan = planZipExtraction(zip.extractTo, zip.marker, entryNames)
+    plan.replacePaths.forEach(staging::replacePath)
+    val targets = plan.entries.associateBy { it.entryName }
+    ZipInputStream(archive.inputStream().buffered()).use { input ->
+      var entry = input.nextEntry
+      while (entry != null) {
+        ensureActive()
+        val target = targets[entry.name]
+        when {
+          target == null -> Unit
+          target.isDirectory -> staging.keepDirectory(target.installPath)
+          else -> {
+            val output = staging.stagedFile(target.installPath)
+            output.parentFile?.mkdirs()
+            output.outputStream().use { input.copyTo(it, COPY_BUFFER_BYTES) }
+            staging.keepFile(target.installPath)
           }
-          entry = input.nextEntry
         }
+        entry = input.nextEntry
       }
-    } catch (e: Exception) {
-      // A half-extracted archive must be fetched again, never reused.
-      archive.delete()
-      throw e
     }
-    zip.marker?.let { filePathManager.writeInstallMarker(it.path, it.version) }
-    if (zip.deleteAfterExtract) {
-      archive.delete()
-    }
+    zip.marker?.let(staging::writeMarker)
   }
 }
 

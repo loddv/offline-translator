@@ -133,9 +133,8 @@ class AppCropActivity : UCropActivity() {
 
   private fun installModeSwitchButton() {
     val photobox = findViewById<ViewGroup>(R.id.ucrop_photobox) as? RelativeLayout ?: return
-    val catalog = (application as? dev.davidv.translator.TranslatorApplication)?.catalogRepository?.catalog?.value
-    val docDetectInstalled = catalog?.supportInstalledByKind("doc_detect") == true
-    if (!docDetectInstalled) return
+    val catalog = (application as dev.davidv.translator.TranslatorApplication).catalogRepository.catalog.value
+    if (!catalog.supportInstalledByKind("doc_detect")) return
     val sizePx =
       TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,

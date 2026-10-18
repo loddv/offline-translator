@@ -434,7 +434,10 @@ private fun CameraSurface(
 
   val workerScope = androidx.compose.runtime.rememberCoroutineScope()
   val liveOcrEngine: LivePlanarOcrEngine? =
-    remember(catalog) { catalog?.let { LivePlanarOcrEngine(it, workerScope) } }
+    // Keyed on the session handle rather than the catalog: every install-state change publishes
+    // a new catalog over the same session, and rebuilding would swap the native pipeline out
+    // from under the GL thread mid-frame.
+    remember(catalog?.planarHandle()) { catalog?.let { LivePlanarOcrEngine(it.planarHandle(), workerScope) } }
   var previewSizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
   DisposableEffect(Unit) {

@@ -202,7 +202,6 @@ fun MainScreen(
       onMessage = onMessage,
       from = from,
       to = to,
-      isAutoSource = isAutoSource,
       pendingSharedImage = pendingSharedImage,
     )
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp

@@ -393,7 +393,6 @@ class TranslatorVoiceInteractionSession(
               requested.source,
               requested.target,
               workingBitmap,
-              onMessage = {},
               onOcrUnavailable = { ocrUnavailable = true },
               onDetectedRegions = { boxes, w, h ->
                 surfaceState.regions.value = DetectedRegions(w, h, boxes)

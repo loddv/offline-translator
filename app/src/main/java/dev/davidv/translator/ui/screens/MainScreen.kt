@@ -81,9 +81,9 @@ import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.Script
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslatorMessage
-import dev.davidv.translator.WordWithTaggedEntries
 import dev.davidv.translator.localizedName
 import dev.davidv.translator.singleScript
+import dev.davidv.translator.ui.DictionaryState
 import dev.davidv.translator.ui.SpeechState
 import dev.davidv.translator.ui.SpeechTarget
 import dev.davidv.translator.ui.components.ActionPillButton
@@ -132,9 +132,7 @@ fun MainScreen(
   detectedRegions: DetectedRegions?,
   ocrReadingOrder: ReadingOrder?,
   isImageProcessing: Boolean,
-  dictionaryWord: WordWithTaggedEntries?,
-  dictionaryStack: List<WordWithTaggedEntries>,
-  dictionaryLookupLanguage: Language?,
+  dictionary: DictionaryState,
   speech: SpeechState = SpeechState.Idle,
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
@@ -207,7 +205,7 @@ fun MainScreen(
   val mainScreenDescription = stringResource(R.string.a11y_main_screen)
 
   // Handle back button when dictionary is open
-  BackHandler(enabled = dictionaryWord != null) {
+  BackHandler(enabled = dictionary is DictionaryState.Open) {
     onMessage(TranslatorMessage.ClearDictionaryStack)
   }
 
@@ -613,16 +611,16 @@ fun MainScreen(
     )
   }
 
-  if (dictionaryWord != null && dictionaryLookupLanguage != null) {
+  if (dictionary is DictionaryState.Open) {
     DictionaryBottomSheet(
-      dictionaryWord = dictionaryWord,
-      dictionaryStack = dictionaryStack,
-      dictionaryLookupLanguage = dictionaryLookupLanguage,
+      dictionaryWord = dictionary.word,
+      dictionaryStack = dictionary.stack,
+      dictionaryLookupLanguage = dictionary.language,
       onDismiss = {
         onMessage(TranslatorMessage.ClearDictionaryStack)
       },
       onDictionaryLookup = { word ->
-        onMessage(TranslatorMessage.DictionaryLookup(word, dictionaryLookupLanguage))
+        onMessage(TranslatorMessage.DictionaryLookup(word, dictionary.language))
       },
       onBackPressed = {
         onMessage(TranslatorMessage.PopDictionary)
@@ -708,9 +706,7 @@ fun PopupMode() {
       onDownload = {},
       onCancelDownload = {},
       settings = AppSettings(),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = null,
     )
   }
@@ -750,9 +746,7 @@ fun MainScreenPreview() {
       onDownload = {},
       onCancelDownload = {},
       settings = AppSettings(),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = null,
     )
   }
@@ -796,9 +790,7 @@ fun PreviewTranslitText() {
       onCancelDownload = {},
       settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = "tōkyō",
     )
   }
@@ -843,9 +835,7 @@ fun PreviewVeryLongText() {
       onCancelDownload = {},
       settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = "translit",
     )
   }
@@ -894,9 +884,7 @@ fun PreviewVeryLongTextImage() {
       onCancelDownload = {},
       settings = AppSettings(),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = null,
     )
   }

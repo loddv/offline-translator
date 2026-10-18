@@ -148,7 +148,6 @@ class TranslatorJsBridge(
         source = OverlaySource.Fixed(sourceLanguage),
         to = targetLanguage,
         finalBitmap = source,
-        onMessage = {},
       )
     if (!source.isRecycled) source.recycle()
     if (result == null) return ""

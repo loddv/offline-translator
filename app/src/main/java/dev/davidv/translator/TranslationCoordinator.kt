@@ -123,7 +123,6 @@ class TranslationCoordinator(
     source: OverlaySource,
     to: Language,
     finalBitmap: Bitmap,
-    onMessage: (TranslatorMessage.ImageTextDetected) -> Unit,
     onMissingDetectedLanguage: (Language) -> Unit = {},
     onOcrUnavailable: () -> Unit = {},
     onDetectedRegions: (List<uniffi.translator_core.OrientedRect>, Int, Int) -> Unit = { _, _, _ -> },
@@ -210,7 +209,6 @@ class TranslationCoordinator(
         Log.d("OCR", "complete, blocks=${plan.blocks.size}")
 
         val extractedText = plan.extractedText
-        onMessage(TranslatorMessage.ImageTextDetected(extractedText))
 
         val output =
           Bitmap.createBitmap(finalBitmap.width, finalBitmap.height, Bitmap.Config.ARGB_8888)
@@ -251,7 +249,6 @@ class TranslationCoordinator(
     cachedPlan: PreparedImageOverlay,
     from: Language,
     to: Language,
-    onMessage: (TranslatorMessage.ImageTextDetected) -> Unit,
     ocrImage: uniffi.bindings.OcrImage? = null,
   ): ProcessedImageResult? =
     withContext(Dispatchers.IO) {
@@ -290,7 +287,6 @@ class TranslationCoordinator(
               NativeBitmap.unlockPixels(output)
             }
           val extractedText = res.plan.extractedText
-          onMessage(TranslatorMessage.ImageTextDetected(extractedText))
           return@withContext ProcessedImageResult(
             correctedBitmap = output,
             extractedText = extractedText,
@@ -310,7 +306,6 @@ class TranslationCoordinator(
           }
 
         val extractedText = plan.extractedText
-        onMessage(TranslatorMessage.ImageTextDetected(extractedText))
         lateinit var overlayBitmap: Bitmap
         var translatedWords: List<uniffi.translator_core.PositionedWord> = emptyList()
         val translatePaint =

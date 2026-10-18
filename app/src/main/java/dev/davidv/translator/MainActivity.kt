@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
 
     // Deliver any shared input now that the ViewModel exists.
     sharedImageUri?.let { viewModel.setSharedImageUri(it) }
-    sharedDocumentUri?.let { viewModel.setSharedDocumentUri(it) }
+    sharedDocumentUri?.let { viewModel.documents.importShared(it) }
     if (openLanguageManager) {
       viewModel.requestLanguageManager()
       openLanguageManager = false
@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity() {
         sharedImageUri = null
       }
       sharedDocumentUri?.let {
-        viewModel.setSharedDocumentUri(it)
+        viewModel.documents.importShared(it)
         sharedDocumentUri = null
       }
       if (openLanguageManager) {

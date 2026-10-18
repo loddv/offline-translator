@@ -137,4 +137,21 @@ class MainSelectionRulesTest {
     val settings = AppSettings(defaultTargetLanguageCode = "es")
     assertEquals(ready(fr, es), rules(both(es, fr), settings).normalized(fr, TargetTabs.of(fr)))
   }
+
+  @Test
+  fun `picking a detected source moves the previous source to the target`() {
+    val next = rules(both(es, fr)).withSource(ready(es, en), fr, FromLangChange.MovePreviousToTarget)
+    assertEquals(ready(fr, es), next)
+  }
+
+  @Test
+  fun `picking a source keeps the target by default`() {
+    assertEquals(ready(fr, en), rules(both(es, fr)).withSource(ready(es, en), fr, FromLangChange.KeepTarget))
+  }
+
+  @Test
+  fun `the previous source stays off the targets when the new source can't reach it`() {
+    val next = rules(setOf(es to en, fr to en)).withSource(ready(es, en), fr, FromLangChange.MovePreviousToTarget)
+    assertEquals(ready(fr, en), next)
+  }
 }

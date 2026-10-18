@@ -357,7 +357,6 @@ class TranslatorAccessibilityService : AccessibilityService() {
           requested.source,
           requested.target,
           bitmap,
-          onMessage = {},
           onOcrUnavailable = { ocrUnavailable = true },
           onDetectedRegions = { boxes, w, h ->
             surfaceState.regions.value = DetectedRegions(w, h, boxes)

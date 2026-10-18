@@ -106,9 +106,8 @@ private fun shouldStartInDocAlign(
   val mime = context.contentResolver.getType(uri)?.lowercase() ?: return false
   val isPhotoMime = mime == "image/jpeg" || mime == "image/jpg" || mime == "image/heic" || mime == "image/heif"
   if (!isPhotoMime) return false
-  val catalog =
-    (context.applicationContext as? dev.davidv.translator.TranslatorApplication)?.catalogRepository?.catalog?.value
-  return catalog?.supportInstalledByKind("doc_detect") == true
+  val catalog = (context.applicationContext as dev.davidv.translator.TranslatorApplication).catalogRepository.catalog.value
+  return catalog.supportInstalledByKind("doc_detect")
 }
 
 // The image/document entry points a caller can trigger (from the input source
@@ -125,7 +124,6 @@ fun rememberImageSourceActions(
   onMessage: (TranslatorMessage) -> Unit,
   from: dev.davidv.translator.Language,
   to: dev.davidv.translator.Language,
-  isAutoSource: Boolean,
   pendingSharedImage: SharedFlow<Uri>? = null,
 ): ImageSourceActions {
   val context = LocalContext.current

@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import uniffi.bindings.CatalogHandle
 import uniffi.bindings.PipelineTargetMode
 import uniffi.bindings.PlanarTrackerState
 
@@ -64,10 +65,10 @@ data class TrackerStatus(
  *   - language/focus/AF/overlay configuration knobs that translate
  *     directly into pipeline mutators (no per-frame state). */
 class LivePlanarOcrEngine(
-  private val catalog: LanguageCatalog,
+  catalogHandle: CatalogHandle,
   @Suppress("UNUSED_PARAMETER") workerScope: CoroutineScope,
 ) {
-  private val tracker = uniffi.bindings.LivePlanarTracker(catalog.planarHandle())
+  private val tracker = uniffi.bindings.LivePlanarTracker(catalogHandle)
 
   /** Raw pointer to the `LiveTrackerPipeline` so the GL render thread
    *  can drive per-frame `processFrameGl` calls without a uniffi hop.

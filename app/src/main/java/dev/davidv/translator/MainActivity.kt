@@ -87,7 +87,6 @@ class MainActivity : ComponentActivity() {
       TranslatorTheme {
         MigrationGate(
           catalogRepository = app.catalogRepository,
-          onMigrated = { TranslatorTtsEngine.notifyVoiceDataChanged(applicationContext) },
         ) {
           TranslatorApp(
             viewModel = viewModel,

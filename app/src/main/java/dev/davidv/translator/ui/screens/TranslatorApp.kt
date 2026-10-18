@@ -419,7 +419,7 @@ fun TranslatorApp(
   val languageState by viewModel.languageStateManager.languageState.collectAsState()
   val downloadManager = (context.applicationContext as dev.davidv.translator.TranslatorApplication).downloadManager
   val downloads by downloadManager.state.collectAsState()
-  val isTranslating by viewModel.translationCoordinator.isTranslating.collectAsState()
+  val isImageProcessing by viewModel.isImageProcessing.collectAsState()
   val ttsVoicesByLanguage by viewModel.ttsVoices.collectAsState()
 
   LaunchedEffect(to?.code, to?.let { languageState.availabilityFor(it)?.ttsFiles } == true) {
@@ -538,13 +538,6 @@ fun TranslatorApp(
         }
       },
     )
-  }
-
-  // Retranslate when isTranslating becomes false (queued translation)
-  LaunchedEffect(isTranslating) {
-    if (!isTranslating) {
-      viewModel.retranslateIfNeeded()
-    }
   }
 
   val navigationState by viewModel.navigationState.collectAsState()
@@ -755,8 +748,7 @@ fun TranslatorApp(
                 imageWordSelection = imageWordSelection,
                 detectedRegions = detectedRegions,
                 ocrReadingOrder = ocrReadingOrder,
-                isTranslating = viewModel.translationCoordinator.isTranslating,
-                isOcrInProgress = viewModel.translationCoordinator.isOcrInProgress,
+                isImageProcessing = isImageProcessing,
                 dictionaryWord = dictionaryWord,
                 dictionaryStack = dictionaryStack,
                 dictionaryLookupLanguage = dictionaryLookupLanguage,
@@ -789,50 +781,50 @@ fun TranslatorApp(
                 onTtsPlaybackSpeedChange = { newSpeed ->
                   val voiceName = selectedTtsVoiceName
                   val quantizedSpeed = quantizePlaybackSpeed(newSpeed)
-                  viewModel.settingsManager.updateSettings(
+                  viewModel.settingsManager.update { current ->
                     if (voiceName != null) {
-                      settings.copy(
+                      current.copy(
                         ttsPlaybackSpeedOverrides =
-                          settings.ttsPlaybackSpeedOverrides +
+                          current.ttsPlaybackSpeedOverrides +
                             (ttsPlaybackSpeedOverrideKey(currentTo, voiceName) to quantizedSpeed),
                       )
                     } else {
-                      settings.copy(ttsPlaybackSpeed = quantizedSpeed)
-                    },
-                  )
+                      current.copy(ttsPlaybackSpeed = quantizedSpeed)
+                    }
+                  }
                 },
                 onSourceTtsPlaybackSpeedChange = { newSpeed ->
                   val voiceName = selectedSourceTtsVoiceName
                   val quantizedSpeed = quantizePlaybackSpeed(newSpeed)
-                  viewModel.settingsManager.updateSettings(
+                  viewModel.settingsManager.update { current ->
                     if (voiceName != null) {
-                      settings.copy(
+                      current.copy(
                         ttsPlaybackSpeedOverrides =
-                          settings.ttsPlaybackSpeedOverrides +
+                          current.ttsPlaybackSpeedOverrides +
                             (ttsPlaybackSpeedOverrideKey(currentFrom, voiceName) to quantizedSpeed),
                       )
                     } else {
-                      settings.copy(ttsPlaybackSpeed = quantizedSpeed)
-                    },
-                  )
+                      current.copy(ttsPlaybackSpeed = quantizedSpeed)
+                    }
+                  }
                 },
                 onSourceTtsVoiceSelected = { packId, voiceName ->
-                  viewModel.settingsManager.updateSettings(
-                    settings.copy(
+                  viewModel.settingsManager.update { current ->
+                    current.copy(
                       ttsVoiceOverrides =
-                        settings.ttsVoiceOverrides +
+                        current.ttsVoiceOverrides +
                           (currentFrom.code to encodeVoiceOverride(packId, voiceName)),
-                    ),
-                  )
+                    )
+                  }
                 },
                 onTtsVoiceSelected = { packId, voiceName ->
-                  viewModel.settingsManager.updateSettings(
-                    settings.copy(
+                  viewModel.settingsManager.update { current ->
+                    current.copy(
                       ttsVoiceOverrides =
-                        settings.ttsVoiceOverrides +
+                        current.ttsVoiceOverrides +
                           (currentTo.code to encodeVoiceOverride(packId, voiceName)),
-                    ),
-                  )
+                    )
+                  }
                 },
                 onSpeakInput = { text, language ->
                   activeSpeechTarget = SpeechTarget.INPUT
@@ -884,14 +876,10 @@ fun TranslatorApp(
               onDownloadAdblockSupport = { downloadManager.enqueue(DownloadRequest.Support(SupportKind.ADBLOCK)) },
               onCancelAdblockDownload = { downloadManager.cancel(DownloadId.Support(SupportKind.ADBLOCK)) },
               adblockInstalled = adblockReady || catalog.supportInstalledByKind("adblock"),
-              onSettingsChange = { newSettings ->
-                viewModel.settingsManager.updateSettings(newSettings)
-                if (newSettings.defaultTargetLanguageCode != settings.defaultTargetLanguageCode) {
-                  val targetLang = catalog.languageByCode(newSettings.defaultTargetLanguageCode)
-                  if (targetLang != null) {
-                    viewModel.handleMessage(dev.davidv.translator.TranslatorMessage.ToLang(targetLang))
-                  }
-                }
+              onSettingsChange = viewModel.settingsManager::update,
+              onDefaultTargetLanguageSelected = { language ->
+                viewModel.settingsManager.update { it.copy(defaultTargetLanguageCode = language.code) }
+                viewModel.handleMessage(dev.davidv.translator.TranslatorMessage.ToLang(language))
               },
               onManageLanguages = {
                 navController.navigate("language_manager")

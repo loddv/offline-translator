@@ -84,7 +84,6 @@ import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
 import dev.davidv.translator.Script
-import dev.davidv.translator.TapToTranslateNotification
 import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.labelRes
 import dev.davidv.translator.languageNameComparator
@@ -153,7 +152,7 @@ private fun LanguageDropdown(
 @Composable
 private fun HttpServerCard(
   settings: AppSettings,
-  onSettingsChange: (AppSettings) -> Unit,
+  onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
 ) {
   AppCard(
     modifier = Modifier.fillMaxWidth().testTag("export-section:HttpServer"),
@@ -175,7 +174,7 @@ private fun HttpServerCard(
       LaunchedEffect(portText) {
         delay(500)
         portText.toIntOrNull()?.takeIf { it in 1..65535 }?.let { port ->
-          if (port != settings.httpServerPort) onSettingsChange(settings.copy(httpServerPort = port))
+          if (port != settings.httpServerPort) onSettingsChange { it.copy(httpServerPort = port) }
         }
       }
 
@@ -222,7 +221,7 @@ private fun HttpServerCard(
             DropdownMenuItem(
               text = { Text(stringResource(mode.labelRes)) },
               onClick = {
-                onSettingsChange(settings.copy(httpServerBindMode = mode))
+                onSettingsChange { it.copy(httpServerBindMode = mode) }
                 bindExpanded = false
               },
             )
@@ -242,7 +241,8 @@ fun SettingsScreen(
   catalog: LanguageCatalog?,
   adblockDownload: DownloadStatus?,
   adblockInstalled: Boolean,
-  onSettingsChange: (AppSettings) -> Unit,
+  onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
+  onDefaultTargetLanguageSelected: (Language) -> Unit,
   onManageLanguages: () -> Unit,
   onDownloadAdblockSupport: () -> Unit,
   onCancelAdblockDownload: () -> Unit,
@@ -258,9 +258,9 @@ fun SettingsScreen(
     ) { permissions ->
       val allGranted = permissions.values.all { it }
       if (allGranted) {
-        onSettingsChange(settings.copy(useExternalStorage = true))
+        onSettingsChange { it.copy(useExternalStorage = true) }
       } else {
-        onSettingsChange(settings.copy(useExternalStorage = false))
+        onSettingsChange { it.copy(useExternalStorage = false) }
       }
     }
 
@@ -269,7 +269,7 @@ fun SettingsScreen(
       contract = ActivityResultContracts.StartActivityForResult(),
     ) { _ ->
       val gotPerms = PermissionHelper.hasExternalStoragePermission(context)
-      onSettingsChange(settings.copy(useExternalStorage = gotPerms))
+      onSettingsChange { it.copy(useExternalStorage = gotPerms) }
     }
 
   val assistantRoleLauncher =
@@ -282,8 +282,7 @@ fun SettingsScreen(
       contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
       if (granted) {
-        onSettingsChange(settings.copy(tapToTranslateEnabled = true))
-        TapToTranslateNotification.show(context)
+        onSettingsChange { it.copy(tapToTranslateEnabled = true) }
       }
     }
   Scaffold(
@@ -359,7 +358,7 @@ fun SettingsScreen(
             availableLanguages = availableLanguages,
             fallbackLanguage = availableLanguages.firstOrNull { it.code != settings.defaultTargetLanguageCode },
             onLanguageSelected = { language ->
-              onSettingsChange(settings.copy(defaultSourceLanguageCode = language.code))
+              onSettingsChange { it.copy(defaultSourceLanguageCode = language.code) }
             },
           )
 
@@ -369,7 +368,7 @@ fun SettingsScreen(
             availableLanguages = availableLanguages,
             fallbackLanguage = null,
             onLanguageSelected = { language ->
-              onSettingsChange(settings.copy(defaultTargetLanguageCode = language.code))
+              onDefaultTargetLanguageSelected(language)
             },
           )
 
@@ -384,7 +383,7 @@ fun SettingsScreen(
           Slider(
             value = settings.fontFactor,
             onValueChange = { value ->
-              onSettingsChange(settings.copy(fontFactor = value))
+              onSettingsChange { it.copy(fontFactor = value) }
               showExampleText = true
             },
             valueRange = 1.0f..3.0f,
@@ -443,12 +442,10 @@ fun SettingsScreen(
                   ) {
                     notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                   } else {
-                    onSettingsChange(settings.copy(tapToTranslateEnabled = true))
-                    TapToTranslateNotification.show(context)
+                    onSettingsChange { it.copy(tapToTranslateEnabled = true) }
                   }
                 } else {
-                  onSettingsChange(settings.copy(tapToTranslateEnabled = false))
-                  TapToTranslateNotification.hide(context)
+                  onSettingsChange { it.copy(tapToTranslateEnabled = false) }
                 }
               },
             )
@@ -500,7 +497,7 @@ fun SettingsScreen(
             Switch(
               checked = settings.clearWebTranslatorDataOnClose,
               onCheckedChange = { enabled ->
-                onSettingsChange(settings.copy(clearWebTranslatorDataOnClose = enabled))
+                onSettingsChange { it.copy(clearWebTranslatorDataOnClose = enabled) }
               },
             )
           }
@@ -535,7 +532,7 @@ fun SettingsScreen(
             Switch(
               checked = settings.ttsReadUrlsAndHashtags,
               onCheckedChange = { enabled ->
-                onSettingsChange(settings.copy(ttsReadUrlsAndHashtags = enabled))
+                onSettingsChange { it.copy(ttsReadUrlsAndHashtags = enabled) }
               },
             )
           }
@@ -577,7 +574,7 @@ fun SettingsScreen(
             Switch(
               checked = settings.onlyShowOutputOnReadonlyModal,
               onCheckedChange = { checked ->
-                onSettingsChange(settings.copy(onlyShowOutputOnReadonlyModal = checked))
+                onSettingsChange { it.copy(onlyShowOutputOnReadonlyModal = checked) }
               },
             )
           }
@@ -617,7 +614,7 @@ fun SettingsScreen(
                 DropdownMenuItem(
                   text = { Text(stringResource(alignment.labelRes)) },
                   onClick = {
-                    onSettingsChange(settings.copy(readonlyModalOutputAlignment = alignment))
+                    onSettingsChange { it.copy(readonlyModalOutputAlignment = alignment) }
                     readonlyModalAlignmentExpanded = false
                   },
                 )
@@ -634,9 +631,9 @@ fun SettingsScreen(
           Slider(
             value = settings.readonlyModalCompactHeightFactor,
             onValueChange = { value ->
-              onSettingsChange(
-                settings.copy(readonlyModalCompactHeightFactor = (value * 20f).roundToInt() / 20f),
-              )
+              onSettingsChange {
+                it.copy(readonlyModalCompactHeightFactor = (value * 20f).roundToInt() / 20f)
+              }
             },
             valueRange = 0.2f..0.8f,
             steps = 11,
@@ -761,7 +758,7 @@ fun SettingsScreen(
                 DropdownMenuItem(
                   text = { Text(stringResource(action.labelRes)) },
                   onClick = {
-                    onSettingsChange(settings.copy(assistantAction = action))
+                    onSettingsChange { it.copy(assistantAction = action) }
                     assistantActionExpanded = false
                   },
                 )
@@ -818,7 +815,7 @@ fun SettingsScreen(
                 DropdownMenuItem(
                   text = { Text(stringResource(mode.labelRes)) },
                   onClick = {
-                    onSettingsChange(settings.copy(backgroundMode = mode))
+                    onSettingsChange { it.copy(backgroundMode = mode) }
                     backgroundModeExpanded = false
                   },
                 )
@@ -836,7 +833,7 @@ fun SettingsScreen(
           Slider(
             value = settings.minConfidence.toFloat(),
             onValueChange = { value ->
-              onSettingsChange(settings.copy(minConfidence = value.toInt()))
+              onSettingsChange { it.copy(minConfidence = value.toInt()) }
             },
             valueRange = 70f..100f,
             steps = 5,
@@ -853,7 +850,7 @@ fun SettingsScreen(
           Slider(
             value = settings.maxImageSize.toFloat(),
             onValueChange = { value ->
-              onSettingsChange(settings.copy(maxImageSize = value.toInt()))
+              onSettingsChange { it.copy(maxImageSize = value.toInt()) }
             },
             valueRange = 1300f..2000f,
             steps = 6,
@@ -907,8 +904,8 @@ fun SettingsScreen(
 
             OutlinedTextField(
               value = settings.catalogIndexUrl,
-              onValueChange = {
-                onSettingsChange(settings.copy(catalogIndexUrl = it))
+              onValueChange = { url ->
+                onSettingsChange { it.copy(catalogIndexUrl = url) }
               },
               modifier = Modifier.fillMaxWidth(),
               singleLine = true,
@@ -932,7 +929,7 @@ fun SettingsScreen(
                 onCheckedChange = { checked ->
                   if (checked) {
                     if (PermissionHelper.hasExternalStoragePermission(context)) {
-                      onSettingsChange(settings.copy(useExternalStorage = true))
+                      onSettingsChange { it.copy(useExternalStorage = true) }
                     } else if (PermissionHelper.needsSpecialPermissionIntent()) {
                       // Android 11+ - Show dialog first, then launch Settings
                       showPermissionDialog = true
@@ -942,11 +939,11 @@ fun SettingsScreen(
                       if (permissions.isNotEmpty()) {
                         permissionLauncher.launch(permissions)
                       } else {
-                        onSettingsChange(settings.copy(useExternalStorage = true))
+                        onSettingsChange { it.copy(useExternalStorage = true) }
                       }
                     }
                   } else {
-                    onSettingsChange(settings.copy(useExternalStorage = false))
+                    onSettingsChange { it.copy(useExternalStorage = false) }
                   }
                 },
               )
@@ -968,7 +965,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.disableCLD,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(disableCLD = checked))
+                  onSettingsChange { it.copy(disableCLD = checked) }
                 },
               )
             }
@@ -989,7 +986,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.experimentalScreenTranslate,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(experimentalScreenTranslate = checked))
+                  onSettingsChange { it.copy(experimentalScreenTranslate = checked) }
                 },
               )
             }
@@ -1010,7 +1007,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.multiTargetEnabled,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(multiTargetEnabled = checked))
+                  onSettingsChange { it.copy(multiTargetEnabled = checked) }
                 },
               )
             }
@@ -1031,7 +1028,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.enableOutputTransliteration,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(enableOutputTransliteration = checked))
+                  onSettingsChange { it.copy(enableOutputTransliteration = checked) }
                 },
               )
             }
@@ -1052,7 +1049,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.showTransliterationOnInput,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(showTransliterationOnInput = checked))
+                  onSettingsChange { it.copy(showTransliterationOnInput = checked) }
                 },
               )
             }
@@ -1073,7 +1070,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.addSpacesForJapaneseTransliteration,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(addSpacesForJapaneseTransliteration = checked))
+                  onSettingsChange { it.copy(addSpacesForJapaneseTransliteration = checked) }
                 },
               )
             }
@@ -1093,7 +1090,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.translatePdfImages,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(translatePdfImages = checked))
+                  onSettingsChange { it.copy(translatePdfImages = checked) }
                 },
               )
             }
@@ -1112,7 +1109,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.liveCameraOverlayEnabled,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(liveCameraOverlayEnabled = checked))
+                  onSettingsChange { it.copy(liveCameraOverlayEnabled = checked) }
                 },
               )
             }
@@ -1137,7 +1134,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.registerAsBrowser,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(registerAsBrowser = checked))
+                  onSettingsChange { it.copy(registerAsBrowser = checked) }
                 },
               )
             }
@@ -1162,7 +1159,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.httpServerEnabled,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(httpServerEnabled = checked))
+                  onSettingsChange { it.copy(httpServerEnabled = checked) }
                 },
               )
             }
@@ -1482,6 +1479,7 @@ fun SettingsScreenPreview() {
       adblockDownload = null,
       adblockInstalled = false,
       onSettingsChange = {},
+      onDefaultTargetLanguageSelected = {},
       onManageLanguages = {},
       onDownloadAdblockSupport = {},
       onCancelAdblockDownload = {},
@@ -1513,6 +1511,7 @@ fun SettingsScreenDarkPreview() {
       adblockDownload = null,
       adblockInstalled = true,
       onSettingsChange = {},
+      onDefaultTargetLanguageSelected = {},
       onManageLanguages = {},
       onDownloadAdblockSupport = {},
       onCancelAdblockDownload = {},

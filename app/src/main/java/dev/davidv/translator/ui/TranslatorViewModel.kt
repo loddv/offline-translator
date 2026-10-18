@@ -36,6 +36,7 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
+import dev.davidv.translator.OverlaySource
 import dev.davidv.translator.PcmAudio
 import dev.davidv.translator.PdfPhaseProgress
 import dev.davidv.translator.PreparedImageOverlay
@@ -84,7 +85,7 @@ import java.io.File
 
 class TranslatorViewModel(
   private val appContext: Context,
-  val translationCoordinator: TranslationCoordinator,
+  private val translationCoordinator: TranslationCoordinator,
   val settingsManager: SettingsManager,
   val filePathManager: FilePathManager,
   catalogRepository: CatalogRepository,
@@ -142,6 +143,16 @@ class TranslatorViewModel(
   )
 
   private var ocrCache: OcrCacheEntry? = null
+
+  private var translationJob: Job? = null
+
+  // A cancelled image run's cleanup can land after its replacement has started, so each run
+  // clears only its own token instead of a shared boolean.
+  private class ImageRun
+
+  private val activeImageRun = MutableStateFlow<ImageRun?>(null)
+  val isImageProcessing: StateFlow<Boolean> =
+    activeImageRun.map { it != null }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
   private val _ocrReadingOrder = MutableStateFlow<ReadingOrder?>(null)
   val ocrReadingOrder: StateFlow<ReadingOrder?> = _ocrReadingOrder.asStateFlow()
@@ -286,12 +297,12 @@ class TranslatorViewModel(
         val targetLang = catalog.languageByCode(curSettings.defaultTargetLanguageCode)
         if (targetLang != null && languageState.availabilityFor(targetLang)?.translatorFiles != true) {
           _targets.value = TargetTabs.of(catalog.english)
-          settingsManager.updateSettings(curSettings.copy(defaultTargetLanguageCode = "en"))
+          settingsManager.update { it.copy(defaultTargetLanguageCode = "en") }
         }
         val sourceLang = curSettings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) }
         if (sourceLang != null && languageState.availabilityFor(sourceLang)?.translatorFiles != true) {
           _from.value = catalog.english
-          settingsManager.updateSettings(curSettings.copy(defaultSourceLanguageCode = "en"))
+          settingsManager.update { it.copy(defaultSourceLanguageCode = "en") }
         }
       }
     }
@@ -328,11 +339,14 @@ class TranslatorViewModel(
     }
 
     // Auto-translate initial text
+    // Owned by translationJob so text typed before it finishes cancels it instead of being
+    // overwritten by the initial text's late result.
     if (initialText.isNotBlank()) {
-      viewModelScope.launch {
-        val languageState = languageStateManager.languageState.first { it.hasLanguages }
-        autoTranslateInitialText(initialText, languageState)
-      }
+      translationJob =
+        viewModelScope.launch {
+          val languageState = languageStateManager.languageState.first { it.hasLanguages }
+          autoTranslateInitialText(initialText, languageState)
+        }
     }
 
     // Run pending image OCR once both languages become available
@@ -342,7 +356,7 @@ class TranslatorViewModel(
         if (_inputType.value != InputType.IMAGE) return@collect
         if (originalImage.value == null) return@collect
         if (_output.value != null) return@collect
-        if (translationCoordinator.isTranslating.value) return@collect
+        if (translationJob?.isActive == true) return@collect
         triggerTranslation()
       }
     }
@@ -627,8 +641,6 @@ class TranslatorViewModel(
     _inputType.value = InputType.TEXT
   }
 
-  private var translationJob: Job? = null
-
   private fun triggerTranslation() {
     if (activeTo == null) return
 
@@ -696,28 +708,21 @@ class TranslatorViewModel(
     }
   }
 
-  fun retranslateIfNeeded() {
-    if (_inputType.value != InputType.TEXT) return
-    val fromLang = _from.value ?: return
-    val toLang = activeTo ?: return
-    if (translationCoordinator.isTranslating.value) return
-    val current = _input.value.trim()
-    if (translationCoordinator.lastTranslatedInput == current) return
-
-    viewModelScope.launch {
-      translationCoordinator.translateText(fromLang, toLang, current).let {
-        _output.value =
-          when (it) {
-            is TranslationResult.Success -> it.result
-            is TranslationResult.Error -> null
-          }
-      }
+  private suspend fun runImageTranslation(
+    bitmap: Bitmap,
+    fromLang: Language,
+    toLang: Language,
+  ) {
+    val run = ImageRun()
+    activeImageRun.value = run
+    try {
+      translateImage(bitmap, fromLang, toLang)
+    } finally {
+      activeImageRun.compareAndSet(run, null)
     }
   }
 
-  private fun isAutoSourceActive() = _isAutoSource.value && !settingsManager.settings.value.disableCLD
-
-  private suspend fun runImageTranslation(
+  private suspend fun translateImage(
     bitmap: Bitmap,
     fromLang: Language,
     toLang: Language,
@@ -746,13 +751,17 @@ class TranslatorViewModel(
           ocrImage = cached.ocrImage,
         )
       } else {
+        val source =
+          if (_isAutoSource.value && !settingsManager.settings.value.disableCLD) {
+            OverlaySource.Auto
+          } else {
+            OverlaySource.Fixed(fromLang, readingOrder)
+          }
         translationCoordinator.translateImageWithOverlay(
-          fromLang,
+          source,
           toLang,
           bitmap,
           onMessage = onMessage,
-          readingOrder = readingOrder,
-          isAutoSource = isAutoSourceActive(),
           onMissingDetectedLanguage = { detected ->
             _currentDetectedLanguage.value = LanguageDetection(detected, 0)
           },

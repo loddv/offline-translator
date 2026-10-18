@@ -110,13 +110,11 @@ class LanguageStateManager(
   fun deleteLanguage(language: Language) {
     catalogRepository.applyDeletePlan(catalog.value.prepareDelete(language.code, Feature.CORE))
     scope.launch { _fileEvents.emit(FileEvent.LanguageDeleted(language)) }
-    TranslatorTtsEngine.notifyVoiceDataChanged(catalogRepository.context)
     Log.i("LanguageStateManager", "Removed language: ${language.displayName}")
   }
 
   fun deleteTts(language: Language) {
     catalogRepository.applyDeletePlan(catalog.value.prepareDelete(language.code, Feature.TTS))
-    TranslatorTtsEngine.notifyVoiceDataChanged(catalogRepository.context)
     Log.i("LanguageStateManager", "Removed TTS for language: ${language.displayName}")
   }
 
@@ -125,7 +123,6 @@ class LanguageStateManager(
     packId: String,
   ) {
     catalogRepository.applyDeletePlan(catalog.value.prepareDeleteTtsPack(packId))
-    TranslatorTtsEngine.notifyVoiceDataChanged(catalogRepository.context)
     Log.i("LanguageStateManager", "Removed TTS pack $packId for language: ${language.displayName}")
   }
 

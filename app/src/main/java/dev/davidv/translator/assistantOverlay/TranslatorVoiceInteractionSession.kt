@@ -390,13 +390,10 @@ class TranslatorVoiceInteractionSession(
         val result =
           withContext(Dispatchers.IO) {
             translationCoordinator.translateImageWithOverlay(
-              // Auto ignores `from`, but the coordinator still takes a concrete language.
-              requested.sourceLanguage ?: requested.target,
+              requested.source,
               requested.target,
               workingBitmap,
               onMessage = {},
-              readingOrder = requested.readingOrder,
-              isAutoSource = requested.isAutoSource,
               onOcrUnavailable = { ocrUnavailable = true },
               onDetectedRegions = { boxes, w, h ->
                 surfaceState.regions.value = DetectedRegions(w, h, boxes)

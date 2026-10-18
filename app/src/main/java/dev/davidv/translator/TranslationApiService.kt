@@ -97,12 +97,11 @@ class TranslationApiService : Service() {
     }
     if (intent?.action == ACTION_DISABLE) {
       // The notification's "Disable" flips the setting off (keeping the settings
-      // switch and the service in sync), which cascades into stop() via
-      // applyHttpServerState; only stop directly if it was already off.
+      // switch and the service in sync), which cascades into stop() via the
+      // app's settings effects; only stop directly if it was already off.
       val settingsManager = (application as TranslatorApplication).settingsManager
-      val settings = settingsManager.settings.value
-      if (settings.httpServerEnabled) {
-        settingsManager.updateSettings(settings.copy(httpServerEnabled = false))
+      if (settingsManager.settings.value.httpServerEnabled) {
+        settingsManager.update { it.copy(httpServerEnabled = false) }
       } else {
         shutdown()
       }

@@ -26,8 +26,7 @@ class AidlTranslationService : Service() {
     app.ensureServicesInitialized()
     settingsManager = app.settingsManager
     catalogRepository = app.catalogRepository
-    translationCoordinator =
-      TranslationCoordinator(app.translationService, app.speechService, app.languageDetector, app.imageProcessor, settingsManager)
+    translationCoordinator = app.translationCoordinator
     Log.d(tag, "onCreate")
   }
 

@@ -124,7 +124,6 @@ class DownloadManager(
     // Applying the plan's deletes also republishes the catalog, so plans without any still refresh it.
     catalogRepository.applyDeletePlan(plan.deleteAfter)
     when (request) {
-      is DownloadRequest.Tts -> TranslatorTtsEngine.notifyVoiceDataChanged(context)
       is DownloadRequest.Support ->
         when (request.kind) {
           SupportKind.ADBLOCK -> adblockManager.reload()

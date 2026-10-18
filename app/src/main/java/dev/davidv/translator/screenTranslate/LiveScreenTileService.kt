@@ -23,7 +23,7 @@ import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import dev.davidv.translator.R
-import dev.davidv.translator.SettingsManager
+import dev.davidv.translator.TranslatorApplication
 
 /**
  *  Quick Settings tile that starts live screen translation with the user's
@@ -36,7 +36,9 @@ import dev.davidv.translator.SettingsManager
 class LiveScreenTileService : TileService() {
   override fun onClick() {
     super.onClick()
-    val settings = SettingsManager(this).settings.value
+    val app = application as TranslatorApplication
+    app.ensureServicesInitialized()
+    val settings = app.settingsManager.settings.value
     val sourceCode = settings.defaultSourceLanguageCode
     if (sourceCode == null) {
       Toast.makeText(this, getString(R.string.screen_translate_needs_source), Toast.LENGTH_LONG).show()

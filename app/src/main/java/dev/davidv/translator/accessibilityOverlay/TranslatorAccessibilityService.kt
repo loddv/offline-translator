@@ -106,8 +106,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
     settingsManager = app.settingsManager
     catalogRepository = app.catalogRepository
     languageMetadataManager = app.languageMetadataManager
-    translationCoordinator =
-      TranslationCoordinator(app.translationService, app.speechService, app.languageDetector, app.imageProcessor, settingsManager)
+    translationCoordinator = app.translationCoordinator
     selection = OverlayLanguageSelection.defaults(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
 
     ui = OverlayUI(this, windowManager)
@@ -355,13 +354,10 @@ class TranslatorAccessibilityService : AccessibilityService() {
     val result =
       withContext(Dispatchers.IO) {
         translationCoordinator.translateImageWithOverlay(
-          // Auto ignores `from`, but the coordinator still takes a concrete language.
-          requested.sourceLanguage ?: requested.target,
+          requested.source,
           requested.target,
           bitmap,
           onMessage = {},
-          readingOrder = requested.readingOrder,
-          isAutoSource = requested.isAutoSource,
           onOcrUnavailable = { ocrUnavailable = true },
           onDetectedRegions = { boxes, w, h ->
             surfaceState.regions.value = DetectedRegions(w, h, boxes)

@@ -280,7 +280,7 @@ class DocumentTranslationService : Service() {
     // Push the cancel into the engine so slimt's workers abort the in-flight
     // single-batch translation within ~one batch (the `isCancelled` flag is
     // only polled at coarse pre-phase checkpoints now).
-    (application as TranslatorApplication).translationCoordinator.cancelOngoingWork()
+    (application as TranslatorApplication).translationCoordinator.cancelDocumentTranslation()
     _documentTranslationState.value = null
     removeForegroundNotification()
   }

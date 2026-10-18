@@ -43,7 +43,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -109,10 +108,7 @@ import dev.davidv.translator.ui.components.rememberImageSourceActions
 import dev.davidv.translator.ui.components.wordAt
 import dev.davidv.translator.ui.components.wordRangeAt
 import dev.davidv.translator.ui.theme.TranslatorTheme
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.roundToInt
 
 @Composable
@@ -133,8 +129,7 @@ fun MainScreen(
   imageWordSelection: ImageWordSelection?,
   detectedRegions: DetectedRegions?,
   ocrReadingOrder: ReadingOrder?,
-  isTranslating: StateFlow<Boolean>,
-  isOcrInProgress: StateFlow<Boolean>,
+  isImageProcessing: Boolean,
   dictionaryWord: WordWithTaggedEntries?,
   dictionaryStack: List<WordWithTaggedEntries>,
   dictionaryLookupLanguage: Language?,
@@ -198,7 +193,6 @@ fun MainScreen(
   }
   // Flip the main image between the translation and the original (resets on a new image).
   var showOriginal by remember(displayImage) { mutableStateOf(false) }
-  val isImageProcessing = isOcrInProgress.collectAsState().value || isTranslating.collectAsState().value
   val inputFocusController = remember { StyledTextFieldFocusController() }
   val sourceActions =
     rememberImageSourceActions(
@@ -703,8 +697,7 @@ fun PopupMode() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.ReadWriteModal {},
       onMessage = {},
       languageState =
@@ -746,8 +739,7 @@ fun MainScreenPreview() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -793,8 +785,7 @@ fun PreviewTranslitText() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -841,8 +832,7 @@ fun PreviewVeryLongText() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -893,8 +883,7 @@ fun PreviewVeryLongTextImage() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =

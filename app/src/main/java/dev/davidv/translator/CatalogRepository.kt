@@ -37,7 +37,7 @@ private class CatalogIndex(
 // The one session per process. Every install-state change goes through here so the published
 // catalog always follows it; the session's warm engines live as long as the process does.
 class CatalogRepository private constructor(
-  val context: Context,
+  private val context: Context,
   private val filePathManager: FilePathManager,
   private val handle: CatalogHandle,
 ) {

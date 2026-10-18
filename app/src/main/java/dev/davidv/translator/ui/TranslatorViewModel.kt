@@ -28,7 +28,6 @@ import androidx.lifecycle.viewModelScope
 import dev.davidv.translator.CatalogRepository
 import dev.davidv.translator.DocumentTranslationService
 import dev.davidv.translator.DocumentTranslationServiceState
-import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FileEvent
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.FromLangChange
@@ -371,10 +370,6 @@ class TranslatorViewModel(
         }
       }
     }
-  }
-
-  fun connectDownloadService(service: DownloadService) {
-    languageStateManager.connectToDownloadErrors(service.downloadErrors)
   }
 
   fun handleMessage(message: TranslatorMessage) {

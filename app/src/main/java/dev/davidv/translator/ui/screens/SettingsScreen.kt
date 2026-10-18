@@ -75,8 +75,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.HttpServerBindMode
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageCatalog
@@ -86,6 +85,7 @@ import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
 import dev.davidv.translator.Script
 import dev.davidv.translator.TapToTranslateNotification
+import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.labelRes
 import dev.davidv.translator.languageNameComparator
 import dev.davidv.translator.localizedName
@@ -240,10 +240,12 @@ fun SettingsScreen(
   languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   availableLanguages: List<Language>,
   catalog: LanguageCatalog?,
-  adblockDownloadState: DownloadState,
+  adblockDownload: DownloadStatus?,
   adblockInstalled: Boolean,
   onSettingsChange: (AppSettings) -> Unit,
   onManageLanguages: () -> Unit,
+  onDownloadAdblockSupport: () -> Unit,
+  onCancelAdblockDownload: () -> Unit,
   onDeleteAdblockSupport: () -> Unit,
   onHowToUse: () -> Unit,
 ) {
@@ -472,10 +474,10 @@ fun SettingsScreen(
             label = stringResource(R.string.settings_adblock_support),
             secondaryLabel = catalog?.supportSizeBytesByKind("adblock")?.let(::formatSize),
             installed = adblockInstalled,
-            downloadState = adblockDownloadState,
-            onDownload = { DownloadService.startAdblockDownload(context) },
+            downloadStatus = adblockDownload,
+            onDownload = onDownloadAdblockSupport,
             onDelete = onDeleteAdblockSupport,
-            onCancel = { DownloadService.cancelAdblockDownload(context) },
+            onCancel = onCancelAdblockDownload,
           )
 
           Row(
@@ -1305,7 +1307,7 @@ private fun WebTranslatorAssetRow(
   label: String,
   secondaryLabel: String?,
   installed: Boolean,
-  downloadState: DownloadState,
+  downloadStatus: DownloadStatus?,
   onDownload: () -> Unit,
   onDelete: () -> Unit,
   onCancel: () -> Unit,
@@ -1334,7 +1336,7 @@ private fun WebTranslatorAssetRow(
     }
 
     SupportActionButton(
-      downloadState = downloadState,
+      downloadStatus = downloadStatus,
       installed = installed,
       onDownload = onDownload,
       onDelete = onDelete,
@@ -1345,25 +1347,20 @@ private fun WebTranslatorAssetRow(
 
 @Composable
 private fun SupportActionButton(
-  downloadState: DownloadState,
+  downloadStatus: DownloadStatus?,
   installed: Boolean,
   onDownload: () -> Unit,
   onDelete: () -> Unit,
   onCancel: () -> Unit,
 ) {
-  if (downloadState.isDownloading) {
+  val inFlightProgress = downloadStatus.inFlightProgress
+  if (inFlightProgress != null) {
     Box(
       contentAlignment = Alignment.Center,
       modifier = Modifier.size(40.dp),
     ) {
-      val targetProgress =
-        if (downloadState.totalSize > 0) {
-          downloadState.downloaded.toFloat() / downloadState.totalSize.toFloat()
-        } else {
-          0f
-        }
       val animatedProgress by animateFloatAsState(
-        targetValue = targetProgress,
+        targetValue = inFlightProgress,
         animationSpec = tween(durationMillis = 300),
         label = "adblock-progress",
       )
@@ -1394,14 +1391,14 @@ private fun SupportActionButton(
           id =
             when {
               installed -> R.drawable.delete
-              downloadState.isCancelled || downloadState.error != null -> R.drawable.refresh
+              downloadStatus is DownloadStatus.Failed -> R.drawable.refresh
               else -> R.drawable.add
             },
         ),
       contentDescription =
         when {
           installed -> stringResource(R.string.a11y_delete)
-          downloadState.isCancelled || downloadState.error != null -> stringResource(R.string.a11y_retry_download)
+          downloadStatus is DownloadStatus.Failed -> stringResource(R.string.a11y_retry_download)
           else -> stringResource(R.string.a11y_download)
         },
     )
@@ -1482,10 +1479,12 @@ fun SettingsScreenPreview() {
       languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
       availableLanguages = previewLangs,
       catalog = null,
-      adblockDownloadState = DownloadState(),
+      adblockDownload = null,
       adblockInstalled = false,
       onSettingsChange = {},
       onManageLanguages = {},
+      onDownloadAdblockSupport = {},
+      onCancelAdblockDownload = {},
       onDeleteAdblockSupport = {},
       onHowToUse = {},
     )
@@ -1511,10 +1510,12 @@ fun SettingsScreenDarkPreview() {
       languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
       availableLanguages = previewLangs,
       catalog = null,
-      adblockDownloadState = DownloadState(),
+      adblockDownload = null,
       adblockInstalled = true,
       onSettingsChange = {},
       onManageLanguages = {},
+      onDownloadAdblockSupport = {},
+      onCancelAdblockDownload = {},
       onDeleteAdblockSupport = {},
       onHowToUse = {},
     )

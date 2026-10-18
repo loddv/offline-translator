@@ -238,6 +238,16 @@ fn map_dictionary_word(word: translator::tarkka::WordWithTaggedEntries) -> Dicti
 /// equivalent of the old Kotlin `minTextSize`, typically 8.0).
 #[cfg(feature = "image-render")]
 #[uniffi::export]
+fn plan_zip_extraction(
+    extract_to: String,
+    marker: Option<translator::InstallMarker>,
+    entry_names: Vec<String>,
+) -> Result<translator::ZipExtractionPlan, CatalogError> {
+    translator::plan_zip_extraction(&extract_to, marker.as_ref(), &entry_names)
+        .map_err(|reason| CatalogError::Other { reason })
+}
+
+#[uniffi::export]
 fn render_translated_overlay(
     prepared: translator::PreparedImageOverlay,
     language: String,
@@ -678,10 +688,6 @@ impl CatalogHandle {
             .collect()
     }
 
-    fn plan_delete_superseded_files(&self) -> translator::DeletePlan {
-        translator::plan_delete_superseded_files(&self.snapshot())
-    }
-
     fn plan_repair(&self) -> translator::DownloadPlan {
         translator::plan_repair(&self.snapshot())
     }
@@ -930,6 +936,10 @@ impl CatalogHandle {
     ) -> Option<translator::DownloadPlan> {
         self.session
             .plan_download(&language_code, feature, selected_tts_pack_id.as_deref())
+    }
+
+    fn download_task_installed(&self, task: translator::DownloadTask) -> bool {
+        self.session.download_task_installed(&task)
     }
 
     fn plan_support_download_by_kind(

@@ -37,35 +37,33 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.Language
 import dev.davidv.translator.R
 import dev.davidv.translator.Script
+import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.singleScript
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
 fun LanguageDownloadButton(
   language: Language,
-  downloadState: DownloadState?,
+  downloadStatus: DownloadStatus?,
   isLanguageAvailable: Boolean,
   onEvent: (LanguageEvent) -> Unit,
   modifier: Modifier = Modifier,
   enabled: Boolean,
 ) {
-  val isDownloading = downloadState?.isDownloading == true
+  val inFlightProgress = downloadStatus.inFlightProgress
 
-  if (isDownloading) {
+  if (inFlightProgress != null) {
     // Progress indicator with cancel button
     Box(
       contentAlignment = Alignment.Center,
       modifier = modifier.size(48.dp),
     ) {
-      val targetProgress =
-        downloadState!!.downloaded.toFloat() / downloadState.totalSize.toFloat()
-
       val animatedProgress by animateFloatAsState(
-        targetValue = targetProgress,
+        targetValue = inFlightProgress,
         animationSpec = tween(durationMillis = 300),
         label = "progress",
       )
@@ -111,7 +109,7 @@ fun LanguageDownloadButton(
       modifier = modifier,
     ) {
       when {
-        downloadState?.isCancelled == true || downloadState?.error != null -> {
+        downloadStatus is DownloadStatus.Failed -> {
           Icon(
             painterResource(id = R.drawable.refresh),
             contentDescription = stringResource(R.string.a11y_retry_download),
@@ -176,7 +174,7 @@ fun LanguageDownloadButtonPreview() {
       ) {
         LanguageDownloadButton(
           language = french,
-          downloadState = null,
+          downloadStatus = null,
           isLanguageAvailable = false,
           onEvent = {},
           enabled = true,
@@ -184,7 +182,7 @@ fun LanguageDownloadButtonPreview() {
 
         LanguageDownloadButton(
           language = french,
-          downloadState = DownloadState(isDownloading = true, totalSize = 100, downloaded = 50),
+          downloadStatus = DownloadStatus.Running(done = 50, total = 100),
           isLanguageAvailable = false,
           onEvent = {},
           enabled = true,
@@ -192,7 +190,7 @@ fun LanguageDownloadButtonPreview() {
 
         LanguageDownloadButton(
           language = french,
-          downloadState = null,
+          downloadStatus = null,
           isLanguageAvailable = true,
           onEvent = {},
           enabled = false,
@@ -200,7 +198,7 @@ fun LanguageDownloadButtonPreview() {
 
         LanguageDownloadButton(
           language = french,
-          downloadState = DownloadState(error = "Failed"),
+          downloadStatus = DownloadStatus.Failed("Failed"),
           isLanguageAvailable = false,
           onEvent = {},
           enabled = true,
@@ -208,7 +206,7 @@ fun LanguageDownloadButtonPreview() {
 
         LanguageDownloadButton(
           language = french,
-          downloadState = null,
+          downloadStatus = null,
           isLanguageAvailable = true,
           onEvent = {},
           enabled = true,

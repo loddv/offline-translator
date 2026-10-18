@@ -32,6 +32,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -41,6 +42,7 @@ class TranslatorApplication : Application() {
   lateinit var languageMetadataManager: LanguageMetadataManager
   lateinit var filePathManager: FilePathManager
   lateinit var catalogRepository: CatalogRepository
+  lateinit var downloadManager: DownloadManager
   lateinit var imageProcessor: ImageProcessor
   lateinit var translationService: TranslationService
   lateinit var speechService: SpeechService
@@ -121,6 +123,14 @@ class TranslatorApplication : Application() {
     translationCoordinator =
       TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     adblockManager = AdblockManager(filePathManager)
+    downloadManager = DownloadManager(this, appScope, catalogRepository, filePathManager, settingsManager, adblockManager)
+    appScope.launch {
+      downloadManager.state
+        .map { foregroundDownloads(it) != null }
+        .distinctUntilChanged()
+        .filter { it }
+        .collect { DownloadService.start(this@TranslatorApplication) }
+    }
 
     if (settingsManager.settings.value.tapToTranslateEnabled) {
       TapToTranslateNotification.show(this)

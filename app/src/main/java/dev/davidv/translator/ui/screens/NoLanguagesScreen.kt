@@ -43,12 +43,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.CatalogRepository
-import dev.davidv.translator.DownloadService
+import dev.davidv.translator.DownloadManager
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
+import dev.davidv.translator.adblock.AdblockManager
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -60,7 +61,7 @@ fun NoLanguagesScreen(
   onSettings: () -> Unit,
   languageStateManager: LanguageStateManager,
   languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
-  downloadService: DownloadService,
+  downloadManager: DownloadManager,
 ) {
   val state by languageStateManager.languageState.collectAsState()
   val context = LocalContext.current
@@ -108,13 +109,7 @@ fun NoLanguagesScreen(
         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
       )
 
-      val downloadStates by downloadService.downloadStates.collectAsState()
       val catalog by languageStateManager.catalog.collectAsState()
-      val dictionaryDownloadStates by downloadService.dictionaryDownloadStates.collectAsState()
-      val ttsDownloadStates by downloadService.ttsDownloadStates.collectAsState()
-      val activeTtsPackIds by downloadService.activeTtsPackIds.collectAsState()
-      val queuedTtsPackIds by downloadService.queuedTtsPackIds.collectAsState()
-      val repairDownloadState by downloadService.repairDownloadState.collectAsState()
 
       LanguageAssetManagerScreen(
         context = context,
@@ -123,12 +118,7 @@ fun NoLanguagesScreen(
         settingsManager = settingsManager,
         catalog = catalog,
         languageAvailabilityState = state,
-        downloadStates = downloadStates,
-        dictionaryDownloadStates = dictionaryDownloadStates,
-        ttsDownloadStates = ttsDownloadStates,
-        activeTtsPackIds = activeTtsPackIds,
-        queuedTtsPackIds = queuedTtsPackIds,
-        repairDownloadState = repairDownloadState,
+        downloadManager = downloadManager,
       )
     }
   }
@@ -140,15 +130,18 @@ fun NoLanguagesScreenPreview() {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val appSettingsFlow = MutableStateFlow(AppSettings())
-  val catalogRepository = CatalogRepository.open(context, FilePathManager(context, appSettingsFlow))
-  val downloadService = DownloadService()
+  val settingsManager = dev.davidv.translator.SettingsManager(context)
+  val filePathManager = FilePathManager(context, appSettingsFlow)
+  val catalogRepository = CatalogRepository.open(context, filePathManager)
+  val downloadManager =
+    DownloadManager(context, scope, catalogRepository, filePathManager, settingsManager, AdblockManager(filePathManager))
   val languagesFlow = kotlinx.coroutines.flow.MutableStateFlow<List<Language>>(emptyList())
   TranslatorTheme {
     NoLanguagesScreen(
-      settingsManager = dev.davidv.translator.SettingsManager(context),
+      settingsManager = settingsManager,
       onDone = {},
       onSettings = {},
-      downloadService = downloadService,
+      downloadManager = downloadManager,
       languageStateManager = LanguageStateManager(scope, catalogRepository),
       languageMetadataManager = LanguageMetadataManager(context, languagesFlow),
     )

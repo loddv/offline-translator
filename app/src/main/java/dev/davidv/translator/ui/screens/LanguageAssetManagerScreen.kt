@@ -83,8 +83,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.davidv.translator.DictionaryInfo
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadManager
+import dev.davidv.translator.DownloadRequest
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.Feature
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
@@ -96,6 +98,7 @@ import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.encodeVoiceOverride
+import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.languageNameComparator
 import dev.davidv.translator.localizedName
 import dev.davidv.translator.parseVoiceOverride
@@ -105,6 +108,24 @@ import java.io.File
 import kotlin.math.roundToInt
 
 private const val ROW_EXPAND_ANIMATION_MS = 140
+private const val PPOCR_ENGINE = "ppocr"
+
+private fun languageTtsDownloads(
+  downloads: Map<DownloadId, DownloadStatus>,
+  language: Language,
+): Map<DownloadId, DownloadStatus> = downloads.filterKeys { it is DownloadId.Tts && it.language == language }
+
+// A language's voice row stands for all of its queued packs: show the one transferring, else
+// one waiting, else a failure to retry.
+private fun languageTtsStatus(
+  downloads: Map<DownloadId, DownloadStatus>,
+  language: Language,
+): DownloadStatus? {
+  val statuses = languageTtsDownloads(downloads, language).values
+  return statuses.firstOrNull { it is DownloadStatus.Running }
+    ?: statuses.firstOrNull { it == DownloadStatus.Queued }
+    ?: statuses.firstOrNull()
+}
 
 private sealed class FavoriteEvent {
   data class Star(
@@ -153,9 +174,8 @@ private fun VoicePickerDialog(
   catalog: LanguageCatalog,
   languageStateManager: LanguageStateManager,
   settingsManager: SettingsManager,
-  ttsDownloadStates: Map<Language, DownloadState>,
-  activeTtsPackId: String?,
-  queuedTtsPackIds: List<String>,
+  downloads: Map<DownloadId, DownloadStatus>,
+  onDownloadVoice: (String) -> Unit,
   onDismiss: () -> Unit,
 ) {
   val regions = catalog.ttsVoicePickerRegions(language.code)
@@ -215,8 +235,6 @@ private fun VoicePickerDialog(
   DisposableEffect(samplePlayer) {
     onDispose { samplePlayer.release() }
   }
-
-  val ttsDownloadState = ttsDownloadStates[language]
 
   val setDefault: (String, String) -> Unit = { packId, voiceName ->
     settingsManager.updateSettings(
@@ -285,7 +303,7 @@ private fun VoicePickerDialog(
                 dimmed = false,
                 player = samplePlayer,
                 onTap = { setDefault(entry.pack.packId, entry.pack.displayName) },
-                downloadStatus = DownloadStatus.Idle,
+                downloadStatus = VoiceRowStatus.Idle,
                 onAction = {
                   if (entry.pack.displayName == effectiveDefaultVoiceName) {
                     val nextPack =
@@ -314,23 +332,11 @@ private fun VoicePickerDialog(
             }
             VoiceSectionHeader(stringResource(R.string.voice_section_available))
             orderedAvailable.forEach { entry ->
-              val isPackActive = activeTtsPackId == entry.pack.packId
-              val isPackQueued = entry.pack.packId in queuedTtsPackIds
               val downloadStatus =
-                when {
-                  isPackActive -> {
-                    val total = ttsDownloadState?.totalSize ?: 1
-                    val done = ttsDownloadState?.downloaded ?: 0
-                    val progress =
-                      if (total > 0) {
-                        (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                      } else {
-                        0f
-                      }
-                    DownloadStatus.Active(progress)
-                  }
-                  isPackQueued -> DownloadStatus.Queued
-                  else -> DownloadStatus.Idle
+                when (val status = downloads[DownloadId.Tts(language, entry.pack.packId)]) {
+                  is DownloadStatus.Running -> VoiceRowStatus.Active(status.fraction)
+                  DownloadStatus.Queued -> VoiceRowStatus.Queued
+                  is DownloadStatus.Failed, null -> VoiceRowStatus.Idle
                 }
               VoiceRow(
                 voice = entry,
@@ -340,8 +346,8 @@ private fun VoicePickerDialog(
                 player = samplePlayer,
                 onTap = null,
                 onAction = {
-                  if (downloadStatus == DownloadStatus.Idle) {
-                    DownloadService.startTtsDownload(context, language, entry.pack.packId)
+                  if (downloadStatus == VoiceRowStatus.Idle) {
+                    onDownloadVoice(entry.pack.packId)
                   }
                 },
                 downloadStatus = downloadStatus,
@@ -371,12 +377,12 @@ private fun VoiceSectionHeader(label: String) {
   )
 }
 
-private sealed interface DownloadStatus {
-  data object Idle : DownloadStatus
+private sealed interface VoiceRowStatus {
+  data object Idle : VoiceRowStatus
 
-  data class Active(val progress: Float) : DownloadStatus
+  data class Active(val progress: Float) : VoiceRowStatus
 
-  data object Queued : DownloadStatus
+  data object Queued : VoiceRowStatus
 }
 
 @Composable
@@ -388,7 +394,7 @@ private fun VoiceRow(
   player: SamplePlayer,
   onTap: (() -> Unit)?,
   onAction: () -> Unit,
-  downloadStatus: DownloadStatus,
+  downloadStatus: VoiceRowStatus,
 ) {
   val pack = voice.pack
   val baseModifier = Modifier.fillMaxWidth()
@@ -468,7 +474,7 @@ private fun VoiceRow(
       val actionIcon = if (isInstalled) R.drawable.delete else R.drawable.download
       val actionDescription = if (isInstalled) "Delete voice" else "Download voice"
       when (downloadStatus) {
-        is DownloadStatus.Active -> {
+        is VoiceRowStatus.Active -> {
           Box(
             modifier = Modifier.size(40.dp),
             contentAlignment = Alignment.Center,
@@ -481,7 +487,7 @@ private fun VoiceRow(
             )
           }
         }
-        DownloadStatus.Queued -> {
+        VoiceRowStatus.Queued -> {
           Box(
             modifier = Modifier.size(40.dp),
             contentAlignment = Alignment.Center,
@@ -493,7 +499,7 @@ private fun VoiceRow(
             )
           }
         }
-        DownloadStatus.Idle -> {
+        VoiceRowStatus.Idle -> {
           IconButton(
             onClick = onAction,
             modifier = Modifier.size(40.dp),
@@ -578,7 +584,7 @@ private data class LanguageFeatureRow(
   @androidx.annotation.StringRes val labelRes: Int,
   val secondaryLabel: String? = null,
   val installed: Boolean,
-  val downloadState: DownloadState?,
+  val downloadStatus: DownloadStatus?,
   val onDownload: () -> Unit,
   val onInstalledAction: () -> Unit,
   val onCancel: () -> Unit,
@@ -617,24 +623,14 @@ fun LanguageAssetManagerScreen(
   settingsManager: SettingsManager,
   catalog: LanguageCatalog?,
   languageAvailabilityState: LanguageAvailabilityState,
-  downloadStates: Map<Language, DownloadState>,
-  dictionaryDownloadStates: Map<Language, DownloadState>,
-  ttsDownloadStates: Map<Language, DownloadState>,
-  activeTtsPackIds: Map<Language, String> = emptyMap(),
-  queuedTtsPackIds: Map<Language, List<String>> = emptyMap(),
-  repairDownloadState: DownloadState = DownloadState(),
+  downloadManager: DownloadManager,
 ) {
   val languageMetadata by languageMetadataManager.metadata.collectAsState()
+  val downloads by downloadManager.state.collectAsState()
   val expandedLanguages = remember { mutableStateMapOf<String, Boolean>() }
-  var isRefreshing by remember { mutableStateOf(false) }
   var filterQuery by remember { mutableStateOf("") }
   var pendingSharedDictionaryDelete by remember { mutableStateOf<PendingSharedDictionaryDelete?>(null) }
   var pendingTtsVoicePicker by remember { mutableStateOf<PendingTtsVoicePicker?>(null) }
-
-  // A fetched index is published as a new catalog, which ends the pull-to-refresh.
-  LaunchedEffect(catalog) {
-    isRefreshing = false
-  }
 
   // Re-check the filesystem on entry: install state can drift without a
   // download event (files lost to storage issues, a newly fetched catalog
@@ -702,9 +698,9 @@ fun LanguageAssetManagerScreen(
       } else {
         val languages =
           rows
-            .filter { "ppocr" in catalog.installedOcrEngines(it.language.code) }
+            .filter { PPOCR_ENGINE in catalog.installedOcrEngines(it.language.code) }
             .map { it.language }
-        val plan = catalog.planOcrEngineUpgrades(languages.map { it.code }, "ppocr")
+        val plan = catalog.planOcrEngineUpgrades(languages.map { it.code }, PPOCR_ENGINE)
         if (plan.tasks.isEmpty()) {
           PaddleUpgrade.EMPTY
         } else {
@@ -747,11 +743,8 @@ fun LanguageAssetManagerScreen(
     }
 
   PullToRefreshBox(
-    isRefreshing = isRefreshing,
-    onRefresh = {
-      isRefreshing = true
-      DownloadService.fetchCatalog(context)
-    },
+    isRefreshing = downloads[DownloadId.Catalog].inFlightProgress != null,
+    onRefresh = { downloadManager.enqueue(DownloadRequest.Catalog) },
     modifier =
       Modifier
         .fillMaxSize()
@@ -777,8 +770,8 @@ fun LanguageAssetManagerScreen(
       if (repairPlanSize > 0L) {
         RepairCard(
           totalBytes = repairPlanSize,
-          isDownloading = repairDownloadState.isDownloading,
-          onRepair = { DownloadService.startRepairDownload(context) },
+          isDownloading = downloads[DownloadId.Repair].inFlightProgress != null,
+          onRepair = { downloadManager.enqueue(DownloadRequest.Repair) },
         )
       }
 
@@ -786,8 +779,9 @@ fun LanguageAssetManagerScreen(
         UpgradeCard(
           text = stringResource(R.string.langmgr_ocr_upgrade_available),
           totalBytes = ppocrModelUpgrade.totalBytes,
+          isDownloading = downloads[DownloadId.OcrUpgrade(PPOCR_ENGINE)].inFlightProgress != null,
           onDownload = {
-            DownloadService.startOcrEngineUpgrades(context, ppocrModelUpgrade.languages, "ppocr")
+            downloadManager.enqueue(DownloadRequest.OcrUpgrade(ppocrModelUpgrade.languages, PPOCR_ENGINE))
           },
         )
       }
@@ -800,8 +794,9 @@ fun LanguageAssetManagerScreen(
               translationUpgrade.languages.joinToString(", ") { it.displayName },
             ),
           totalBytes = translationUpgrade.totalBytes,
+          isDownloading = downloads[DownloadId.TranslationUpgrade].inFlightProgress != null,
           onDownload = {
-            DownloadService.startTranslationUpgrades(context, translationUpgrade.languages)
+            downloadManager.enqueue(DownloadRequest.TranslationUpgrade(translationUpgrade.languages))
           },
         )
       }
@@ -817,9 +812,9 @@ fun LanguageAssetManagerScreen(
             zebra = index % 2 == 1,
             expanded = expanded,
             isFavorite = languageMetadata[row.language]?.favorite ?: false,
-            translationDownloadState = downloadStates[row.language],
-            dictionaryDownloadState = dictionaryDownloadStates[row.language],
-            ttsDownloadState = ttsDownloadStates[row.language],
+            translationDownloadStatus = downloads[DownloadId.Core(row.language)],
+            dictionaryDownloadStatus = downloads[DownloadId.Dictionary(row.language)],
+            ttsDownloadStatus = languageTtsStatus(downloads, row.language),
             onToggleExpanded = {
               expandedLanguages[row.language.code] = !expanded
             },
@@ -837,16 +832,16 @@ fun LanguageAssetManagerScreen(
               }
             },
             onDownloadTranslation = {
-              DownloadService.startDownload(context, row.language)
+              downloadManager.enqueue(DownloadRequest.Core(row.language))
             },
             onDeleteTranslation = {
               languageStateManager.deleteLanguage(row.language)
             },
             onCancelTranslation = {
-              DownloadService.cancelDownload(context, row.language)
+              downloadManager.cancel(DownloadId.Core(row.language))
             },
             onDownloadDictionary = {
-              DownloadService.startDictDownload(context, row.language, row.dictionaryInfo)
+              downloadManager.enqueue(DownloadRequest.Dictionary(row.language))
             },
             onDeleteDictionary = {
               if (sharedDictionaryUsers.isNotEmpty()) {
@@ -862,7 +857,7 @@ fun LanguageAssetManagerScreen(
               }
             },
             onCancelDictionary = {
-              DownloadService.cancelDictDownload(context, row.language)
+              downloadManager.cancel(DownloadId.Dictionary(row.language))
             },
             onDownloadTts = {
               pendingTtsVoicePicker = PendingTtsVoicePicker(row.language)
@@ -871,17 +866,21 @@ fun LanguageAssetManagerScreen(
               languageStateManager.deleteTts(row.language)
             },
             onCancelTts = {
-              DownloadService.cancelTtsDownload(context, row.language)
+              languageTtsDownloads(downloads, row.language).keys.forEach(downloadManager::cancel)
             },
             onDownloadAll = {
               if (row.translationVisible && !row.translationInstalled) {
-                DownloadService.startDownload(context, row.language)
+                downloadManager.enqueue(DownloadRequest.Core(row.language))
               }
               if (row.dictionaryVisible && !row.dictionaryInstalled) {
-                DownloadService.startDictDownload(context, row.language, row.dictionaryInfo)
+                downloadManager.enqueue(DownloadRequest.Dictionary(row.language))
               }
               if (row.ttsVisible && !row.ttsInstalled) {
-                DownloadService.startTtsDownload(context, row.language)
+                val packId =
+                  checkNotNull(catalog?.defaultTtsPackIdForLanguage(row.language.code)) {
+                    "${row.language.code} shows TTS but has no default voice pack"
+                  }
+                downloadManager.enqueue(DownloadRequest.Tts(row.language, packId))
               }
             },
             onDeleteAll = {
@@ -906,15 +905,9 @@ fun LanguageAssetManagerScreen(
               }
             },
             onCancelAll = {
-              if (downloadStates[row.language]?.isDownloading == true) {
-                DownloadService.cancelDownload(context, row.language)
-              }
-              if (dictionaryDownloadStates[row.language]?.isDownloading == true) {
-                DownloadService.cancelDictDownload(context, row.language)
-              }
-              if (ttsDownloadStates[row.language]?.isDownloading == true) {
-                DownloadService.cancelTtsDownload(context, row.language)
-              }
+              downloadManager.cancel(DownloadId.Core(row.language))
+              downloadManager.cancel(DownloadId.Dictionary(row.language))
+              languageTtsDownloads(downloads, row.language).keys.forEach(downloadManager::cancel)
             },
           )
         }
@@ -965,9 +958,8 @@ fun LanguageAssetManagerScreen(
       catalog = pickerCatalog,
       languageStateManager = languageStateManager,
       settingsManager = settingsManager,
-      ttsDownloadStates = ttsDownloadStates,
-      activeTtsPackId = activeTtsPackIds[pendingPicker.language],
-      queuedTtsPackIds = queuedTtsPackIds[pendingPicker.language].orEmpty(),
+      downloads = downloads,
+      onDownloadVoice = { packId -> downloadManager.enqueue(DownloadRequest.Tts(pendingPicker.language, packId)) },
       onDismiss = { pendingTtsVoicePicker = null },
     )
   }
@@ -979,9 +971,9 @@ private fun LanguageAssetCard(
   zebra: Boolean,
   expanded: Boolean,
   isFavorite: Boolean,
-  translationDownloadState: DownloadState?,
-  dictionaryDownloadState: DownloadState?,
-  ttsDownloadState: DownloadState?,
+  translationDownloadStatus: DownloadStatus?,
+  dictionaryDownloadStatus: DownloadStatus?,
+  ttsDownloadStatus: DownloadStatus?,
   onToggleExpanded: () -> Unit,
   onFavorite: (FavoriteEvent) -> Unit,
   onDownloadTranslation: () -> Unit,
@@ -1001,9 +993,9 @@ private fun LanguageAssetCard(
     (if (row.translationVisible) row.translationSizeBytes else 0L) +
       (if (row.dictionaryVisible) row.dictionaryInfo?.size ?: 0L else 0L) +
       (if (row.ttsVisible) row.ttsSizeBytes else 0L)
-  val collapsedDownloadState =
+  val collapsedDownloadStatus =
     when {
-      row.fullyMissing -> translationDownloadState ?: dictionaryDownloadState ?: ttsDownloadState
+      row.fullyMissing -> translationDownloadStatus ?: dictionaryDownloadStatus ?: ttsDownloadStatus
       row.fullyInstalled -> null
       else -> null
     }
@@ -1077,7 +1069,7 @@ private fun LanguageAssetCard(
 
             else -> {
               AggregateActionButton(
-                downloadState = collapsedDownloadState,
+                downloadStatus = collapsedDownloadStatus,
                 isInstalled = row.fullyInstalled,
                 onDownload = onDownloadAll,
                 onDelete = onDeleteAll,
@@ -1111,9 +1103,9 @@ private fun LanguageAssetCard(
         val featureRows =
           buildFeatureRows(
             row = row,
-            translationDownloadState = translationDownloadState,
-            dictionaryDownloadState = dictionaryDownloadState,
-            ttsDownloadState = ttsDownloadState,
+            translationDownloadStatus = translationDownloadStatus,
+            dictionaryDownloadStatus = dictionaryDownloadStatus,
+            ttsDownloadStatus = ttsDownloadStatus,
             onDownloadTranslation = onDownloadTranslation,
             onDeleteTranslation = onDeleteTranslation,
             onCancelTranslation = onCancelTranslation,
@@ -1134,9 +1126,9 @@ private fun LanguageAssetCard(
 
 private fun buildFeatureRows(
   row: LanguageAssetRow,
-  translationDownloadState: DownloadState?,
-  dictionaryDownloadState: DownloadState?,
-  ttsDownloadState: DownloadState?,
+  translationDownloadStatus: DownloadStatus?,
+  dictionaryDownloadStatus: DownloadStatus?,
+  ttsDownloadStatus: DownloadStatus?,
   onDownloadTranslation: () -> Unit,
   onDeleteTranslation: () -> Unit,
   onCancelTranslation: () -> Unit,
@@ -1155,7 +1147,7 @@ private fun buildFeatureRows(
         labelRes = R.string.feature_translation,
         secondaryLabel = formatSize(row.translationSizeBytes),
         installed = row.translationInstalled,
-        downloadState = translationDownloadState,
+        downloadStatus = translationDownloadStatus,
         onDownload = onDownloadTranslation,
         onInstalledAction = onDeleteTranslation,
         onCancel = onCancelTranslation,
@@ -1172,7 +1164,7 @@ private fun buildFeatureRows(
             type = row.dictionaryInfo?.type,
           ),
         installed = row.dictionaryInstalled,
-        downloadState = dictionaryDownloadState,
+        downloadStatus = dictionaryDownloadStatus,
         onDownload = onDownloadDictionary,
         onInstalledAction = onDeleteDictionary,
         onCancel = onCancelDictionary,
@@ -1185,7 +1177,7 @@ private fun buildFeatureRows(
         labelRes = R.string.feature_tts,
         secondaryLabel = formatSize(row.ttsSizeBytes),
         installed = row.ttsInstalled,
-        downloadState = ttsDownloadState,
+        downloadStatus = ttsDownloadStatus,
         onDownload = onDownloadTts,
         onInstalledAction = onDownloadTts,
         onCancel = onCancelTts,
@@ -1225,7 +1217,7 @@ private fun FeatureRow(featureRow: LanguageFeatureRow) {
       }
     }
     FeatureActionButton(
-      downloadState = featureRow.downloadState,
+      downloadStatus = featureRow.downloadStatus,
       isInstalled = featureRow.installed,
       onDownload = featureRow.onDownload,
       onInstalledAction = featureRow.onInstalledAction,
@@ -1298,15 +1290,16 @@ private fun FeaturePresenceIndicators(row: LanguageAssetRow) {
 
 @Composable
 private fun AggregateActionButton(
-  downloadState: DownloadState?,
+  downloadStatus: DownloadStatus?,
   isInstalled: Boolean,
   onDownload: () -> Unit,
   onDelete: () -> Unit,
   onCancel: () -> Unit,
 ) {
-  if (downloadState?.isDownloading == true) {
+  val inFlightProgress = downloadStatus.inFlightProgress
+  if (inFlightProgress != null) {
     ProgressIconButton(
-      downloadState = downloadState,
+      progress = inFlightProgress,
       onClick = onCancel,
       contentDescription = stringResource(R.string.a11y_cancel_download),
     )
@@ -1323,14 +1316,14 @@ private fun AggregateActionButton(
           id =
             when {
               isInstalled -> R.drawable.delete
-              downloadState?.isCancelled == true || downloadState?.error != null -> R.drawable.refresh
+              downloadStatus is DownloadStatus.Failed -> R.drawable.refresh
               else -> R.drawable.add
             },
         ),
       contentDescription =
         when {
           isInstalled -> stringResource(R.string.a11y_delete)
-          downloadState?.isCancelled == true || downloadState?.error != null -> stringResource(R.string.a11y_retry_download)
+          downloadStatus is DownloadStatus.Failed -> stringResource(R.string.a11y_retry_download)
           else -> stringResource(R.string.a11y_download)
         },
       modifier = Modifier.size(18.dp),
@@ -1340,7 +1333,7 @@ private fun AggregateActionButton(
 
 @Composable
 private fun FeatureActionButton(
-  downloadState: DownloadState?,
+  downloadStatus: DownloadStatus?,
   isInstalled: Boolean,
   onDownload: () -> Unit,
   onInstalledAction: () -> Unit,
@@ -1349,9 +1342,10 @@ private fun FeatureActionButton(
   installedDescription: String,
   actionTag: String? = null,
 ) {
-  if (downloadState?.isDownloading == true) {
+  val inFlightProgress = downloadStatus.inFlightProgress
+  if (inFlightProgress != null) {
     ProgressIconButton(
-      downloadState = downloadState,
+      progress = inFlightProgress,
       onClick = onCancel,
       contentDescription = stringResource(R.string.a11y_cancel_download),
     )
@@ -1371,14 +1365,14 @@ private fun FeatureActionButton(
           id =
             when {
               isInstalled -> installedIconRes
-              downloadState?.isCancelled == true || downloadState?.error != null -> R.drawable.refresh
+              downloadStatus is DownloadStatus.Failed -> R.drawable.refresh
               else -> R.drawable.add
             },
         ),
       contentDescription =
         when {
           isInstalled -> installedDescription
-          downloadState?.isCancelled == true || downloadState?.error != null -> stringResource(R.string.a11y_retry_download)
+          downloadStatus is DownloadStatus.Failed -> stringResource(R.string.a11y_retry_download)
           else -> stringResource(R.string.a11y_download_feature)
         },
       modifier = Modifier.size(18.dp),
@@ -1388,7 +1382,7 @@ private fun FeatureActionButton(
 
 @Composable
 private fun ProgressIconButton(
-  downloadState: DownloadState,
+  progress: Float,
   onClick: () -> Unit,
   contentDescription: String,
 ) {
@@ -1396,14 +1390,8 @@ private fun ProgressIconButton(
     contentAlignment = Alignment.Center,
     modifier = Modifier.size(32.dp),
   ) {
-    val targetProgress =
-      if (downloadState.totalSize > 0) {
-        downloadState.downloaded.toFloat() / downloadState.totalSize.toFloat()
-      } else {
-        0f
-      }
     val animatedProgress by animateFloatAsState(
-      targetValue = targetProgress,
+      targetValue = progress,
       animationSpec = tween(durationMillis = 300),
       label = "progress",
     )
@@ -1465,6 +1453,7 @@ private fun RepairCard(
 private fun UpgradeCard(
   text: String,
   totalBytes: Long,
+  isDownloading: Boolean,
   onDownload: () -> Unit,
 ) {
   Surface(
@@ -1484,8 +1473,12 @@ private fun UpgradeCard(
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.weight(1f),
       )
-      TextButton(onClick = onDownload) {
-        Text(stringResource(R.string.langmgr_download_size, formatSize(totalBytes)))
+      if (isDownloading) {
+        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+      } else {
+        TextButton(onClick = onDownload) {
+          Text(stringResource(R.string.langmgr_download_size, formatSize(totalBytes)))
+        }
       }
     }
   }

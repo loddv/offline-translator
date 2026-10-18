@@ -155,6 +155,9 @@
     <string name="download_catalog_save_failed">Failed to save catalog</string>
     <string name="download_unknown_error">Unknown error</string>
     <string name="download_catalog_failed">Failed to download catalog: %1$s</string>
+    <string name="download_notif_channel_name">Downloads</string>
+    <string name="download_notif_channel_desc">Shows progress while language data downloads</string>
+    <string name="download_notif_title">Downloading language data</string>
 
     <!-- assistant overlay status -->
     <string name="assistant_invoke_prompt">Invoke this assistant on top of text to translate it</string>

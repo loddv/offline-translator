@@ -3,63 +3,27 @@ package dev.davidv.translator.assistantOverlay
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import android.service.voice.VoiceInteractionSessionService
-import dev.davidv.translator.ImageProcessor
-import dev.davidv.translator.LanguageDetector
-import dev.davidv.translator.LanguageStateManager
-import dev.davidv.translator.OverlayTextTranslationHelper
-import dev.davidv.translator.SettingsManager
-import dev.davidv.translator.SpeechService
 import dev.davidv.translator.TranslationCoordinator
-import dev.davidv.translator.TranslationService
 import dev.davidv.translator.TranslatorApplication
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 
 class TranslatorVoiceInteractionSessionService : VoiceInteractionSessionService() {
-  private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
-  private lateinit var settingsManager: SettingsManager
+  private lateinit var app: TranslatorApplication
   private lateinit var translationCoordinator: TranslationCoordinator
-  private lateinit var overlayTextTranslationHelper: OverlayTextTranslationHelper
-  private lateinit var langStateManager: LanguageStateManager
 
   override fun onCreate() {
     super.onCreate()
-    val app = application as TranslatorApplication
+    app = application as TranslatorApplication
     app.ensureServicesInitialized()
-    settingsManager = app.settingsManager
-    val catalogRepository = app.catalogRepository
-    langStateManager = LanguageStateManager(serviceScope, catalogRepository)
-    val imageProcessor = ImageProcessor(this, catalogRepository)
-    val translationService = TranslationService(settingsManager, app.filePathManager, catalogRepository)
     translationCoordinator =
-      TranslationCoordinator(
-        translationService = translationService,
-        speechService = SpeechService(settingsManager, catalogRepository),
-        languageDetector = LanguageDetector(langStateManager::languageByCode),
-        imageProcessor = imageProcessor,
-        settingsManager = settingsManager,
-      )
-    overlayTextTranslationHelper =
-      OverlayTextTranslationHelper(
-        langStateManager = langStateManager,
-        languageMetadataManager = app.languageMetadataManager,
-      )
+      TranslationCoordinator(app.translationService, app.speechService, app.languageDetector, app.imageProcessor, app.settingsManager)
   }
 
   override fun onNewSession(args: Bundle?): VoiceInteractionSession =
     TranslatorVoiceInteractionSession(
       context = this,
-      settingsManager = settingsManager,
+      settingsManager = app.settingsManager,
       translationCoordinator = translationCoordinator,
-      overlayTextTranslationHelper = overlayTextTranslationHelper,
-      langStateManager = langStateManager,
+      catalogRepository = app.catalogRepository,
+      languageMetadataManager = app.languageMetadataManager,
     )
-
-  override fun onDestroy() {
-    serviceScope.cancel()
-    super.onDestroy()
-  }
 }

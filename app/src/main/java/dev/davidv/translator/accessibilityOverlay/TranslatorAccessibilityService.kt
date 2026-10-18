@@ -12,19 +12,17 @@ import android.util.Log
 import android.view.Display
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import dev.davidv.translator.ImageProcessor
-import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageDetector
-import dev.davidv.translator.LanguageStateManager
-import dev.davidv.translator.OverlayTextTranslationHelper
+import dev.davidv.translator.CatalogRepository
+import dev.davidv.translator.LanguageAvailabilityState
+import dev.davidv.translator.LanguageMetadataManager
+import dev.davidv.translator.OverlayLanguageSelection
+import dev.davidv.translator.OverlayLanguageSide
 import dev.davidv.translator.R
-import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.SettingsManager
-import dev.davidv.translator.SpeechService
 import dev.davidv.translator.TranslationCoordinator
-import dev.davidv.translator.TranslationService
 import dev.davidv.translator.TranslatorApplication
 import dev.davidv.translator.overlayChrome.OverlayInsets
+import dev.davidv.translator.overlayPickerLanguages
 import dev.davidv.translator.screenTranslate.ScreenTranslateService
 import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.ImageWordSelection
@@ -33,6 +31,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -40,9 +41,6 @@ class TranslatorAccessibilityService : AccessibilityService() {
   private val tag = "TranslatorA11y"
   private lateinit var windowManager: WindowManager
   private var active = false
-  var forcedSourceLanguage: Language? = null
-  var forcedTargetLanguage: Language? = null
-  var isAutoSource: Boolean = true
   private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
   private data class TranslatedScreen(
@@ -57,12 +55,10 @@ class TranslatorAccessibilityService : AccessibilityService() {
   private val surfaceState = SelectionSurfaceState()
 
   private lateinit var settingsManager: SettingsManager
-  private lateinit var imageProcessor: ImageProcessor
+  private lateinit var catalogRepository: CatalogRepository
+  private lateinit var languageMetadataManager: LanguageMetadataManager
   private lateinit var translationCoordinator: TranslationCoordinator
-  private var ocrReadingOrder: ReadingOrder? = null
-  private lateinit var overlayTextTranslationHelper: OverlayTextTranslationHelper
-  lateinit var langStateManager: LanguageStateManager
-    private set
+  private lateinit var selection: OverlayLanguageSelection
 
   lateinit var ui: OverlayUI
     private set
@@ -108,20 +104,25 @@ class TranslatorAccessibilityService : AccessibilityService() {
     val app = application as TranslatorApplication
     app.ensureServicesInitialized()
     settingsManager = app.settingsManager
-    val catalogRepository = app.catalogRepository
-    langStateManager = LanguageStateManager(serviceScope, catalogRepository)
-    val languageDetector = LanguageDetector(langStateManager::languageByCode)
-    imageProcessor = ImageProcessor(this, catalogRepository)
-    val translationService = TranslationService(settingsManager, app.filePathManager, catalogRepository)
-    val speechService = SpeechService(settingsManager, catalogRepository)
-    translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
-    overlayTextTranslationHelper =
-      OverlayTextTranslationHelper(
-        langStateManager = langStateManager,
-        languageMetadataManager = app.languageMetadataManager,
-      )
+    catalogRepository = app.catalogRepository
+    languageMetadataManager = app.languageMetadataManager
+    translationCoordinator =
+      TranslationCoordinator(app.translationService, app.speechService, app.languageDetector, app.imageProcessor, settingsManager)
+    selection = OverlayLanguageSelection.defaults(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
 
-    ui = OverlayUI(this, windowManager, settingsManager)
+    ui = OverlayUI(this, windowManager)
+    // This service outlives any one overlay use, so a default target changed in settings must
+    // reach it; the most recent explicit choice wins over an earlier pick in the overlay.
+    serviceScope.launch {
+      settingsManager.settings
+        .map { it.defaultTargetLanguageCode }
+        .distinctUntilChanged()
+        .drop(1)
+        .collect {
+          val availability = LanguageAvailabilityState.of(catalogRepository.catalog.value)
+          applySelection(selection.withTarget(OverlayLanguageSelection.defaults(availability, settingsManager.settings.value).target))
+        }
+    }
 
     androidx.core.content.ContextCompat.registerReceiver(
       this,
@@ -184,7 +185,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
     ui.removeFloatingButton()
     ui.removeTranslationOverlays()
     ui.showBorderWave()
-    ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
+    ui.showToolbar(selection)
     android.os.Handler(android.os.Looper.getMainLooper()).post {
       if (active) {
         handleFullScreenOcr()
@@ -249,51 +250,23 @@ class TranslatorAccessibilityService : AccessibilityService() {
   }
 
   fun swapLanguages() {
-    val oldSource = forcedSourceLanguage ?: return
-    val oldTarget = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
-    if (!langStateManager.canSwapLanguages(oldSource, oldTarget)) return
-    isAutoSource = false
-    forcedSourceLanguage = oldTarget
-    forcedTargetLanguage = oldSource
-    syncReadingOrderForSource()
-    ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
-    if (active) {
-      handleFullScreenOcr()
-    }
+    val swapped = selection.swapped(catalogRepository.catalog.value::canSwapLanguages) ?: return
+    applySelection(swapped)
   }
 
-  fun showLanguagePicker(isSource: Boolean) {
-    serviceScope.launch {
-      val availableLangs = overlayTextTranslationHelper.availableLanguages(isSource)
-      ui.showLanguagePicker(isSource, availableLangs) { lang ->
-        if (isSource) {
-          if (lang == null) {
-            isAutoSource = true
-          } else {
-            isAutoSource = false
-            forcedSourceLanguage = lang
-          }
-          syncReadingOrderForSource()
-        } else {
-          forcedTargetLanguage = lang
-        }
-        ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
-        if (active) {
-          handleFullScreenOcr()
-        }
-      }
-    }
+  fun showLanguagePicker(side: OverlayLanguageSide) {
+    val availability = LanguageAvailabilityState.of(catalogRepository.catalog.value)
+    val languages = overlayPickerLanguages(availability, languageMetadataManager.metadata.value, side)
+    ui.showLanguagePicker(side, selection, languages) { applySelection(it) }
   }
 
   fun toggleJapaneseOcrMode() {
-    if (forcedSourceLanguage?.code != "ja") return
-    ocrReadingOrder =
-      when (ocrReadingOrder) {
-        null -> ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT
-        ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> ReadingOrder.LEFT_TO_RIGHT
-        ReadingOrder.LEFT_TO_RIGHT -> null
-      }
-    ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, ocrReadingOrder, isAutoSource)
+    applySelection(selection.withNextReadingOrder())
+  }
+
+  private fun applySelection(next: OverlayLanguageSelection) {
+    selection = next
+    ui.updateToolbarState(selection)
     if (active) {
       handleFullScreenOcr()
     }
@@ -317,12 +290,6 @@ class TranslatorAccessibilityService : AccessibilityService() {
       return
     }
     ui.removeTranslationOverlays()
-
-    val sourceLang = ocrSourceLanguage()
-    if (!isAutoSource && sourceLang == null) {
-      ui.showOverlayMessage("Set source language first")
-      return
-    }
 
     val content = OverlayInsets.contentBounds(windowManager)
     val region =
@@ -383,20 +350,18 @@ class TranslatorAccessibilityService : AccessibilityService() {
     bitmap: Bitmap,
     region: Rect,
   ) {
-    val sourceLang = ocrSourceLanguage()
-    val targetLang = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
-    val ocrSourceLang = sourceLang ?: targetLang
-
+    val requested = selection
     var ocrUnavailable = false
     val result =
       withContext(Dispatchers.IO) {
         translationCoordinator.translateImageWithOverlay(
-          ocrSourceLang,
-          targetLang,
+          // Auto ignores `from`, but the coordinator still takes a concrete language.
+          requested.sourceLanguage ?: requested.target,
+          requested.target,
           bitmap,
           onMessage = {},
-          readingOrder = currentReadingOrderFor(sourceLang),
-          isAutoSource = isAutoSource,
+          readingOrder = requested.readingOrder,
+          isAutoSource = requested.isAutoSource,
           onOcrUnavailable = { ocrUnavailable = true },
           onDetectedRegions = { boxes, w, h ->
             surfaceState.regions.value = DetectedRegions(w, h, boxes)
@@ -428,24 +393,6 @@ class TranslatorAccessibilityService : AccessibilityService() {
       }
     } else {
       ui.showBitmapOverlay(result.correctedBitmap, region)
-    }
-  }
-
-  private fun ocrSourceLanguage(): Language? =
-    forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguageCode?.let {
-      langStateManager.languageByCode(it)
-    }
-
-  private fun currentReadingOrderFor(language: Language?): ReadingOrder? =
-    if (language?.code == "ja") {
-      ocrReadingOrder
-    } else {
-      null
-    }
-
-  private fun syncReadingOrderForSource() {
-    if (forcedSourceLanguage?.code != "ja") {
-      ocrReadingOrder = null
     }
   }
 }

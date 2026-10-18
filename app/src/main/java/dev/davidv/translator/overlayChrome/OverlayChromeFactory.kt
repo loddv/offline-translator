@@ -13,6 +13,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import dev.davidv.translator.Language
+import dev.davidv.translator.OverlayLanguageSelection
+import dev.davidv.translator.OverlayLanguageSide
+import dev.davidv.translator.OverlaySource
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.localizedName
@@ -33,29 +36,36 @@ data class LanguageToolbarViews(
 object OverlayChromeFactory {
   val ACTIVE_ICON_TINT: Int = Color.parseColor("#8AB4F8")
 
-  fun formatSourceLabel(
-    forcedSourceLanguage: Language?,
-    isAutoSource: Boolean,
-  ): String =
-    when {
-      isAutoSource && forcedSourceLanguage != null -> "✨ ${forcedSourceLanguage.shortDisplayName}"
-      isAutoSource -> "✨ Auto"
-      else -> forcedSourceLanguage?.shortDisplayName ?: "?"
-    }
+  fun showSelection(
+    sourceLabel: TextView?,
+    targetLabel: TextView?,
+    readingButton: View?,
+    readingIcon: ImageView?,
+    selection: OverlayLanguageSelection,
+  ) {
+    sourceLabel?.text =
+      when (val source = selection.source) {
+        OverlaySource.Auto -> "✨ Auto"
+        is OverlaySource.Fixed -> source.language.shortDisplayName
+      }
+    targetLabel?.text = selection.target.shortDisplayName
+    updateReadingOrderButtonState(
+      readingButton = readingButton,
+      readingIcon = readingIcon,
+      visible = selection.offersReadingOrder,
+      readingOrder = selection.readingOrder,
+    )
+  }
 
   fun createLanguageToolbar(
     context: Context,
     dpToPx: (Int) -> Int,
-    forcedSourceLanguage: Language?,
-    forcedTargetLanguage: Language?,
-    defaultTargetLanguage: Language,
+    selection: OverlayLanguageSelection,
     onClose: () -> Unit,
     onSelectModeClick: (() -> Unit)? = null,
     onSourceClick: () -> Unit,
     onSwap: () -> Unit,
     onTargetClick: () -> Unit,
-    showReadingOrderButton: Boolean = false,
-    readingOrder: ReadingOrder? = null,
     onReadingOrderClick: (() -> Unit)? = null,
     onRefreshClick: (() -> Unit)? = null,
     onRegionClick: (() -> Unit)? = null,
@@ -63,7 +73,6 @@ object OverlayChromeFactory {
     onPauseClick: (() -> Unit)? = null,
     isPaused: Boolean = false,
     onMenuClick: (() -> Unit)? = null,
-    isAutoSource: Boolean = false,
   ): LanguageToolbarViews {
     val toolbar = FrameLayout(context)
     val pad = dpToPx(6)
@@ -114,14 +123,7 @@ object OverlayChromeFactory {
             setOnClickListener { onReadingOrderClick() }
           }
         readingOrderIcon = readingBtn
-        updateReadingOrderButtonState(
-          readingButton = null,
-          readingIcon = readingBtn,
-          visible = showReadingOrderButton,
-          readingOrder = readingOrder,
-        )
         makePill(context, dpToPx, readingBtn).also { pill ->
-          pill.visibility = if (showReadingOrderButton) View.VISIBLE else View.GONE
           toolbar.addView(
             pill,
             FrameLayout.LayoutParams(btnSize, btnSize).apply {
@@ -138,7 +140,6 @@ object OverlayChromeFactory {
     langRow.setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
 
     val sourceLabel = TextView(context)
-    sourceLabel.text = formatSourceLabel(forcedSourceLanguage, isAutoSource)
     sourceLabel.setTextColor(Color.WHITE)
     sourceLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
     sourceLabel.gravity = Gravity.CENTER
@@ -156,9 +157,7 @@ object OverlayChromeFactory {
     swapBtn.setOnClickListener { onSwap() }
     langRow.addView(swapBtn, LinearLayout.LayoutParams(swapSize + swapPad * 2, swapSize))
 
-    val currentTarget = forcedTargetLanguage ?: defaultTargetLanguage
     val targetLabel = TextView(context)
-    targetLabel.text = currentTarget.shortDisplayName
     targetLabel.setTextColor(Color.WHITE)
     targetLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
     targetLabel.gravity = Gravity.CENTER
@@ -276,6 +275,8 @@ object OverlayChromeFactory {
       },
     )
 
+    showSelection(sourceLabel, targetLabel, readingOrderPill, readingOrderIcon, selection)
+
     return LanguageToolbarViews(
       root = toolbar,
       sourceLabel = sourceLabel,
@@ -321,10 +322,11 @@ object OverlayChromeFactory {
   fun createLanguagePicker(
     context: Context,
     dpToPx: (Int) -> Int,
-    isSource: Boolean,
+    side: OverlayLanguageSide,
+    selection: OverlayLanguageSelection,
     availableLangs: List<Language>,
     allowAuto: Boolean = true,
-    onPick: (Language?) -> Unit,
+    onPick: (OverlayLanguageSelection) -> Unit,
   ): ScrollView {
     val scroll = ScrollView(context)
     val list = LinearLayout(context)
@@ -336,15 +338,20 @@ object OverlayChromeFactory {
     val listPad = dpToPx(8)
     list.setPadding(listPad, listPad, listPad, listPad)
 
-    if (isSource && allowAuto) {
+    if (side == OverlayLanguageSide.SOURCE && allowAuto) {
       addMenuItem(context, list, dpToPx, "\u2728  Auto-detect") {
-        onPick(null)
+        onPick(selection.withAutoSource())
       }
     }
 
     for (lang in availableLangs) {
       addMenuItem(context, list, dpToPx, lang.localizedName()) {
-        onPick(lang)
+        onPick(
+          when (side) {
+            OverlayLanguageSide.SOURCE -> selection.withSource(lang)
+            OverlayLanguageSide.TARGET -> selection.withTarget(lang)
+          },
+        )
       }
     }
 

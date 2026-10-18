@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Color
 import android.view.View
 import dev.davidv.translator.Language
+import dev.davidv.translator.OverlayLanguageSelection
+import dev.davidv.translator.OverlayLanguageSide
 
 interface OverlayMenuHost {
   fun addDismissLayer(view: View)
@@ -46,10 +48,11 @@ class OverlayMenuManager(
   }
 
   fun showLanguagePicker(
-    isSource: Boolean,
+    side: OverlayLanguageSide,
+    selection: OverlayLanguageSelection,
     availableLangs: List<Language>,
     allowAuto: Boolean = true,
-    onPick: (Language?) -> Unit,
+    onPick: (OverlayLanguageSelection) -> Unit,
   ) {
     dismiss()
 
@@ -65,11 +68,12 @@ class OverlayMenuManager(
       OverlayChromeFactory.createLanguagePicker(
         context = context,
         dpToPx = dpToPx,
-        isSource = isSource,
+        side = side,
+        selection = selection,
         availableLangs = availableLangs,
         allowAuto = allowAuto,
-      ) { language ->
-        onPick(language)
+      ) { picked ->
+        onPick(picked)
         dismiss()
       }
     host.addPickerView(picker)

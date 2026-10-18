@@ -59,7 +59,6 @@ import dev.davidv.translator.overlayChrome.RegionSelectView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -160,12 +159,7 @@ class ScreenTranslateService : Service() {
     startForegroundNotification()
 
     val app = applicationContext as TranslatorApplication
-    val catalog = app.filePathManager.loadCatalog()
-    if (catalog == null) {
-      Log.e(TAG, "No language catalog; stopping")
-      stopEverything()
-      return START_NOT_STICKY
-    }
+    val catalog = app.catalogRepository.catalog.value
     if (!catalog.ocrEngineReady()) {
       // Without the detector pack every frame fails OCR and the overlay just
       // sits there empty — refuse to start and say why (issue #246).
@@ -214,7 +208,7 @@ class ScreenTranslateService : Service() {
     targetCode: String?,
     isAutoSource: Boolean,
   ) {
-    val catalog = app.filePathManager.loadCatalog() ?: return
+    val catalog = app.catalogRepository.catalog.value
     val settings = app.settingsManager.settings.value
     // Target: the caller's choice (assistant selection) → app default → en.
     val to =
@@ -400,7 +394,7 @@ class ScreenTranslateService : Service() {
     bubble = FloatingBubble(this, wm, type, ::dpToPx) { showToolbar() }.also { it.show() }
 
     val app = applicationContext as TranslatorApplication
-    langStateManager = LanguageStateManager(scope, app.filePathManager)
+    langStateManager = LanguageStateManager(scope, app.catalogRepository)
   }
 
   /** Tap-the-bubble expands the collapsed dot into the shared flat toolbar (the
@@ -513,8 +507,6 @@ class ScreenTranslateService : Service() {
     val mm = menuManager ?: return
     val lsm = langStateManager ?: return
     scope.launch {
-      lsm.refreshLanguageAvailability()
-      lsm.languageState.first { !it.isChecking }
       val langs =
         lsm.languageState.value
           .translatorLanguages(requireOcr = isSource)

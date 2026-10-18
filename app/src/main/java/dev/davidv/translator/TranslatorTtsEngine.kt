@@ -164,7 +164,7 @@ class TranslatorTtsService : TextToSpeechService() {
     speechSpeed: Float,
     callback: SynthesisCallback,
   ) {
-    val catalog = applicationServices().filePathManager.loadCatalog() ?: error("Catalog unavailable")
+    val catalog = applicationServices().catalogRepository.catalog.value
     val readUrlsAndHashtags = applicationServices().settingsManager.settings.value.ttsReadUrlsAndHashtags
     val chunks = catalog.planSpeechChunks(voice.languageCode, text, voice.packId, readUrlsAndHashtags)
     if (chunks.isEmpty()) {
@@ -333,7 +333,7 @@ object TranslatorTtsEngine {
     iso3Language: String,
   ): String? {
     val app = context.applicationContext as? TranslatorApplication ?: return null
-    val catalog = app.filePathManager.loadCatalog() ?: return null
+    val catalog = app.catalogRepository.catalog.value
     val iso2 = iso3LanguageToIso2(iso3Language).ifBlank { iso3Language }
     return catalog.ttsSampleText(iso2)
   }
@@ -341,7 +341,7 @@ object TranslatorTtsEngine {
   fun installedTtsLocales(context: Context): List<Locale> {
     cachedInstalledLocales?.let { return it }
     val app = context.applicationContext as? TranslatorApplication ?: return emptyList()
-    val catalog = app.filePathManager.loadCatalog() ?: return emptyList()
+    val catalog = app.catalogRepository.catalog.value
     val result = mutableListOf<Locale>()
     for (row in catalog.languageRows) {
       if (!row.availability.ttsFiles) continue
@@ -388,7 +388,7 @@ object TranslatorTtsEngine {
 
   fun systemTtsVoices(context: Context): List<TranslatorTtsVoice> {
     val app = context.applicationContext as? TranslatorApplication ?: return emptyList()
-    val catalog = app.filePathManager.loadCatalog() ?: return emptyList()
+    val catalog = app.catalogRepository.catalog.value
     val voices = mutableListOf<TranslatorTtsVoice>()
     for (row in catalog.languageRows) {
       if (!row.availability.ttsFiles) continue
@@ -419,7 +419,7 @@ object TranslatorTtsEngine {
   ): TranslatorTtsVoice? {
     if (language.isBlank()) return null
     val app = context.applicationContext as? TranslatorApplication ?: return null
-    val catalog = app.filePathManager.loadCatalog() ?: return null
+    val catalog = app.catalogRepository.catalog.value
     val iso2 = iso3LanguageToIso2(language).ifBlank { language }
     val packs = catalog.installedTtsVoices(iso2)
     if (packs.isEmpty()) return null

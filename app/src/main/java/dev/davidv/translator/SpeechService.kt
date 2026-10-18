@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 
 class SpeechService(
   private val settingsManager: SettingsManager,
-  private val filePathManager: FilePathManager,
+  private val catalogRepository: CatalogRepository,
 ) {
   suspend fun synthesizeSpeech(
     language: Language,
@@ -38,9 +38,7 @@ class SpeechService(
         return@withContext SpeechSynthesisResult.Error(SpeechError.NothingToSpeak)
       }
 
-      val catalog =
-        filePathManager.loadCatalog()
-          ?: return@withContext SpeechSynthesisResult.Error(SpeechError.CatalogUnavailable)
+      val catalog = catalogRepository.catalog.value
       if (!catalog.hasTtsVoices(language.code)) {
         return@withContext SpeechSynthesisResult.Error(SpeechError.NoVoiceInstalled(language))
       }
@@ -126,13 +124,13 @@ class SpeechService(
 
   suspend fun availableTtsVoices(language: Language): List<TtsVoiceOption> =
     withContext(Dispatchers.IO) {
-      val catalog = filePathManager.loadCatalog() ?: return@withContext emptyList()
+      val catalog = catalogRepository.catalog.value
       catalog.availableTtsVoices(language.code)
     }
 
   suspend fun installedTtsVoices(language: Language): List<uniffi.translator_core.InstalledTtsPack> =
     withContext(Dispatchers.IO) {
-      val catalog = filePathManager.loadCatalog() ?: return@withContext emptyList()
+      val catalog = catalogRepository.catalog.value
       catalog.installedTtsVoices(language.code)
     }
 }
@@ -174,8 +172,6 @@ sealed class SpeechSynthesisResult {
 
 sealed interface SpeechError {
   data object NothingToSpeak : SpeechError
-
-  data object CatalogUnavailable : SpeechError
 
   data class NoVoiceInstalled(
     val language: Language,

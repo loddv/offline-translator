@@ -42,7 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
-import dev.davidv.translator.DownloadEvent
+import dev.davidv.translator.CatalogRepository
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.Language
@@ -50,7 +50,6 @@ import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.ui.theme.TranslatorTheme
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,8 +140,7 @@ fun NoLanguagesScreenPreview() {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val appSettingsFlow = MutableStateFlow(AppSettings())
-  val fp = FilePathManager(context, appSettingsFlow)
-  val mockDownloadEvents = MutableSharedFlow<DownloadEvent>()
+  val catalogRepository = CatalogRepository.open(context, FilePathManager(context, appSettingsFlow))
   val downloadService = DownloadService()
   val languagesFlow = kotlinx.coroutines.flow.MutableStateFlow<List<Language>>(emptyList())
   TranslatorTheme {
@@ -151,7 +149,7 @@ fun NoLanguagesScreenPreview() {
       onDone = {},
       onSettings = {},
       downloadService = downloadService,
-      languageStateManager = LanguageStateManager(scope, fp, mockDownloadEvents),
+      languageStateManager = LanguageStateManager(scope, catalogRepository),
       languageMetadataManager = LanguageMetadataManager(context, languagesFlow),
     )
   }

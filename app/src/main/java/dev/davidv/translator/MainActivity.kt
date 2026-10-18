@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
           translationCoordinator = app.translationCoordinator,
           settingsManager = app.settingsManager,
           filePathManager = app.filePathManager,
+          catalogRepository = app.catalogRepository,
           languageMetadataManager = app.languageMetadataManager,
           initialText = textToTranslate,
           initialLaunchMode = launchMode,
@@ -95,11 +96,8 @@ class MainActivity : ComponentActivity() {
     setContent {
       TranslatorTheme {
         MigrationGate(
-          filePathManager = app.filePathManager,
-          onMigrated = {
-            TranslatorTtsEngine.notifyVoiceDataChanged(applicationContext)
-            viewModel.languageStateManager.refreshLanguageAvailability()
-          },
+          catalogRepository = app.catalogRepository,
+          onMigrated = { TranslatorTtsEngine.notifyVoiceDataChanged(applicationContext) },
         ) {
           TranslatorApp(
             viewModel = viewModel,

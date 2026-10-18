@@ -116,7 +116,7 @@ class BrowserActivity : ComponentActivity() {
         this,
         BrowserViewModelFactory(
           settingsManager = app.settingsManager,
-          filePathManager = app.filePathManager,
+          catalogRepository = app.catalogRepository,
           languageMetadataManager = app.languageMetadataManager,
           translationService = app.translationService,
           initialUrl = initialUrl,

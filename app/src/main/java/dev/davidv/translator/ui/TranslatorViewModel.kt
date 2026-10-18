@@ -25,6 +25,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import dev.davidv.translator.CatalogRepository
 import dev.davidv.translator.DocumentTranslationService
 import dev.davidv.translator.DocumentTranslationServiceState
 import dev.davidv.translator.DownloadService
@@ -72,6 +73,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -86,11 +88,12 @@ class TranslatorViewModel(
   val translationCoordinator: TranslationCoordinator,
   val settingsManager: SettingsManager,
   val filePathManager: FilePathManager,
+  catalogRepository: CatalogRepository,
   val languageMetadataManager: LanguageMetadataManager,
   initialText: String,
   initialLaunchMode: LaunchMode,
 ) : ViewModel() {
-  val languageStateManager = LanguageStateManager(viewModelScope, filePathManager)
+  val languageStateManager = LanguageStateManager(viewModelScope, catalogRepository)
 
   // Navigation state derived from language availability and from/to selection
   // This eliminates the need for from!! force-unwraps in the composable
@@ -233,7 +236,6 @@ class TranslatorViewModel(
   val navigationState: StateFlow<NavigationState> =
     combine(languageStateManager.languageState, _from, to) { langState, fromLang, toLang ->
       when {
-        langState.isChecking -> NavigationState.LOADING
         !langState.hasLanguages -> NavigationState.NO_LANGUAGES
         fromLang != null && toLang != null -> NavigationState.READY
         else -> NavigationState.LOADING
@@ -271,7 +273,6 @@ class TranslatorViewModel(
 
     viewModelScope.launch {
       languageStateManager.catalog.collect { catalog ->
-        if (catalog == null) return@collect
         if (_targets.value != null) return@collect
         val settings = settingsManager.settings.value
         _targets.value = TargetTabs.of(catalog.languageByCode(settings.defaultTargetLanguageCode) ?: catalog.english)
@@ -281,7 +282,7 @@ class TranslatorViewModel(
     viewModelScope.launch {
       languageStateManager.languageState.collect { languageState ->
         if (!languageState.hasLanguages) return@collect
-        val catalog = languageStateManager.catalog.value ?: return@collect
+        val catalog = languageStateManager.catalog.value
         val curSettings = settingsManager.settings.value
         val targetLang = catalog.languageByCode(curSettings.defaultTargetLanguageCode)
         if (targetLang != null && languageState.availabilityFor(targetLang)?.translatorFiles != true) {
@@ -299,7 +300,7 @@ class TranslatorViewModel(
     viewModelScope.launch {
       languageStateManager.languageState.collect { languageState ->
         if (!languageState.hasLanguages) return@collect
-        val catalog = languageStateManager.catalog.value ?: return@collect
+        val catalog = languageStateManager.catalog.value
         val curSettings = settingsManager.settings.value
         val preferredSource = curSettings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) }
         val preferredAvail = preferredSource != null && languageState.availabilityFor(preferredSource)?.translatorFiles == true
@@ -330,14 +331,8 @@ class TranslatorViewModel(
     // Auto-translate initial text
     if (initialText.isNotBlank()) {
       viewModelScope.launch {
-        // Wait for languages to load
-        languageStateManager.languageState.collect { languageState ->
-          if (languageState.isChecking) return@collect
-          if (!languageState.hasLanguages) return@collect
-          autoTranslateInitialText(initialText, languageState)
-          // Only run once
-          return@collect
-        }
+        val languageState = languageStateManager.languageState.first { it.hasLanguages }
+        autoTranslateInitialText(initialText, languageState)
       }
     }
 
@@ -379,7 +374,7 @@ class TranslatorViewModel(
   }
 
   fun connectDownloadService(service: DownloadService) {
-    languageStateManager.connectToDownloadEvents(service.downloadEvents)
+    languageStateManager.connectToDownloadErrors(service.downloadErrors)
   }
 
   fun handleMessage(message: TranslatorMessage) {
@@ -952,7 +947,7 @@ class TranslatorViewModel(
     val catalog = languageStateManager.catalog.value
     val foundWord =
       try {
-        catalog?.lookupDictionary(language, str)
+        catalog.lookupDictionary(language, str)
       } catch (e: uniffi.bindings.CatalogException.MissingAsset) {
         viewModelScope.launch {
           _uiEvents.emit(UiEvent.ShowToast("No ${language.localizedName()} dictionary installed"))
@@ -997,8 +992,8 @@ class TranslatorViewModel(
             val actualFrom = _from.value
             val fallback =
               actualFrom?.let { firstAvailableTargetLanguage(it, langs, excluding = actualFrom) }
-                ?: catalog?.english
-            if (fallback != null) _targets.value = TargetTabs.of(fallback)
+                ?: catalog.english
+            _targets.value = TargetTabs.of(fallback)
           }
         }
         Log.d("TranslatorViewModel", "Language deleted: ${event.language}")
@@ -1036,7 +1031,7 @@ class TranslatorViewModel(
     val settings = settingsManager.settings.value
     val candidates =
       state.allLanguages().filter { it != newFrom && languageStateManager.canTranslate(newFrom, it) }
-    val defaultTarget = catalog?.languageByCode(settings.defaultTargetLanguageCode)
+    val defaultTarget = catalog.languageByCode(settings.defaultTargetLanguageCode)
     if (defaultTarget != null && defaultTarget in candidates) {
       return defaultTarget
     }
@@ -1133,6 +1128,7 @@ class TranslatorViewModelFactory(
   private val translationCoordinator: TranslationCoordinator,
   private val settingsManager: SettingsManager,
   private val filePathManager: FilePathManager,
+  private val catalogRepository: CatalogRepository,
   private val languageMetadataManager: LanguageMetadataManager,
   private val initialText: String,
   private val initialLaunchMode: LaunchMode,
@@ -1144,6 +1140,7 @@ class TranslatorViewModelFactory(
       translationCoordinator = translationCoordinator,
       settingsManager = settingsManager,
       filePathManager = filePathManager,
+      catalogRepository = catalogRepository,
       languageMetadataManager = languageMetadataManager,
       initialText = initialText,
       initialLaunchMode = initialLaunchMode,
@@ -1156,7 +1153,6 @@ private fun speechErrorMessage(
 ): String =
   when (reason) {
     SpeechError.NothingToSpeak -> context.getString(R.string.tts_nothing_to_speak)
-    SpeechError.CatalogUnavailable -> context.getString(R.string.tts_catalog_unavailable)
     is SpeechError.NoVoiceInstalled ->
       context.getString(R.string.tts_no_voice, reason.language.localizedName())
     is SpeechError.SynthesisFailed ->

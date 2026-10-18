@@ -30,13 +30,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class TranslatorApplication : Application() {
   lateinit var settingsManager: SettingsManager
   lateinit var languageMetadataManager: LanguageMetadataManager
   lateinit var filePathManager: FilePathManager
+  lateinit var catalogRepository: CatalogRepository
   lateinit var imageProcessor: ImageProcessor
   lateinit var translationService: TranslationService
   lateinit var speechService: SpeechService
@@ -96,22 +100,24 @@ class TranslatorApplication : Application() {
 
     settingsManager = SettingsManager(this)
     filePathManager = FilePathManager(this, settingsManager.settings)
-
-    if (isTtsEngineProcess()) {
-      Log.d("TranslatorApplication", "Initialized lightweight TTS engine process")
-      return
+    catalogRepository = CatalogRepository.open(this, filePathManager)
+    appScope.launch(Dispatchers.IO) {
+      settingsManager.settings
+        .map { it.useExternalStorage }
+        .distinctUntilChanged()
+        .drop(1)
+        .collect { catalogRepository.reloadIndex() }
     }
 
-    filePathManager.loadCatalog()
     val languagesFlow =
-      filePathManager.catalog
-        .map { it?.languageList ?: emptyList() }
-        .stateIn(appScope, SharingStarted.Eagerly, filePathManager.catalog.value?.languageList ?: emptyList())
+      catalogRepository.catalog
+        .map { it.languageList }
+        .stateIn(appScope, SharingStarted.Eagerly, catalogRepository.catalog.value.languageList)
     languageMetadataManager = LanguageMetadataManager(this, languagesFlow)
-    imageProcessor = ImageProcessor(this, filePathManager)
-    translationService = TranslationService(settingsManager, filePathManager)
-    speechService = SpeechService(settingsManager, filePathManager)
-    languageDetector = LanguageDetector { code -> filePathManager.catalog.value?.languageByCode(code) }
+    imageProcessor = ImageProcessor(this, catalogRepository)
+    translationService = TranslationService(settingsManager, filePathManager, catalogRepository)
+    speechService = SpeechService(settingsManager, catalogRepository)
+    languageDetector = LanguageDetector { code -> catalogRepository.catalog.value.languageByCode(code) }
     translationCoordinator =
       TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     adblockManager = AdblockManager(filePathManager)
@@ -126,17 +132,4 @@ class TranslatorApplication : Application() {
 
     settingsManager.applyBrowserAliasState(settingsManager.settings.value.registerAsBrowser)
   }
-
-  private fun isTtsEngineProcess(): Boolean = currentProcessName().endsWith(":tts")
-
-  private fun currentProcessName(): String =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-      getProcessName()
-    } else {
-      try {
-        java.io.File("/proc/self/cmdline").readText().trimEnd('\u0000')
-      } catch (_: Exception) {
-        packageName
-      }
-    }
 }

@@ -679,7 +679,6 @@ private fun previewLanguageState(vararg languages: Pair<Language, LangAvailabili
   LanguageAvailabilityState(
     hasLanguages = true,
     availableLanguages = languages.map { (language, availability) -> LanguageAvailabilityEntry(language, availability) },
-    isChecking = false,
   )
 
 @Preview(

@@ -494,11 +494,11 @@ fun TranslatorApp(
   pendingDocument?.let { pending ->
     val docCatalog = viewModel.languageStateManager.catalog.collectAsState().value
     val docAvailableLanguages =
-      (languageState.translatorLanguages() + listOfNotNull(docCatalog?.english))
+      (languageState.translatorLanguages() + listOf(docCatalog.english))
         .distinctBy { it.code }
     val initialFrom = from ?: docAvailableLanguages.firstOrNull()
-    val initialTo = to ?: docCatalog?.english ?: docAvailableLanguages.firstOrNull()
-    if (initialFrom != null && initialTo != null) {
+    val initialTo = to ?: docCatalog.english
+    if (initialFrom != null) {
       DocumentConfigureSheet(
         fileName = pending.displayName,
         fileSizeBytes = pending.sizeBytes,
@@ -861,7 +861,7 @@ fun TranslatorApp(
           composable("language_manager") {
             val curDownloadService = downloadService
             val catalog = viewModel.languageStateManager.catalog.collectAsState().value
-            if (curDownloadService != null && catalog != null) {
+            if (curDownloadService != null) {
               val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
               val ttsDownloadStates by curDownloadService.ttsDownloadStates.collectAsState()
               val activeTtsPackIds by curDownloadService.activeTtsPackIds.collectAsState()
@@ -895,13 +895,7 @@ fun TranslatorApp(
           }
           composable("settings") {
             val catalog = viewModel.languageStateManager.catalog.collectAsState().value
-            val englishLang = catalog?.english
-            val availableWithEnglish =
-              if (englishLang != null) {
-                (languageState.translatorLanguages() + englishLang).distinctBy { it.code }
-              } else {
-                languageState.translatorLanguages()
-              }
+            val availableWithEnglish = (languageState.translatorLanguages() + catalog.english).distinctBy { it.code }
             val app = context.applicationContext as dev.davidv.translator.TranslatorApplication
             val adblockReady by app.adblockManager.ready.collectAsState()
             SettingsScreen(
@@ -910,17 +904,14 @@ fun TranslatorApp(
               availableLanguages = availableWithEnglish,
               catalog = catalog,
               adblockDownloadState = adblockDownloadState,
-              adblockInstalled = adblockReady || catalog?.supportInstalledByKind("adblock") == true,
+              adblockInstalled = adblockReady || catalog.supportInstalledByKind("adblock"),
               onSettingsChange = { newSettings ->
                 viewModel.settingsManager.updateSettings(newSettings)
                 if (newSettings.defaultTargetLanguageCode != settings.defaultTargetLanguageCode) {
-                  val targetLang = catalog?.languageByCode(newSettings.defaultTargetLanguageCode)
+                  val targetLang = catalog.languageByCode(newSettings.defaultTargetLanguageCode)
                   if (targetLang != null) {
                     viewModel.handleMessage(dev.davidv.translator.TranslatorMessage.ToLang(targetLang))
                   }
-                }
-                if (newSettings.useExternalStorage != settings.useExternalStorage) {
-                  viewModel.languageStateManager.refreshLanguageAvailability()
                 }
               },
               onManageLanguages = {

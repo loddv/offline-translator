@@ -28,9 +28,9 @@ import java.io.File
 
 class ImageProcessor(
   private val context: Context,
-  private val filePathManager: FilePathManager,
+  private val catalogRepository: CatalogRepository,
 ) {
-  fun loadCatalog(): LanguageCatalog? = filePathManager.loadCatalog()
+  fun loadCatalog(): LanguageCatalog = catalogRepository.catalog.value
 
   fun loadBitmapFromUri(uri: Uri): Bitmap =
     context.contentResolver.openInputStream(uri)?.use { inputStream ->

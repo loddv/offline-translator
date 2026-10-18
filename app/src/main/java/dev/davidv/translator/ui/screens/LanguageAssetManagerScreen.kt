@@ -630,9 +630,9 @@ fun LanguageAssetManagerScreen(
   var filterQuery by remember { mutableStateOf("") }
   var pendingSharedDictionaryDelete by remember { mutableStateOf<PendingSharedDictionaryDelete?>(null) }
   var pendingTtsVoicePicker by remember { mutableStateOf<PendingTtsVoicePicker?>(null) }
-  val catalogRefreshToken by languageStateManager.catalogRefreshToken.collectAsState()
 
-  LaunchedEffect(catalogRefreshToken) {
+  // A fetched index is published as a new catalog, which ends the pull-to-refresh.
+  LaunchedEffect(catalog) {
     isRefreshing = false
   }
 
@@ -691,12 +691,12 @@ fun LanguageAssetManagerScreen(
   // catalog change that orphaned the installed variant): without a repair these
   // read as not-installed and their feature silently stops working (issue #246).
   val repairPlanSize =
-    remember(catalog, catalogRefreshToken, repairDownloadState.isCompleted) {
+    remember(catalog) {
       catalog?.planRepair()?.takeIf { it.tasks.isNotEmpty() }?.totalSize?.toLong() ?: 0L
     }
 
   val ppocrModelUpgrade =
-    remember(catalog, rows, catalogRefreshToken) {
+    remember(catalog, rows) {
       if (catalog == null) {
         PaddleUpgrade.EMPTY
       } else {
@@ -714,7 +714,7 @@ fun LanguageAssetManagerScreen(
     }
 
   val translationUpgrade =
-    remember(catalog, rows, catalogRefreshToken) {
+    remember(catalog, rows) {
       if (catalog == null) {
         TranslationUpgrade.EMPTY
       } else {

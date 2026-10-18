@@ -131,7 +131,6 @@ private fun previewLanguageState(entries: List<Pair<Language, LangAvailability>>
   LanguageAvailabilityState(
     hasLanguages = true,
     availableLanguages = entries.map { (language, availability) -> LanguageAvailabilityEntry(language, availability) },
-    isChecking = false,
   )
 
 private fun previewLanguage(

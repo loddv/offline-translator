@@ -101,8 +101,9 @@ class DownloadService : Service() {
   private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
   private val settingsManager by lazy { (application as TranslatorApplication).settingsManager }
   private val filePathManager by lazy { (application as TranslatorApplication).filePathManager }
+  private val catalogRepository by lazy { (application as TranslatorApplication).catalogRepository }
 
-  private fun getCatalog(): LanguageCatalog? = filePathManager.loadCatalog()
+  private fun getCatalog(): LanguageCatalog = catalogRepository.catalog.value
 
   private val _downloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
   val downloadStates: StateFlow<Map<Language, DownloadState>> = _downloadStates
@@ -125,8 +126,8 @@ class DownloadService : Service() {
   private val _repairDownloadState = MutableStateFlow(DownloadState())
   val repairDownloadState: StateFlow<DownloadState> = _repairDownloadState
 
-  private val _downloadEvents = MutableSharedFlow<DownloadEvent>()
-  val downloadEvents: SharedFlow<DownloadEvent> = _downloadEvents.asSharedFlow()
+  private val _downloadErrors = MutableSharedFlow<String>()
+  val downloadErrors: SharedFlow<String> = _downloadErrors.asSharedFlow()
 
   private val downloadJobs = mutableMapOf<Language, Job>()
   private val dictionaryDownloadJobs = mutableMapOf<Language, Job>()
@@ -314,14 +315,14 @@ class DownloadService : Service() {
     when (intent?.action) {
       "START_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         startLanguageDownload(language)
       }
 
       "CANCEL_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         cancelLanguageDownload(language)
       }
@@ -329,7 +330,7 @@ class DownloadService : Service() {
       "START_OCR_ENGINE_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
         val engine = intent.getStringExtra("engine") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         startOcrEngineDownload(language, engine)
       }
@@ -337,7 +338,7 @@ class DownloadService : Service() {
       "START_OCR_ENGINE_DOWNLOADS" -> {
         val languageCodes = intent.getStringArrayListExtra("language_codes").orEmpty()
         val engine = intent.getStringExtra("engine") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val languages = languageCodes.mapNotNull(catalog::languageByCode)
         startOcrEngineDownloads(languages, engine)
       }
@@ -345,14 +346,14 @@ class DownloadService : Service() {
       "START_OCR_ENGINE_UPGRADES" -> {
         val languageCodes = intent.getStringArrayListExtra("language_codes").orEmpty()
         val engine = intent.getStringExtra("engine") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val languages = languageCodes.mapNotNull(catalog::languageByCode)
         startOcrEngineUpgrades(languages, engine)
       }
 
       "START_TRANSLATION_UPGRADES" -> {
         val languageCodes = intent.getStringArrayListExtra("language_codes").orEmpty()
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val languages = languageCodes.mapNotNull(catalog::languageByCode)
         startTranslationUpgrades(languages)
       }
@@ -361,14 +362,14 @@ class DownloadService : Service() {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
         val dictionarySize = intent.getLongExtra("dictionary_size", 1000000L)
         Log.d("onStartCommand", "Dict download for $languageCode")
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         startDictionaryDownload(language, dictionarySize)
       }
 
       "CANCEL_DICT_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         cancelDictionaryDownload(language)
       }
@@ -376,14 +377,14 @@ class DownloadService : Service() {
       "START_TTS_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
         val packId = intent.getStringExtra("pack_id")
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         startTtsDownload(language, packId)
       }
 
       "CANCEL_TTS_DOWNLOAD" -> {
         val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
-        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val catalog = getCatalog()
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         cancelTtsDownload(language)
       }
@@ -414,7 +415,6 @@ class DownloadService : Service() {
     actionLabel: String,
     @StringRes failureMessageRes: Int,
     planProvider: (LanguageCatalog) -> DownloadPlan,
-    onSuccess: suspend (LanguageCatalog, LanguageCatalog) -> Unit = { _, _ -> },
   ) {
     if (_downloadStates.value[language]?.isDownloading == true) return
     updateDownloadState(language) {
@@ -427,7 +427,7 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-          val catalog = getCatalog() ?: return@launch
+          val catalog = getCatalog()
           val downloadPlan = planProvider(catalog)
           val downloadTasks =
             downloadPlan.tasks.map { task ->
@@ -454,19 +454,17 @@ class DownloadService : Service() {
             )
           }
           if (success) {
-            val refreshedCatalog = filePathManager.reloadCatalog() ?: catalog
-            onSuccess(catalog, refreshedCatalog)
+            catalogRepository.refresh()
             Log.i("DownloadService", "${actionLabel.replaceFirstChar(Char::titlecase)} complete: ${language.displayName}")
-            _downloadEvents.emit(DownloadEvent.NewTranslationAvailable(language))
           } else {
-            _downloadEvents.emit(DownloadEvent.DownloadError(getString(failureMessageRes, language.displayName)))
+            _downloadErrors.emit(getString(failureMessageRes, language.displayName))
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "${actionLabel.replaceFirstChar(Char::titlecase)} failed for ${language.displayName}", e)
           updateDownloadState(language) {
             it.copy(isDownloading = false, error = e.message)
           }
-          _downloadEvents.emit(DownloadEvent.DownloadError(getString(failureMessageRes, language.displayName)))
+          _downloadErrors.emit(getString(failureMessageRes, language.displayName))
         } finally {
           downloadJobs.remove(language)
         }
@@ -531,9 +529,7 @@ class DownloadService : Service() {
       languages,
       R.string.download_failed_ocr_batch,
       onSuccess = {
-        getCatalog()?.let { catalog ->
-          filePathManager.applyDeletePlan(catalog.planDeleteSupersededFiles())
-        }
+        catalogRepository.applyDeletePlan(getCatalog().planDeleteSupersededFiles())
       },
     ) { catalog, codes ->
       catalog.planOcrEngineUpgrades(codes, engine)
@@ -545,9 +541,7 @@ class DownloadService : Service() {
       languages,
       R.string.download_failed_translation_batch,
       onSuccess = {
-        getCatalog()?.let { catalog ->
-          filePathManager.applyDeletePlan(catalog.planDeleteSupersededFiles())
-        }
+        catalogRepository.applyDeletePlan(getCatalog().planDeleteSupersededFiles())
       },
     ) { catalog, codes ->
       catalog.planTranslationUpgrades(codes)
@@ -576,7 +570,7 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-          val catalog = getCatalog() ?: return@launch
+          val catalog = getCatalog()
           val downloadPlan = planProvider(catalog, activeLanguages.map { it.code })
           var success = true
           if (downloadPlan.tasks.isNotEmpty()) {
@@ -615,14 +609,11 @@ class DownloadService : Service() {
             }
           }
           if (success) {
-            filePathManager.reloadCatalog()
+            catalogRepository.refresh()
             onSuccess()
             Log.i("DownloadService", "Language batch download complete")
-            activeLanguages.forEach { language ->
-              _downloadEvents.emit(DownloadEvent.NewTranslationAvailable(language))
-            }
           } else {
-            _downloadEvents.emit(DownloadEvent.DownloadError(getString(failureMessageRes)))
+            _downloadErrors.emit(getString(failureMessageRes))
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "Language batch download failed", e)
@@ -631,7 +622,7 @@ class DownloadService : Service() {
               it.copy(isDownloading = false, error = e.message)
             }
           }
-          _downloadEvents.emit(DownloadEvent.DownloadError(getString(failureMessageRes)))
+          _downloadErrors.emit(getString(failureMessageRes))
         } finally {
           activeLanguages.forEach(downloadJobs::remove)
         }
@@ -657,7 +648,7 @@ class DownloadService : Service() {
     }
     val job =
       serviceScope.launch {
-        val catalog = getCatalog() ?: return@launch
+        val catalog = getCatalog()
         val downloadPlan = catalog.planDownload(language.code, Feature.DICTIONARY) ?: return@launch
         val downloadTasks = mutableListOf<suspend () -> Boolean>()
         val toDownload = if (downloadPlan.tasks.isNotEmpty()) downloadPlan.totalSize.toLong() else dictionarySize
@@ -689,11 +680,10 @@ class DownloadService : Service() {
         }
 
         if (success) {
-          filePathManager.reloadCatalog()
+          catalogRepository.refresh()
           Log.i("DownloadService", "Dictionary download complete: ${language.displayName}")
-          _downloadEvents.emit(DownloadEvent.NewDictionaryAvailable(language))
         } else {
-          _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_failed_dictionary, language.displayName)))
+          _downloadErrors.emit(getString(R.string.download_failed_dictionary, language.displayName))
           Log.e("DownloadService", "Dictionary download failed for ${language.displayName}")
           updateDictionaryDownloadState(language) {
             it.copy(isDownloading = false, error = "Dictionary download failed for ${language.displayName}")
@@ -722,7 +712,7 @@ class DownloadService : Service() {
     requestedPackId: String? = null,
   ) {
     if (_ttsDownloadStates.value[language]?.isDownloading == true) {
-      val resolvedPackId = requestedPackId ?: getCatalog()?.defaultTtsPackIdForLanguage(language.code) ?: return
+      val resolvedPackId = requestedPackId ?: getCatalog().defaultTtsPackIdForLanguage(language.code) ?: return
       if (_activeTtsPackIds.value[language] == resolvedPackId) return
       _queuedTtsPackIds.update { current ->
         val existing = current[language].orEmpty()
@@ -740,7 +730,7 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-          val catalog = getCatalog() ?: return@launch
+          val catalog = getCatalog()
           val ttsPackId = requestedPackId ?: catalog.defaultTtsPackIdForLanguage(language.code) ?: return@launch
           _activeTtsPackIds.update { it + (language to ttsPackId) }
           val downloadPlan =
@@ -778,12 +768,11 @@ class DownloadService : Service() {
           }
 
           if (success) {
-            filePathManager.reloadCatalog()
+            catalogRepository.refresh()
             TranslatorTtsEngine.notifyVoiceDataChanged(this@DownloadService)
             Log.i("DownloadService", "TTS download complete: ${language.displayName}")
-            _downloadEvents.emit(DownloadEvent.NewTtsAvailable(language))
           } else {
-            _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_failed_tts, language.displayName)))
+            _downloadErrors.emit(getString(R.string.download_failed_tts, language.displayName))
             updateTtsDownloadState(language) {
               it.copy(isDownloading = false, error = "TTS download failed for ${language.displayName}")
             }
@@ -793,7 +782,7 @@ class DownloadService : Service() {
           updateTtsDownloadState(language) {
             it.copy(isDownloading = false, error = e.message)
           }
-          _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} TTS download failed"))
+          _downloadErrors.emit("${language.displayName} TTS download failed")
         } finally {
           ttsDownloadJobs.remove(language)
           _activeTtsPackIds.update { it - language }
@@ -838,14 +827,7 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-          val catalog =
-            getCatalog() ?: run {
-              updateAdblockDownloadState {
-                it.copy(isDownloading = false, error = "Catalog unavailable")
-              }
-              _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_catalog_unavailable)))
-              return@launch
-            }
+          val catalog = getCatalog()
           val downloadPlan =
             catalog.planSupportDownloadByKind(ADBLOCK_KIND) ?: run {
               Log.w("DownloadService", "No adblock support pack in catalog")
@@ -879,22 +861,21 @@ class DownloadService : Service() {
           }
 
           if (success) {
-            filePathManager.reloadCatalog()
+            catalogRepository.refresh()
             (application as? TranslatorApplication)?.adblockManager?.reload()
             Log.i("DownloadService", "Adblock download complete")
-            _downloadEvents.emit(DownloadEvent.NewSupportAvailable(ADBLOCK_KIND))
           } else {
             updateAdblockDownloadState {
               it.copy(isDownloading = false, error = "Adblock download failed")
             }
-            _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_failed_adblock)))
+            _downloadErrors.emit(getString(R.string.download_failed_adblock))
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "Adblock download failed", e)
           updateAdblockDownloadState {
             it.copy(isDownloading = false, error = e.message)
           }
-          _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_failed_adblock)))
+          _downloadErrors.emit(getString(R.string.download_failed_adblock))
         } finally {
           adblockDownloadJob = null
         }
@@ -915,14 +896,7 @@ class DownloadService : Service() {
     val job =
       serviceScope.launch {
         try {
-          val catalog =
-            getCatalog() ?: run {
-              updateRepairDownloadState {
-                it.copy(isDownloading = false, error = "Catalog unavailable")
-              }
-              _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_catalog_unavailable)))
-              return@launch
-            }
+          val catalog = getCatalog()
           val downloadPlan = catalog.planRepair()
           var success = true
           if (downloadPlan.tasks.isNotEmpty()) {
@@ -949,18 +923,17 @@ class DownloadService : Service() {
           }
 
           if (success) {
-            filePathManager.reloadCatalog()
+            catalogRepository.refresh()
             Log.i("DownloadService", "Repair download complete")
-            _downloadEvents.emit(DownloadEvent.NewSupportAvailable(REPAIR_KIND))
           } else {
-            _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_failed_repair)))
+            _downloadErrors.emit(getString(R.string.download_failed_repair))
           }
         } catch (e: Exception) {
           Log.e("DownloadService", "Repair download failed", e)
           updateRepairDownloadState {
             it.copy(isDownloading = false, error = e.message)
           }
-          _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_failed_repair)))
+          _downloadErrors.emit(getString(R.string.download_failed_repair))
         } finally {
           repairDownloadJob = null
         }
@@ -1358,17 +1331,16 @@ class DownloadService : Service() {
 
         if (tempFile.renameTo(catalogFile)) {
           Log.i("DownloadService", "Downloaded catalog from $url to $catalogFile")
-          filePathManager.reloadCatalog()
-          _downloadEvents.emit(DownloadEvent.CatalogDownloaded)
+          catalogRepository.reloadIndex()
         } else {
           Log.e("DownloadService", "Failed to move temp catalog file $tempFile to final location $catalogFile")
           tempFile.delete()
-          _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_catalog_save_failed)))
+          _downloadErrors.emit(getString(R.string.download_catalog_save_failed))
         }
       } catch (e: Exception) {
         Log.e("DownloadService", "Error downloading catalog", e)
         val detail = e.message ?: getString(R.string.download_unknown_error)
-        _downloadEvents.emit(DownloadEvent.DownloadError(getString(R.string.download_catalog_failed, detail)))
+        _downloadErrors.emit(getString(R.string.download_catalog_failed, detail))
       }
     }
   }
@@ -1406,7 +1378,3 @@ data class DownloadState(
 
 private const val ADBLOCK_KIND = "adblock"
 private const val DOC_DETECT_KIND = "doc_detect"
-
-// Not a catalog pack kind: the NewSupportAvailable event key for a finished
-// repair download, so availability listeners refresh like any support install.
-private const val REPAIR_KIND = "repair"

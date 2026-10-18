@@ -20,7 +20,7 @@ package dev.davidv.translator.browser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import dev.davidv.translator.FilePathManager
+import dev.davidv.translator.CatalogRepository
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageMetadata
@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
 
 class BrowserViewModel(
   settingsManager: SettingsManager,
-  filePathManager: FilePathManager,
+  catalogRepository: CatalogRepository,
   languageMetadataManager: LanguageMetadataManager,
   private val translationService: TranslationService,
   initialUrl: String,
@@ -45,7 +45,7 @@ class BrowserViewModel(
   initialTargetCode: String?,
 ) : ViewModel() {
   val settings = settingsManager.settings
-  val languageStateManager = LanguageStateManager(viewModelScope, filePathManager)
+  val languageStateManager = LanguageStateManager(viewModelScope, catalogRepository)
 
   val languageState: StateFlow<LanguageAvailabilityState> = languageStateManager.languageState
   val languageMetadata: StateFlow<Map<Language, LanguageMetadata>> = languageMetadataManager.metadata
@@ -64,7 +64,6 @@ class BrowserViewModel(
       combine(languageStateManager.catalog, languageStateManager.languageState) { catalog, state ->
         catalog to state
       }.collect { (catalog, state) ->
-        if (catalog == null) return@collect
         val settings = settingsManager.settings.value
         if (_to.value == null) {
           val tgtCode = initialTargetCode ?: settings.defaultTargetLanguageCode
@@ -133,7 +132,7 @@ class BrowserViewModel(
 
 class BrowserViewModelFactory(
   private val settingsManager: SettingsManager,
-  private val filePathManager: FilePathManager,
+  private val catalogRepository: CatalogRepository,
   private val languageMetadataManager: LanguageMetadataManager,
   private val translationService: TranslationService,
   private val initialUrl: String,
@@ -144,7 +143,7 @@ class BrowserViewModelFactory(
     @Suppress("UNCHECKED_CAST")
     return BrowserViewModel(
       settingsManager = settingsManager,
-      filePathManager = filePathManager,
+      catalogRepository = catalogRepository,
       languageMetadataManager = languageMetadataManager,
       translationService = translationService,
       initialUrl = initialUrl,

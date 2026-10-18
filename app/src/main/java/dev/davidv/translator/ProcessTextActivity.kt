@@ -17,12 +17,8 @@
 
 package dev.davidv.translator
 
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,18 +28,11 @@ import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.TranslatorViewModelFactory
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 class ProcessTextActivity : ComponentActivity() {
   private var textToTranslate: String = ""
   private var launchMode: LaunchMode = LaunchMode.Normal
   private lateinit var viewModel: TranslatorViewModel
-  private var downloadService: DownloadService? = null
-  private lateinit var serviceConnection: ServiceConnection
-  private val _downloadServiceState = MutableStateFlow<DownloadService?>(null)
-  val downloadServiceState: StateFlow<DownloadService?> = _downloadServiceState.asStateFlow()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -71,38 +60,14 @@ class ProcessTextActivity : ComponentActivity() {
       TranslatorTheme {
         TranslatorApp(
           viewModel = viewModel,
-          downloadServiceState = downloadServiceState,
           onClose = { finish() },
         )
       }
     }
-
-    serviceConnection =
-      object : ServiceConnection {
-        override fun onServiceConnected(
-          name: ComponentName?,
-          service: IBinder?,
-        ) {
-          val binder = service as DownloadService.DownloadBinder
-          downloadService = binder.getService()
-          _downloadServiceState.value = downloadService
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-          downloadService = null
-          _downloadServiceState.value = null
-        }
-      }
-
-    val serviceIntent = Intent(this, DownloadService::class.java)
-    bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
   }
 
   override fun onDestroy() {
     super.onDestroy()
-    if (::serviceConnection.isInitialized) {
-      unbindService(serviceConnection)
-    }
     Log.i("ProcessTextActivity", "cleaning up")
   }
 

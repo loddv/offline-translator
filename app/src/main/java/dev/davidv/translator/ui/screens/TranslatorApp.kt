@@ -80,12 +80,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.DocumentTranslationService
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadRequest
 import dev.davidv.translator.Language
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.PcmAudioPlayer
 import dev.davidv.translator.R
+import dev.davidv.translator.SupportKind
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.encodeVoiceOverride
 import dev.davidv.translator.parseVoiceOverride
@@ -95,7 +96,6 @@ import dev.davidv.translator.ui.UiEvent
 import dev.davidv.translator.ui.components.DocumentConfigureSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -354,7 +354,6 @@ private fun PdfPhaseFractionRow(
 @Composable
 fun TranslatorApp(
   viewModel: TranslatorViewModel,
-  downloadServiceState: StateFlow<DownloadService?>,
   onClose: () -> Unit = {},
 ) {
   val navController = rememberNavController()
@@ -417,14 +416,9 @@ fun TranslatorApp(
 
   val settings by viewModel.settingsManager.settings.collectAsState()
   val languageMetadata by viewModel.languageMetadataManager.metadata.collectAsState()
-  val downloadService by downloadServiceState.collectAsState()
   val languageState by viewModel.languageStateManager.languageState.collectAsState()
-  val downloadStates by downloadService?.downloadStates?.collectAsState() ?: remember {
-    kotlinx.coroutines.flow.MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
-  }.collectAsState()
-  val adblockDownloadState by downloadService?.adblockDownloadState?.collectAsState() ?: remember {
-    kotlinx.coroutines.flow.MutableStateFlow(DownloadState())
-  }.collectAsState()
+  val downloadManager = (context.applicationContext as dev.davidv.translator.TranslatorApplication).downloadManager
+  val downloads by downloadManager.state.collectAsState()
   val isTranslating by viewModel.translationCoordinator.isTranslating.collectAsState()
   val ttsVoicesByLanguage by viewModel.ttsVoices.collectAsState()
 
@@ -446,11 +440,8 @@ fun TranslatorApp(
     }
   }
 
-  // Connect/disconnect download service
-  LaunchedEffect(downloadService) {
-    downloadService?.let { service ->
-      viewModel.connectDownloadService(service)
-    }
+  LaunchedEffect(downloadManager) {
+    viewModel.languageStateManager.connectToDownloadErrors(downloadManager.errors)
   }
 
   // Collect UI events (toasts, share intents)
@@ -710,27 +701,24 @@ fun TranslatorApp(
           }
 
           composable("no_languages") {
-            val currentDownloadService = downloadService
-            if (currentDownloadService != null) {
-              NoLanguagesScreen(
-                settingsManager = viewModel.settingsManager,
-                onDone = {
-                  if (languageState.hasLanguages) {
-                    MainScope().launch {
-                      navController.navigate("main") {
-                        popUpTo("no_languages") { inclusive = true }
-                      }
+            NoLanguagesScreen(
+              settingsManager = viewModel.settingsManager,
+              onDone = {
+                if (languageState.hasLanguages) {
+                  MainScope().launch {
+                    navController.navigate("main") {
+                      popUpTo("no_languages") { inclusive = true }
                     }
                   }
-                },
-                onSettings = {
-                  navController.navigate("settings")
-                },
-                languageStateManager = viewModel.languageStateManager,
-                languageMetadataManager = viewModel.languageMetadataManager,
-                downloadService = currentDownloadService,
-              )
-            }
+                }
+              },
+              onSettings = {
+                navController.navigate("settings")
+              },
+              languageStateManager = viewModel.languageStateManager,
+              languageMetadataManager = viewModel.languageMetadataManager,
+              downloadManager = downloadManager,
+            )
           }
 
           composable("main") {
@@ -788,7 +776,9 @@ fun TranslatorApp(
                 },
                 languageState = languageState,
                 languageMetadata = languageMetadata,
-                downloadStates = downloadStates,
+                downloads = downloads,
+                onDownload = downloadManager::enqueue,
+                onCancelDownload = downloadManager::cancel,
                 settings = settings,
                 availableSourceTtsVoices = availableSourceTtsVoices,
                 selectedSourceTtsVoiceName = selectedSourceTtsVoiceName,
@@ -859,37 +849,24 @@ fun TranslatorApp(
             }
           }
           composable("language_manager") {
-            val curDownloadService = downloadService
             val catalog = viewModel.languageStateManager.catalog.collectAsState().value
-            if (curDownloadService != null) {
-              val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
-              val ttsDownloadStates by curDownloadService.ttsDownloadStates.collectAsState()
-              val activeTtsPackIds by curDownloadService.activeTtsPackIds.collectAsState()
-              val queuedTtsPackIds by curDownloadService.queuedTtsPackIds.collectAsState()
-              val repairDownloadState by curDownloadService.repairDownloadState.collectAsState()
-              Scaffold(
-                modifier =
-                  Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-                    .imePadding(),
-              ) { padding ->
-                Box(modifier = Modifier.padding(padding)) {
-                  LanguageAssetManagerScreen(
-                    context = context,
-                    languageStateManager = viewModel.languageStateManager,
-                    languageMetadataManager = viewModel.languageMetadataManager,
-                    settingsManager = viewModel.settingsManager,
-                    catalog = catalog,
-                    languageAvailabilityState = languageState,
-                    downloadStates = downloadStates,
-                    dictionaryDownloadStates = dictionaryDownloadStates,
-                    ttsDownloadStates = ttsDownloadStates,
-                    activeTtsPackIds = activeTtsPackIds,
-                    queuedTtsPackIds = queuedTtsPackIds,
-                    repairDownloadState = repairDownloadState,
-                  )
-                }
+            Scaffold(
+              modifier =
+                Modifier
+                  .fillMaxSize()
+                  .navigationBarsPadding()
+                  .imePadding(),
+            ) { padding ->
+              Box(modifier = Modifier.padding(padding)) {
+                LanguageAssetManagerScreen(
+                  context = context,
+                  languageStateManager = viewModel.languageStateManager,
+                  languageMetadataManager = viewModel.languageMetadataManager,
+                  settingsManager = viewModel.settingsManager,
+                  catalog = catalog,
+                  languageAvailabilityState = languageState,
+                  downloadManager = downloadManager,
+                )
               }
             }
           }
@@ -903,7 +880,9 @@ fun TranslatorApp(
               languageMetadataManager = viewModel.languageMetadataManager,
               availableLanguages = availableWithEnglish,
               catalog = catalog,
-              adblockDownloadState = adblockDownloadState,
+              adblockDownload = downloads[DownloadId.Support(SupportKind.ADBLOCK)],
+              onDownloadAdblockSupport = { downloadManager.enqueue(DownloadRequest.Support(SupportKind.ADBLOCK)) },
+              onCancelAdblockDownload = { downloadManager.cancel(DownloadId.Support(SupportKind.ADBLOCK)) },
               adblockInstalled = adblockReady || catalog.supportInstalledByKind("adblock"),
               onSettingsChange = { newSettings ->
                 viewModel.settingsManager.updateSettings(newSettings)

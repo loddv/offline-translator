@@ -68,8 +68,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadRequest
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
@@ -151,7 +152,9 @@ fun MainScreen(
   // System integration
   languageState: LanguageAvailabilityState,
   languageMetadata: Map<Language, LanguageMetadata>,
-  downloadStates: Map<Language, DownloadState> = emptyMap(),
+  downloads: Map<DownloadId, DownloadStatus>,
+  onDownload: (DownloadRequest) -> Unit,
+  onCancelDownload: (DownloadId) -> Unit,
   settings: AppSettings,
   availableSourceTtsVoices: List<uniffi.translator_core.InstalledTtsPack> = emptyList(),
   selectedSourceTtsVoiceName: String? = null,
@@ -316,12 +319,12 @@ fun MainScreen(
                   from = from,
                   languageState = languageState,
                   onMessage = onMessage,
-                  downloadStates = downloadStates,
+                  downloads = downloads,
                   isAutoSource = isAutoSource,
                   onEvent = { event ->
                     when (event) {
-                      is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                      is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                      is LanguageEvent.Download -> onDownload(DownloadRequest.Core(event.language))
+                      is LanguageEvent.Cancel -> onCancelDownload(DownloadId.Core(event.language))
                       else -> Log.e("MainScreen", "Got unexpected event: $event")
                     }
                   },
@@ -711,7 +714,9 @@ fun PopupMode() {
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
@@ -752,7 +757,9 @@ fun MainScreenPreview() {
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(),
       dictionaryWord = null,
       dictionaryStack = emptyList(),
@@ -796,7 +803,9 @@ fun PreviewTranslitText() {
           previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true),
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
       dictionaryWord = null,
@@ -842,7 +851,9 @@ fun PreviewVeryLongText() {
           previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true),
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
       dictionaryWord = null,
@@ -892,7 +903,9 @@ fun PreviewVeryLongTextImage() {
           previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true),
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
       dictionaryWord = null,

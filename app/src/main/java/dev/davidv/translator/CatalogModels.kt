@@ -217,8 +217,6 @@ class LanguageCatalog private constructor(
 
   fun translationUpgradeLanguageCodes(): List<String> = handle.translationUpgradeLanguageCodes()
 
-  fun planDeleteSupersededFiles(): DeletePlan = handle.planDeleteSupersededFiles()
-
   fun planRepair(): DownloadPlan = handle.planRepair()
 
   fun ocrEngineReady(): Boolean = handle.ocrEngineReady()
@@ -452,6 +450,8 @@ class LanguageCatalog private constructor(
   ): DownloadPlan? = handle.planDownload(languageCode, feature, selectedTtsPackId)
 
   fun planSupportDownloadByKind(kind: String): DownloadPlan? = handle.planSupportDownloadByKind(kind)
+
+  fun downloadTaskInstalled(task: DownloadTask): Boolean = handle.downloadTaskInstalled(task)
 
   fun prepareDelete(
     languageCode: String,

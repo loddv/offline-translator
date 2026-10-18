@@ -25,7 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.FromLangChange
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
@@ -42,7 +43,7 @@ fun DetectedLanguageSection(
   from: Language,
   languageState: LanguageAvailabilityState,
   onMessage: (TranslatorMessage) -> Unit,
-  downloadStates: Map<Language, DownloadState>,
+  downloads: Map<DownloadId, DownloadStatus>,
   onEvent: (LanguageEvent) -> Unit,
   isAutoSource: Boolean = false,
 ) {
@@ -57,7 +58,7 @@ fun DetectedLanguageSection(
       onMessage(TranslatorMessage.FromLang(detectedLanguage, FromLangChange.MovePreviousToTarget))
     },
     modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-    downloadStates = downloadStates,
+    downloadStatus = downloads[DownloadId.Core(detectedLanguage)],
     onEvent = onEvent,
   )
 }
@@ -97,7 +98,7 @@ fun DetectedLanguageSectionPreview() {
           ),
         ),
       onMessage = {},
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
       onEvent = {},
     )
   }
@@ -119,7 +120,7 @@ fun DetectedLanguageSectionNoDetectionPreview() {
           ),
         ),
       onMessage = {},
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
       onEvent = {},
     )
   }
@@ -144,7 +145,7 @@ fun DetectedLanguageSectionDarkPreview() {
           ),
         ),
       onMessage = {},
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
       onEvent = {},
     )
   }

@@ -84,6 +84,8 @@ import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.WordWithTaggedEntries
 import dev.davidv.translator.localizedName
 import dev.davidv.translator.singleScript
+import dev.davidv.translator.ui.SpeechState
+import dev.davidv.translator.ui.SpeechTarget
 import dev.davidv.translator.ui.components.ActionPillButton
 import dev.davidv.translator.ui.components.AlternativesDrawer
 import dev.davidv.translator.ui.components.AlternativesTarget
@@ -133,12 +135,7 @@ fun MainScreen(
   dictionaryWord: WordWithTaggedEntries?,
   dictionaryStack: List<WordWithTaggedEntries>,
   dictionaryLookupLanguage: Language?,
-  isAudioPlaying: Boolean = false,
-  isAudioLoading: Boolean = false,
-  isInputAudioPlaying: Boolean = false,
-  isInputAudioLoading: Boolean = false,
-  isOutputAudioPlaying: Boolean = false,
-  isOutputAudioLoading: Boolean = false,
+  speech: SpeechState = SpeechState.Idle,
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
   onSteerPreview: suspend (String) -> String? = { null },
@@ -377,7 +374,7 @@ fun MainScreen(
             }
 
             if (!showOnlyOutputInReadonlyModal && displayImage == null) {
-              val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isInputAudioPlaying && !isInputAudioLoading
+              val isOtherAudioActive = speech.target.let { it != null && it != SpeechTarget.INPUT }
               val canSpeakInput =
                 input.isNotBlank() && languageState.availabilityFor(from)?.ttsFiles == true && !isOtherAudioActive
               InputSection(
@@ -392,8 +389,8 @@ fun MainScreen(
                 inputDictMode = inputDictMode,
                 onToggleInputDict = { inputDictMode = !inputDictMode },
                 canSpeakInput = canSpeakInput,
-                isInputAudioPlaying = isInputAudioPlaying,
-                isInputAudioLoading = isInputAudioLoading,
+                isInputAudioPlaying = speech == SpeechState.Playing(SpeechTarget.INPUT),
+                isInputAudioLoading = speech == SpeechState.Loading(SpeechTarget.INPUT),
                 sourceTtsPlaybackSpeed = sourceTtsPlaybackSpeed,
                 selectedSourceTtsVoiceName = selectedSourceTtsVoiceName,
                 availableSourceTtsVoices = availableSourceTtsVoices,
@@ -565,13 +562,13 @@ fun MainScreen(
                       OutputTapMode.None -> {}
                     }
                   },
-                  isAudioPlaying = isOutputAudioPlaying,
-                  isAudioLoading = isOutputAudioLoading,
+                  isAudioPlaying = speech == SpeechState.Playing(SpeechTarget.OUTPUT),
+                  isAudioLoading = speech == SpeechState.Loading(SpeechTarget.OUTPUT),
                   speechPlaybackSpeed = targetTtsPlaybackSpeed,
                   selectedVoiceName = selectedTtsVoiceName,
                   availableVoices = availableTtsVoices,
                   onSpeak = {
-                    if (isOutputAudioPlaying || isOutputAudioLoading) {
+                    if (speech.target == SpeechTarget.OUTPUT) {
                       onStopAudio()
                     } else {
                       output?.translated?.takeIf { it.isNotBlank() }?.let { translatedText ->

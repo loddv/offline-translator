@@ -24,7 +24,6 @@ import android.content.pm.PackageManager
 import android.speech.tts.TextToSpeech
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -55,9 +54,32 @@ private data class TtsVoiceData(
 fun launchAppEffects(
   scope: CoroutineScope,
   context: Context,
-  settings: StateFlow<AppSettings>,
+  settingsManager: SettingsManager,
   catalogRepository: CatalogRepository,
 ) {
+  val settings = settingsManager.settings
+
+  // A default naming a deleted language would keep seeding every surface with a pair that can't
+  // translate; English is the pivot every catalog carries.
+  scope.launch {
+    catalogRepository.catalog
+      .map(LanguageAvailabilityState::of)
+      .filter { it.hasLanguages }
+      .collect { availability ->
+        val uninstalled =
+          availability.availableLanguages
+            .filterNot { it.availability.translatorFiles }
+            .map { it.language.code }
+            .toSet()
+        settingsManager.update { current ->
+          current.copy(
+            defaultTargetLanguageCode = current.defaultTargetLanguageCode.takeUnless { it in uninstalled } ?: "en",
+            defaultSourceLanguageCode = current.defaultSourceLanguageCode?.let { if (it in uninstalled) "en" else it },
+          )
+        }
+      }
+  }
+
   scope.launch(Dispatchers.IO) {
     settings
       .map { it.useExternalStorage }

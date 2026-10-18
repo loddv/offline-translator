@@ -27,12 +27,6 @@ class TranslationService(
   private val filePathManager: FilePathManager,
   private val catalogRepository: CatalogRepository,
 ) {
-  companion object {
-    fun cleanup() {
-      // cache now lives in the native catalog translation layer
-    }
-  }
-
   private val transliterateBinding = TransliterateBinding()
 
   // / Requires the translation pairs to be available

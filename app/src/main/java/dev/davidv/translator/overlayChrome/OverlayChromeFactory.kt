@@ -45,7 +45,7 @@ object OverlayChromeFactory {
   ) {
     sourceLabel?.text =
       when (val source = selection.source) {
-        OverlaySource.Auto -> "✨ Auto"
+        is OverlaySource.Auto -> "✨ Auto"
         is OverlaySource.Fixed -> source.language.shortDisplayName
       }
     targetLabel?.text = selection.target.shortDisplayName

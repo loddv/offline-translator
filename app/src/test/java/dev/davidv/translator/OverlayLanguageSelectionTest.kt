@@ -51,7 +51,7 @@ class OverlayLanguageSelectionTest {
   fun `defaults start on auto with the configured target`() {
     val settings = AppSettings(defaultTargetLanguageCode = "es", defaultSourceLanguageCode = "en")
     val result = OverlayLanguageSelection.defaults(availability(entry(en), entry(es)), settings)
-    assertEquals(OverlayLanguageSelection(OverlaySource.Auto, es), result)
+    assertEquals(OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), es), result)
   }
 
   @Test
@@ -72,7 +72,7 @@ class OverlayLanguageSelectionTest {
 
   @Test
   fun `swap is refused under auto`() {
-    assertNull(OverlayLanguageSelection(OverlaySource.Auto, en).swapped(anyPair))
+    assertNull(OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), en).swapped(anyPair))
   }
 
   @Test
@@ -96,13 +96,13 @@ class OverlayLanguageSelectionTest {
 
   @Test
   fun `picking a source leaves auto and keeps the target`() {
-    assertEquals(fixed(fr, es), OverlayLanguageSelection(OverlaySource.Auto, es).withSource(fr))
+    assertEquals(fixed(fr, es), OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), es).withSource(fr))
   }
 
   @Test
   fun `setting auto forgets the fixed source and its reading order`() {
     val result = fixed(ja, en).withNextReadingOrder().withAutoSource()
-    assertEquals(OverlayLanguageSelection(OverlaySource.Auto, en), result)
+    assertEquals(OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), en), result)
     assertNull(result.readingOrder)
   }
 
@@ -133,7 +133,7 @@ class OverlayLanguageSelectionTest {
   fun `reading order is only offered for a fixed japanese source`() {
     assertEquals(true, fixed(ja, en).offersReadingOrder)
     assertEquals(false, fixed(es, en).offersReadingOrder)
-    assertEquals(false, OverlayLanguageSelection(OverlaySource.Auto, ja).offersReadingOrder)
+    assertEquals(false, OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), ja).offersReadingOrder)
   }
 
   @Test(expected = IllegalStateException::class)

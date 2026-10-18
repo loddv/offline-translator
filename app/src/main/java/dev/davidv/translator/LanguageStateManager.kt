@@ -109,7 +109,6 @@ class LanguageStateManager(
 
   fun deleteLanguage(language: Language) {
     catalogRepository.applyDeletePlan(catalog.value.prepareDelete(language.code, Feature.CORE))
-    scope.launch { _fileEvents.emit(FileEvent.LanguageDeleted(language)) }
     Log.i("LanguageStateManager", "Removed language: ${language.displayName}")
   }
 
@@ -143,34 +142,5 @@ class LanguageStateManager(
     to: Language,
   ): Boolean {
     return catalog.value.canTranslate(from, to)
-  }
-
-  fun getFirstAvailableFromLanguage(excluding: Language? = null): Language? {
-    val state = languageState.value
-    return state.translatorLanguages().firstOrNull { it != excluding }
-  }
-
-  fun getFirstAvailableSourceLanguage(
-    target: Language,
-    excluding: Language? = null,
-  ): Language? {
-    val state = languageState.value
-    return state.allLanguages()
-      .asSequence()
-      .filterNot { it == excluding }
-      .filter { canTranslate(it, target) }
-      .firstOrNull()
-  }
-
-  fun getFirstAvailableTargetLanguage(
-    source: Language,
-    excluding: Language? = null,
-  ): Language? {
-    val state = languageState.value
-    return state.allLanguages()
-      .asSequence()
-      .filterNot { it == excluding }
-      .filter { canTranslate(source, it) }
-      .firstOrNull()
   }
 }

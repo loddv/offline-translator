@@ -68,22 +68,12 @@ sealed class TranslatorMessage {
 
   data object ClearInput : TranslatorMessage()
 
-  data class InitializeLanguages(
-    val from: Language,
-    val to: Language,
-  ) : TranslatorMessage()
-
   data class ImageTextDetected(
     val extractedText: String,
   ) : TranslatorMessage()
 
   data class DictionaryLookup(
     val str: String,
-    val language: Language,
-  ) : TranslatorMessage()
-
-  data class SpeakTranslatedText(
-    val text: String,
     val language: Language,
   ) : TranslatorMessage()
 

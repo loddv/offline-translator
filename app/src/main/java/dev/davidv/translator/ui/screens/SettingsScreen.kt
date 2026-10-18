@@ -75,11 +75,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
+import dev.davidv.translator.CatalogRepository
 import dev.davidv.translator.DownloadStatus
+import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.HttpServerBindMode
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageCatalog
-import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
@@ -92,6 +93,7 @@ import dev.davidv.translator.singleScript
 import dev.davidv.translator.ui.components.AppCard
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -236,9 +238,8 @@ private fun HttpServerCard(
 @Composable
 fun SettingsScreen(
   settings: AppSettings,
-  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   availableLanguages: List<Language>,
-  catalog: LanguageCatalog?,
+  catalog: LanguageCatalog,
   adblockDownload: DownloadStatus?,
   adblockInstalled: Boolean,
   onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
@@ -354,7 +355,7 @@ fun SettingsScreen(
 
           LanguageDropdown(
             label = stringResource(R.string.settings_default_from),
-            selectedLanguage = settings.defaultSourceLanguageCode?.let { catalog?.languageByCode(it) },
+            selectedLanguage = settings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) },
             availableLanguages = availableLanguages,
             fallbackLanguage = availableLanguages.firstOrNull { it.code != settings.defaultTargetLanguageCode },
             onLanguageSelected = { language ->
@@ -364,7 +365,7 @@ fun SettingsScreen(
 
           LanguageDropdown(
             label = stringResource(R.string.settings_default_to),
-            selectedLanguage = catalog?.languageByCode(settings.defaultTargetLanguageCode),
+            selectedLanguage = catalog.languageByCode(settings.defaultTargetLanguageCode),
             availableLanguages = availableLanguages,
             fallbackLanguage = null,
             onLanguageSelected = { language ->
@@ -469,7 +470,7 @@ fun SettingsScreen(
 
           WebTranslatorAssetRow(
             label = stringResource(R.string.settings_adblock_support),
-            secondaryLabel = catalog?.supportSizeBytesByKind("adblock")?.let(::formatSize),
+            secondaryLabel = formatSize(catalog.supportSizeBytesByKind("adblock")),
             installed = adblockInstalled,
             downloadStatus = adblockDownload,
             onDownload = onDownloadAdblockSupport,
@@ -1460,6 +1461,12 @@ private fun previewLanguage(
   dictionaryCode = code,
 )
 
+@Composable
+private fun previewCatalog(context: Context): LanguageCatalog =
+  remember {
+    CatalogRepository.open(context, FilePathManager(context, MutableStateFlow(AppSettings()))).catalog.value
+  }
+
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
@@ -1473,9 +1480,8 @@ fun SettingsScreenPreview() {
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(),
-      languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
       availableLanguages = previewLangs,
-      catalog = null,
+      catalog = previewCatalog(context),
       adblockDownload = null,
       adblockInstalled = false,
       onSettingsChange = {},
@@ -1505,9 +1511,8 @@ fun SettingsScreenDarkPreview() {
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(fontFactor = 3.0f),
-      languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
       availableLanguages = previewLangs,
-      catalog = null,
+      catalog = previewCatalog(context),
       adblockDownload = null,
       adblockInstalled = true,
       onSettingsChange = {},

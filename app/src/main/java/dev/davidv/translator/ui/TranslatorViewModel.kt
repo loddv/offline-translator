@@ -33,11 +33,14 @@ import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.FromLangChange
 import dev.davidv.translator.InputType
 import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
+import dev.davidv.translator.MainSelection
+import dev.davidv.translator.MainSelectionRules
 import dev.davidv.translator.OverlaySource
-import dev.davidv.translator.PcmAudio
+import dev.davidv.translator.PcmAudioPlayer
 import dev.davidv.translator.PdfPhaseProgress
 import dev.davidv.translator.PreparedImageOverlay
 import dev.davidv.translator.R
@@ -46,7 +49,6 @@ import dev.davidv.translator.Script
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.SpeechError
 import dev.davidv.translator.SpeechSynthesisResult
-import dev.davidv.translator.TargetTabs
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
@@ -56,6 +58,7 @@ import dev.davidv.translator.WordWithTaggedEntries
 import dev.davidv.translator.copyDocumentUriToCache
 import dev.davidv.translator.displayNameForUri
 import dev.davidv.translator.localizedName
+import dev.davidv.translator.nextReadingOrder
 import dev.davidv.translator.sizeBytesForUri
 import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.ImageWordSelection
@@ -73,6 +76,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -95,10 +99,6 @@ class TranslatorViewModel(
 ) : ViewModel() {
   val languageStateManager = LanguageStateManager(viewModelScope, catalogRepository)
 
-  // Navigation state derived from language availability and from/to selection
-  // This eliminates the need for from!! force-unwraps in the composable
-  enum class NavigationState { LOADING, NO_LANGUAGES, READY }
-
   // UI state
   private val _input = MutableStateFlow(initialText)
   val input: StateFlow<String> = _input.asStateFlow()
@@ -106,18 +106,8 @@ class TranslatorViewModel(
   private val _output = MutableStateFlow<TranslatedText?>(null)
   val output: StateFlow<TranslatedText?> = _output.asStateFlow()
 
-  private val _from = MutableStateFlow<Language?>(null)
-  val from: StateFlow<Language?> = _from.asStateFlow()
-
-  private val _targets = MutableStateFlow<TargetTabs?>(null)
-  val targets: StateFlow<TargetTabs?> = _targets.asStateFlow()
-
-  // Active target, derived from the tab zipper. Everything that just needs "the
-  // current target" reads this; the tab list is only for the multi-target header.
-  val to: StateFlow<Language?> =
-    _targets.map { it?.active }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-  private val activeTo: Language? get() = _targets.value?.active
+  private val _selection = MutableStateFlow(selectionRules().initial())
+  val selection: StateFlow<MainSelection> = _selection.asStateFlow()
 
   private val _displayImage = MutableStateFlow<Bitmap?>(null)
   val displayImage: StateFlow<Bitmap?> = _displayImage.asStateFlow()
@@ -170,12 +160,12 @@ class TranslatorViewModel(
 
   @OptIn(ExperimentalCoroutinesApi::class)
   val inputTransliterated: StateFlow<String?> =
-    combine(_input, _from, _inputType, settingsManager.settings) { text, fromLang, inputType, settings ->
+    combine(_input, _selection, _inputType, settingsManager.settings) { text, selection, inputType, settings ->
       val enabled = settings.showTransliterationOnInput && inputType == InputType.TEXT
-      if (!enabled || fromLang == null || text.isBlank()) {
+      if (!enabled || selection !is MainSelection.Ready || text.isBlank()) {
         null
       } else {
-        TransliterationRequest(text, fromLang, settings.addSpacesForJapaneseTransliteration)
+        TransliterationRequest(text, selection.source, settings.addSpacesForJapaneseTransliteration)
       }
     }.distinctUntilChanged()
       .mapLatest { request ->
@@ -218,8 +208,37 @@ class TranslatorViewModel(
   private val _dictionaryLookupLanguage = MutableStateFlow<Language?>(null)
   val dictionaryLookupLanguage: StateFlow<Language?> = _dictionaryLookupLanguage.asStateFlow()
 
-  private val _ttsVoices = MutableStateFlow<Map<String, List<uniffi.translator_core.InstalledTtsPack>>>(emptyMap())
-  val ttsVoices: StateFlow<Map<String, List<uniffi.translator_core.InstalledTtsPack>>> = _ttsVoices.asStateFlow()
+  @OptIn(ExperimentalCoroutinesApi::class)
+  val ttsVoices: StateFlow<Map<String, List<uniffi.translator_core.InstalledTtsPack>>> =
+    combine(_selection, languageStateManager.catalog) { selection, _ -> selection }
+      .mapLatest { selection ->
+        when (selection) {
+          MainSelection.NoLanguages -> emptyMap()
+          is MainSelection.Ready ->
+            listOf(selection.source, selection.target)
+              .distinct()
+              .associate { it.code to translationCoordinator.installedTtsVoices(it) }
+        }
+      }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+  private val _speech = MutableStateFlow<SpeechState>(SpeechState.Idle)
+  val speech: StateFlow<SpeechState> = _speech.asStateFlow()
+
+  private var speechJob: Job? = null
+
+  // Playback reports are posted to the main thread in order, so the previous utterance's stop
+  // always lands before the next one starts. Only Loading→Playing and Playing→Idle are real
+  // transitions; anything else is a late report from an utterance that was already replaced.
+  private val audioPlayer =
+    PcmAudioPlayer { playing ->
+      _speech.update { state ->
+        when {
+          playing && state is SpeechState.Loading -> SpeechState.Playing(state.target)
+          !playing && state is SpeechState.Playing -> SpeechState.Idle
+          else -> state
+        }
+      }
+    }
 
   private val _documentTranslation = MutableStateFlow<DocumentTranslationUiState?>(null)
   val documentTranslation: StateFlow<DocumentTranslationUiState?> = _documentTranslation.asStateFlow()
@@ -242,15 +261,6 @@ class TranslatorViewModel(
   // request raised before the UI is listening is still delivered, exactly once.
   private val _languageManagerRequests = Channel<Unit>(Channel.CONFLATED)
   val languageManagerRequests: Flow<Unit> = _languageManagerRequests.receiveAsFlow()
-
-  val navigationState: StateFlow<NavigationState> =
-    combine(languageStateManager.languageState, _from, to) { langState, fromLang, toLang ->
-      when {
-        !langState.hasLanguages -> NavigationState.NO_LANGUAGES
-        fromLang != null && toLang != null -> NavigationState.READY
-        else -> NavigationState.LOADING
-      }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, NavigationState.LOADING)
 
   init {
     if (initialLaunchMode != LaunchMode.Normal) {
@@ -282,59 +292,8 @@ class TranslatorViewModel(
     }
 
     viewModelScope.launch {
-      languageStateManager.catalog.collect { catalog ->
-        if (_targets.value != null) return@collect
-        val settings = settingsManager.settings.value
-        _targets.value = TargetTabs.of(catalog.languageByCode(settings.defaultTargetLanguageCode) ?: catalog.english)
-      }
-    }
-
-    viewModelScope.launch {
-      languageStateManager.languageState.collect { languageState ->
-        if (!languageState.hasLanguages) return@collect
-        val catalog = languageStateManager.catalog.value
-        val curSettings = settingsManager.settings.value
-        val targetLang = catalog.languageByCode(curSettings.defaultTargetLanguageCode)
-        if (targetLang != null && languageState.availabilityFor(targetLang)?.translatorFiles != true) {
-          _targets.value = TargetTabs.of(catalog.english)
-          settingsManager.update { it.copy(defaultTargetLanguageCode = "en") }
-        }
-        val sourceLang = curSettings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) }
-        if (sourceLang != null && languageState.availabilityFor(sourceLang)?.translatorFiles != true) {
-          _from.value = catalog.english
-          settingsManager.update { it.copy(defaultSourceLanguageCode = "en") }
-        }
-      }
-    }
-
-    viewModelScope.launch {
-      languageStateManager.languageState.collect { languageState ->
-        if (!languageState.hasLanguages) return@collect
-        val catalog = languageStateManager.catalog.value
-        val curSettings = settingsManager.settings.value
-        val preferredSource = curSettings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) }
-        val preferredAvail = preferredSource != null && languageState.availabilityFor(preferredSource)?.translatorFiles == true
-
-        if (_from.value == null) {
-          val currentTo = activeTo
-          val sourceLanguage =
-            if (preferredSource != null &&
-              preferredAvail &&
-              preferredSource != currentTo &&
-              (currentTo == null || languageStateManager.canTranslate(preferredSource, currentTo))
-            ) {
-              preferredSource
-            } else {
-              if (currentTo != null) {
-                languageStateManager.getFirstAvailableSourceLanguage(currentTo, excluding = currentTo)
-              } else {
-                languageStateManager.getFirstAvailableFromLanguage(excluding = currentTo)
-              }
-            }
-          if (sourceLanguage != null) {
-            _from.value = sourceLanguage
-          }
-        }
+      languageStateManager.languageState.collect { availability ->
+        _selection.update { selectionRules(availability).reconciled(it) }
       }
     }
 
@@ -344,45 +303,16 @@ class TranslatorViewModel(
     if (initialText.isNotBlank()) {
       translationJob =
         viewModelScope.launch {
-          val languageState = languageStateManager.languageState.first { it.hasLanguages }
-          autoTranslateInitialText(initialText, languageState)
+          autoTranslateInitialText(initialText)
         }
     }
 
-    // Run pending image OCR once both languages become available
     viewModelScope.launch {
-      combine(_from, to) { f, t -> f to t }.collect { (f, t) ->
-        if (f == null || t == null) return@collect
-        if (_inputType.value != InputType.IMAGE) return@collect
-        if (originalImage.value == null) return@collect
-        if (_output.value != null) return@collect
-        if (translationJob?.isActive == true) return@collect
-        triggerTranslation()
-      }
-    }
-
-    // Preload model when languages change
-    viewModelScope.launch {
-      var prevFrom: Language? = null
-      var prevTo: Language? = null
-      from.collect { fromLang ->
-        val toLang = activeTo
-        if (fromLang != null && (fromLang != prevFrom || toLang != prevTo)) {
-          prevFrom = fromLang
-          prevTo = toLang
-          translationCoordinator.preloadModel(fromLang, toLang!!)
-        }
-      }
-    }
-    viewModelScope.launch {
-      var prevTo: Language? = null
-      to.collect { toLang ->
-        val fromLang = _from.value
-        if (fromLang != null && toLang != null && toLang != prevTo) {
-          prevTo = toLang
-          translationCoordinator.preloadModel(fromLang, toLang)
-        }
-      }
+      _selection
+        .filterIsInstance<MainSelection.Ready>()
+        .map { it.source to it.target }
+        .distinctUntilChanged()
+        .collect { (from, to) -> translationCoordinator.preloadModel(from, to) }
     }
   }
 
@@ -411,10 +341,10 @@ class TranslatorViewModel(
 
       is TranslatorMessage.FromLang -> {
         _isAutoSource.value = false
-        val newFrom = message.language
-        val carriedTarget = previousSourceAsTarget(newFrom, message.change)
-        if (carriedTarget != null) _targets.update { it?.select(carriedTarget) }
-        _from.value = newFrom
+        updateSelection { current ->
+          val carriedTarget = previousSourceAsTarget(current.source, message.language, message.change)
+          selectionRules().normalized(message.language, carriedTarget?.let(current.targets::select) ?: current.targets)
+        }
         _output.value = null
         triggerTranslation()
       }
@@ -426,23 +356,22 @@ class TranslatorViewModel(
       }
 
       is TranslatorMessage.ToLang -> {
-        _targets.update { it?.select(message.language) }
+        updateSelection { selectionRules().normalized(it.source, it.targets.select(message.language)) }
         _output.value = null
         triggerTranslation()
       }
 
       is TranslatorMessage.AddTab -> {
-        _targets.update { it?.add(message.language) }
+        updateSelection { selectionRules().normalized(it.source, it.targets.add(message.language)) }
         _output.value = null
         triggerTranslation()
       }
 
       is TranslatorMessage.RemoveTab -> {
-        val cur = _targets.value ?: return
-        if (message.language !in cur.tabs || cur.tabs.size <= 1) return
-        val wasActive = cur.active == message.language
-        _targets.value = cur.remove(message.language)
-        if (wasActive) {
+        val current = _selection.value as? MainSelection.Ready ?: return
+        if (message.language !in current.targets.tabs || current.targets.tabs.size <= 1) return
+        _selection.value = current.copy(targets = current.targets.remove(message.language))
+        if (current.target == message.language) {
           _output.value = null
           triggerTranslation()
         }
@@ -459,10 +388,9 @@ class TranslatorViewModel(
             _inputType.value = InputType.IMAGE
             _currentDetectedLanguage.value = null
             _output.value = null
-            val fromLang = _from.value
-            val toLang = activeTo
-            if (fromLang != null && toLang != null) {
-              runImageTranslation(bm, fromLang, toLang)
+            val selection = _selection.value
+            if (selection is MainSelection.Ready) {
+              runImageTranslation(bm, selection.source, selection.target)
             }
           }
       }
@@ -477,12 +405,10 @@ class TranslatorViewModel(
       }
 
       TranslatorMessage.SwapLanguages -> {
-        val oldFrom = _from.value ?: return
-        val oldTo = activeTo ?: return
-        if (!languageStateManager.canSwapLanguages(oldFrom, oldTo)) return
+        val current = _selection.value
+        if (current !is MainSelection.Ready || !languageStateManager.canSwapLanguages(current.source, current.target)) return
         _isAutoSource.value = false
-        _from.value = oldTo
-        _targets.update { it?.select(oldFrom) }
+        _selection.value = selectionRules().normalized(current.target, current.targets.select(current.source))
         _output.value = null
         triggerTranslation()
       }
@@ -498,21 +424,11 @@ class TranslatorViewModel(
       }
 
       TranslatorMessage.ToggleJapaneseOcrMode -> {
-        _ocrReadingOrder.value =
-          when (_ocrReadingOrder.value) {
-            null -> ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT
-            ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> ReadingOrder.LEFT_TO_RIGHT
-            ReadingOrder.LEFT_TO_RIGHT -> null
-          }
-        val fromLang = _from.value
-        if (_inputType.value == InputType.IMAGE && fromLang?.code == "ja") {
+        _ocrReadingOrder.value = nextReadingOrder(_ocrReadingOrder.value)
+        val selection = _selection.value
+        if (_inputType.value == InputType.IMAGE && selection is MainSelection.Ready && selection.source.code == "ja") {
           triggerTranslation()
         }
-      }
-
-      is TranslatorMessage.InitializeLanguages -> {
-        _from.value = message.from
-        _targets.value = TargetTabs.of(message.to)
       }
 
       is TranslatorMessage.ImageTextDetected -> {
@@ -524,27 +440,13 @@ class TranslatorViewModel(
       }
 
       is TranslatorMessage.Steer -> {
-        val fromLang = _from.value ?: return
-        val toLang = activeTo ?: return
+        val selection = _selection.value as? MainSelection.Ready ?: return
         val src = _output.value?.source
         if (src.isNullOrBlank()) return
         viewModelScope.launch {
-          when (val r = translationCoordinator.steer(fromLang, toLang, src, message.forcedPrefix)) {
+          when (val r = translationCoordinator.steer(selection.source, selection.target, src, message.forcedPrefix)) {
             is TranslationResult.Success -> _output.value = r.result
             is TranslationResult.Error -> Log.e("Steer", r.message)
-          }
-        }
-      }
-
-      is TranslatorMessage.SpeakTranslatedText -> {
-        viewModelScope.launch {
-          _uiEvents.emit(UiEvent.AudioLoadingStarted)
-          when (val result = translationCoordinator.synthesizeSpeech(message.language, message.text)) {
-            is SpeechSynthesisResult.Success -> _uiEvents.emit(UiEvent.PlayAudio(result.audioChunks))
-            is SpeechSynthesisResult.Error -> {
-              _uiEvents.emit(UiEvent.AudioLoadingStopped)
-              _uiEvents.emit(UiEvent.ShowToast(speechErrorMessage(appContext, result.reason)))
-            }
           }
         }
       }
@@ -616,14 +518,36 @@ class TranslatorViewModel(
     _modalVisible.value = visible
   }
 
-  fun refreshTtsVoices(language: Language) {
-    viewModelScope.launch {
-      _ttsVoices.value = _ttsVoices.value + (language.code to translationCoordinator.installedTtsVoices(language))
-    }
+  fun speak(
+    text: String,
+    language: Language,
+    target: SpeechTarget,
+  ) {
+    speechJob?.cancel()
+    audioPlayer.stop()
+    _speech.value = SpeechState.Loading(target)
+    speechJob =
+      viewModelScope.launch {
+        when (val result = translationCoordinator.synthesizeSpeech(language, text)) {
+          is SpeechSynthesisResult.Success ->
+            audioPlayer.play(result.audioChunks) { message ->
+              _speech.value = SpeechState.Idle
+              viewModelScope.launch {
+                _uiEvents.emit(UiEvent.ShowToast(appContext.getString(R.string.translator_audio_playback_failed, message)))
+              }
+            }
+          is SpeechSynthesisResult.Error -> {
+            _speech.value = SpeechState.Idle
+            _uiEvents.emit(UiEvent.ShowToast(speechErrorMessage(appContext, result.reason)))
+          }
+        }
+      }
   }
 
-  fun clearTtsVoices(languageCode: String) {
-    _ttsVoices.value = _ttsVoices.value - languageCode
+  fun stopSpeech() {
+    speechJob?.cancel()
+    audioPlayer.stop()
+    _speech.value = SpeechState.Idle
   }
 
   fun dismissDocumentTranslation() {
@@ -642,8 +566,6 @@ class TranslatorViewModel(
   }
 
   private fun triggerTranslation() {
-    if (activeTo == null) return
-
     translationJob?.cancel()
     translationJob =
       viewModelScope.launch {
@@ -657,7 +579,7 @@ class TranslatorViewModel(
             val detected =
               translationCoordinator.detectLanguageRobust(
                 text,
-                _from.value,
+                (_selection.value as? MainSelection.Ready)?.source,
                 languageStateManager.languageState.value.allLanguages(),
               )
             _currentDetectedLanguage.value = detected?.let { LanguageDetection(it, text.length) } ?: prior
@@ -665,31 +587,15 @@ class TranslatorViewModel(
           if (_isAutoSource.value) {
             val detected = _currentDetectedLanguage.value?.language
             if (detected != null && languageStateManager.languageState.value.availabilityFor(detected)?.translatorFiles == true) {
-              if (detected != activeTo) {
-                _from.value = detected
+              updateSelection { current ->
+                if (detected == current.target) current else selectionRules().normalized(detected, current.targets)
               }
             }
           }
         }
-        reconcileTabsWithSource()
-        val fromLang = _from.value ?: return@launch
-        val toLang = activeTo ?: return@launch
-        translateWithLanguages(fromLang, toLang)
-      }
-  }
-
-  // A source language can never also be a target tab (it would translate to
-  // itself). Whenever the source changes — manual pick, swap, or auto-detected —
-  // drop it from the tabs; if it was the sole tab, replace it with an alternate.
-  private fun reconcileTabsWithSource() {
-    val from = _from.value ?: return
-    val cur = _targets.value ?: return
-    if (from !in cur.tabs) return
-    _targets.value =
-      if (cur.tabs.size == 1) {
-        pickAlternateTarget(from)?.let { TargetTabs.of(it) } ?: cur
-      } else {
-        cur.remove(from)
+        // A language deletion can leave nothing to translate while detection was running.
+        val selection = _selection.value as? MainSelection.Ready ?: return@launch
+        translateWithLanguages(selection.source, selection.target)
       }
   }
 
@@ -698,11 +604,10 @@ class TranslatorViewModel(
    * produce. Returns the fully re-decoded translation (not a spliced tail).
    */
   suspend fun steerPreview(forcedPrefix: String): String? {
-    val fromLang = _from.value ?: return null
-    val toLang = activeTo ?: return null
+    val selection = _selection.value as? MainSelection.Ready ?: return null
     val src = _output.value?.source
     if (src.isNullOrBlank()) return null
-    return when (val r = translationCoordinator.steer(fromLang, toLang, src, forcedPrefix)) {
+    return when (val r = translationCoordinator.steer(selection.source, selection.target, src, forcedPrefix)) {
       is TranslationResult.Success -> r.result.translated
       is TranslationResult.Error -> null
     }
@@ -753,7 +658,7 @@ class TranslatorViewModel(
       } else {
         val source =
           if (_isAutoSource.value && !settingsManager.settings.value.disableCLD) {
-            OverlaySource.Auto
+            OverlaySource.Auto(readingOrder)
           } else {
             OverlaySource.Fixed(fromLang, readingOrder)
           }
@@ -897,50 +802,26 @@ class TranslatorViewModel(
       null
     }
 
-  private suspend fun autoTranslateInitialText(
-    initialText: String,
-    languageState: dev.davidv.translator.LanguageAvailabilityState,
-  ) {
-    val settings = settingsManager.settings.value
+  private suspend fun autoTranslateInitialText(initialText: String) {
+    val start = _selection.filterIsInstance<MainSelection.Ready>().first()
+    val availability = languageStateManager.languageState.value
     val detected =
-      if (!settings.disableCLD) {
-        translationCoordinator.detectLanguageRobust(initialText, _from.value, languageState.allLanguages())
+      if (!settingsManager.settings.value.disableCLD) {
+        translationCoordinator.detectLanguageRobust(initialText, start.source, availability.allLanguages())
       } else {
         null
       }
     _currentDetectedLanguage.value = detected?.let { LanguageDetection(it, initialText.length) }
-    val translated: TranslationResult?
-
     if (detected != null) {
-      if (languageState.availabilityFor(detected)?.translatorFiles == true) {
-        _from.value = detected
-        var actualTo = activeTo!!
-        if (actualTo == detected) {
-          val other = languageStateManager.getFirstAvailableTargetLanguage(detected, excluding = detected)
-          if (other != null) {
-            _targets.update { it?.select(other) }
-            actualTo = other
-          }
-        }
-        translated = translationCoordinator.translateText(detected, actualTo, initialText)
-      } else {
-        translated = null
+      if (availability.availabilityFor(detected)?.translatorFiles != true) return
+      updateSelection { selectionRules().normalized(detected, it.targets) }
+    }
+    val selection = _selection.value as? MainSelection.Ready ?: return
+    _output.value =
+      when (val translated = translationCoordinator.translateText(selection.source, selection.target, initialText)) {
+        is TranslationResult.Success -> translated.result
+        is TranslationResult.Error -> null
       }
-    } else {
-      translated =
-        if (_from.value != null) {
-          translationCoordinator.translateText(_from.value!!, activeTo!!, initialText)
-        } else {
-          null
-        }
-    }
-    translated?.let {
-      _output.value =
-        when (it) {
-          is TranslationResult.Success -> it.result
-          is TranslationResult.Error -> null
-        }
-    }
   }
 
   private fun handleDictionaryLookup(
@@ -976,32 +857,6 @@ class TranslatorViewModel(
 
   private fun handleFileEvent(event: FileEvent) {
     when (event) {
-      is FileEvent.LanguageDeleted -> {
-        val catalog = languageStateManager.catalog.value
-        val langs = languageStateManager.languageState.value.translatorLanguages().filter { it != event.language }
-        val currentFrom = _from.value
-        val currentTo = activeTo
-        if (currentFrom == event.language || currentFrom == null) {
-          _from.value =
-            when {
-              currentTo != null -> firstAvailableSourceLanguage(currentTo, langs, excluding = currentTo)
-              else -> langs.firstOrNull()
-            }
-        }
-        val cur = _targets.value
-        if (cur != null && event.language in cur.tabs) {
-          if (cur.tabs.size > 1) {
-            _targets.value = cur.remove(event.language)
-          } else {
-            val actualFrom = _from.value
-            val fallback =
-              actualFrom?.let { firstAvailableTargetLanguage(it, langs, excluding = actualFrom) }
-                ?: catalog.english
-            _targets.value = TargetTabs.of(fallback)
-          }
-        }
-        Log.d("TranslatorViewModel", "Language deleted: ${event.language}")
-      }
       is FileEvent.Error -> {
         viewModelScope.launch {
           _uiEvents.emit(UiEvent.ShowToast(event.message))
@@ -1013,71 +868,65 @@ class TranslatorViewModel(
 
   override fun onCleared() {
     super.onCleared()
+    audioPlayer.release()
     // Recycle bitmaps
     _displayImage.value?.let { if (!it.isRecycled) it.recycle() }
     originalImage.value?.let { if (!it.isRecycled) it.recycle() }
   }
 
+  private fun selectionRules(availability: LanguageAvailabilityState = languageStateManager.languageState.value) =
+    MainSelectionRules(
+      availability,
+      settingsManager.settings.value,
+      languageMetadataManager.metadata.value,
+      languageStateManager::canTranslate,
+    )
+
+  // The settings screen can pick a target before any language is installed, and a running
+  // translation can outlive the last language; with no pair yet there is nothing to change.
+  private fun updateSelection(transform: (MainSelection.Ready) -> MainSelection.Ready) {
+    _selection.update { current ->
+      when (current) {
+        MainSelection.NoLanguages -> current
+        is MainSelection.Ready -> transform(current)
+      }
+    }
+  }
+
   private fun previousSourceAsTarget(
+    oldFrom: Language,
     newFrom: Language,
     change: FromLangChange,
   ): Language? {
     if (change != FromLangChange.MovePreviousToTarget) return null
-    val oldFrom = _from.value ?: return null
     if (oldFrom == newFrom) return null
     if (!languageStateManager.canTranslate(newFrom, oldFrom)) return null
     return oldFrom
   }
-
-  private fun pickAlternateTarget(newFrom: Language): Language? {
-    val state = languageStateManager.languageState.value
-    val catalog = languageStateManager.catalog.value
-    val settings = settingsManager.settings.value
-    val candidates =
-      state.allLanguages().filter { it != newFrom && languageStateManager.canTranslate(newFrom, it) }
-    val defaultTarget = catalog.languageByCode(settings.defaultTargetLanguageCode)
-    if (defaultTarget != null && defaultTarget in candidates) {
-      return defaultTarget
-    }
-    val metadata = languageMetadataManager.metadata.value
-    val starred = candidates.firstOrNull { metadata[it]?.favorite == true }
-    if (starred != null) return starred
-    return candidates.minByOrNull { it.displayName }
-  }
-
-  private fun firstAvailableSourceLanguage(
-    target: Language,
-    availableLanguages: List<Language>,
-    excluding: Language? = null,
-  ): Language? =
-    availableLanguages
-      .asSequence()
-      .filterNot { it == excluding }
-      .filter { languageStateManager.canTranslate(it, target) }
-      .firstOrNull()
-
-  private fun firstAvailableTargetLanguage(
-    source: Language,
-    availableLanguages: List<Language>,
-    excluding: Language? = null,
-  ): Language? =
-    availableLanguages
-      .asSequence()
-      .filterNot { it == excluding }
-      .filter { languageStateManager.canTranslate(source, it) }
-      .firstOrNull()
 }
 
 sealed class UiEvent {
   data class ShowToast(val message: String) : UiEvent()
 
   data class ShareImage(val bitmap: Bitmap) : UiEvent()
+}
 
-  data object AudioLoadingStarted : UiEvent()
+enum class SpeechTarget { INPUT, OUTPUT }
 
-  data object AudioLoadingStopped : UiEvent()
+sealed interface SpeechState {
+  val target: SpeechTarget?
 
-  data class PlayAudio(val audioChunks: Flow<PcmAudio>) : UiEvent()
+  data object Idle : SpeechState {
+    override val target: SpeechTarget? get() = null
+  }
+
+  data class Loading(
+    override val target: SpeechTarget,
+  ) : SpeechState
+
+  data class Playing(
+    override val target: SpeechTarget,
+  ) : SpeechState
 }
 
 data class PendingDocument(

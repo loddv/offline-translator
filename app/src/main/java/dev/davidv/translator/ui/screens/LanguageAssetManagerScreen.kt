@@ -90,7 +90,6 @@ import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.Feature
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageCatalog
 import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LanguageMetadataManager
@@ -623,10 +622,9 @@ fun LanguageAssetManagerScreen(
   languageStateManager: LanguageStateManager,
   languageMetadataManager: LanguageMetadataManager,
   settingsManager: SettingsManager,
-  catalog: LanguageCatalog?,
-  languageAvailabilityState: LanguageAvailabilityState,
   downloadManager: DownloadManager,
 ) {
+  val catalog by languageStateManager.catalog.collectAsState()
   val languageMetadata by languageMetadataManager.metadata.collectAsState()
   val downloads by downloadManager.state.collectAsState()
   val expandedLanguages = remember { mutableStateMapOf<String, Boolean>() }
@@ -644,86 +642,74 @@ fun LanguageAssetManagerScreen(
 
   val normalizedFilter = filterQuery.trim().lowercase()
   val rows =
-    remember(catalog, languageAvailabilityState.availableLanguages, normalizedFilter) {
-      catalog
-        ?.let { loadedCatalog ->
-          languageAvailabilityState.availableLanguages
-            .sortedWith(compareBy(languageNameComparator()) { it.language.localizedName() })
-            .mapNotNull { entry ->
-              val language = entry.language
-              val availability = entry.availability
-              val dictInfo = loadedCatalog.dictionaryInfoFor(language)
-              val translationVisible = !language.isEnglish
-              val dictionaryVisible = dictInfo != null
-              val ttsVisible = loadedCatalog.hasTtsVoices(language.code)
-              if (!translationVisible && !dictionaryVisible && !ttsVisible) {
-                null
-              } else {
-                LanguageAssetRow(
-                  language = language,
-                  availability = availability,
-                  dictionaryInfo = dictInfo,
-                  translationVisible = translationVisible,
-                  dictionaryVisible = dictionaryVisible,
-                  ttsVisible = ttsVisible,
-                  translationSizeBytes = loadedCatalog.sizeBytesForFeature(language.code, Feature.CORE),
-                  ttsSizeBytes = loadedCatalog.sizeBytesForFeature(language.code, Feature.TTS),
-                )
-              }
-            }.filter { row ->
-              if (normalizedFilter.isBlank()) {
-                true
-              } else {
-                val language = row.language
-                val haystack =
-                  listOf(language.localizedName(), language.displayName, language.shortDisplayName, language.code)
-                    .joinToString(" ")
-                    .lowercase()
-                normalizedFilter in haystack
-              }
-            }
+    remember(catalog, normalizedFilter) {
+      catalog.languageRows
+        .sortedWith(compareBy(languageNameComparator()) { it.language.localizedName() })
+        .mapNotNull { entry ->
+          val language = entry.language
+          val availability = entry.availability
+          val dictInfo = catalog.dictionaryInfoFor(language)
+          val translationVisible = !language.isEnglish
+          val dictionaryVisible = dictInfo != null
+          val ttsVisible = catalog.hasTtsVoices(language.code)
+          if (!translationVisible && !dictionaryVisible && !ttsVisible) {
+            null
+          } else {
+            LanguageAssetRow(
+              language = language,
+              availability = availability,
+              dictionaryInfo = dictInfo,
+              translationVisible = translationVisible,
+              dictionaryVisible = dictionaryVisible,
+              ttsVisible = ttsVisible,
+              translationSizeBytes = catalog.sizeBytesForFeature(language.code, Feature.CORE),
+              ttsSizeBytes = catalog.sizeBytesForFeature(language.code, Feature.TTS),
+            )
+          }
+        }.filter { row ->
+          if (normalizedFilter.isBlank()) {
+            true
+          } else {
+            val language = row.language
+            val haystack =
+              listOf(language.localizedName(), language.displayName, language.shortDisplayName, language.code)
+                .joinToString(" ")
+                .lowercase()
+            normalizedFilter in haystack
+          }
         }
-        ?: emptyList()
     }
   // Packs with files on disk but missing required ones (partial download, or a
   // catalog change that orphaned the installed variant): without a repair these
   // read as not-installed and their feature silently stops working (issue #246).
   val repairPlanSize =
     remember(catalog) {
-      catalog?.planRepair()?.takeIf { it.tasks.isNotEmpty() }?.totalSize?.toLong() ?: 0L
+      catalog.planRepair().takeIf { it.tasks.isNotEmpty() }?.totalSize?.toLong() ?: 0L
     }
 
   val ppocrModelUpgrade =
     remember(catalog, rows) {
-      if (catalog == null) {
+      val languages =
+        rows
+          .filter { PPOCR_ENGINE in catalog.installedOcrEngines(it.language.code) }
+          .map { it.language }
+      val plan = catalog.planOcrEngineUpgrades(languages.map { it.code }, PPOCR_ENGINE)
+      if (plan.tasks.isEmpty()) {
         PaddleUpgrade.EMPTY
       } else {
-        val languages =
-          rows
-            .filter { PPOCR_ENGINE in catalog.installedOcrEngines(it.language.code) }
-            .map { it.language }
-        val plan = catalog.planOcrEngineUpgrades(languages.map { it.code }, PPOCR_ENGINE)
-        if (plan.tasks.isEmpty()) {
-          PaddleUpgrade.EMPTY
-        } else {
-          PaddleUpgrade(languages = languages, totalBytes = plan.totalSize.toLong())
-        }
+        PaddleUpgrade(languages = languages, totalBytes = plan.totalSize.toLong())
       }
     }
 
   val translationUpgrade =
     remember(catalog, rows) {
-      if (catalog == null) {
+      val codes = catalog.translationUpgradeLanguageCodes().toSet()
+      val languages = rows.map { it.language }.filter { it.code in codes }
+      val plan = catalog.planTranslationUpgrades(languages.map { it.code })
+      if (plan.tasks.isEmpty()) {
         TranslationUpgrade.EMPTY
       } else {
-        val codes = catalog.translationUpgradeLanguageCodes().toSet()
-        val languages = rows.map { it.language }.filter { it.code in codes }
-        val plan = catalog.planTranslationUpgrades(languages.map { it.code })
-        if (plan.tasks.isEmpty()) {
-          TranslationUpgrade.EMPTY
-        } else {
-          TranslationUpgrade(languages = languages, totalBytes = plan.totalSize.toLong())
-        }
+        TranslationUpgrade(languages = languages, totalBytes = plan.totalSize.toLong())
       }
     }
 
@@ -864,9 +850,6 @@ fun LanguageAssetManagerScreen(
             onDownloadTts = {
               pendingTtsVoicePicker = PendingTtsVoicePicker(row.language)
             },
-            onDeleteTts = {
-              languageStateManager.deleteTts(row.language)
-            },
             onCancelTts = {
               languageTtsDownloads(downloads, row.language).keys.forEach(downloadManager::cancel)
             },
@@ -879,7 +862,7 @@ fun LanguageAssetManagerScreen(
               }
               if (row.ttsVisible && !row.ttsInstalled) {
                 val packId =
-                  checkNotNull(catalog?.defaultTtsPackIdForLanguage(row.language.code)) {
+                  checkNotNull(catalog.defaultTtsPackIdForLanguage(row.language.code)) {
                     "${row.language.code} shows TTS but has no default voice pack"
                   }
                 downloadManager.enqueue(DownloadRequest.Tts(row.language, packId))
@@ -953,11 +936,10 @@ fun LanguageAssetManagerScreen(
   }
 
   pendingTtsVoicePicker?.let { pendingPicker ->
-    val pickerCatalog = catalog ?: return@let
     VoicePickerDialog(
       context = context,
       language = pendingPicker.language,
-      catalog = pickerCatalog,
+      catalog = catalog,
       languageStateManager = languageStateManager,
       settingsManager = settingsManager,
       downloads = downloads,
@@ -985,7 +967,6 @@ private fun LanguageAssetCard(
   onDeleteDictionary: () -> Unit,
   onCancelDictionary: () -> Unit,
   onDownloadTts: () -> Unit,
-  onDeleteTts: () -> Unit,
   onCancelTts: () -> Unit,
   onDownloadAll: () -> Unit,
   onDeleteAll: () -> Unit,
@@ -1115,7 +1096,6 @@ private fun LanguageAssetCard(
             onDeleteDictionary = onDeleteDictionary,
             onCancelDictionary = onCancelDictionary,
             onDownloadTts = onDownloadTts,
-            onDeleteTts = onDeleteTts,
             onCancelTts = onCancelTts,
           )
         featureRows.forEach { featureRow ->
@@ -1138,7 +1118,6 @@ private fun buildFeatureRows(
   onDeleteDictionary: () -> Unit,
   onCancelDictionary: () -> Unit,
   onDownloadTts: () -> Unit,
-  onDeleteTts: () -> Unit,
   onCancelTts: () -> Unit,
 ): List<LanguageFeatureRow> {
   val featureRows = mutableListOf<LanguageFeatureRow>()

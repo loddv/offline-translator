@@ -137,10 +137,9 @@ class TranslationCoordinator(
         val maxImageSize = settingsManager.settings.value.maxImageSize
         val sourceSelection =
           when (source) {
-            OverlaySource.Auto -> OcrSourceSelection.Auto
+            is OverlaySource.Auto -> OcrSourceSelection.Auto
             is OverlaySource.Fixed -> OcrSourceSelection.Specific(uniffi.translator_core.LanguageCode(source.language.code))
           }
-        val readingOrder = (source as? OverlaySource.Fixed)?.readingOrder
         // Own the source pixels rust-side (one in-process copy via lockPixels, no byte[]/marshal),
         // then run detect → ocr → renderInto as separate cheap calls; the multi-MB image never
         // crosses the FFI boundary. `renderInto` composes the final overlay straight into the
@@ -178,14 +177,14 @@ class TranslationCoordinator(
               sourceSelection,
               to,
               minConfidence,
-              readingOrder,
+              source.readingOrder,
               backgroundMode,
               detection,
             )
           } catch (e: uniffi.bindings.CatalogException.MissingAsset) {
             Log.d("OCR", "ocr failed: ${e.message}")
             val missingDetected =
-              if (source == OverlaySource.Auto) {
+              if (source is OverlaySource.Auto) {
                 detectedLanguageCodeFromMissingAsset(e.message)?.let(catalog::languageByCode)
               } else {
                 null

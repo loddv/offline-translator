@@ -102,7 +102,7 @@ class TranslatorApplication : Application() {
     settingsManager = SettingsManager(this)
     filePathManager = FilePathManager(this, settingsManager.settings)
     catalogRepository = CatalogRepository.open(this, filePathManager)
-    launchAppEffects(appScope, this, settingsManager.settings, catalogRepository)
+    launchAppEffects(appScope, this, settingsManager, catalogRepository)
 
     val languagesFlow =
       catalogRepository.catalog

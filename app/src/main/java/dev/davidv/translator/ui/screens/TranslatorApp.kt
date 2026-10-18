@@ -76,7 +76,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.davidv.translator.AppSettings
-import dev.davidv.translator.DocumentTranslationService
 import dev.davidv.translator.DownloadId
 import dev.davidv.translator.DownloadRequest
 import dev.davidv.translator.Language
@@ -84,10 +83,10 @@ import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.MainSelection
 import dev.davidv.translator.R
 import dev.davidv.translator.SupportKind
-import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.encodeVoiceOverride
 import dev.davidv.translator.parseVoiceOverride
 import dev.davidv.translator.ui.DocumentTranslationUiState
+import dev.davidv.translator.ui.MainInput
 import dev.davidv.translator.ui.SpeechTarget
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.UiEvent
@@ -375,32 +374,28 @@ fun TranslatorApp(
     }
 
   // Collect ViewModel state
-  val input by viewModel.input.collectAsState()
-  val inputTransliterated by viewModel.inputTransliterated.collectAsState()
-  val output by viewModel.output.collectAsState()
-  val selection by viewModel.selection.collectAsState()
-  val displayImage by viewModel.displayImage.collectAsState()
-  val originalImage by viewModel.originalImage.collectAsState()
-  val imageWordSelection by viewModel.imageWordSelection.collectAsState()
-  val detectedRegions by viewModel.detectedRegions.collectAsState()
-  val ocrReadingOrder by viewModel.ocrReadingOrder.collectAsState()
-  val currentDetectedLanguage by viewModel.currentDetectedLanguage.collectAsState()
-  val isAutoSource by viewModel.isAutoSource.collectAsState()
+  val translation = viewModel.translation
+  val input by translation.input.collectAsState()
+  val inputTransliterated by translation.inputTransliterated.collectAsState()
+  val output by translation.output.collectAsState()
+  val selection by translation.selection.collectAsState()
+  val detectedRegions by translation.detectedRegions.collectAsState()
+  val ocrReadingOrder by translation.ocrReadingOrder.collectAsState()
+  val currentDetectedLanguage by translation.currentDetectedLanguage.collectAsState()
+  val isAutoSource by translation.isAutoSource.collectAsState()
   val currentLaunchMode by viewModel.currentLaunchMode.collectAsState()
   val modalVisible by viewModel.modalVisible.collectAsState()
-  val dictionaryWord by viewModel.dictionaryWord.collectAsState()
-  val dictionaryStack by viewModel.dictionaryStack.collectAsState()
-  val dictionaryLookupLanguage by viewModel.dictionaryLookupLanguage.collectAsState()
-  val documentTranslation by viewModel.documentTranslation.collectAsState()
+  val dictionary by viewModel.dictionary.state.collectAsState()
+  val documentTranslation by viewModel.documents.documentTranslation.collectAsState()
 
   val settings by viewModel.settingsManager.settings.collectAsState()
   val languageMetadata by viewModel.languageMetadataManager.metadata.collectAsState()
   val languageState by viewModel.languageStateManager.languageState.collectAsState()
   val downloadManager = (context.applicationContext as dev.davidv.translator.TranslatorApplication).downloadManager
   val downloads by downloadManager.state.collectAsState()
-  val isImageProcessing by viewModel.isImageProcessing.collectAsState()
-  val ttsVoicesByLanguage by viewModel.ttsVoices.collectAsState()
-  val speech by viewModel.speech.collectAsState()
+  val isImageProcessing by translation.isImageProcessing.collectAsState()
+  val ttsVoicesByLanguage by viewModel.speech.ttsVoices.collectAsState()
+  val speech by viewModel.speech.speech.collectAsState()
 
   LaunchedEffect(downloadManager) {
     viewModel.languageStateManager.connectToDownloadErrors(downloadManager.errors)
@@ -423,7 +418,7 @@ fun TranslatorApp(
     }
   }
 
-  val pendingDocument by viewModel.pendingDocument.collectAsState()
+  val pendingDocument by viewModel.documents.pendingDocument.collectAsState()
   pendingDocument?.let { pending ->
     val docCatalog = viewModel.languageStateManager.catalog.collectAsState().value
     val docAvailableLanguages =
@@ -440,10 +435,8 @@ fun TranslatorApp(
         availableLanguages = docAvailableLanguages,
         languageMetadata = languageMetadata,
         defaultTranslatePdfImages = settings.translatePdfImages,
-        onDismiss = { viewModel.dismissPendingDocument() },
-        onTranslate = { selFrom, selTo, txtLayout, translatePdfImages ->
-          viewModel.startPendingDocumentTranslation(selFrom, selTo, txtLayout, translatePdfImages)
-        },
+        onDismiss = viewModel.documents::dismissPending,
+        onTranslate = viewModel.documents::start,
       )
     }
   }
@@ -453,10 +446,9 @@ fun TranslatorApp(
       document = document,
       onDismiss = {
         if (document.isTranslating) {
-          viewModel.cancelDocumentTranslation()
+          viewModel.documents.cancel()
         } else {
-          DocumentTranslationService.dismiss(context)
-          viewModel.dismissDocumentTranslation()
+          viewModel.documents.dismissResult()
         }
       },
       onSave = { path, mimeType, fileName ->
@@ -470,8 +462,7 @@ fun TranslatorApp(
         )
       },
       onOpen = { path, mimeType ->
-        DocumentTranslationService.dismiss(context)
-        viewModel.dismissDocumentTranslation()
+        viewModel.documents.dismissResult()
         try {
           openDocumentPath(path, mimeType, context)
         } catch (e: Exception) {
@@ -648,30 +639,29 @@ fun TranslatorApp(
                     ?.takeIf { voiceName -> packsContainVoice(availableTtsVoices, voiceName) }
                     ?: defaultVoiceNameForLanguage(availableTtsVoices)
                 val targetTtsPlaybackSpeed = ttsPlaybackSpeedFor(settings, currentTo, selectedTtsVoiceName)
+                val image = input as? MainInput.Image
                 MainScreen(
                   onSettings = { navController.navigate("settings") },
                   onLiveCamera = { navController.navigate("live_camera") },
-                  input = input,
+                  input = input.text,
                   inputTransliteration = inputTransliterated,
                   output = output,
                   from = currentFrom,
                   to = currentTo,
                   targetTabs = mainSelection.targets.tabs,
                   detectedLanguage = currentDetectedLanguage,
-                  displayImage = displayImage,
-                  originalImage = originalImage,
-                  imageWordSelection = imageWordSelection,
+                  displayImage = image?.display,
+                  originalImage = image?.original,
+                  imageWordSelection = image?.words,
                   detectedRegions = detectedRegions,
                   ocrReadingOrder = ocrReadingOrder,
                   isImageProcessing = isImageProcessing,
-                  dictionaryWord = dictionaryWord,
-                  dictionaryStack = dictionaryStack,
-                  dictionaryLookupLanguage = dictionaryLookupLanguage,
+                  dictionary = dictionary,
                   speech = speech,
                   onMessage = viewModel::handleMessage,
-                  onSteerPreview = viewModel::steerPreview,
+                  onSteerPreview = translation::steerPreview,
                   canSwapLanguages = viewModel.languageStateManager.canSwapLanguages(currentFrom, currentTo),
-                  onStopAudio = viewModel::stopSpeech,
+                  onStopAudio = viewModel.speech::stop,
                   languageState = languageState,
                   languageMetadata = languageMetadata,
                   downloads = downloads,
@@ -732,8 +722,8 @@ fun TranslatorApp(
                       )
                     }
                   },
-                  onSpeakInput = { text, language -> viewModel.speak(text, language, SpeechTarget.INPUT) },
-                  onSpeakOutput = { text, language -> viewModel.speak(text, language, SpeechTarget.OUTPUT) },
+                  onSpeakInput = { text, language -> viewModel.speech.speak(text, language, SpeechTarget.INPUT) },
+                  onSpeakOutput = { text, language -> viewModel.speech.speak(text, language, SpeechTarget.OUTPUT) },
                   launchMode = currentLaunchMode,
                   pendingSharedImage = viewModel.pendingSharedImage,
                   isAutoSource = isAutoSource,
@@ -774,10 +764,7 @@ fun TranslatorApp(
               onCancelAdblockDownload = { downloadManager.cancel(DownloadId.Support(SupportKind.ADBLOCK)) },
               adblockInstalled = adblockReady || catalog.supportInstalledByKind("adblock"),
               onSettingsChange = viewModel.settingsManager::update,
-              onDefaultTargetLanguageSelected = { language ->
-                viewModel.settingsManager.update { it.copy(defaultTargetLanguageCode = language.code) }
-                viewModel.handleMessage(TranslatorMessage.ToLang(language))
-              },
+              onDefaultTargetLanguageSelected = translation::setDefaultTarget,
               onManageLanguages = {
                 navController.navigate("language_manager")
               },

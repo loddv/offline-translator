@@ -74,6 +74,18 @@ class MainSelectionRules(
       else -> MainSelection.Ready(source, alternateTarget(source)?.let(TargetTabs::of) ?: targets)
     }
 
+  fun withSource(
+    current: MainSelection.Ready,
+    source: Language,
+    change: FromLangChange,
+  ): MainSelection.Ready {
+    val carriedTarget =
+      current.source.takeIf {
+        change == FromLangChange.MovePreviousToTarget && it != source && canTranslate(source, it)
+      }
+    return normalized(source, carriedTarget?.let(current.targets::select) ?: current.targets)
+  }
+
   private fun reachableTabs(
     targets: TargetTabs,
     source: Language,

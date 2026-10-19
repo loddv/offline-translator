@@ -33,16 +33,11 @@ import kotlinx.coroutines.flow.withIndex
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-// The native server takes a config snapshot at start, so anything it serves from settings
-// restarts it.
+// Only the listening socket is fixed at start; the server reads everything else per request.
 private data class HttpServerSettings(
   val enabled: Boolean,
   val port: Int,
   val bindMode: HttpServerBindMode,
-  val maxImageSize: Int,
-  val minConfidence: Int,
-  val backgroundMode: BackgroundMode,
-  val translatePdfImages: Boolean,
 )
 
 private data class TtsVoiceData(
@@ -120,10 +115,6 @@ fun launchAppEffects(
           enabled = it.httpServerEnabled,
           port = it.httpServerPort,
           bindMode = it.httpServerBindMode,
-          maxImageSize = it.maxImageSize,
-          minConfidence = it.minConfidence,
-          backgroundMode = it.backgroundMode,
-          translatePdfImages = it.translatePdfImages,
         )
       }.distinctUntilChanged()
       .withIndex()

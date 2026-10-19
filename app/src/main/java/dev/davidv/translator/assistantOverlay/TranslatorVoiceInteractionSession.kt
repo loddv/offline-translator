@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.service.voice.VoiceInteractionSession
@@ -634,7 +635,13 @@ class TranslatorVoiceInteractionSession(
   }
 
   private fun openMainApp() {
-    startAssistantActivity(Intent(context, MainActivity::class.java))
+    val intent = Intent(context, MainActivity::class.java)
+    // startAssistantActivity only exists from API 26; older sessions launch through their own context.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      startAssistantActivity(intent)
+    } else {
+      context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
     hide()
   }
 

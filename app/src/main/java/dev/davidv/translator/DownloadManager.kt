@@ -87,7 +87,7 @@ class DownloadManager(
     try {
       when (request) {
         is DownloadRequest.Tts ->
-          ttsLanguageLocks.computeIfAbsent(request.language.code) { Mutex() }.withLock { install(request, run) }
+          ttsLanguageLocks.getOrPut(request.language.code) { Mutex() }.withLock { install(request, run) }
         DownloadRequest.Catalog -> fetchCatalog(run)
         else -> install(request, run)
       }

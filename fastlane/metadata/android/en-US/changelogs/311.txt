@@ -1,0 +1,6 @@
+- Fix crashes on Android 6 and 7
+- Fix races / disagreements between modes (web browser, auto-detect, assistant, ...)
+- New "Camera" shortcut (long-press the app icon) that opens the live camera directly
+- Better fit on VERY small screens
+- Shared text opens in the translate popup, and the main screen remembers how you split input and output
+- System TTS reports only voices that are installed, and lowers other audio while speaking

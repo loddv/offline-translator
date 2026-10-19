@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -77,7 +78,12 @@ fun DetectedLanguageToast(
       modifier
         .fillMaxWidth()
         .clip(RoundedCornerShape(12.dp))
-        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        // Opaque, pre-blended over the card colour: the popups float it over other apps.
+        .background(
+          MaterialTheme.colorScheme.surfaceVariant
+            .copy(alpha = 0.5f)
+            .compositeOver(MaterialTheme.colorScheme.surfaceContainerLowest),
+        )
         .clickable(onClick = onToastClick)
         .padding(horizontal = 16.dp, vertical = 12.dp)
         .semantics { contentDescription = toastDescription },

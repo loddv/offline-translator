@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -16,6 +17,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import dev.davidv.translator.Language
@@ -34,6 +36,7 @@ import dev.davidv.translator.ui.components.SelectionSurface
 import dev.davidv.translator.ui.components.SelectionSurfaceState
 import dev.davidv.translator.ui.components.WindowComposeHost
 
+@RequiresApi(Build.VERSION_CODES.R)
 class OverlayUI(
   private val service: TranslatorAccessibilityService,
   private val windowManager: WindowManager,

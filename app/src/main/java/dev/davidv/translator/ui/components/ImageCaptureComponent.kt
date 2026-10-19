@@ -67,18 +67,8 @@ private data class PendingImageImport(
 private fun createTemporaryImageUri(
   context: Context,
   prefix: String,
-  compressFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG,
 ): Uri {
-  val suffix =
-    when (compressFormat) {
-      Bitmap.CompressFormat.JPEG -> ".jpg"
-      Bitmap.CompressFormat.PNG -> ".png"
-      Bitmap.CompressFormat.WEBP,
-      Bitmap.CompressFormat.WEBP_LOSSY,
-      Bitmap.CompressFormat.WEBP_LOSSLESS,
-      -> ".webp"
-    }
-  val file = java.io.File.createTempFile(prefix, suffix, context.cacheDir)
+  val file = java.io.File.createTempFile(prefix, ".jpg", context.cacheDir)
   return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 

@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.Display
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import androidx.annotation.RequiresApi
 import dev.davidv.translator.CatalogRepository
 import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageMetadataManager
@@ -37,6 +38,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// The manifest enables the service only from R (values-v30/bools.xml), where takeScreenshot exists.
+@RequiresApi(Build.VERSION_CODES.R)
 class TranslatorAccessibilityService : AccessibilityService() {
   private val tag = "TranslatorA11y"
   private lateinit var windowManager: WindowManager
@@ -277,8 +280,6 @@ class TranslatorAccessibilityService : AccessibilityService() {
   }
 
   fun handleFullScreenOcr() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
-
     // In select mode the frozen surface covers the screen, so a fresh screenshot would capture
     // ourselves — retranslate the stored capture instead (language/reading-order changes).
     val res = lastResult

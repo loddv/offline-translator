@@ -20,11 +20,7 @@
         <item name="android:windowAnimationStyle">@null</item>
     </style>
 
-    <style name="Theme.Translator.WebView.Light" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:isLightTheme">true</item>
-    </style>
+    <style name="Theme.Translator.WebView.Light" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <style name="Theme.Translator.WebView.Dark" parent="android:Theme.Material.NoActionBar">
-        <item name="android:isLightTheme">false</item>
-    </style>
+    <style name="Theme.Translator.WebView.Dark" parent="android:Theme.Material.NoActionBar" />
 </resources>

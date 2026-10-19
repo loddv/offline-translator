@@ -25,6 +25,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.UserManager
 import android.util.Log
+import androidx.annotation.RequiresApi
 import dev.davidv.translator.adblock.AdblockManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,7 @@ class TranslatorApplication : Application() {
     initializeServices()
   }
 
+  @RequiresApi(Build.VERSION_CODES.N)
   private fun isUserUnlocked(): Boolean = getSystemService(UserManager::class.java).isUserUnlocked
 
   private fun registerUnlockReceiver() {

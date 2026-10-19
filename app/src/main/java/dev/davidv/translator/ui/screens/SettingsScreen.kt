@@ -719,11 +719,9 @@ fun SettingsScreen(
 
             TextButton(
               onClick = {
-                if (shouldLaunchAssistantRoleRequest(context)) {
-                  val roleManager = context.getSystemService(RoleManager::class.java) ?: return@TextButton
-                  assistantRoleLauncher.launch(
-                    roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),
-                  )
+                val roleRequest = assistantRoleRequest(context)
+                if (roleRequest != null) {
+                  assistantRoleLauncher.launch(roleRequest)
                 } else {
                   openAssistantSettings(context)
                 }
@@ -1455,12 +1453,12 @@ private fun formatSize(sizeBytes: Long): String {
   }
 }
 
-private fun shouldLaunchAssistantRoleRequest(context: Context): Boolean {
-  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-  if (getConfiguredAssistant(context).isNullOrBlank()) return false
-  val roleManager = context.getSystemService(RoleManager::class.java) ?: return false
-  return roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT) &&
-    !roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)
+private fun assistantRoleRequest(context: Context): Intent? {
+  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+  if (getConfiguredAssistant(context).isNullOrBlank()) return null
+  val roleManager = context.getSystemService(RoleManager::class.java) ?: return null
+  if (!roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT) || roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)) return null
+  return roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT)
 }
 
 private fun getConfiguredAssistant(context: Context): String? =

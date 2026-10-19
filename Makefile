@@ -1,4 +1,4 @@
-.PHONY: lint lint-fix check build screenshots
+.PHONY: lint lint-fix check newapi build screenshots
 
 lint:
 	git grep -w println app/src/main/ && echo "Found println" && exit 1 || true
@@ -10,6 +10,9 @@ build:
 	./build.sh
 check:
 	./gradlew detekt detektHardcodedStrings
+# Lint's analysis isn't incremental (~30s), too slow for every commit, so pre-push runs it.
+newapi:
+	./gradlew :app:lintDebug -PtargetAbi=arm64-v8a -PlintNewApiOnly
 
 # Regenerate per-section UI screenshots and push them to Weblate (needs a connected device for the
 # export tests; WEBLATE_* env only for the final upload). Runs the export tests (navigation-driven +

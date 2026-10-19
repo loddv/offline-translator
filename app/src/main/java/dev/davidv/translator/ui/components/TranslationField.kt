@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatedText
+import dev.davidv.translator.ui.theme.AppLayout
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -273,10 +274,11 @@ fun SpeechPlaybackButton(
       MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+  val dimens = AppLayout.dimens
   Box(
     modifier =
       modifier
-        .size(40.dp),
+        .size(dimens.toolButtonSize),
   ) {
     Box(
       modifier =
@@ -306,7 +308,7 @@ fun SpeechPlaybackButton(
           painter = painterResource(id = if (isAudioPlaying) R.drawable.stop else R.drawable.volume_up),
           contentDescription = null,
           tint = tint,
-          modifier = Modifier.size(24.dp),
+          modifier = Modifier.size(dimens.toolIconSize),
         )
       }
     }

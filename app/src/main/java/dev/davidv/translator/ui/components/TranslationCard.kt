@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.davidv.translator.ui.theme.AppLayout
 
 // The shared skeleton for the input and output cards: a header row with the
 // source/target language label on the left and a tools cluster on the right, a
@@ -50,15 +51,21 @@ fun TranslationCard(
   labelContent: (@Composable () -> Unit)? = null,
   body: @Composable () -> Unit,
 ) {
+  val dimens = AppLayout.dimens
   AppCard(modifier = modifier) {
     Column(
       modifier =
         Modifier
           .fillMaxSize()
-          .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
+          .padding(
+            start = dimens.cardPaddingStart,
+            end = dimens.cardPaddingEnd,
+            top = dimens.cardPaddingTop,
+            bottom = dimens.cardPaddingBottom,
+          ),
     ) {
       Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = dimens.cardHeaderMinHeight),
         verticalAlignment = Alignment.CenterVertically,
       ) {
         if (labelContent != null) {
@@ -89,7 +96,7 @@ fun TranslationCard(
           Modifier
             .fillMaxWidth()
             .weight(1f)
-            .padding(end = 12.dp, top = 4.dp),
+            .padding(end = dimens.cardBodyPaddingEnd, top = dimens.cardBodyPaddingTop),
       ) {
         body()
       }

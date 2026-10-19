@@ -60,6 +60,7 @@ import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.browser.BrowserActivity
 import dev.davidv.translator.isSupportedDocumentUrl
 import dev.davidv.translator.isWebUrl
+import dev.davidv.translator.ui.theme.AppLayout
 
 @Composable
 fun ShareImage(onMessage: (TranslatorMessage) -> Unit) {
@@ -169,20 +170,22 @@ private fun ClipboardManager.clipboardHasText(): Boolean {
     description.hasMimeType(ClipDescription.MIMETYPE_TEXT_HTML)
 }
 
+// Null when no speech recognizer is installed. The launcher lives with the
+// caller rather than with whatever renders the voice entry, because an overflow
+// menu disposes its items on close and the result would be dropped.
 @Composable
-fun SpeechInputButton(
+fun rememberSpeechInput(
   input: String,
   from: Language,
   onMessage: (TranslatorMessage) -> Unit,
-  modifier: Modifier = Modifier,
-) {
+): (() -> Unit)? {
   val context = LocalContext.current
   val isAvailable =
     remember {
       Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).resolveActivity(context.packageManager) != null
     }
   if (!isAvailable) {
-    return
+    return null
   }
 
   val launcher =
@@ -200,19 +203,14 @@ fun SpeechInputButton(
       }
     }
 
-  ActionPillButton(
-    iconRes = R.drawable.mic,
-    contentDescription = stringResource(R.string.a11y_voice_input),
-    modifier = modifier,
-    onClick = {
-      val intent =
-        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-          putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-          putExtra(RecognizerIntent.EXTRA_LANGUAGE, from.code)
-        }
-      launcher.launch(intent)
-    },
-  )
+  return {
+    val intent =
+      Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, from.code)
+      }
+    launcher.launch(intent)
+  }
 }
 
 @Composable
@@ -284,10 +282,11 @@ fun ToolIconButton(
       active -> MaterialTheme.colorScheme.primary
       else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+  val dimens = AppLayout.dimens
   Box(
     modifier =
       modifier
-        .size(40.dp)
+        .size(dimens.toolButtonSize)
         .clip(RoundedCornerShape(12.dp))
         .background(background)
         .clickable(
@@ -301,7 +300,7 @@ fun ToolIconButton(
       painterResource(id = iconRes),
       contentDescription = contentDescription,
       tint = tint,
-      modifier = Modifier.size(24.dp),
+      modifier = Modifier.size(dimens.toolIconSize),
     )
   }
 }

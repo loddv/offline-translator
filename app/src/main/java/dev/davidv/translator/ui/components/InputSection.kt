@@ -36,6 +36,14 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.localizedName
+import dev.davidv.translator.ui.theme.AppLayout
+import dev.davidv.translator.ui.theme.LayoutDensity
+
+private enum class InputSourcePlacement {
+  Hidden,
+  Footer,
+  HeaderMenu,
+}
 
 @Composable
 fun InputSection(
@@ -73,6 +81,16 @@ fun InputSection(
       fontSize = (MaterialTheme.typography.bodyLarge.fontSize * fontFactor),
       lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * fontFactor),
     )
+
+  val sourcePlacement =
+    if (!showSourceRow) {
+      InputSourcePlacement.Hidden
+    } else {
+      when (AppLayout.density) {
+        LayoutDensity.Regular -> InputSourcePlacement.Footer
+        LayoutDensity.Compact -> InputSourcePlacement.HeaderMenu
+      }
+    }
 
   TranslationCard(
     label = from.localizedName(),
@@ -130,9 +148,20 @@ fun InputSection(
           onClick = { pasteFromClipboard(context, onMessage) },
         )
       }
+      if (sourcePlacement == InputSourcePlacement.HeaderMenu) {
+        InputSourceMenu(
+          input = input,
+          from = from,
+          onMessage = onMessage,
+          actions = sourceActions,
+          onCameraClick = onCameraClick,
+          screenTranslateEnabled = screenTranslateEnabled,
+          isAutoSource = isAutoSource,
+        )
+      }
     },
     footer =
-      if (showSourceRow) {
+      if (sourcePlacement == InputSourcePlacement.Footer) {
         {
           InputSourceRow(
             input = input,

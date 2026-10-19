@@ -35,7 +35,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
@@ -45,6 +44,7 @@ import dev.davidv.translator.R
 import dev.davidv.translator.Script
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.singleScript
+import dev.davidv.translator.ui.theme.AppLayout
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
@@ -61,10 +61,11 @@ fun LanguageSelectionRow(
   detectedInstalled: Language? = null,
   showAutoOption: Boolean = false,
 ) {
+  val dimens = AppLayout.dimens
   val titleStyle =
     MaterialTheme.typography.titleMedium.copy(
       fontWeight = FontWeight.SemiBold,
-      fontSize = 18.sp,
+      fontSize = dimens.languageTitleFontSize,
     )
 
   Row(
@@ -82,7 +83,7 @@ fun LanguageSelectionRow(
       onLanguageSelected = { language ->
         onMessage(TranslatorMessage.FromLang(language))
       },
-      modifier = Modifier.widthIn(max = 150.dp),
+      modifier = Modifier.widthIn(max = dimens.languageSelectorMaxWidth),
       isAutoSource = isAutoSource,
       detectedInstalled = detectedInstalled,
       showAutoOption = showAutoOption,
@@ -102,7 +103,7 @@ fun LanguageSelectionRow(
       onLanguageSelected = { language ->
         onMessage(TranslatorMessage.ToLang(language))
       },
-      modifier = Modifier.widthIn(max = 150.dp),
+      modifier = Modifier.widthIn(max = dimens.languageSelectorMaxWidth),
       centered = false,
       textStyle = titleStyle,
     )
@@ -110,7 +111,7 @@ fun LanguageSelectionRow(
     Spacer(modifier = Modifier.weight(1f))
 
     if (onSettings != null) {
-      IconButton(onClick = onSettings, modifier = Modifier.size(36.dp)) {
+      IconButton(onClick = onSettings, modifier = Modifier.size(dimens.languageRowButtonSize)) {
         Icon(
           painterResource(id = drawable.second),
           contentDescription = drawable.first,
@@ -130,7 +131,7 @@ fun LanguageSwapButton(
   IconButton(
     onClick = onClick,
     enabled = enabled,
-    modifier = Modifier.size(36.dp),
+    modifier = Modifier.size(AppLayout.dimens.languageRowButtonSize),
   ) {
     Icon(
       painterResource(id = R.drawable.compare),

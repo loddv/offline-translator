@@ -495,6 +495,17 @@ fun TranslatorApp(
     }
   }
 
+  LaunchedEffect(Unit) {
+    viewModel.liveCameraRequests.collect {
+      val entry = navController.currentBackStackEntryFlow.first()
+      // Without an installed pair the start screen is the language setup, which is where the
+      // shortcut should leave the user.
+      if (translation.selection.value is MainSelection.Ready && entry.destination.route != "live_camera") {
+        navController.navigate("live_camera")
+      }
+    }
+  }
+
   val isReadonlyPopup = currentLaunchMode == LaunchMode.ReadonlyModal
 
   val heightFactor by animateFloatAsState(

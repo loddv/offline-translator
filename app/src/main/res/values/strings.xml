@@ -292,6 +292,8 @@
     <string name="a11y_source_photos">Photos</string>
     <string name="a11y_source_gallery">Gallery</string>
     <string name="a11y_source_camera">Camera</string>
+    <string name="shortcut_live_camera_short">Camera</string>
+    <string name="shortcut_live_camera_long">Translate with the camera</string>
     <string name="a11y_back">Back</string>
     <string name="a11y_reverse_translation_direction">Reverse translation direction</string>
     <string name="a11y_settings">Settings</string>

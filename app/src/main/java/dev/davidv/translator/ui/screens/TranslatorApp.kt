@@ -676,6 +676,9 @@ fun TranslatorApp(
                   availableTtsVoices = availableTtsVoices,
                   selectedTtsVoiceName = selectedTtsVoiceName,
                   targetTtsPlaybackSpeed = targetTtsPlaybackSpeed,
+                  onInputSplitChange = { split ->
+                    viewModel.settingsManager.update { it.copy(mainInputSplit = split) }
+                  },
                   onTtsPlaybackSpeedChange = { newSpeed ->
                     val voiceName = selectedTtsVoiceName
                     val quantizedSpeed = quantizePlaybackSpeed(newSpeed)

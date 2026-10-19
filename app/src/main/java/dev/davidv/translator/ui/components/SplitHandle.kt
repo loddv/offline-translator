@@ -45,6 +45,7 @@ import dev.davidv.translator.R
 @Composable
 fun SplitHandle(
   onDrag: (Float) -> Unit,
+  onDragStopped: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val description = stringResource(R.string.a11y_resize_split)
@@ -57,6 +58,7 @@ fun SplitHandle(
         .draggable(
           orientation = Orientation.Vertical,
           state = rememberDraggableState { onDrag(it) },
+          onDragStopped = { onDragStopped() },
         ),
     contentAlignment = Alignment.Center,
   ) {

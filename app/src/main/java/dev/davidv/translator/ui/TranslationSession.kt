@@ -242,9 +242,9 @@ class TranslationSession(
         select(selectionRules().normalized(selection.source, selection.targets.add(message.language)))
       is TranslatorMessage.RemoveTab -> removeTab(message.language, selection)
       TranslatorMessage.SwapLanguages ->
-        if (languageStateManager.canSwapLanguages(selection.source, selection.target)) {
+        selectionRules().swapped(selection)?.let { swapped ->
           _isAutoSource.value = false
-          select(selectionRules().normalized(selection.target, selection.targets.select(selection.source)))
+          select(swapped)
         }
       is TranslatorMessage.SetImageUri ->
         replaceJob {
@@ -393,7 +393,7 @@ class TranslationSession(
         translationCoordinator.detectLanguageRobust(text, selection.source, languageStateManager.languageState.value.allLanguages())
       }
     detection.value = refreshedDetection(detection.value, text, detected)
-    val source = detection.value?.language?.takeIf { _isAutoSource.value && installed(it) }
+    val source = detection.value?.language?.takeIf { _isAutoSource.value && canBeSource(it) }
     if (source == null || source == selection.target) return selection
     return selectionRules().normalized(source, selection.targets).also { _selection.value = it }
   }
@@ -424,7 +424,7 @@ class TranslationSession(
         null
       }
     detection.value = detected?.let { LanguageDetection(it, text.length) }
-    if (detected != null && !installed(detected)) return
+    if (detected != null && !canBeSource(detected)) return
     val selection = detected?.let { selectionRules().normalized(it, start.targets).also { next -> _selection.value = next } } ?: start
     _output.value =
       when (val translated = translationCoordinator.translateText(selection.source, selection.target, text)) {
@@ -509,8 +509,7 @@ class TranslationSession(
       )
   }
 
-  private fun installed(language: Language): Boolean =
-    languageStateManager.languageState.value.availabilityFor(language)?.translatorFiles == true
+  private fun canBeSource(language: Language): Boolean = languageStateManager.languageState.value.canBeSource(language)
 
   private fun selectionRules(availability: LanguageAvailabilityState = languageStateManager.languageState.value) =
     MainSelectionRules(

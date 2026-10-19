@@ -420,10 +420,6 @@ fun TranslatorApp(
 
   val pendingDocument by viewModel.documents.pendingDocument.collectAsState()
   pendingDocument?.let { pending ->
-    val docCatalog = viewModel.languageStateManager.catalog.collectAsState().value
-    val docAvailableLanguages =
-      (languageState.translatorLanguages() + listOf(docCatalog.english))
-        .distinctBy { it.code }
     val docSelection = selection
     if (docSelection is MainSelection.Ready) {
       DocumentConfigureSheet(
@@ -432,7 +428,8 @@ fun TranslatorApp(
         extension = pending.extension,
         initialFrom = docSelection.source,
         initialTo = docSelection.target,
-        availableLanguages = docAvailableLanguages,
+        sourceLanguages = languageState.sourceLanguages(),
+        targetLanguages = languageState.targetLanguages(),
         languageMetadata = languageMetadata,
         defaultTranslatePdfImages = settings.translatePdfImages,
         onDismiss = viewModel.documents::dismissPending,
@@ -752,12 +749,12 @@ fun TranslatorApp(
           }
           composable("settings") {
             val catalog = viewModel.languageStateManager.catalog.collectAsState().value
-            val availableWithEnglish = (languageState.translatorLanguages() + catalog.english).distinctBy { it.code }
             val app = context.applicationContext as dev.davidv.translator.TranslatorApplication
             val adblockReady by app.adblockManager.ready.collectAsState()
             SettingsScreen(
               settings = settings,
-              availableLanguages = availableWithEnglish,
+              sourceLanguages = languageState.sourceLanguages(),
+              targetLanguages = languageState.targetLanguages(),
               catalog = catalog,
               adblockDownload = downloads[DownloadId.Support(SupportKind.ADBLOCK)],
               onDownloadAdblockSupport = { downloadManager.enqueue(DownloadRequest.Support(SupportKind.ADBLOCK)) },

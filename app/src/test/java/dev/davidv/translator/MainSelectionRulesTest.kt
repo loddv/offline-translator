@@ -18,6 +18,7 @@
 package dev.davidv.translator
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MainSelectionRulesTest {
@@ -27,14 +28,11 @@ class MainSelectionRulesTest {
   private val es = lang("es")
   private val fr = lang("fr")
   private val de = lang("de")
-  private val all = listOf(de, en, es, fr)
+  private val be = lang("be")
+  private val all = listOf(de, en, es, fr, be)
 
   // Installed en↔X directions; X→Y pivots through English like the native catalog.
-  private fun rules(
-    directions: Set<Pair<Language, Language>>,
-    settings: AppSettings = AppSettings(),
-    metadata: Map<Language, LanguageMetadata> = emptyMap(),
-  ): MainSelectionRules {
+  private fun availability(directions: Set<Pair<Language, Language>>): LanguageAvailabilityState {
     val direct = { from: Language, to: Language -> (from to to) in directions }
     val entries =
       all.map { language ->
@@ -48,15 +46,22 @@ class MainSelectionRulesTest {
           ),
         )
       }
-    val availability =
-      LanguageAvailabilityState(
-        hasLanguages = entries.any { !it.language.isEnglish && it.availability.translatorFiles },
-        availableLanguages = entries,
-      )
+    return LanguageAvailabilityState(
+      hasLanguages = entries.any { !it.language.isEnglish && it.availability.translatorFiles },
+      availableLanguages = entries,
+    )
+  }
+
+  private fun rules(
+    directions: Set<Pair<Language, Language>>,
+    settings: AppSettings = AppSettings(),
+    metadata: Map<Language, LanguageMetadata> = emptyMap(),
+  ): MainSelectionRules {
+    val direct = { from: Language, to: Language -> (from to to) in directions }
     val canTranslate = { from: Language, to: Language ->
       from == to || direct(from, to) || (direct(from, en) && direct(en, to))
     }
-    return MainSelectionRules(availability, settings, metadata, canTranslate)
+    return MainSelectionRules(availability(directions), settings, metadata, canTranslate)
   }
 
   private fun both(vararg languages: Language) = languages.flatMap { listOf(en to it, it to en) }.toSet()
@@ -153,5 +158,82 @@ class MainSelectionRulesTest {
   fun `the previous source stays off the targets when the new source can't reach it`() {
     val next = rules(setOf(es to en, fr to en)).withSource(ready(es, en), fr, FromLangChange.MovePreviousToTarget)
     assertEquals(ready(fr, en), next)
+  }
+
+  @Test
+  fun `a language with only its X to en model is a source and never a target`() {
+    val state = availability(setOf(be to en))
+    assertEquals(listOf(be), state.sourceLanguages())
+    assertEquals(listOf(en), state.targetLanguages())
+  }
+
+  @Test
+  fun `english is a side only once some other language is installed in that direction`() {
+    val state = availability(setOf(en to es))
+    assertEquals(listOf(en), state.sourceLanguages())
+    assertEquals(listOf(es), state.targetLanguages())
+  }
+
+  @Test
+  fun `a configured target with only its X to en model starts from english instead`() {
+    val settings = AppSettings(defaultTargetLanguageCode = "be")
+    assertEquals(ready(be, en), rules(setOf(be to en), settings).initial())
+  }
+
+  @Test
+  fun `a configured source with only its en to X model is skipped`() {
+    val settings = AppSettings(defaultTargetLanguageCode = "en", defaultSourceLanguageCode = "es")
+    assertEquals(ready(fr, en), rules(setOf(en to es, fr to en), settings).initial())
+  }
+
+  @Test
+  fun `a tab the new source can't reach is dropped`() {
+    val next = rules(setOf(be to en, es to en)).normalized(es, TargetTabs(emptyList(), be, listOf(en)))
+    assertEquals(ready(es, en), next)
+  }
+
+  @Test(expected = IllegalStateException::class)
+  fun `a source that translates to nothing installed is a caller bug`() {
+    rules(setOf(be to en)).normalized(en, TargetTabs.of(be))
+  }
+
+  @Test
+  fun `a target with only its X to en model can't be swapped to the source`() {
+    assertNull(rules(setOf(be to en)).swapped(ready(be, en)))
+  }
+
+  @Test
+  fun `swapping a pair installed both ways flips it`() {
+    assertEquals(ready(es, en), rules(both(es)).swapped(ready(en, es)))
+  }
+
+  @Test
+  fun `a stored target with only its X to en model resets to english`() {
+    val settings = AppSettings(defaultTargetLanguageCode = "be", defaultSourceLanguageCode = "be")
+    val usable = usableDefaults(settings, availability(setOf(be to en)))
+    assertEquals("en", usable.defaultTargetLanguageCode)
+    assertEquals("be", usable.defaultSourceLanguageCode)
+  }
+
+  @Test
+  fun `a stored source that can't translate out is replaced by an installed one`() {
+    val settings = AppSettings(defaultTargetLanguageCode = "es", defaultSourceLanguageCode = "en")
+    val usable = usableDefaults(settings, availability(setOf(be to en)))
+    assertEquals("en", usable.defaultTargetLanguageCode)
+    assertEquals("be", usable.defaultSourceLanguageCode)
+  }
+
+  @Test
+  fun `an unset source is filled with an installed one`() {
+    val usable = usableDefaults(AppSettings(), availability(both(es)))
+    assertEquals("en", usable.defaultTargetLanguageCode)
+    assertEquals("es", usable.defaultSourceLanguageCode)
+  }
+
+  @Test
+  fun `a source equal to the target is replaced`() {
+    val settings = AppSettings(defaultTargetLanguageCode = "en", defaultSourceLanguageCode = "en")
+    val usable = usableDefaults(settings, availability(both(es)))
+    assertEquals("es", usable.defaultSourceLanguageCode)
   }
 }

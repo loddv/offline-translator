@@ -36,16 +36,13 @@ class MainSelectionRules(
   private val metadata: Map<Language, LanguageMetadata>,
   private val canTranslate: (from: Language, to: Language) -> Boolean,
 ) {
-  private val languages = availability.allLanguages()
-
-  private fun installed(language: Language): Boolean = availability.availabilityFor(language)?.translatorFiles == true
+  private val sources = availability.sourceLanguages()
 
   fun initial(): MainSelection {
     if (!availability.hasLanguages) return MainSelection.NoLanguages
-    val defaultTarget = languages.firstOrNull { it.code == settings.defaultTargetLanguageCode && installed(it) }
-    // With only the en→X direction installed, X has no source at all, so the configured target
-    // can be unusable; any installed language with a source beats leaving the screen without a pair.
-    val candidates = listOfNotNull(defaultTarget) + languages.filter { it.isEnglish } + languages.filter(::installed)
+    val targets = availability.targetLanguages()
+    val defaultTarget = targets.firstOrNull { it.code == settings.defaultTargetLanguageCode }
+    val candidates = listOfNotNull(defaultTarget) + targets.filter { it.isEnglish } + targets
     val selection =
       candidates.firstNotNullOfOrNull { target ->
         sourceFor(target)?.let { MainSelection.Ready(it, TargetTabs.of(target)) }
@@ -55,24 +52,22 @@ class MainSelectionRules(
 
   fun reconciled(current: MainSelection): MainSelection {
     if (current !is MainSelection.Ready || !availability.hasLanguages) return initial()
-    val source = current.source.takeIf(::installed) ?: sourceFor(current.target)
+    val source = current.source.takeIf(availability::canBeSource) ?: sourceFor(current.target)
     val targets = source?.let { reachableTabs(current.targets, it) }
     return if (source != null && targets != null) MainSelection.Ready(source, targets) else initial()
   }
 
-  // A source can never also be a target tab (it would translate to itself), so it leaves the
-  // tabs, and a sole tab is replaced by an alternate target.
+  // A source can never also be a target tab (it would translate to itself) and no tab may name
+  // a language the source can't reach, so those leave the tabs, and an emptied tab row gets an
+  // alternate target. Callers only pass sources the pickers offered, which always reach one.
   fun normalized(
     source: Language,
     targets: TargetTabs,
-  ): MainSelection.Ready =
-    when {
-      source !in targets.tabs -> MainSelection.Ready(source, targets)
-      targets.tabs.size > 1 -> MainSelection.Ready(source, targets.remove(source))
-      // A source with only its en→X direction installed translates to nothing else; the pair is
-      // left as picked rather than swapping in a target that can't be reached.
-      else -> MainSelection.Ready(source, alternateTarget(source)?.let(TargetTabs::of) ?: targets)
-    }
+  ): MainSelection.Ready {
+    val reachable = reachableTabs(targets, source)
+    checkNotNull(reachable) { "${source.code} was picked as a source but translates to no installed language" }
+    return MainSelection.Ready(source, reachable)
+  }
 
   fun withSource(
     current: MainSelection.Ready,
@@ -86,6 +81,12 @@ class MainSelectionRules(
     return normalized(source, carriedTarget?.let(current.targets::select) ?: current.targets)
   }
 
+  // The button's state can lag a catalog publish, so a swap that no longer translates is dropped.
+  fun swapped(current: MainSelection.Ready): MainSelection.Ready? {
+    if (!canTranslate(current.target, current.source)) return null
+    return normalized(current.target, current.targets.select(current.source))
+  }
+
   private fun reachableTabs(
     targets: TargetTabs,
     source: Language,
@@ -96,12 +97,12 @@ class MainSelectionRules(
   }
 
   private fun sourceFor(target: Language): Language? {
-    val preferred = languages.firstOrNull { it.code == settings.defaultSourceLanguageCode }
-    return (listOfNotNull(preferred) + languages).firstOrNull { it != target && canTranslate(it, target) }
+    val preferred = sources.firstOrNull { it.code == settings.defaultSourceLanguageCode }
+    return (listOfNotNull(preferred) + sources).firstOrNull { it != target && canTranslate(it, target) }
   }
 
   private fun alternateTarget(source: Language): Language? {
-    val candidates = languages.filter { it != source && canTranslate(source, it) }
+    val candidates = availability.targetLanguages().filter { it != source && canTranslate(source, it) }
     return candidates.firstOrNull { it.code == settings.defaultTargetLanguageCode }
       ?: candidates.firstOrNull { metadata[it]?.favorite == true }
       ?: candidates.minByOrNull { it.displayName }

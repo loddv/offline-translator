@@ -159,4 +159,15 @@ class OverlayLanguageSelectionTest {
       Locale.setDefault(previous)
     }
   }
+
+  @Test
+  fun `a language with only its X to en model is offered as an overlay source and never as a target`() {
+    val be = lang("be")
+    val sourceOnly =
+      LanguageAvailabilityEntry(be, LangAvailability(hasFromEnglish = false, hasToEnglish = true, ocrFiles = true, dictionaryFiles = false))
+    val state = availability(entry(en), sourceOnly)
+    assertEquals(listOf(be), overlayPickerLanguages(state, emptyMap(), OverlayLanguageSide.SOURCE))
+    assertEquals(listOf(en), overlayPickerLanguages(state, emptyMap(), OverlayLanguageSide.TARGET))
+    assertEquals(en, OverlayLanguageSelection.defaults(state, AppSettings(defaultTargetLanguageCode = "be")).target)
+  }
 }

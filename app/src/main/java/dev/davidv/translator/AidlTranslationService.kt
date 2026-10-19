@@ -55,7 +55,7 @@ class AidlTranslationService : Service() {
         val toLanguage = toLanguageStr?.takeIf { it.isNotEmpty() }?.let { catalog.languageByCode(it) }
 
         serviceScope.launch {
-          val langs = LanguageAvailabilityState.of(catalog).translatorLanguages()
+          val langs = LanguageAvailabilityState.of(catalog).sourceLanguages()
           val from = fromLanguage ?: translationCoordinator.detectLanguageRobust(textToTranslate, null, langs)
           Log.d(tag, "Detected lang $from")
           if (from == null) {

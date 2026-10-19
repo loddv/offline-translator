@@ -83,10 +83,9 @@ data class OverlayLanguageSelection(
       availability: LanguageAvailabilityState,
       settings: AppSettings,
     ): OverlayLanguageSelection {
-      val languages = availability.allLanguages()
       val target =
-        languages.firstOrNull { it.code == settings.defaultTargetLanguageCode }
-          ?: languages.first { it.isEnglish }
+        availability.targetLanguages().firstOrNull { it.code == settings.defaultTargetLanguageCode }
+          ?: availability.allLanguages().first { it.isEnglish }
       return OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), target)
     }
   }
@@ -104,10 +103,14 @@ fun overlayPickerLanguages(
   availability: LanguageAvailabilityState,
   metadata: Map<Language, LanguageMetadata>,
   side: OverlayLanguageSide,
-): List<Language> =
-  availability
-    .translatorLanguages(requireOcr = side == OverlayLanguageSide.SOURCE)
-    .sortedWith(
-      compareByDescending<Language> { metadata[it]?.favorite ?: false }
-        .thenBy(languageNameComparator()) { it.localizedName() },
-    )
+): List<Language> {
+  val languages =
+    when (side) {
+      OverlayLanguageSide.SOURCE -> availability.sourceLanguages(requireOcr = true)
+      OverlayLanguageSide.TARGET -> availability.targetLanguages()
+    }
+  return languages.sortedWith(
+    compareByDescending<Language> { metadata[it]?.favorite ?: false }
+      .thenBy(languageNameComparator()) { it.localizedName() },
+  )
+}

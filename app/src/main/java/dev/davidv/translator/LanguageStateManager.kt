@@ -50,12 +50,30 @@ data class LanguageAvailabilityState(
 
   fun allLanguages(): List<Language> = availableLanguages.map { it.language }
 
-  fun translatorLanguages(requireOcr: Boolean = false): List<Language> =
+  // Every installed pair pivots through English, so X is a source exactly when its X→en model is
+  // in and a target exactly when its en→X model is. Some catalog languages ship only X→en, so
+  // "installed" alone says nothing about which side a language can take. English needs no model
+  // of its own, which makes it a source only once some en→X is installed and a target only once
+  // some X→en is.
+  private val englishIsSource = availableLanguages.any { !it.language.isEnglish && it.availability.hasFromEnglish }
+  private val englishIsTarget = availableLanguages.any { !it.language.isEnglish && it.availability.hasToEnglish }
+
+  private fun isSource(entry: LanguageAvailabilityEntry): Boolean =
+    if (entry.language.isEnglish) englishIsSource else entry.availability.hasToEnglish
+
+  private fun isTarget(entry: LanguageAvailabilityEntry): Boolean =
+    if (entry.language.isEnglish) englishIsTarget else entry.availability.hasFromEnglish
+
+  fun canBeSource(language: Language): Boolean = availableLanguages.any { it.language.code == language.code && isSource(it) }
+
+  fun canBeTarget(language: Language): Boolean = availableLanguages.any { it.language.code == language.code && isTarget(it) }
+
+  fun sourceLanguages(requireOcr: Boolean = false): List<Language> =
     availableLanguages
-      .asSequence()
-      .filter { it.availability.translatorFiles && (!requireOcr || it.availability.ocrFiles) }
+      .filter { isSource(it) && (!requireOcr || it.availability.ocrFiles) }
       .map { it.language }
-      .toList()
+
+  fun targetLanguages(): List<Language> = availableLanguages.filter(::isTarget).map { it.language }
 
   companion object {
     fun of(catalog: LanguageCatalog): LanguageAvailabilityState {
@@ -133,9 +151,7 @@ class LanguageStateManager(
   fun canSwapLanguages(
     from: Language,
     to: Language,
-  ): Boolean {
-    return catalog.value.canSwapLanguages(from, to)
-  }
+  ): Boolean = from != to && catalog.value.canTranslate(to, from)
 
   fun canTranslate(
     from: Language,

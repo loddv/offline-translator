@@ -18,7 +18,6 @@
 package dev.davidv.translator
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.media.AudioFormat
 import android.os.Bundle
@@ -35,10 +34,16 @@ class TranslatorTtsService : TextToSpeechService() {
   private var stopped = false
 
   @Volatile
-  private var currentVoice: TranslatorTtsVoice? = null
+  private var loadedVoice: TranslatorTtsVoice? = null
+
+  override fun onCreate() {
+    // TextToSpeechService.onCreate loads the default language, which already reads the catalog.
+    (application as TranslatorApplication).ensureServicesInitialized()
+    super.onCreate()
+  }
 
   override fun onGetVoices(): List<Voice> {
-    val ttsVoices = TranslatorTtsEngine.systemTtsVoices(applicationServices().catalogRepository.catalog.value)
+    val ttsVoices = TranslatorTtsEngine.systemTtsVoices(catalog())
     Log.i(
       "TranslatorTtsService",
       "onGetVoices: returning ${ttsVoices.size} voices: " +
@@ -57,15 +62,15 @@ class TranslatorTtsService : TextToSpeechService() {
   }
 
   override fun onIsValidVoiceName(voiceName: String): Int =
-    if (TranslatorTtsEngine.isBootstrapVoiceName(voiceName) || TranslatorTtsEngine.isCatalogVoiceName(voiceName)) {
+    if (TranslatorTtsEngine.voiceNamed(catalog(), voiceName) != null) {
       TextToSpeech.SUCCESS
     } else {
       TextToSpeech.ERROR
     }
 
   override fun onLoadVoice(voiceName: String): Int {
-    val voice = TranslatorTtsEngine.voiceFromAndroidName(voiceName) ?: return TextToSpeech.ERROR
-    currentVoice = voice
+    val voice = TranslatorTtsEngine.voiceNamed(catalog(), voiceName) ?: return TextToSpeech.ERROR
+    loadedVoice = voice
     return TextToSpeech.SUCCESS
   }
 
@@ -73,36 +78,26 @@ class TranslatorTtsService : TextToSpeechService() {
     lang: String,
     country: String,
     variant: String,
-  ): String? {
-    TranslatorTtsEngine.resolveUserPreferredVoice(this, lang)?.let { return it.androidName }
-    val voices = TranslatorTtsEngine.systemTtsVoices(applicationServices().catalogRepository.catalog.value)
-    val match =
-      voices.firstOrNull {
-        it.locale.safeIso3Language() == lang && it.locale.safeIso3Country() == country
-      }
-        ?: voices.firstOrNull { it.locale.safeIso3Language() == lang }
-    return match?.androidName
-  }
+  ): String? = TranslatorTtsEngine.defaultVoice(catalog(), voiceOverrides(), lang, country)?.androidName
 
   override fun onIsLanguageAvailable(
     lang: String,
     country: String,
     variant: String,
-  ): Int = languageAvailability(lang, country)
+  ): Int = TranslatorTtsEngine.languageAvailability(catalog(), lang, country)
 
   override fun onLoadLanguage(
     lang: String,
     country: String,
     variant: String,
   ): Int {
-    currentVoice =
-      TranslatorTtsEngine.resolveUserPreferredVoice(this, lang)
-        ?: TranslatorTtsEngine.bootstrapVoice(lang, country)
-    return languageAvailability(lang, country)
+    val catalog = catalog()
+    TranslatorTtsEngine.defaultVoice(catalog, voiceOverrides(), lang, country)?.let { loadedVoice = it }
+    return TranslatorTtsEngine.languageAvailability(catalog, lang, country)
   }
 
   override fun onGetLanguage(): Array<String> {
-    val locale = currentVoice?.locale ?: Locale.ENGLISH
+    val locale = loadedVoice?.locale ?: return arrayOf("", "", "")
     return arrayOf(
       locale.safeIso3Language(),
       locale.safeIso3Country(),
@@ -117,26 +112,31 @@ class TranslatorTtsService : TextToSpeechService() {
     stopped = false
     val text = request.charSequenceText?.toString().orEmpty()
     if (text.isBlank()) {
-      callback.error()
+      callback.error(TextToSpeech.ERROR_INVALID_REQUEST)
       callback.done()
       return
     }
 
-    val explicitVoice =
-      request.voiceName
-        ?.takeIf(TranslatorTtsEngine::isCatalogVoiceName)
-        ?.let(TranslatorTtsEngine::voiceFromAndroidName)
     val voice =
-      explicitVoice
-        ?: TranslatorTtsEngine.resolveUserPreferredVoice(this, request.language.orEmpty())
-        ?: currentVoice
-        ?: TranslatorTtsEngine.bootstrapVoice(request.language.orEmpty(), request.country.orEmpty())
+      TranslatorTtsEngine.voiceForRequest(
+        catalog = catalog(),
+        voiceOverrides = voiceOverrides(),
+        voiceName = request.voiceName,
+        iso3Language = request.language.orEmpty(),
+        iso3Country = request.country.orEmpty(),
+      )
+    if (voice == null) {
+      Log.w(
+        "TranslatorTtsService",
+        "No installed voice for voice=${request.voiceName} locale=${request.language}-${request.country}",
+      )
+      callback.error(TextToSpeech.ERROR_NOT_INSTALLED_YET)
+      callback.done()
+      return
+    }
 
     val settings = (application as TranslatorApplication).settingsManager.settings.value
-    val baseSpeed =
-      voice.catalogVoiceName
-        ?.let { vname -> settings.ttsPlaybackSpeedOverrides["${voice.languageCode}:$vname"] }
-        ?: settings.ttsPlaybackSpeed
+    val baseSpeed = settings.ttsPlaybackSpeedOverrides["${voice.languageCode}:${voice.speakerName}"] ?: settings.ttsPlaybackSpeed
     val finalSpeed = (baseSpeed * (request.speechRate / 100f)).coerceIn(0.5f, 2.0f)
 
     try {
@@ -164,8 +164,8 @@ class TranslatorTtsService : TextToSpeechService() {
     speechSpeed: Float,
     callback: SynthesisCallback,
   ) {
-    val catalog = applicationServices().catalogRepository.catalog.value
-    val readUrlsAndHashtags = applicationServices().settingsManager.settings.value.ttsReadUrlsAndHashtags
+    val catalog = catalog()
+    val readUrlsAndHashtags = (application as TranslatorApplication).settingsManager.settings.value.ttsReadUrlsAndHashtags
     val chunks = catalog.planSpeechChunks(voice.languageCode, text, voice.packId, readUrlsAndHashtags)
     if (chunks.isEmpty()) {
       error("No speech chunks planned")
@@ -180,7 +180,7 @@ class TranslatorTtsService : TextToSpeechService() {
           languageCode = voice.languageCode,
           text = chunk.content,
           speechSpeed = speechSpeed,
-          voiceName = voice.catalogVoiceName?.takeIf(String::isNotBlank),
+          voiceName = voice.speakerName,
           isPhonemes = chunk.isPhonemes,
           packId = voice.packId,
         )
@@ -227,17 +227,16 @@ class TranslatorTtsService : TextToSpeechService() {
     return true
   }
 
-  private fun languageAvailability(
-    lang: String,
-    country: String,
-  ): Int = TranslatorTtsEngine.languageAvailability(lang, country)
+  private fun catalog(): LanguageCatalog = (application as TranslatorApplication).catalogRepository.catalog.value
 
-  private fun applicationServices(): TranslatorApplication = application as TranslatorApplication
+  private fun voiceOverrides(): Map<String, String> =
+    (application as TranslatorApplication).settingsManager.settings.value.ttsVoiceOverrides
 }
 
 class TranslatorTtsDataActivity : Activity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    (application as TranslatorApplication).ensureServicesInitialized()
     when (intent?.action) {
       TextToSpeech.Engine.ACTION_CHECK_TTS_DATA -> finishCheckTtsData()
       TextToSpeech.Engine.ACTION_GET_SAMPLE_TEXT -> finishSampleText()
@@ -246,22 +245,13 @@ class TranslatorTtsDataActivity : Activity() {
     }
   }
 
+  private fun catalog(): LanguageCatalog = (application as TranslatorApplication).catalogRepository.catalog.value
+
   private fun finishCheckTtsData() {
-    val installedLanguages =
-      TranslatorTtsEngine
-        .installedTtsLocales((application as TranslatorApplication).catalogRepository.catalog.value)
-        .map { it.language }
-        .distinct()
-    val systemDefault = Locale.getDefault()
     val voices =
-      installedLanguages
-        .mapNotNull { language ->
-          if (language == systemDefault.language) {
-            systemDefault.toTtsDataVoiceName()
-          } else {
-            Locale(language).toTtsDataVoiceName()
-          }
-        }
+      TranslatorTtsEngine
+        .installedTtsLocales(catalog())
+        .mapNotNull { it.toTtsDataVoiceName() }
         .distinct()
         .let(::ArrayList)
 
@@ -277,10 +267,12 @@ class TranslatorTtsDataActivity : Activity() {
   }
 
   private fun finishSampleText() {
-    val iso3Lang = intent?.getStringExtra("language").orEmpty()
     val sample =
-      TranslatorTtsEngine.sampleText(this, iso3Lang)
-        ?: getString(R.string.tts_sample_fallback)
+      TranslatorTtsEngine.sampleText(
+        catalog = catalog(),
+        iso3Language = intent?.getStringExtra("language").orEmpty(),
+        iso3Country = intent?.getStringExtra("country").orEmpty(),
+      ) ?: getString(R.string.tts_sample_fallback)
     val data = Intent().putExtra(TextToSpeech.Engine.EXTRA_SAMPLE_TEXT, sample)
     setResult(TextToSpeech.LANG_AVAILABLE, data)
     finish()
@@ -318,185 +310,127 @@ class TranslatorTtsSettingsRelayActivity : Activity() {
 data class TranslatorTtsVoice(
   val androidName: String,
   val languageCode: String,
-  val packId: String?,
-  val catalogVoiceName: String?,
+  val packId: String,
+  val speakerName: String,
   val locale: Locale,
   val quality: Int,
 )
 
+// The framework speaks ISO 639-2/T + ISO 3166 alpha-3 codes; every lookup here takes those and
+// answers only from installed voices, so availability, default voice and synthesis can't disagree.
 object TranslatorTtsEngine {
-  private const val BOOTSTRAP_VOICE_PREFIX = "default|"
   private const val VOICE_SEPARATOR = "|"
 
-  fun sampleText(
-    context: Context,
-    iso3Language: String,
-  ): String? {
-    val app = context.applicationContext as TranslatorApplication
-    val catalog = app.catalogRepository.catalog.value
-    val iso2 = iso3LanguageToIso2(iso3Language).ifBlank { iso3Language }
-    return catalog.ttsSampleText(iso2)
-  }
+  fun installedTtsLocales(catalog: LanguageCatalog): List<Locale> = systemTtsVoices(catalog).map { it.locale }.distinct()
 
-  fun installedTtsLocales(catalog: LanguageCatalog): List<Locale> {
-    val result = mutableListOf<Locale>()
-    for (row in catalog.languageRows) {
-      if (!row.availability.ttsFiles) continue
-      val installedRegions = catalog.installedTtsVoicePickerRegions(row.language.code)
-      if (installedRegions.isEmpty()) {
-        result += Locale(row.language.code)
-      } else {
-        for (region in installedRegions) {
-          result += Locale(row.language.code, region.code)
-        }
-      }
-    }
-    return result
-  }
-
-  fun bootstrapVoices(catalog: LanguageCatalog): List<TranslatorTtsVoice> {
-    val seenLanguages = mutableSetOf<String>()
-    return installedTtsLocales(catalog).mapNotNull { locale ->
-      val iso3Language = locale.safeIso3Language()
-      if (iso3Language.isBlank() || !seenLanguages.add(iso3Language)) return@mapNotNull null
-
-      TranslatorTtsVoice(
-        androidName = bootstrapVoiceName(iso3Language, "") ?: return@mapNotNull null,
-        languageCode = locale.language,
-        packId = null,
-        catalogVoiceName = null,
-        locale = Locale(locale.language),
-        quality = Voice.QUALITY_NORMAL,
-      )
-    }
-  }
-
-  fun systemTtsVoices(catalog: LanguageCatalog): List<TranslatorTtsVoice> {
-    val voices = mutableListOf<TranslatorTtsVoice>()
-    for (row in catalog.languageRows) {
-      if (!row.availability.ttsFiles) continue
-      val lang = row.language.code
-      val packs = catalog.installedTtsVoices(lang)
-      if (packs.isEmpty()) continue
-      val locale = localeFor(lang, null)
-      for (pack in packs) {
-        for (speaker in pack.voices) {
-          voices +=
+  fun systemTtsVoices(catalog: LanguageCatalog): List<TranslatorTtsVoice> =
+    catalog.languageRows
+      .filter { it.availability.ttsFiles }
+      .flatMap { row ->
+        val languageCode = row.language.code
+        val regionByPack =
+          catalog
+            .installedTtsVoicePickerRegions(languageCode)
+            .flatMap { region -> region.voices.map { pack -> pack.packId to region.code } }
+            .toMap()
+        catalog.installedTtsVoices(languageCode).flatMap { pack ->
+          val locale = localeFor(languageCode, regionByPack[pack.packId])
+          pack.voices.map { speaker ->
             TranslatorTtsVoice(
-              androidName = androidVoiceName(lang, pack.packId, speaker.name),
-              languageCode = lang,
+              androidName = "$languageCode$VOICE_SEPARATOR${pack.packId}$VOICE_SEPARATOR${speaker.name}",
+              languageCode = languageCode,
               packId = pack.packId,
-              catalogVoiceName = speaker.name,
+              speakerName = speaker.name,
               locale = locale,
               quality = qualityFor(speaker.name),
             )
+          }
         }
       }
-    }
-    return voices
-  }
 
-  fun resolveUserPreferredVoice(
-    context: Context,
-    language: String,
-  ): TranslatorTtsVoice? {
-    if (language.isBlank()) return null
-    val app = context.applicationContext as TranslatorApplication
-    val catalog = app.catalogRepository.catalog.value
-    val iso2 = iso3LanguageToIso2(language).ifBlank { language }
-    val packs = catalog.installedTtsVoices(iso2)
-    if (packs.isEmpty()) return null
-
-    val override = parseVoiceOverride(app.settingsManager.settings.value.ttsVoiceOverrides[iso2])
-    val chosenPack =
-      override?.packId?.let { pid -> packs.firstOrNull { it.packId == pid } }
-        ?: override?.voiceName?.let { vn -> packs.firstOrNull { p -> p.voices.any { it.name == vn } } }
-        ?: packs.first()
-    val chosenSpeaker =
-      override?.voiceName?.let { vn -> chosenPack.voices.firstOrNull { it.name == vn } }
-        ?: chosenPack.voices.firstOrNull()
-        ?: return null
-
-    return TranslatorTtsVoice(
-      androidName = androidVoiceName(iso2, chosenPack.packId, chosenSpeaker.name),
-      languageCode = iso2,
-      packId = chosenPack.packId,
-      catalogVoiceName = chosenSpeaker.name,
-      locale = localeFor(iso2, null),
-      quality = qualityFor(chosenSpeaker.name),
-    )
-  }
+  fun voiceNamed(
+    catalog: LanguageCatalog,
+    voiceName: String,
+  ): TranslatorTtsVoice? = systemTtsVoices(catalog).firstOrNull { it.androidName == voiceName }
 
   fun languageAvailability(
-    lang: String,
-    country: String,
+    catalog: LanguageCatalog,
+    iso3Language: String,
+    iso3Country: String,
   ): Int {
-    if (country.isBlank()) {
-      return TextToSpeech.LANG_AVAILABLE
+    val voices = voicesForLanguage(catalog, iso3Language)
+    if (voices.isEmpty()) {
+      val downloadable =
+        catalog.languageRows.any { row ->
+          localeFor(row.language.code, null).safeIso3Language() == iso3Language && catalog.hasTtsVoices(row.language.code)
+        }
+      return if (downloadable) TextToSpeech.LANG_MISSING_DATA else TextToSpeech.LANG_NOT_SUPPORTED
     }
-    return TextToSpeech.LANG_COUNTRY_AVAILABLE
-  }
-
-  fun bootstrapVoiceName(
-    lang: String,
-    country: String,
-  ): String? {
-    if (lang.isBlank()) return null
-    return "$BOOTSTRAP_VOICE_PREFIX$lang"
-  }
-
-  fun isBootstrapVoiceName(voiceName: String): Boolean = voiceName.startsWith(BOOTSTRAP_VOICE_PREFIX)
-
-  fun isCatalogVoiceName(voiceName: String): Boolean = voiceName.count { it == '|' } == 2
-
-  fun voiceFromAndroidName(voiceName: String): TranslatorTtsVoice? {
-    if (isBootstrapVoiceName(voiceName)) {
-      return bootstrapVoice(voiceName.removePrefix(BOOTSTRAP_VOICE_PREFIX), "")
+    if (voices.any { it.isInCountry(iso3Country) }) {
+      return TextToSpeech.LANG_COUNTRY_AVAILABLE
     }
-    if (!isCatalogVoiceName(voiceName)) return null
-    val parts = voiceName.split(VOICE_SEPARATOR)
-    val languageCode = parts[0]
-    val packId = parts[1].takeIf(String::isNotBlank)
-    val catalogVoiceName = parts[2]
-    if (languageCode.isBlank() || catalogVoiceName.isBlank()) return null
-    return TranslatorTtsVoice(
-      androidName = voiceName,
-      languageCode = languageCode,
-      packId = packId,
-      catalogVoiceName = catalogVoiceName,
-      locale = localeFor(languageCode, null),
-      quality = qualityFor(catalogVoiceName),
-    )
+    return TextToSpeech.LANG_AVAILABLE
   }
 
-  fun bootstrapVoice(
-    lang: String,
-    country: String,
-  ): TranslatorTtsVoice {
-    val languageCode = iso3LanguageToIso2(lang).ifBlank { lang }
-    val countryCode = iso3CountryToIso2(country).ifBlank { country }
-    return TranslatorTtsVoice(
-      androidName = bootstrapVoiceName(lang, country) ?: "${BOOTSTRAP_VOICE_PREFIX}und$VOICE_SEPARATOR",
-      languageCode = languageCode,
-      packId = null,
-      catalogVoiceName = null,
-      locale = localeFor(languageCode, countryCode),
-      quality = Voice.QUALITY_NORMAL,
-    )
+  // A matching country picks the catalog language first (zho-TWN is zh_hant, zho-CHN is zh); within
+  // it the user's in-app voice choice wins over the requested country, since apps mostly pass the
+  // device locale rather than an accent they actually want.
+  fun defaultVoice(
+    catalog: LanguageCatalog,
+    voiceOverrides: Map<String, String>,
+    iso3Language: String,
+    iso3Country: String,
+  ): TranslatorTtsVoice? {
+    val voices = voicesForLanguage(catalog, iso3Language)
+    val languageCode = (voices.firstOrNull { it.isInCountry(iso3Country) } ?: voices.firstOrNull() ?: return null).languageCode
+    val candidates = voices.filter { it.languageCode == languageCode }
+    val override = parseVoiceOverride(voiceOverrides[languageCode])
+    return candidates.firstOrNull { voice ->
+      override != null && voice.speakerName == override.voiceName && (override.packId == null || override.packId == voice.packId)
+    }
+      ?: candidates.firstOrNull { it.isInCountry(iso3Country) }
+      ?: candidates.first()
   }
 
-  private fun androidVoiceName(
-    languageCode: String,
-    packId: String?,
-    catalogVoiceName: String,
-  ): String = "$languageCode$VOICE_SEPARATOR${packId.orEmpty()}$VOICE_SEPARATOR$catalogVoiceName"
+  fun voiceForRequest(
+    catalog: LanguageCatalog,
+    voiceOverrides: Map<String, String>,
+    voiceName: String?,
+    iso3Language: String,
+    iso3Country: String,
+  ): TranslatorTtsVoice? =
+    if (voiceName.isNullOrEmpty()) {
+      defaultVoice(catalog, voiceOverrides, iso3Language, iso3Country)
+    } else {
+      voiceNamed(catalog, voiceName)
+    }
+
+  fun sampleText(
+    catalog: LanguageCatalog,
+    iso3Language: String,
+    iso3Country: String,
+  ): String? =
+    defaultVoice(catalog, emptyMap(), iso3Language, iso3Country)
+      ?.languageCode
+      ?.let(catalog::ttsSampleText)
+
+  private fun voicesForLanguage(
+    catalog: LanguageCatalog,
+    iso3Language: String,
+  ): List<TranslatorTtsVoice> {
+    if (iso3Language.isBlank()) return emptyList()
+    return systemTtsVoices(catalog).filter { it.locale.safeIso3Language() == iso3Language }
+  }
+
+  private fun TranslatorTtsVoice.isInCountry(iso3Country: String): Boolean =
+    iso3Country.isNotBlank() && locale.safeIso3Country() == iso3Country
 
   private fun localeFor(
     languageCode: String,
     regionCode: String?,
   ): Locale {
     val languageTag = languageCode.replace('_', '-')
-    val tag = listOfNotNull(languageTag, regionCode?.takeIf(String::isNotBlank)).joinToString("-")
+    val tag = listOfNotNull(languageTag, regionCode).joinToString("-")
     return Locale.forLanguageTag(tag)
   }
 
@@ -506,16 +440,6 @@ object TranslatorTtsEngine {
       voiceName.contains("-x-low") -> Voice.QUALITY_LOW
       else -> Voice.QUALITY_NORMAL
     }
-
-  private fun iso3LanguageToIso2(iso3Language: String): String =
-    Locale.getISOLanguages().firstOrNull { language ->
-      Locale(language).safeIso3Language() == iso3Language
-    }.orEmpty()
-
-  private fun iso3CountryToIso2(iso3Country: String): String =
-    Locale.getISOCountries().firstOrNull { country ->
-      Locale("", country).safeIso3Country() == iso3Country
-    }.orEmpty()
 }
 
 private fun Locale.safeIso3Language(): String =

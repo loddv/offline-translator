@@ -312,26 +312,33 @@ fun MainScreen(
           ) {
             // The detected-language prompt is an input modifier, so it lives at
             // the bottom of the input card; in image mode (no input card) it
-            // sits directly under the image instead.
-            val detectedLanguageSection: @Composable () -> Unit = {
-              Box(modifier = Modifier.testTag("export-section:Detected language")) {
-                DetectedLanguageSection(
-                  detectedLanguage = detectedLanguage,
-                  from = from,
-                  languageState = languageState,
-                  onMessage = onMessage,
-                  downloads = downloads,
-                  isAutoSource = isAutoSource,
-                  onEvent = { event ->
-                    when (event) {
-                      is LanguageEvent.Download -> onDownload(DownloadRequest.Core(event.language))
-                      is LanguageEvent.Cancel -> onCancelDownload(DownloadId.Core(event.language))
-                      else -> Log.e("MainScreen", "Got unexpected event: $event")
-                    }
-                  },
-                )
+            // sits directly under the image instead. A popup's input card is too
+            // short to share with it, so popups draw it outside their bounds
+            // (TranslatorApp) and none is drawn here.
+            val detectedLanguageSection: (@Composable () -> Unit)? =
+              if (launchMode == LaunchMode.Normal) {
+                {
+                  Box(modifier = Modifier.testTag("export-section:Detected language")) {
+                    DetectedLanguageSection(
+                      detectedLanguage = detectedLanguage,
+                      from = from,
+                      languageState = languageState,
+                      onMessage = onMessage,
+                      downloads = downloads,
+                      isAutoSource = isAutoSource,
+                      onEvent = { event ->
+                        when (event) {
+                          is LanguageEvent.Download -> onDownload(DownloadRequest.Core(event.language))
+                          is LanguageEvent.Cancel -> onCancelDownload(DownloadId.Core(event.language))
+                          else -> Log.e("MainScreen", "Got unexpected event: $event")
+                        }
+                      },
+                    )
+                  }
+                }
+              } else {
+                null
               }
-            }
 
             if (displayImage != null) {
               Box(modifier = Modifier.fillMaxWidth()) {
@@ -380,7 +387,7 @@ fun MainScreen(
                   )
                 }
               }
-              detectedLanguageSection()
+              detectedLanguageSection?.invoke()
             }
 
             if (!showOnlyOutputInReadonlyModal && displayImage == null) {

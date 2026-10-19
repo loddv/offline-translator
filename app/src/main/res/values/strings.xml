@@ -46,6 +46,8 @@
     <string name="settings_screen_translation_desc">Translate text directly on top of other apps.</string>
     <string name="settings_floating_button">Always-on button</string>
     <string name="settings_floating_button_desc">Requires accessibility role</string>
+    <string name="settings_offer_accessibility_service">Accessibility service</string>
+    <string name="settings_offer_accessibility_service_desc">Turn off to remove the app from Android\'s accessibility settings; the always-on button stops working</string>
     <string name="settings_shortcut">Translate screen on shortcut</string>
     <string name="settings_shortcut_desc">Long-press home or power to trigger</string>
     <string name="settings_on_shortcut">On shortcut invocation</string>

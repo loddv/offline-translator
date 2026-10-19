@@ -86,6 +86,8 @@ import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
 import dev.davidv.translator.ReadonlyPopupSize
 import dev.davidv.translator.Script
+import dev.davidv.translator.accessibilityOverlay.isAccessibilityServiceOffered
+import dev.davidv.translator.accessibilityOverlay.setAccessibilityServiceOffered
 import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.labelRes
 import dev.davidv.translator.languageNameComparator
@@ -254,6 +256,7 @@ fun SettingsScreen(
 ) {
   val context = LocalContext.current
   var showPermissionDialog by remember { mutableStateOf(false) }
+  var accessibilityServiceOffered by remember { mutableStateOf(isAccessibilityServiceOffered(context)) }
 
   val permissionLauncher =
     rememberLauncherForActivityResult(
@@ -667,7 +670,7 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
 
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && accessibilityServiceOffered) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -974,6 +977,35 @@ fun SettingsScreen(
                   onSettingsChange { it.copy(disableCLD = checked) }
                 },
               )
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                  Text(
+                    text = stringResource(R.string.settings_offer_accessibility_service),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                  )
+                  Text(
+                    text = stringResource(R.string.settings_offer_accessibility_service_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+
+                Switch(
+                  checked = accessibilityServiceOffered,
+                  onCheckedChange = { checked ->
+                    setAccessibilityServiceOffered(context, checked)
+                    accessibilityServiceOffered = checked
+                  },
+                )
+              }
             }
 
             // Experimental screen-translate entry in the input source row

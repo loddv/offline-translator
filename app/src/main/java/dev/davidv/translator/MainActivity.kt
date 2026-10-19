@@ -36,6 +36,9 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 class MainActivity : ComponentActivity() {
   companion object {
     const val EXTRA_OPEN_LANGUAGE_MANAGER = "dev.davidv.translator.OPEN_LANGUAGE_MANAGER"
+
+    // Sent by the launcher's "Camera" shortcut (res/xml/shortcuts.xml).
+    const val ACTION_OPEN_LIVE_CAMERA = "dev.davidv.translator.OPEN_LIVE_CAMERA"
   }
 
   // Identity in production; only the UI-export test flips UiExportRecorder.active to record which
@@ -49,6 +52,7 @@ class MainActivity : ComponentActivity() {
   private var sharedImageUri: Uri? = null
   private var sharedDocumentUri: Uri? = null
   private var openLanguageManager: Boolean = false
+  private var openLiveCamera: Boolean = false
   private lateinit var viewModel: TranslatorViewModel
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,6 +84,10 @@ class MainActivity : ComponentActivity() {
     if (openLanguageManager) {
       viewModel.requestLanguageManager()
       openLanguageManager = false
+    }
+    if (openLiveCamera) {
+      viewModel.requestLiveCamera()
+      openLiveCamera = false
     }
 
     setContent {
@@ -118,12 +126,17 @@ class MainActivity : ComponentActivity() {
         viewModel.requestLanguageManager()
         openLanguageManager = false
       }
+      if (openLiveCamera) {
+        viewModel.requestLiveCamera()
+        openLiveCamera = false
+      }
     }
   }
 
   private fun handleIntent(intent: Intent?) {
     Log.d("MainActivity", "Got intent $intent")
     openLanguageManager = intent?.getBooleanExtra(EXTRA_OPEN_LANGUAGE_MANAGER, false) == true
+    openLiveCamera = intent?.action == ACTION_OPEN_LIVE_CAMERA
     when (intent?.action) {
       Intent.ACTION_SEND -> {
         when (val payload = parseSendIntent(intent)) {

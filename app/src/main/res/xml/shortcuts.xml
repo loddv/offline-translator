@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+  <shortcut
+    android:shortcutId="live_camera"
+    android:enabled="true"
+    android:icon="@drawable/camera"
+    android:shortcutShortLabel="@string/shortcut_live_camera_short"
+    android:shortcutLongLabel="@string/shortcut_live_camera_long">
+    <intent
+      android:action="dev.davidv.translator.OPEN_LIVE_CAMERA"
+      android:targetPackage="dev.davidv.translator"
+      android:targetClass="dev.davidv.translator.MainActivity" />
+  </shortcut>
+</shortcuts>

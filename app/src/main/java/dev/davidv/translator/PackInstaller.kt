@@ -44,6 +44,14 @@ private const val COPY_BUFFER_BYTES = 16 * 1024
 private const val MIN_PROGRESS_STEP_BYTES = 128L * 1024
 private const val STAGING_DIR = ".staging"
 
+// Parallel downloads create shared staging parents at the same moment, and File.mkdirs on Android 6
+// gives up when another thread wins that race, leaving the leaf uncreated.
+private fun ensureDirectory(dir: File) {
+  if (dir.isDirectory) return
+  dir.parentFile?.let(::ensureDirectory)
+  if (!dir.mkdir() && !dir.isDirectory) throw IOException("Failed to create directory $dir")
+}
+
 private enum class Encoding {
   IDENTITY,
   GZIP,
@@ -73,10 +81,10 @@ class StagedInstall(
   // Markers go last: an archive only reads as installed once every extracted file is in place.
   fun moveIntoPlace() {
     replacedPaths.forEach { filePathManager.resolveInstallPath(it).deleteRecursively() }
-    directories.forEach { filePathManager.resolveInstallPath(it).mkdirs() }
+    directories.forEach { ensureDirectory(filePathManager.resolveInstallPath(it)) }
     files.forEach { path ->
       val target = filePathManager.resolveInstallPath(path)
-      target.parentFile?.mkdirs()
+      target.parentFile?.let(::ensureDirectory)
       if (!stagedFile(path).renameTo(target)) {
         throw IOException("Failed to move staged $path to $target")
       }
@@ -187,7 +195,7 @@ class PackInstaller(
     onProgress: (Long) -> Unit,
   ): Long =
     withContext(Dispatchers.IO) {
-      target.parentFile?.mkdirs()
+      target.parentFile?.let(::ensureDirectory)
       val tempFile = File(target.parentFile, "${target.name}.tmp")
       try {
         val connection = URL(url).openConnection()
@@ -236,7 +244,7 @@ class PackInstaller(
           target.isDirectory -> staging.keepDirectory(target.installPath)
           else -> {
             val output = staging.stagedFile(target.installPath)
-            output.parentFile?.mkdirs()
+            output.parentFile?.let(::ensureDirectory)
             output.outputStream().use { input.copyTo(it, COPY_BUFFER_BYTES) }
             staging.keepFile(target.installPath)
           }

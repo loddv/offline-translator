@@ -20,6 +20,7 @@ package dev.davidv.translator
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Resources
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -34,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
 object UiExportRecorder {
   @Volatile var active = false
   private val byValue = ConcurrentHashMap<String, String>()
-  private val ambiguous = ConcurrentHashMap.newKeySet<String>()
+  private val ambiguous = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
   fun reset() {
     byValue.clear()

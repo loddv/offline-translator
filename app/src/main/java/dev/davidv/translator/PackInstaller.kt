@@ -112,7 +112,11 @@ class PackInstaller(
     val done = Job()
     val earlierOwners =
       synchronized(fileOwners) {
-        plan.tasks.associateWith { task -> fileOwners.putIfAbsent(task.installPath, done) }
+        plan.tasks.associateWith { task ->
+          val owner = fileOwners[task.installPath]
+          if (owner == null) fileOwners[task.installPath] = done
+          owner
+        }
       }
     val staging =
       StagedInstall(File(File(filePathManager.currentBaseDir(), STAGING_DIR), UUID.randomUUID().toString()), filePathManager)
@@ -187,7 +191,7 @@ class PackInstaller(
       val tempFile = File(target.parentFile, "${target.name}.tmp")
       try {
         val connection = URL(url).openConnection()
-        val progress = ProgressReporter(expectedBytes.takeIf { it > 0 } ?: connection.contentLengthLong, onProgress)
+        val progress = ProgressReporter(expectedBytes, onProgress)
         connection.getInputStream().use { raw ->
           val counted = CountingInputStream(raw, progress::advance)
           val decoded = if (encoding == Encoding.GZIP) GZIPInputStream(counted) else counted

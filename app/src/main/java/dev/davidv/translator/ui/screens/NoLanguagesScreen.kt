@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
@@ -50,6 +52,8 @@ import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.adblock.AdblockManager
+import dev.davidv.translator.ui.theme.AppLayout
+import dev.davidv.translator.ui.theme.LayoutDensity
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -65,64 +69,118 @@ fun NoLanguagesScreen(
 ) {
   val state by languageStateManager.languageState.collectAsState()
   val context = LocalContext.current
-
-  Scaffold(
-    topBar = {
-      TopAppBar(
-        title = { Text(stringResource(R.string.nolang_title)) },
-        actions = {
-          IconButton(onClick = onSettings) {
-            Icon(
-              painterResource(id = R.drawable.settings),
-              contentDescription = stringResource(R.string.a11y_settings),
-            )
-          }
-        },
-      )
-    },
-    bottomBar = {
-      Button(
-        onClick = onDone,
-        enabled = state.hasLanguages,
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .navigationBarsPadding(),
-      ) {
-        Text(stringResource(R.string.common_done))
-      }
-    },
-  ) { paddingValues ->
-    Column(
-      modifier =
-        Modifier
-          .fillMaxSize()
-          .padding(paddingValues)
-          .padding(horizontal = 16.dp),
-    ) {
-      Text(
-        text = stringResource(R.string.nolang_prompt),
-        style = MaterialTheme.typography.bodyLarge,
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
-      )
-
-      LanguageAssetManagerScreen(
-        context = context,
-        languageStateManager = languageStateManager,
-        languageMetadataManager = languageMetadataManager,
-        settingsManager = settingsManager,
-        downloadManager = downloadManager,
+  val dimens = AppLayout.dimens
+  val settingsButton: @Composable () -> Unit = {
+    IconButton(onClick = onSettings) {
+      Icon(
+        painterResource(id = R.drawable.settings),
+        contentDescription = stringResource(R.string.a11y_settings),
       )
     }
   }
+  val prompt: @Composable (Modifier) -> Unit = { modifier ->
+    Text(
+      text = stringResource(R.string.nolang_prompt),
+      style =
+        when (AppLayout.density) {
+          LayoutDensity.Regular -> MaterialTheme.typography.bodyLarge
+          LayoutDensity.Compact -> MaterialTheme.typography.bodySmall
+        },
+      textAlign = TextAlign.Center,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      modifier = modifier,
+    )
+  }
+
+  // A tiny screen can't afford a 64 dp bar, a bottom button and a prompt
+  // above the list, so Done joins the short top bar and the prompt scrolls
+  // away as the list's first item.
+  when (AppLayout.density) {
+    LayoutDensity.Regular ->
+      Scaffold(
+        topBar = {
+          TopAppBar(
+            title = { Text(stringResource(R.string.nolang_title)) },
+            actions = { settingsButton() },
+          )
+        },
+        bottomBar = {
+          Button(
+            onClick = onDone,
+            enabled = state.hasLanguages,
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .navigationBarsPadding(),
+          ) {
+            Text(stringResource(R.string.common_done))
+          }
+        },
+      ) { paddingValues ->
+        Column(
+          modifier =
+            Modifier
+              .fillMaxSize()
+              .padding(paddingValues)
+              .padding(horizontal = dimens.setupHorizontalPadding),
+        ) {
+          prompt(Modifier.padding(top = 16.dp, bottom = 8.dp))
+
+          LanguageAssetManagerScreen(
+            context = context,
+            languageStateManager = languageStateManager,
+            languageMetadataManager = languageMetadataManager,
+            settingsManager = settingsManager,
+            downloadManager = downloadManager,
+          )
+        }
+      }
+
+    LayoutDensity.Compact ->
+      Scaffold(
+        topBar = {
+          TopAppBar(
+            title = {
+              Text(
+                stringResource(R.string.nolang_title),
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+              )
+            },
+            actions = {
+              TextButton(onClick = onDone, enabled = state.hasLanguages) {
+                Text(stringResource(R.string.common_done))
+              }
+              settingsButton()
+            },
+            expandedHeight = 40.dp,
+          )
+        },
+      ) { paddingValues ->
+        Column(
+          modifier =
+            Modifier
+              .fillMaxSize()
+              .padding(paddingValues)
+              .padding(horizontal = dimens.setupHorizontalPadding),
+        ) {
+          LanguageAssetManagerScreen(
+            context = context,
+            languageStateManager = languageStateManager,
+            languageMetadataManager = languageMetadataManager,
+            settingsManager = settingsManager,
+            downloadManager = downloadManager,
+            listHeader = { prompt(Modifier.fillMaxWidth().padding(vertical = 4.dp)) },
+          )
+        }
+      }
+  }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun NoLanguagesScreenPreview() {
+private fun NoLanguagesScreenPreviewContent() {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val appSettingsFlow = MutableStateFlow(AppSettings())
@@ -142,4 +200,16 @@ fun NoLanguagesScreenPreview() {
       languageMetadataManager = LanguageMetadataManager(context, languagesFlow),
     )
   }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun NoLanguagesScreenPreview() {
+  NoLanguagesScreenPreviewContent()
+}
+
+@Preview(showBackground = true, widthDp = 240, heightDp = 296)
+@Composable
+fun NoLanguagesScreenCompactPreview() {
+  NoLanguagesScreenPreviewContent()
 }

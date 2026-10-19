@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -110,6 +111,8 @@ import dev.davidv.translator.ui.components.ZoomableImageViewer
 import dev.davidv.translator.ui.components.rememberImageSourceActions
 import dev.davidv.translator.ui.components.wordAt
 import dev.davidv.translator.ui.components.wordRangeAt
+import dev.davidv.translator.ui.theme.AppLayout
+import dev.davidv.translator.ui.theme.LayoutDensity
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.SharedFlow
 import kotlin.math.roundToInt
@@ -205,6 +208,8 @@ fun MainScreen(
   val detectedInstalled =
     detectedLanguage?.takeIf(languageState::canBeSource)
   val mainScreenDescription = stringResource(R.string.a11y_main_screen)
+  val layoutDensity = AppLayout.density
+  val dimens = layoutDensity.dimens
 
   // Handle back button when dictionary is open
   BackHandler(enabled = dictionary is DictionaryState.Open) {
@@ -247,14 +252,14 @@ fun MainScreen(
         Modifier
           .fillMaxSize()
           .navigationBarsPadding()
-          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = 8.dp),
+          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = dimens.screenBottomPadding),
     ) {
       Column(
         modifier =
           Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = dimens.screenHorizontalPadding),
+        verticalArrangement = Arrangement.spacedBy(dimens.sectionSpacing),
       ) {
         Box(modifier = Modifier.testTag("export-section:Language selection")) {
           LanguageSelectionRow(
@@ -435,17 +440,24 @@ fun MainScreen(
                     }
                     .testTag("export-section:Input"),
               )
-              SplitHandle(
-                onDrag = { delta ->
-                  splitFraction.floatValue =
-                    InputSplit(splitFraction.floatValue).dragged(delta / parentHeightPx).fraction
-                },
-                onDragStopped = {
-                  if (launchMode == LaunchMode.Normal) {
-                    onInputSplitChange(InputSplit(splitFraction.floatValue))
-                  }
-                },
-              )
+              // A tiny screen has no height to spare for a drag band, and its
+              // keypad users can't drag anyway, so the split stays at half.
+              when (layoutDensity) {
+                LayoutDensity.Regular ->
+                  SplitHandle(
+                    onDrag = { delta ->
+                      splitFraction.floatValue =
+                        InputSplit(splitFraction.floatValue).dragged(delta / parentHeightPx).fraction
+                    },
+                    onDragStopped = {
+                      if (launchMode == LaunchMode.Normal) {
+                        onInputSplitChange(InputSplit(splitFraction.floatValue))
+                      }
+                    },
+                  )
+
+                LayoutDensity.Compact -> Spacer(modifier = Modifier.height(dimens.sectionSpacing))
+              }
             }
 
             // With an image the translation is shown in the image itself, so hide the output text
@@ -766,6 +778,46 @@ fun MainScreenPreview() {
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
+      settings = AppSettings(),
+      dictionary = DictionaryState.Closed,
+      inputTransliteration = null,
+    )
+  }
+}
+
+@Preview(
+  showBackground = true,
+  widthDp = 240,
+  heightDp = 296,
+)
+@Composable
+fun MainScreenCompactPreview() {
+  TranslatorTheme {
+    MainScreen(
+      onSettings = { },
+      onLiveCamera = { },
+      input = "bonjour le monde comment ça va",
+      output = TranslatedText("hello world how are you", null),
+      from = previewLanguage("fr", "French"),
+      to = previewLanguage("en", "English"),
+      detectedLanguage = null,
+      displayImage = null,
+      originalImage = null,
+      imageWordSelection = null,
+      detectedRegions = null,
+      ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
+      isImageProcessing = false,
+      launchMode = LaunchMode.Normal,
+      onMessage = {},
+      languageState =
+        previewLanguageState(
+          previewLanguage("en", "English") to LangAvailability(true, true, true, true),
+          previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
+        ),
+      languageMetadata = emptyMap(),
       downloads = emptyMap(),
       onDownload = {},
       onCancelDownload = {},

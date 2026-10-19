@@ -27,9 +27,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,6 +46,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
@@ -57,6 +60,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -75,10 +79,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +109,8 @@ import dev.davidv.translator.localizedName
 import dev.davidv.translator.parseVoiceOverride
 import dev.davidv.translator.ui.components.SamplePlaybackState
 import dev.davidv.translator.ui.components.SamplePlayer
+import dev.davidv.translator.ui.theme.AppLayout
+import dev.davidv.translator.ui.theme.LayoutDensity
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -570,7 +578,7 @@ private fun FavoriteButton(
         onEvent(FavoriteEvent.Star(language))
       }
     },
-    modifier = Modifier.size(32.dp),
+    modifier = Modifier.size(AppLayout.dimens.assetRowButtonSize),
   ) {
     Icon(
       painter = painterResource(id = if (isFavorite) R.drawable.star_filled else R.drawable.star),
@@ -623,7 +631,9 @@ fun LanguageAssetManagerScreen(
   languageMetadataManager: LanguageMetadataManager,
   settingsManager: SettingsManager,
   downloadManager: DownloadManager,
+  listHeader: (@Composable () -> Unit)? = null,
 ) {
+  val dimens = AppLayout.dimens
   val catalog by languageStateManager.catalog.collectAsState()
   val languageMetadata by languageMetadataManager.metadata.collectAsState()
   val downloads by downloadManager.state.collectAsState()
@@ -742,17 +752,11 @@ fun LanguageAssetManagerScreen(
       modifier =
         Modifier
           .fillMaxSize()
-          .padding(horizontal = 12.dp),
+          .padding(horizontal = dimens.assetListHorizontalPadding),
     ) {
-      OutlinedTextField(
-        value = filterQuery,
-        onValueChange = { filterQuery = it },
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp, bottom = 6.dp),
-        singleLine = true,
-        label = { Text(stringResource(R.string.langmgr_filter)) },
+      LanguageFilterField(
+        query = filterQuery,
+        onQueryChange = { filterQuery = it },
       )
 
       if (repairPlanSize > 0L) {
@@ -792,6 +796,9 @@ fun LanguageAssetManagerScreen(
       LazyColumn(
         modifier = Modifier.fillMaxSize(),
       ) {
+        if (listHeader != null) {
+          item(key = "list-header") { listHeader() }
+        }
         itemsIndexed(rows, key = { _, row -> row.language.code }) { index, row ->
           val expanded = expandedLanguages[row.language.code] == true
           val sharedDictionaryUsers = sharedDictionaryUsersByLanguageCode[row.language.code].orEmpty()
@@ -949,6 +956,59 @@ fun LanguageAssetManagerScreen(
   }
 }
 
+// The regular outlined field's 56 dp minimum and floating label would eat a
+// third of a tiny screen, so compact draws the same outline around a short
+// single line with a placeholder instead.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageFilterField(
+  query: String,
+  onQueryChange: (String) -> Unit,
+) {
+  val label = stringResource(R.string.langmgr_filter)
+  when (AppLayout.density) {
+    LayoutDensity.Regular ->
+      OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 6.dp),
+        singleLine = true,
+        label = { Text(label) },
+      )
+
+    LayoutDensity.Compact -> {
+      val interactionSource = remember { MutableInteractionSource() }
+      val textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+      BasicTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 4.dp),
+        singleLine = true,
+        textStyle = textStyle,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        interactionSource = interactionSource,
+      ) { innerTextField ->
+        OutlinedTextFieldDefaults.DecorationBox(
+          value = query,
+          innerTextField = innerTextField,
+          enabled = true,
+          singleLine = true,
+          visualTransformation = VisualTransformation.None,
+          interactionSource = interactionSource,
+          placeholder = { Text(label, style = textStyle) },
+          contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+        )
+      }
+    }
+  }
+}
+
 @Composable
 private fun LanguageAssetCard(
   row: LanguageAssetRow,
@@ -982,12 +1042,14 @@ private fun LanguageAssetCard(
       row.fullyInstalled -> null
       else -> null
     }
+  val dimens = AppLayout.dimens
   val clusterToStarSpacing =
     if (expanded || row.partiallyInstalled) {
       8.dp
     } else {
       2.dp
     }
+  val expandLabel = if (expanded) stringResource(R.string.a11y_collapse) else stringResource(R.string.a11y_expand)
 
   Column(
     modifier =
@@ -1006,19 +1068,26 @@ private fun LanguageAssetCard(
       modifier =
         Modifier
           .fillMaxWidth()
-          .clickable { onToggleExpanded() }
+          .clickable(onClickLabel = expandLabel) { onToggleExpanded() }
           .padding(vertical = 1.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      IconButton(
-        onClick = onToggleExpanded,
-        modifier = Modifier.size(28.dp),
-      ) {
-        Icon(
-          painter = painterResource(id = if (expanded) R.drawable.expandless else R.drawable.expandmore),
-          contentDescription = if (expanded) stringResource(R.string.a11y_collapse) else stringResource(R.string.a11y_expand),
-          modifier = Modifier.size(18.dp),
-        )
+      // The whole row already toggles, so a tiny screen drops the chevron and
+      // only indents the name to keep it off the edge.
+      when (AppLayout.density) {
+        LayoutDensity.Regular ->
+          IconButton(
+            onClick = onToggleExpanded,
+            modifier = Modifier.size(28.dp),
+          ) {
+            Icon(
+              painter = painterResource(id = if (expanded) R.drawable.expandless else R.drawable.expandmore),
+              contentDescription = expandLabel,
+              modifier = Modifier.size(18.dp),
+            )
+          }
+
+        LayoutDensity.Compact -> Spacer(modifier = Modifier.width(dimens.assetRowIndent))
       }
 
       Column(
@@ -1042,7 +1111,7 @@ private fun LanguageAssetCard(
         horizontalArrangement = Arrangement.End,
       ) {
         Box(
-          modifier = Modifier.width(60.dp),
+          modifier = Modifier.width(dimens.assetStatusClusterWidth),
           contentAlignment = Alignment.CenterEnd,
         ) {
           when {
@@ -1081,7 +1150,7 @@ private fun LanguageAssetCard(
         modifier =
           Modifier
             .fillMaxWidth()
-            .padding(start = 28.dp, end = 0.dp, bottom = 1.dp),
+            .padding(start = dimens.assetRowIndent, end = 0.dp, bottom = 1.dp),
       ) {
         val featureRows =
           buildFeatureRows(
@@ -1220,7 +1289,7 @@ private fun FeaturePresenceIndicators(row: LanguageAssetRow) {
 
   Row(
     verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    horizontalArrangement = Arrangement.spacedBy(AppLayout.dimens.assetStatusIndicatorSpacing),
   ) {
     if (row.translationVisible) {
       Text(
@@ -1289,7 +1358,7 @@ private fun AggregateActionButton(
 
   IconButton(
     onClick = if (isInstalled) onDelete else onDownload,
-    modifier = Modifier.size(32.dp),
+    modifier = Modifier.size(AppLayout.dimens.assetRowButtonSize),
   ) {
     Icon(
       painter =
@@ -1337,7 +1406,7 @@ private fun FeatureActionButton(
     onClick = if (isInstalled) onInstalledAction else onDownload,
     modifier =
       Modifier
-        .size(32.dp)
+        .size(AppLayout.dimens.assetRowButtonSize)
         .then(if (actionTag != null) Modifier.testTag(actionTag) else Modifier),
   ) {
     Icon(

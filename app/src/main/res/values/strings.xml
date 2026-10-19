@@ -285,6 +285,7 @@
     <string name="a11y_dictionary_mode_on">Exit dictionary mode</string>
     <string name="a11y_dictionary_mode_off">Dictionary mode: tap a word to look it up</string>
     <string name="a11y_source_document">Document</string>
+    <string name="a11y_input_sources">Input sources</string>
     <string name="a11y_source_photos">Photos</string>
     <string name="a11y_source_gallery">Gallery</string>
     <string name="a11y_source_camera">Camera</string>

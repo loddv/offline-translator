@@ -105,9 +105,6 @@ class TranslatorViewModel(
   private val _languageManagerRequests = Channel<Unit>(Channel.CONFLATED)
   val languageManagerRequests: Flow<Unit> = _languageManagerRequests.receiveAsFlow()
 
-  private val _liveCameraRequests = Channel<Unit>(Channel.CONFLATED)
-  val liveCameraRequests: Flow<Unit> = _liveCameraRequests.receiveAsFlow()
-
   init {
     viewModelScope.launch {
       languageStateManager.fileEvents.collect { event ->
@@ -149,10 +146,6 @@ class TranslatorViewModel(
 
   fun requestLanguageManager() {
     _languageManagerRequests.trySend(Unit)
-  }
-
-  fun requestLiveCamera() {
-    _liveCameraRequests.trySend(Unit)
   }
 
   fun setModalVisible(visible: Boolean) {

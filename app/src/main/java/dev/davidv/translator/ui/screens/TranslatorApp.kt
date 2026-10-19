@@ -355,6 +355,7 @@ private fun PdfPhaseFractionRow(
 @Composable
 fun TranslatorApp(
   viewModel: TranslatorViewModel,
+  startScreen: StartScreen = StartScreen.Main,
   onClose: () -> Unit = {},
 ) {
   val navController = rememberNavController()
@@ -479,8 +480,13 @@ fun TranslatorApp(
   val startDestination =
     remember {
       when (selection) {
+        // Without an installed pair the language setup comes first, even from the camera shortcut.
         MainSelection.NoLanguages -> "no_languages"
-        is MainSelection.Ready -> "main"
+        is MainSelection.Ready ->
+          when (startScreen) {
+            StartScreen.Main -> "main"
+            StartScreen.LiveCamera -> "live_camera"
+          }
       }
     }
 
@@ -491,17 +497,6 @@ fun TranslatorApp(
       val entry = navController.currentBackStackEntryFlow.first()
       if (entry.destination.route != "language_manager") {
         navController.navigate("language_manager")
-      }
-    }
-  }
-
-  LaunchedEffect(Unit) {
-    viewModel.liveCameraRequests.collect {
-      val entry = navController.currentBackStackEntryFlow.first()
-      // Without an installed pair the start screen is the language setup, which is where the
-      // shortcut should leave the user.
-      if (translation.selection.value is MainSelection.Ready && entry.destination.route != "live_camera") {
-        navController.navigate("live_camera")
       }
     }
   }
@@ -844,10 +839,19 @@ fun TranslatorApp(
                   showAutoOption = !settings.disableCLD,
                   liveOverlayDefaultEnabled = settings.liveCameraOverlayEnabled,
                   catalog = liveCatalog,
+                  // Opened from the launcher shortcut the camera is the root, so leaving it exits the
+                  // app and a capture has to bring main up in its place.
                   onClose = {
-                    navController.popBackStack("main", inclusive = false)
+                    if (!navController.popBackStack("main", inclusive = false)) onClose()
                   },
-                  onImageCaptured = viewModel::setSharedImageUri,
+                  onImageCaptured = { uri ->
+                    viewModel.setSharedImageUri(uri)
+                    if (!navController.popBackStack("main", inclusive = false)) {
+                      navController.navigate("main") {
+                        popUpTo("live_camera") { inclusive = true }
+                      }
+                    }
+                  },
                 )
               }
             }
@@ -856,4 +860,9 @@ fun TranslatorApp(
       }
     }
   }
+}
+
+enum class StartScreen {
+  Main,
+  LiveCamera,
 }

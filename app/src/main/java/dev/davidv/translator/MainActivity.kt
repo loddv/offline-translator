@@ -30,6 +30,7 @@ import androidx.lifecycle.ViewModelProvider
 import dev.davidv.translator.browser.BrowserActivity
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.TranslatorViewModelFactory
+import dev.davidv.translator.ui.screens.StartScreen
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
@@ -52,7 +53,6 @@ class MainActivity : ComponentActivity() {
   private var sharedImageUri: Uri? = null
   private var sharedDocumentUri: Uri? = null
   private var openLanguageManager: Boolean = false
-  private var openLiveCamera: Boolean = false
   private lateinit var viewModel: TranslatorViewModel
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,10 +85,9 @@ class MainActivity : ComponentActivity() {
       viewModel.requestLanguageManager()
       openLanguageManager = false
     }
-    if (openLiveCamera) {
-      viewModel.requestLiveCamera()
-      openLiveCamera = false
-    }
+    // Launchers start static shortcuts with NEW_TASK | CLEAR_TASK, so the shortcut always arrives
+    // here and never through onNewIntent.
+    val startScreen = if (intent?.action == ACTION_OPEN_LIVE_CAMERA) StartScreen.LiveCamera else StartScreen.Main
 
     setContent {
       TranslatorTheme {
@@ -97,6 +96,8 @@ class MainActivity : ComponentActivity() {
         ) {
           TranslatorApp(
             viewModel = viewModel,
+            startScreen = startScreen,
+            onClose = { finish() },
           )
         }
       }
@@ -126,17 +127,12 @@ class MainActivity : ComponentActivity() {
         viewModel.requestLanguageManager()
         openLanguageManager = false
       }
-      if (openLiveCamera) {
-        viewModel.requestLiveCamera()
-        openLiveCamera = false
-      }
     }
   }
 
   private fun handleIntent(intent: Intent?) {
     Log.d("MainActivity", "Got intent $intent")
     openLanguageManager = intent?.getBooleanExtra(EXTRA_OPEN_LANGUAGE_MANAGER, false) == true
-    openLiveCamera = intent?.action == ACTION_OPEN_LIVE_CAMERA
     when (intent?.action) {
       Intent.ACTION_SEND -> {
         when (val payload = parseSendIntent(intent)) {

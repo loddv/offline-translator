@@ -70,6 +70,7 @@ import dev.davidv.translator.AppSettings
 import dev.davidv.translator.DownloadId
 import dev.davidv.translator.DownloadRequest
 import dev.davidv.translator.DownloadStatus
+import dev.davidv.translator.InputSplit
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
@@ -153,6 +154,7 @@ fun MainScreen(
   selectedTtsVoiceName: String? = null,
   targetTtsPlaybackSpeed: Float = 1.0f,
   onTtsPlaybackSpeedChange: (Float) -> Unit = {},
+  onInputSplitChange: (InputSplit) -> Unit = {},
   onSourceTtsPlaybackSpeedChange: (Float) -> Unit = {},
   onSourceTtsVoiceSelected: (String, String) -> Unit = { _, _ -> },
   onTtsVoiceSelected: (String, String) -> Unit = { _, _ -> },
@@ -293,7 +295,17 @@ fun MainScreen(
           val parentHeightPx = with(LocalDensity.current) { parentHeight.toPx() }
           // Only ever read from measure/drag lambdas: reading it during composition
           // would recompose both cards (and the interop EditText) on every drag frame.
-          val splitFraction = rememberSaveable { mutableFloatStateOf(0.5f) }
+          // Only the full screen remembers the split: popups are a fraction of the screen
+          // tall, so a proportion picked for one doesn't carry over to the other.
+          val splitFraction =
+            rememberSaveable {
+              mutableFloatStateOf(
+                when (launchMode) {
+                  LaunchMode.Normal -> settings.mainInputSplit.fraction
+                  else -> InputSplit.DEFAULT.fraction
+                },
+              )
+            }
 
           Column(
             modifier = Modifier.fillMaxWidth(),
@@ -419,7 +431,12 @@ fun MainScreen(
               SplitHandle(
                 onDrag = { delta ->
                   splitFraction.floatValue =
-                    (splitFraction.floatValue + delta / parentHeightPx).coerceIn(0.25f, 0.75f)
+                    InputSplit(splitFraction.floatValue).dragged(delta / parentHeightPx).fraction
+                },
+                onDragStopped = {
+                  if (launchMode == LaunchMode.Normal) {
+                    onInputSplitChange(InputSplit(splitFraction.floatValue))
+                  }
                 },
               )
             }

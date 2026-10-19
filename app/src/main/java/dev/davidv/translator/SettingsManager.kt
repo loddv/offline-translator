@@ -96,6 +96,9 @@ class SettingsManager(
       ReadonlyPopupSize.fromSliderPosition(
         prefs.getFloat("readonly_modal_compact_height_factor", defaults.readonlyPopupSize.sliderPosition),
       ) ?: defaults.readonlyPopupSize
+    val mainInputSplit =
+      InputSplit.parse(prefs.getFloat("main_input_split", defaults.mainInputSplit.fraction))
+        ?: defaults.mainInputSplit
     val addSpacesForJapaneseTransliteration =
       prefs.getBoolean(
         "add_spaces_for_japanese_transliteration",
@@ -169,6 +172,7 @@ class SettingsManager(
       onlyShowOutputOnReadonlyModal = onlyShowOutputOnReadonlyModal,
       readonlyModalOutputAlignment = readonlyModalOutputAlignment,
       readonlyPopupSize = readonlyPopupSize,
+      mainInputSplit = mainInputSplit,
       addSpacesForJapaneseTransliteration = addSpacesForJapaneseTransliteration,
       ttsPlaybackSpeed = ttsPlaybackSpeed,
       ttsPlaybackSpeedOverrides = ttsPlaybackSpeedOverrides,
@@ -252,6 +256,9 @@ class SettingsManager(
       }
       if (newSettings.readonlyPopupSize != currentSettings.readonlyPopupSize) {
         putFloat("readonly_modal_compact_height_factor", newSettings.readonlyPopupSize.sliderPosition)
+      }
+      if (newSettings.mainInputSplit != currentSettings.mainInputSplit) {
+        putFloat("main_input_split", newSettings.mainInputSplit.fraction)
       }
       if (newSettings.addSpacesForJapaneseTransliteration != currentSettings.addSpacesForJapaneseTransliteration) {
         putBoolean("add_spaces_for_japanese_transliteration", newSettings.addSpacesForJapaneseTransliteration)

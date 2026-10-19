@@ -53,6 +53,7 @@ data class AppSettings(
   val onlyShowOutputOnReadonlyModal: Boolean = false,
   val readonlyModalOutputAlignment: ReadonlyModalOutputAlignment = ReadonlyModalOutputAlignment.MIDDLE,
   val readonlyPopupSize: ReadonlyPopupSize = ReadonlyPopupSize.DEFAULT,
+  val mainInputSplit: InputSplit = InputSplit.DEFAULT,
   val addSpacesForJapaneseTransliteration: Boolean = true,
   val ttsPlaybackSpeed: Float = 1.0f,
   val ttsPlaybackSpeedOverrides: Map<String, Float> = emptyMap(),

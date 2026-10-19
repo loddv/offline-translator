@@ -82,6 +82,7 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.MainSelection
 import dev.davidv.translator.R
+import dev.davidv.translator.ReadonlyPopupSize
 import dev.davidv.translator.SupportKind
 import dev.davidv.translator.encodeVoiceOverride
 import dev.davidv.translator.parseVoiceOverride
@@ -494,7 +495,11 @@ fun TranslatorApp(
     targetValue =
       when {
         currentLaunchMode == LaunchMode.Normal -> 1f
-        isReadonlyPopup -> settings.readonlyModalCompactHeightFactor
+        isReadonlyPopup ->
+          when (val size = settings.readonlyPopupSize) {
+            is ReadonlyPopupSize.Fraction -> size.heightFactor
+            ReadonlyPopupSize.Expanded -> 1f
+          }
         else -> 0.6f
       },
     animationSpec = tween(300),

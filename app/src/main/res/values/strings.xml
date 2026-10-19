@@ -41,6 +41,7 @@
     <string name="settings_hide_input">Hide input</string>
     <string name="settings_popup_position">Popup position</string>
     <string name="settings_popup_size">Popup size: %1$d%%</string>
+    <string name="settings_popup_size_expanded">Popup size: Expanded</string>
     <string name="settings_screen_translation">Screen translation</string>
     <string name="settings_screen_translation_desc">Translate text directly on top of other apps.</string>
     <string name="settings_floating_button">Always-on button</string>

@@ -20,10 +20,12 @@ package dev.davidv.translator
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
+import dev.davidv.translator.browser.BrowserActivity
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.TranslatorViewModelFactory
 import dev.davidv.translator.ui.screens.TranslatorApp
@@ -38,6 +40,7 @@ class ProcessTextActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     handleIntent(intent)
+    if (isFinishing) return
 
     val app = application as TranslatorApplication
 
@@ -85,22 +88,26 @@ class ProcessTextActivity : ComponentActivity() {
       finish()
     }
 
+    val readonlyMode =
+      readonlyLaunchMode((application as TranslatorApplication).settingsManager.settings.value.readonlyPopupSize)
+
     when (intent?.action) {
       TapToTranslateNotification.ACTION_OPEN_POPUP -> {
-        launchMode = LaunchMode.ReadonlyModal
+        launchMode = readonlyMode
         textToTranslate = ""
       }
+      Intent.ACTION_SEND -> handleShare(intent, readonlyMode)
       Intent.ACTION_TRANSLATE -> {
         val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
         Log.i("IntentMessage", "is RO: $isReadonly")
-        launchMode = if (isReadonly) LaunchMode.ReadonlyModal else LaunchMode.ReadWriteModal(replyModalIntent)
+        launchMode = if (isReadonly) readonlyMode else LaunchMode.ReadWriteModal(replyModalIntent)
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)
         textToTranslate = text ?: ""
       }
       Intent.ACTION_PROCESS_TEXT -> {
         val isReadonly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
         Log.i("IntentMessage", "is RO: $isReadonly")
-        launchMode = if (isReadonly) LaunchMode.ReadonlyModal else LaunchMode.ReadWriteModal(replyModalIntent)
+        launchMode = if (isReadonly) readonlyMode else LaunchMode.ReadWriteModal(replyModalIntent)
         val text =
           if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT)) {
             intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
@@ -108,6 +115,40 @@ class ProcessTextActivity : ComponentActivity() {
             intent.getStringExtra(Intent.EXTRA_TEXT)
           }
         textToTranslate = text ?: ""
+      }
+    }
+  }
+
+  private fun handleShare(
+    intent: Intent,
+    readonlyMode: LaunchMode,
+  ) {
+    when (val payload = parseSendIntent(intent)) {
+      is SharedText.Plain -> {
+        launchMode = readonlyMode
+        textToTranslate = payload.text
+      }
+      is SharedText.WebUrl -> {
+        startActivity(Intent(this, BrowserActivity::class.java).putExtra(BrowserActivity.EXTRA_URL, payload.url))
+        finish()
+      }
+      SharedText.UnsupportedDocumentUrl -> {
+        Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
+        finish()
+      }
+      // A shared .txt file arrives as text/plain too; the document drawer lives in MainActivity,
+      // and the read grant has to be passed on explicitly since this activity finishes.
+      is SharedPayload.Stream -> {
+        startActivity(
+          Intent(intent)
+            .setClass(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+        )
+        finish()
+      }
+      SharedPayload.Empty -> {
+        Log.w("ProcessTextActivity", "ACTION_SEND carried neither text nor a stream")
+        finish()
       }
     }
   }

@@ -81,6 +81,13 @@
           <action android:name="dev.davidv.translator.OPEN_POPUP" />
           <category android:name="android.intent.category.DEFAULT" />
         </intent-filter>
+
+        <!-- via 'share' text; shared .txt files are forwarded to MainActivity -->
+        <intent-filter>
+          <action android:name="android.intent.action.SEND" />
+          <category android:name="android.intent.category.DEFAULT" />
+          <data android:mimeType="text/plain" />
+        </intent-filter>
       </activity>
 
       <activity
@@ -92,13 +99,6 @@
           <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
 
-        <!-- via 'share' text -->
-        <intent-filter>
-          <action android:name="android.intent.action.SEND" />
-          <category android:name="android.intent.category.DEFAULT" />
-          <data android:mimeType="text/plain" />
-        </intent-filter>
-
         <!-- via 'share' image -->
         <intent-filter>
           <action android:name="android.intent.action.SEND" />
@@ -106,7 +106,7 @@
           <data android:mimeType="image/*" />
         </intent-filter>
 
-        <!-- via 'share' document: pdf/odt/epub (txt is covered by the text filter above) -->
+        <!-- via 'share' document: pdf/odt/epub (txt arrives via ProcessTextActivity's text filter) -->
         <intent-filter>
           <action android:name="android.intent.action.SEND" />
           <category android:name="android.intent.category.DEFAULT" />

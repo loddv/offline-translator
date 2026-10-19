@@ -34,11 +34,12 @@ import androidx.core.content.ContextCompat
 import uniffi.bindings.CatalogHandle
 import uniffi.bindings.HttpServerException
 import uniffi.bindings.HttpServerHandle
-import uniffi.bindings.HttpSessionSource
+import uniffi.bindings.HttpServerHost
 import uniffi.bindings.startHttpServer
 import uniffi.translator.BindAddress
 import uniffi.translator.HttpServerConfig
 import uniffi.translator.OcrSettings
+import uniffi.translator.ServeSettings
 import java.io.File
 
 /**
@@ -118,7 +119,7 @@ class TranslationApiService : Service() {
     startForegroundCompat(runningNotification(hostFor(bindMode), port))
 
     val app = application as TranslatorApplication
-    val config = serverConfig(port, bindMode, app.settingsManager.settings.value)
+    val config = serverConfig(port, bindMode)
     if (server != null && config == currentConfig) {
       return START_REDELIVER_INTENT
     }
@@ -129,8 +130,10 @@ class TranslationApiService : Service() {
       server =
         startHttpServer(
           config,
-          object : HttpSessionSource {
+          object : HttpServerHost {
             override fun catalog(): CatalogHandle? = app.catalogRepository.catalog.value.planarHandle()
+
+            override fun settings(): ServeSettings = serveSettings(app.settingsManager.settings.value)
           },
         )
       currentConfig = config
@@ -176,12 +179,15 @@ class TranslationApiService : Service() {
   private fun serverConfig(
     port: Int,
     bindMode: HttpServerBindMode,
-    settings: AppSettings,
   ): HttpServerConfig =
     HttpServerConfig(
       bind = bindMode.toNative(),
       port = port.toUShort(),
       outputDir = File(cacheDir, "translate_file").absolutePath,
+    )
+
+  private fun serveSettings(settings: AppSettings): ServeSettings =
+    ServeSettings(
       ocr =
         OcrSettings(
           maxImageSize = settings.maxImageSize.toUInt(),

@@ -18,6 +18,7 @@
 package dev.davidv.translator.ui
 
 import android.content.Context
+import android.media.AudioManager
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageCatalog
 import dev.davidv.translator.MainSelection
@@ -94,7 +95,10 @@ class SpeechController(
 
   private var speechJob: Job? = null
 
-  private val audioPlayer = PcmAudioPlayer { playing -> _speech.update { it.afterPlaybackReport(playing) } }
+  private val audioPlayer =
+    PcmAudioPlayer(appContext.getSystemService(AudioManager::class.java)) { playing ->
+      _speech.update { it.afterPlaybackReport(playing) }
+    }
 
   fun speak(
     text: String,

@@ -238,7 +238,8 @@ private fun HttpServerCard(
 @Composable
 fun SettingsScreen(
   settings: AppSettings,
-  availableLanguages: List<Language>,
+  sourceLanguages: List<Language>,
+  targetLanguages: List<Language>,
   catalog: LanguageCatalog,
   adblockDownload: DownloadStatus?,
   adblockInstalled: Boolean,
@@ -356,8 +357,8 @@ fun SettingsScreen(
           LanguageDropdown(
             label = stringResource(R.string.settings_default_from),
             selectedLanguage = settings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) },
-            availableLanguages = availableLanguages,
-            fallbackLanguage = availableLanguages.firstOrNull { it.code != settings.defaultTargetLanguageCode },
+            availableLanguages = sourceLanguages,
+            fallbackLanguage = sourceLanguages.firstOrNull { it.code != settings.defaultTargetLanguageCode },
             onLanguageSelected = { language ->
               onSettingsChange { it.copy(defaultSourceLanguageCode = language.code) }
             },
@@ -366,7 +367,7 @@ fun SettingsScreen(
           LanguageDropdown(
             label = stringResource(R.string.settings_default_to),
             selectedLanguage = catalog.languageByCode(settings.defaultTargetLanguageCode),
-            availableLanguages = availableLanguages,
+            availableLanguages = targetLanguages,
             fallbackLanguage = null,
             onLanguageSelected = { language ->
               onDefaultTargetLanguageSelected(language)
@@ -1480,7 +1481,8 @@ fun SettingsScreenPreview() {
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(),
-      availableLanguages = previewLangs,
+      sourceLanguages = previewLangs,
+      targetLanguages = previewLangs,
       catalog = previewCatalog(context),
       adblockDownload = null,
       adblockInstalled = false,
@@ -1511,7 +1513,8 @@ fun SettingsScreenDarkPreview() {
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(fontFactor = 3.0f),
-      availableLanguages = previewLangs,
+      sourceLanguages = previewLangs,
+      targetLanguages = previewLangs,
       catalog = previewCatalog(context),
       adblockDownload = null,
       adblockInstalled = true,

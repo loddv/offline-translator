@@ -201,7 +201,7 @@ fun MainScreen(
   val showOnlyOutputInReadonlyModal =
     launchMode == LaunchMode.ReadonlyModal && settings.onlyShowOutputOnReadonlyModal
   val detectedInstalled =
-    detectedLanguage?.takeIf { languageState.availabilityFor(it)?.translatorFiles == true }
+    detectedLanguage?.takeIf(languageState::canBeSource)
   val mainScreenDescription = stringResource(R.string.a11y_main_screen)
 
   // Handle back button when dictionary is open

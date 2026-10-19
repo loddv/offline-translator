@@ -72,14 +72,8 @@ fun LanguageSelectionRow(
     horizontalArrangement = Arrangement.spacedBy(2.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    val fromLanguages =
-      languageState.allLanguages().filter { x ->
-        (isAutoSource || x != from) && (languageState.availabilityFor(x)?.hasToEnglish == true || x.isEnglish)
-      }
-    val toLanguages =
-      languageState.allLanguages().filter { x ->
-        (isAutoSource || x != from) && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
-      }
+    val fromLanguages = languageState.sourceLanguages().filter { isAutoSource || it != from }
+    val toLanguages = languageState.targetLanguages().filter { (isAutoSource || it != from) && it != to }
 
     LanguageSelector(
       selectedLanguage = from,

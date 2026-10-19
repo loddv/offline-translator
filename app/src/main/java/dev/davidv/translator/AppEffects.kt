@@ -59,24 +59,17 @@ fun launchAppEffects(
 ) {
   val settings = settingsManager.settings
 
-  // A default naming a deleted language would keep seeding every surface with a pair that can't
-  // translate; English is the pivot every catalog carries.
+  // A default naming a deleted language, or one installed only in the other direction (a
+  // language shipping just its X→en model can't be a target), would keep seeding every surface
+  // with a pair that can't translate. Both defaults are always filled with a usable language
+  // once any is installed: an empty "Default from" reads as broken, and surfaces like the live
+  // screen tile can't start without a source.
   scope.launch {
     catalogRepository.catalog
       .map(LanguageAvailabilityState::of)
       .filter { it.hasLanguages }
       .collect { availability ->
-        val uninstalled =
-          availability.availableLanguages
-            .filterNot { it.availability.translatorFiles }
-            .map { it.language.code }
-            .toSet()
-        settingsManager.update { current ->
-          current.copy(
-            defaultTargetLanguageCode = current.defaultTargetLanguageCode.takeUnless { it in uninstalled } ?: "en",
-            defaultSourceLanguageCode = current.defaultSourceLanguageCode?.let { if (it in uninstalled) "en" else it },
-          )
-        }
+        settingsManager.update { current -> usableDefaults(current, availability) }
       }
   }
 
@@ -157,4 +150,21 @@ fun launchAppEffects(
       .drop(1)
       .collect { context.sendBroadcast(Intent(TextToSpeech.Engine.ACTION_TTS_DATA_INSTALLED)) }
   }
+}
+
+internal fun usableDefaults(
+  settings: AppSettings,
+  availability: LanguageAvailabilityState,
+): AppSettings {
+  val targets = availability.targetLanguages().map { it.code }
+  val sources = availability.sourceLanguages().map { it.code }
+  val target =
+    settings.defaultTargetLanguageCode.takeIf { it in targets }
+      ?: "en".takeIf { it in targets }
+      ?: checkNotNull(targets.firstOrNull()) { "installed languages offer no target" }
+  // English pivots every pair, so any source other than the target reaches it.
+  val source =
+    settings.defaultSourceLanguageCode?.takeIf { it in sources && it != target }
+      ?: checkNotNull(sources.firstOrNull { it != target }) { "installed languages offer no source for $target" }
+  return settings.copy(defaultTargetLanguageCode = target, defaultSourceLanguageCode = source)
 }

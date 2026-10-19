@@ -49,6 +49,9 @@ fun DetectedLanguageSection(
 ) {
   if (detectedLanguage == null) return
   val isInstalled = languageState.availabilityFor(detectedLanguage)?.translatorFiles == true
+  // Installed without a direction out (English before any en→X, or an X whose X→en model isn't
+  // installed) leaves nothing to switch to and nothing to download.
+  if (isInstalled && !languageState.canBeSource(detectedLanguage)) return
   if (isAutoSource && isInstalled) return
   if (!isAutoSource && detectedLanguage == from) return
   DetectedLanguageToast(

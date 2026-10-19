@@ -82,6 +82,7 @@ import dev.davidv.translator.adblock.AdblockManager
 import dev.davidv.translator.adblock.mapRequestType
 import dev.davidv.translator.adblock.refererOf
 import dev.davidv.translator.isWebUrl
+import dev.davidv.translator.localizedName
 import dev.davidv.translator.ui.components.LanguageSelectionRow
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.CoroutineScope
@@ -119,6 +120,7 @@ class BrowserActivity : ComponentActivity() {
           catalogRepository = app.catalogRepository,
           languageMetadataManager = app.languageMetadataManager,
           translationService = app.translationService,
+          translationCoordinator = app.translationCoordinator,
           initialUrl = initialUrl,
           initialSourceCode = sourceCode,
           initialTargetCode = targetCode,
@@ -191,6 +193,8 @@ private fun BrowserScreen(
   val context = LocalContext.current
   val from by viewModel.from.collectAsStateWithLifecycle()
   val to by viewModel.to.collectAsStateWithLifecycle()
+  val isAutoSource by viewModel.isAutoSource.collectAsStateWithLifecycle()
+  val detected by viewModel.detected.collectAsStateWithLifecycle()
   val languageState by viewModel.languageState.collectAsStateWithLifecycle()
   val languageMetadata by viewModel.languageMetadata.collectAsStateWithLifecycle()
   val url by viewModel.url.collectAsStateWithLifecycle()
@@ -216,6 +220,14 @@ private fun BrowserScreen(
   val readerActive = readerPageState.reader is ReaderState.Active
   val readerVisible = readerPageState.reader != ReaderState.Idle
   val webViewRef = remember { arrayOfNulls<WebView>(1) }
+  val detectedSource = detected?.takeIf { it in languageState.sourceLanguages() }
+
+  LaunchedEffect(isAutoSource, detected) {
+    val missing = detected
+    if (isAutoSource && missing != null && detectedSource == null) {
+      Toast.makeText(context, context.getString(R.string.browser_page_language_missing, missing.localizedName()), Toast.LENGTH_LONG).show()
+    }
+  }
 
   BackHandler {
     val wv = webViewRef[0]
@@ -229,8 +241,9 @@ private fun BrowserScreen(
   Box(modifier = Modifier.fillMaxSize()) {
     BrowserWebView(
       url = url,
-      sourceLang = from!!,
+      source = if (isAutoSource) BrowserSource.Auto else BrowserSource.Fixed(from!!),
       targetLang = to!!,
+      detectPageLanguage = viewModel::detectPageLanguage,
       contentScript = contentScript,
       adblockCosmeticScript = adblockCosmeticScript,
       translationService = translationService,
@@ -286,6 +299,9 @@ private fun BrowserScreen(
             languageState = languageState,
             languageMetadata = languageMetadata,
             onMessage = viewModel::onMessage,
+            isAutoSource = isAutoSource,
+            detectedInstalled = detectedSource,
+            showAutoOption = !settings.disableCLD,
             drawable =
               Pair(
                 if (readerActive) "Exit reader mode" else "Reader mode",
@@ -315,8 +331,9 @@ private fun BrowserScreen(
 @Composable
 private fun BrowserWebView(
   url: String,
-  sourceLang: Language,
+  source: BrowserSource,
   targetLang: Language,
+  detectPageLanguage: suspend (String) -> Language?,
   contentScript: String,
   adblockCosmeticScript: String,
   translationService: TranslationService,
@@ -434,7 +451,8 @@ private fun BrowserWebView(
               translationService = translationService,
               translationCoordinator = translationCoordinator,
               bridgeToken = bridgeToken,
-              sourceLanguage = sourceLang,
+              detectPageLanguage = detectPageLanguage,
+              source = source,
               targetLanguage = targetLang,
             )
           bridgeRef[0] = bridge
@@ -451,6 +469,7 @@ private fun BrowserWebView(
               ) {
                 Log.i("AdblockManager", "onPageStarted view=$view url=$url")
                 readerController.onPageStarted()
+                bridgeRef[0]?.onPageStarted()
                 currentPageUrlRef.set(url)
                 val pageSerial = currentPageSerialRef.incrementAndGet()
                 // Inject the translator content script as early as possible.
@@ -520,8 +539,8 @@ private fun BrowserWebView(
         },
         update = { webView ->
           val b = bridgeRef[0] ?: return@AndroidView
-          val langsChanged = b.sourceLanguage != sourceLang || b.targetLanguage != targetLang
-          b.sourceLanguage = sourceLang
+          val langsChanged = b.source != source || b.targetLanguage != targetLang
+          b.source = source
           b.targetLanguage = targetLang
           if (langsChanged) {
             webView.evaluateJavascript(

@@ -27,6 +27,7 @@ import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.SettingsManager
+import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationService
 import dev.davidv.translator.TranslatorMessage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,11 +36,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
+// What the page bridge translates from. Auto detects each page's language once, so a page that
+// differs from the last one is translated without the user picking its language first.
+sealed interface BrowserSource {
+  data object Auto : BrowserSource
+
+  data class Fixed(
+    val language: Language,
+  ) : BrowserSource
+}
+
 class BrowserViewModel(
   settingsManager: SettingsManager,
   catalogRepository: CatalogRepository,
   languageMetadataManager: LanguageMetadataManager,
   private val translationService: TranslationService,
+  private val translationCoordinator: TranslationCoordinator,
   initialUrl: String,
   initialSourceCode: String?,
   initialTargetCode: String?,
@@ -55,6 +67,12 @@ class BrowserViewModel(
 
   private val _to = MutableStateFlow<Language?>(null)
   val to: StateFlow<Language?> = _to.asStateFlow()
+
+  private val _isAutoSource = MutableStateFlow(initialSourceCode == null && !settingsManager.settings.value.disableCLD)
+  val isAutoSource: StateFlow<Boolean> = _isAutoSource.asStateFlow()
+
+  private val _detected = MutableStateFlow<Language?>(null)
+  val detected: StateFlow<Language?> = _detected.asStateFlow()
 
   private val _url = MutableStateFlow(initialUrl)
   val url: StateFlow<String> = _url.asStateFlow()
@@ -94,12 +112,17 @@ class BrowserViewModel(
 
   fun onMessage(message: TranslatorMessage) {
     when (message) {
-      is TranslatorMessage.FromLang -> _from.value = message.language
+      is TranslatorMessage.FromLang -> {
+        _isAutoSource.value = false
+        _from.value = message.language
+      }
+      TranslatorMessage.EnableAutoSource -> _isAutoSource.value = true
       is TranslatorMessage.ToLang -> _to.value = message.language
       is TranslatorMessage.SwapLanguages -> {
         val prevFrom = _from.value
         val prevTo = _to.value
         if (prevFrom != null && prevTo != null && canSwapLanguages(prevFrom, prevTo)) {
+          _isAutoSource.value = false
           _from.value = prevTo
           _to.value = prevFrom
         }
@@ -111,6 +134,17 @@ class BrowserViewModel(
     if (fromLang != null && toLang != null && fromLang != toLang) {
       viewModelScope.launch { translationService.preloadModel(fromLang, toLang) }
     }
+  }
+
+  // Returns the language to translate the page from, or null when the page is in a language that
+  // has no installed model into the target side.
+  suspend fun detectPageLanguage(sample: String): Language? {
+    val state = languageState.value
+    val detected = translationCoordinator.detectLanguageRobust(sample, null, state.allLanguages())
+    _detected.value = detected
+    val source = detected?.takeIf { it in state.sourceLanguages() } ?: return null
+    _from.value = source
+    return source
   }
 
   fun loadUrl(value: String) {
@@ -135,6 +169,7 @@ class BrowserViewModelFactory(
   private val catalogRepository: CatalogRepository,
   private val languageMetadataManager: LanguageMetadataManager,
   private val translationService: TranslationService,
+  private val translationCoordinator: TranslationCoordinator,
   private val initialUrl: String,
   private val initialSourceCode: String?,
   private val initialTargetCode: String?,
@@ -146,6 +181,7 @@ class BrowserViewModelFactory(
       catalogRepository = catalogRepository,
       languageMetadataManager = languageMetadataManager,
       translationService = translationService,
+      translationCoordinator = translationCoordinator,
       initialUrl = initialUrl,
       initialSourceCode = initialSourceCode,
       initialTargetCode = initialTargetCode,

@@ -219,7 +219,6 @@ fun LiveCameraScreen(
           showAutoOption = showAutoOption,
           liveOverlayDefaultEnabled = liveOverlayDefaultEnabled,
           catalog = catalog,
-          onClose = onClose,
           onImageCaptured = onImageCaptured,
         )
       hasAsked ->
@@ -287,7 +286,6 @@ private fun CameraSurface(
   showAutoOption: Boolean,
   liveOverlayDefaultEnabled: Boolean,
   catalog: dev.davidv.translator.LanguageCatalog,
-  onClose: () -> Unit,
   onImageCaptured: (Uri) -> Unit,
 ) {
   val context = LocalContext.current
@@ -818,7 +816,6 @@ private fun CameraSurface(
                 )
               isCapturing = false
               onImageCaptured(uri)
-              onClose()
             }
 
             override fun onError(exception: ImageCaptureException) {

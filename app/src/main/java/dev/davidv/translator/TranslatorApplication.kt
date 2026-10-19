@@ -54,6 +54,7 @@ class TranslatorApplication : Application() {
 
   override fun onCreate() {
     super.onCreate()
+    installIsrgRootOnLegacyAndroid(this)
 
     // The assistant VoiceInteractionService is directBootAware, so the system starts
     // this process before the user unlocks. Service init below touches credential-encrypted

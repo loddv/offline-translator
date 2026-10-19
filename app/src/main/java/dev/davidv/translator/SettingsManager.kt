@@ -96,6 +96,8 @@ class SettingsManager(
       ReadonlyPopupSize.fromSliderPosition(
         prefs.getFloat("readonly_modal_compact_height_factor", defaults.readonlyPopupSize.sliderPosition),
       ) ?: defaults.readonlyPopupSize
+    val overlayLanguages =
+      OverlayLanguageMemory.parse(prefs.getString("overlay_source_language", null), prefs.getString("overlay_target_language", null))
     val mainInputSplit =
       InputSplit.parse(prefs.getFloat("main_input_split", defaults.mainInputSplit.fraction))
         ?: defaults.mainInputSplit
@@ -173,6 +175,7 @@ class SettingsManager(
       readonlyModalOutputAlignment = readonlyModalOutputAlignment,
       readonlyPopupSize = readonlyPopupSize,
       mainInputSplit = mainInputSplit,
+      overlayLanguages = overlayLanguages,
       addSpacesForJapaneseTransliteration = addSpacesForJapaneseTransliteration,
       ttsPlaybackSpeed = ttsPlaybackSpeed,
       ttsPlaybackSpeedOverrides = ttsPlaybackSpeedOverrides,
@@ -256,6 +259,16 @@ class SettingsManager(
       }
       if (newSettings.readonlyPopupSize != currentSettings.readonlyPopupSize) {
         putFloat("readonly_modal_compact_height_factor", newSettings.readonlyPopupSize.sliderPosition)
+      }
+      if (newSettings.overlayLanguages != currentSettings.overlayLanguages) {
+        val overlayLanguages = newSettings.overlayLanguages
+        if (overlayLanguages == null) {
+          remove("overlay_source_language")
+          remove("overlay_target_language")
+        } else {
+          putString("overlay_source_language", overlayLanguages.storedSource)
+          putString("overlay_target_language", overlayLanguages.targetCode)
+        }
       }
       if (newSettings.mainInputSplit != currentSettings.mainInputSplit) {
         putFloat("main_input_split", newSettings.mainInputSplit.fraction)

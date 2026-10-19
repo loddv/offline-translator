@@ -107,7 +107,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
     catalogRepository = app.catalogRepository
     languageMetadataManager = app.languageMetadataManager
     translationCoordinator = app.translationCoordinator
-    selection = OverlayLanguageSelection.defaults(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
+    selection = OverlayLanguageSelection.initial(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
 
     ui = OverlayUI(this, windowManager)
     // This service outlives any one overlay use, so a default target changed in settings must
@@ -265,6 +265,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
 
   private fun applySelection(next: OverlayLanguageSelection) {
     selection = next
+    settingsManager.update { it.copy(overlayLanguages = next.remembered()) }
     ui.updateToolbarState(selection)
     if (active) {
       handleFullScreenOcr()

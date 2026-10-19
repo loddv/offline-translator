@@ -474,7 +474,14 @@ class ScreenTranslateService : Service() {
     val current = checkNotNull(selection) { "swap before languages were configured" }
     val catalog = (applicationContext as TranslatorApplication).catalogRepository.catalog.value
     val swapped = current.swapped(catalog::canSwapLanguages) ?: return
-    applySelection(swapped)
+    chooseSelection(swapped)
+  }
+
+  // Only picks made in this overlay are remembered for the next overlay; the pair it was started
+  // with came from the caller.
+  private fun chooseSelection(next: OverlayLanguageSelection) {
+    (applicationContext as TranslatorApplication).settingsManager.update { it.copy(overlayLanguages = next.remembered()) }
+    applySelection(next)
   }
 
   private fun statusBarHeight(): Int {
@@ -502,7 +509,7 @@ class ScreenTranslateService : Service() {
     val availability = LanguageAvailabilityState.of(app.catalogRepository.catalog.value)
     val langs = overlayPickerLanguages(availability, app.languageMetadataManager.metadata.value, side)
     // Live screen translate never runs in auto-source mode, so no Auto option.
-    mm.showLanguagePicker(side, current, langs, allowAuto = false) { applySelection(it) }
+    mm.showLanguagePicker(side, current, langs, allowAuto = false) { chooseSelection(it) }
   }
 
   private fun showRegionEditor() {

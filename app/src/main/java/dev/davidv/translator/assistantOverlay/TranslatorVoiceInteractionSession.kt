@@ -88,7 +88,7 @@ class TranslatorVoiceInteractionSession(
   private var captureTimeoutJob: Job? = null
   private var statusHideJob: Job? = null
   private var selection =
-    OverlayLanguageSelection.defaults(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
+    OverlayLanguageSelection.initial(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
 
   // The interactive image surface, hosted in a ComposeView over the screenshot backdrop: it shows
   // the screenshot with the scan animation while OCR runs, then the translated image with the
@@ -603,6 +603,7 @@ class TranslatorVoiceInteractionSession(
 
   private fun applySelection(next: OverlayLanguageSelection) {
     selection = next
+    settingsManager.update { it.copy(overlayLanguages = next.remembered()) }
     OverlayChromeFactory.showSelection(sourceLabelView, targetLabelView, readingOrderButtonView, readingOrderIconView, selection)
     retranslate()
   }

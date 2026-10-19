@@ -66,6 +66,34 @@ class OverlayLanguageSelectionTest {
   }
 
   @Test
+  fun `initial restores the last overlay pick`() {
+    val settings = AppSettings(defaultTargetLanguageCode = "en", overlayLanguages = fixed(fr, es).remembered())
+    assertEquals(fixed(fr, es), OverlayLanguageSelection.initial(availability(entry(en), entry(es), entry(fr)), settings))
+  }
+
+  @Test
+  fun `initial restores an auto source`() {
+    val auto = OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), fr)
+    val settings = AppSettings(defaultTargetLanguageCode = "en", overlayLanguages = auto.remembered())
+    assertEquals(auto, OverlayLanguageSelection.initial(availability(entry(en), entry(fr)), settings))
+  }
+
+  @Test
+  fun `initial uses the defaults once a remembered language was removed`() {
+    val state = availability(entry(en), entry(es))
+    val settings = AppSettings(defaultTargetLanguageCode = "es", overlayLanguages = fixed(fr, es).remembered())
+    assertEquals(OverlayLanguageSelection.defaults(state, settings), OverlayLanguageSelection.initial(state, settings))
+  }
+
+  @Test
+  fun `remembered pick survives storage`() {
+    val memory = fixed(fr, es).remembered()
+    assertEquals(memory, OverlayLanguageMemory.parse(memory.storedSource, memory.targetCode))
+    val auto = OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), es).remembered()
+    assertEquals(auto, OverlayLanguageMemory.parse(auto.storedSource, auto.targetCode))
+  }
+
+  @Test
   fun `swap exchanges a fixed pair and makes the old target the source`() {
     assertEquals(fixed(en, es), fixed(es, en).swapped(anyPair))
   }

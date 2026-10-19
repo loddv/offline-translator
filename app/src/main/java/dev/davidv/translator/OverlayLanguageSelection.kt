@@ -75,7 +75,32 @@ data class OverlayLanguageSelection(
     return copy(source = fixed.copy(readingOrder = nextReadingOrder(fixed.readingOrder)))
   }
 
+  fun remembered(): OverlayLanguageMemory =
+    OverlayLanguageMemory(
+      source = sourceLanguage?.let { RememberedOverlaySource.Fixed(it.code) } ?: RememberedOverlaySource.Auto,
+      targetCode = target.code,
+    )
+
   companion object {
+    // The last pair picked in any overlay, while both of its languages are still installed on the
+    // side they were picked for; otherwise the defaults.
+    fun initial(
+      availability: LanguageAvailabilityState,
+      settings: AppSettings,
+    ): OverlayLanguageSelection {
+      val defaults = defaults(availability, settings)
+      val memory = settings.overlayLanguages ?: return defaults
+      val target = availability.targetLanguages().firstOrNull { it.code == memory.targetCode } ?: return defaults
+      val source =
+        when (val remembered = memory.source) {
+          RememberedOverlaySource.Auto -> OverlaySource.Auto(readingOrder = null)
+          is RememberedOverlaySource.Fixed ->
+            availability.sourceLanguages().firstOrNull { it.code == remembered.code }?.let { OverlaySource.Fixed(it) }
+              ?: return defaults
+        }
+      return OverlayLanguageSelection(source, target)
+    }
+
     // Overlays start on auto-detect; the stored default source only seeds live screen translate,
     // which can't run the per-frame script classifier. The stored target code can name a
     // language a newer catalog dropped; English is the pivot every catalog carries.
@@ -87,6 +112,39 @@ data class OverlayLanguageSelection(
         availability.targetLanguages().firstOrNull { it.code == settings.defaultTargetLanguageCode }
           ?: availability.allLanguages().first { it.isEnglish }
       return OverlayLanguageSelection(OverlaySource.Auto(readingOrder = null), target)
+    }
+  }
+}
+
+sealed interface RememberedOverlaySource {
+  data object Auto : RememberedOverlaySource
+
+  data class Fixed(
+    val code: String,
+  ) : RememberedOverlaySource
+}
+
+data class OverlayLanguageMemory(
+  val source: RememberedOverlaySource,
+  val targetCode: String,
+) {
+  val storedSource: String
+    get() =
+      when (source) {
+        RememberedOverlaySource.Auto -> AUTO_SOURCE
+        is RememberedOverlaySource.Fixed -> source.code
+      }
+
+  companion object {
+    private const val AUTO_SOURCE = "auto"
+
+    fun parse(
+      storedSource: String?,
+      targetCode: String?,
+    ): OverlayLanguageMemory? {
+      if (storedSource == null || targetCode == null) return null
+      val source = if (storedSource == AUTO_SOURCE) RememberedOverlaySource.Auto else RememberedOverlaySource.Fixed(storedSource)
+      return OverlayLanguageMemory(source, targetCode)
     }
   }
 }

@@ -92,11 +92,10 @@ class SettingsManager(
       } else {
         defaults.readonlyModalOutputAlignment
       }
-    val readonlyModalCompactHeightFactor =
-      prefs.getFloat(
-        "readonly_modal_compact_height_factor",
-        defaults.readonlyModalCompactHeightFactor,
-      )
+    val readonlyPopupSize =
+      ReadonlyPopupSize.fromSliderPosition(
+        prefs.getFloat("readonly_modal_compact_height_factor", defaults.readonlyPopupSize.sliderPosition),
+      ) ?: defaults.readonlyPopupSize
     val addSpacesForJapaneseTransliteration =
       prefs.getBoolean(
         "add_spaces_for_japanese_transliteration",
@@ -169,7 +168,7 @@ class SettingsManager(
       showTransliterationOnInput = showTransliterationOnInput,
       onlyShowOutputOnReadonlyModal = onlyShowOutputOnReadonlyModal,
       readonlyModalOutputAlignment = readonlyModalOutputAlignment,
-      readonlyModalCompactHeightFactor = readonlyModalCompactHeightFactor,
+      readonlyPopupSize = readonlyPopupSize,
       addSpacesForJapaneseTransliteration = addSpacesForJapaneseTransliteration,
       ttsPlaybackSpeed = ttsPlaybackSpeed,
       ttsPlaybackSpeedOverrides = ttsPlaybackSpeedOverrides,
@@ -251,8 +250,8 @@ class SettingsManager(
       if (newSettings.readonlyModalOutputAlignment != currentSettings.readonlyModalOutputAlignment) {
         putString("readonly_modal_output_alignment", newSettings.readonlyModalOutputAlignment.name)
       }
-      if (newSettings.readonlyModalCompactHeightFactor != currentSettings.readonlyModalCompactHeightFactor) {
-        putFloat("readonly_modal_compact_height_factor", newSettings.readonlyModalCompactHeightFactor)
+      if (newSettings.readonlyPopupSize != currentSettings.readonlyPopupSize) {
+        putFloat("readonly_modal_compact_height_factor", newSettings.readonlyPopupSize.sliderPosition)
       }
       if (newSettings.addSpacesForJapaneseTransliteration != currentSettings.addSpacesForJapaneseTransliteration) {
         putBoolean("add_spaces_for_japanese_transliteration", newSettings.addSpacesForJapaneseTransliteration)

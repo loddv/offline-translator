@@ -20,7 +20,6 @@ package dev.davidv.translator
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -127,37 +126,23 @@ class MainActivity : ComponentActivity() {
     openLanguageManager = intent?.getBooleanExtra(EXTRA_OPEN_LANGUAGE_MANAGER, false) == true
     when (intent?.action) {
       Intent.ACTION_SEND -> {
-        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-        val streamUri =
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-          } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(Intent.EXTRA_STREAM)
-          }
-
-        if (text != null) {
-          val trimmed = text.trim()
-          if (isWebUrl(trimmed)) {
-            if (isSupportedDocumentUrl(trimmed)) {
-              Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
+        when (val payload = parseSendIntent(intent)) {
+          is SharedText.Plain -> textToTranslate = payload.text
+          is SharedText.WebUrl -> openUrl(payload.url)
+          SharedText.UnsupportedDocumentUrl ->
+            Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
+          is SharedPayload.Stream -> {
+            // EXTRA_STREAM carries both shared images (→ crop) and shared documents
+            // (→ the document drawer); route by MIME so a pdf/odt/txt/epub doesn't
+            // get sent to the image cropper.
+            if (isImageUri(this, payload.uri)) {
+              sharedImageUri = payload.uri
             } else {
-              openUrl(trimmed)
-              return
+              sharedDocumentUri = payload.uri
             }
-          } else {
-            textToTranslate = text
+            textToTranslate = ""
           }
-        } else if (streamUri != null) {
-          // EXTRA_STREAM carries both shared images (→ crop) and shared documents
-          // (→ the document drawer); route by MIME so a pdf/odt/txt/epub doesn't
-          // get sent to the image cropper.
-          if (isImageUri(this, streamUri)) {
-            sharedImageUri = streamUri
-          } else {
-            sharedDocumentUri = streamUri
-          }
-          textToTranslate = ""
+          SharedPayload.Empty -> Log.w("MainActivity", "ACTION_SEND carried neither text nor a stream")
         }
       }
       Intent.ACTION_VIEW -> {

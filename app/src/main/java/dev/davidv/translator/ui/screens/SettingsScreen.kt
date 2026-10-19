@@ -84,6 +84,7 @@ import dev.davidv.translator.LanguageCatalog
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
+import dev.davidv.translator.ReadonlyPopupSize
 import dev.davidv.translator.Script
 import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.labelRes
@@ -625,20 +626,23 @@ fun SettingsScreen(
           }
 
           Text(
-            text = stringResource(R.string.settings_popup_size, (settings.readonlyModalCompactHeightFactor * 100).toInt()),
+            text =
+              when (val size = settings.readonlyPopupSize) {
+                is ReadonlyPopupSize.Fraction -> stringResource(R.string.settings_popup_size, (size.heightFactor * 100).roundToInt())
+                ReadonlyPopupSize.Expanded -> stringResource(R.string.settings_popup_size_expanded)
+              },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
           )
 
           Slider(
-            value = settings.readonlyModalCompactHeightFactor,
+            value = settings.readonlyPopupSize.sliderPosition,
             onValueChange = { value ->
-              onSettingsChange {
-                it.copy(readonlyModalCompactHeightFactor = (value * 20f).roundToInt() / 20f)
-              }
+              val size = checkNotNull(ReadonlyPopupSize.fromSliderPosition(value)) { "slider produced $value" }
+              onSettingsChange { it.copy(readonlyPopupSize = size) }
             },
-            valueRange = 0.2f..0.8f,
-            steps = 11,
+            valueRange = ReadonlyPopupSize.SLIDER_RANGE,
+            steps = ReadonlyPopupSize.SLIDER_STEPS,
             modifier = Modifier.fillMaxWidth(),
           )
         }

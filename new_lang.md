@@ -44,6 +44,18 @@ uv run --with torch --with transformers --with onnx --with onnxruntime --with nu
   scripts/export_mms_onnx.py facebook/mms-tts-<code> --out-dir <dir> --sample-text "<text>"
 ```
 
+## Refreshing the Mozilla models snapshot
+
+1. Download the live `models.json` (URL in `catalog_upstream.MODELS_MANIFEST_URL`)
+2. Before overwriting the snapshot, record the models it replaces so old installs get offered the upgrade:
+   ```
+   python3 upstream_upgrades.py data_sources/gcs_models.json new_models.json
+   cp new_models.json data_sources/gcs_models.json
+   ```
+   It prints old -> new metrics per swapped pair; drop a pair from `data_sources/upstream_previous.json` if the new model isn't better.
+3. If upstream now ships a pair we also have in `custom_models.json`, either remove ours or list the pair in its `overridesUpstream`
+4. Regenerate catalogs (internal, then public)
+
 ## Dictionaries
 
 Dictionaries come from `tarkka`. A `dict-<code>` pack is only emitted for a language that already exists in the catalog, so add the language first if it's new.

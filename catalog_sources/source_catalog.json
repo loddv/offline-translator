@@ -1,12 +1,12 @@
 {
   "formatVersion": 6,
-  "generatedAt": 1792500707,
+  "generatedAt": 1792502389,
   "translationModelsBaseUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data",
   "dictionaryBaseUrl": "https://offline-translator.davidv.dev/dictionaries",
   "dictionaryVersion": 1,
   "sources": {
     "languageIndexVersion": 1,
-    "languageIndexUpdatedAt": 1792500707,
+    "languageIndexUpdatedAt": 1792502389,
     "dictionaryIndexVersion": 1,
     "dictionaryIndexUpdatedAt": 1784028791,
     "gcsModelsUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json",
@@ -3630,29 +3630,59 @@
           "name": "model.been.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.been.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/model.been.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/model.been.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/model.been.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.been.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.been.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/lex.50.50.been.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/lex.50.50.been.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/lex.50.50.been.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.been.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.been.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/vocab.been.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/vocab.been.spm.gz",
+          "mirrorPath": "translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/vocab.been.spm.gz"
+        },
+        {
+          "name": "model.been.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/model.been.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/model.been.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/model.been.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/model.been.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.been.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.been.s2t.bin",
+          "installPath": "bin/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/lex.50.50.been.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/lex.50.50.been.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/lex.50.50.been.s2t.bin.gz",
           "mirrorPath": "translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/lex.50.50.been.s2t.bin.gz"
         },
         {
           "name": "vocab.been.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.been.spm",
+          "installPath": "bin/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/vocab.been.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/vocab.been.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/vocab.been.spm.gz",
           "mirrorPath": "translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/vocab.been.spm.gz"
         }
@@ -4059,29 +4089,59 @@
           "name": "model.enaz.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.enaz.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/model.enaz.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/model.enaz.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/model.enaz.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.enaz.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.enaz.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/lex.50.50.enaz.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/lex.50.50.enaz.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/lex.50.50.enaz.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.enaz.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.enaz.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/vocab.enaz.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/vocab.enaz.spm.gz",
+          "mirrorPath": "translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/vocab.enaz.spm.gz"
+        },
+        {
+          "name": "model.enaz.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/model.enaz.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/model.enaz.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/model.enaz.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/model.enaz.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.enaz.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.enaz.s2t.bin",
+          "installPath": "bin/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/lex.50.50.enaz.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/lex.50.50.enaz.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/lex.50.50.enaz.s2t.bin.gz",
           "mirrorPath": "translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/lex.50.50.enaz.s2t.bin.gz"
         },
         {
           "name": "vocab.enaz.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.enaz.spm",
+          "installPath": "bin/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/vocab.enaz.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/vocab.enaz.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/vocab.enaz.spm.gz",
           "mirrorPath": "translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/vocab.enaz.spm.gz"
         }
@@ -4683,29 +4743,59 @@
           "name": "model.engl.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.engl.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/model.engl.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/model.engl.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/model.engl.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.engl.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.engl.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/lex.50.50.engl.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/lex.50.50.engl.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/lex.50.50.engl.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.engl.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.engl.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/vocab.engl.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/vocab.engl.spm.gz",
+          "mirrorPath": "translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/vocab.engl.spm.gz"
+        },
+        {
+          "name": "model.engl.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/model.engl.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/model.engl.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/model.engl.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/model.engl.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.engl.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.engl.s2t.bin",
+          "installPath": "bin/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/lex.50.50.engl.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/lex.50.50.engl.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/lex.50.50.engl.s2t.bin.gz",
           "mirrorPath": "translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/lex.50.50.engl.s2t.bin.gz"
         },
         {
           "name": "vocab.engl.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.engl.spm",
+          "installPath": "bin/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/vocab.engl.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/vocab.engl.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/vocab.engl.spm.gz",
           "mirrorPath": "translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/vocab.engl.spm.gz"
         }
@@ -4878,29 +4968,59 @@
           "name": "model.enhu.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.enhu.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/model.enhu.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/model.enhu.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/model.enhu.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.enhu.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.enhu.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/lex.50.50.enhu.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/lex.50.50.enhu.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/lex.50.50.enhu.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.enhu.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.enhu.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/vocab.enhu.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/vocab.enhu.spm.gz",
+          "mirrorPath": "translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/vocab.enhu.spm.gz"
+        },
+        {
+          "name": "model.enhu.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/en-hu/next26_Tzv045N-SASkA8X287pEqg/model.enhu.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/model.enhu.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/model.enhu.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/model.enhu.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.enhu.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.enhu.s2t.bin",
+          "installPath": "bin/en-hu/next26_Tzv045N-SASkA8X287pEqg/lex.50.50.enhu.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/lex.50.50.enhu.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/lex.50.50.enhu.s2t.bin.gz",
           "mirrorPath": "translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/lex.50.50.enhu.s2t.bin.gz"
         },
         {
           "name": "vocab.enhu.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.enhu.spm",
+          "installPath": "bin/en-hu/next26_Tzv045N-SASkA8X287pEqg/vocab.enhu.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/vocab.enhu.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/vocab.enhu.spm.gz",
           "mirrorPath": "translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/vocab.enhu.spm.gz"
         }
@@ -5912,29 +6032,59 @@
           "name": "model.enta.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.enta.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/model.enta.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/model.enta.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/model.enta.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.enta.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.enta.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/lex.50.50.enta.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/lex.50.50.enta.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/lex.50.50.enta.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.enta.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.enta.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/vocab.enta.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/vocab.enta.spm.gz",
+          "mirrorPath": "translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/vocab.enta.spm.gz"
+        },
+        {
+          "name": "model.enta.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/model.enta.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/model.enta.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/model.enta.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/model.enta.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.enta.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.enta.s2t.bin",
+          "installPath": "bin/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/lex.50.50.enta.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/lex.50.50.enta.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/lex.50.50.enta.s2t.bin.gz",
           "mirrorPath": "translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/lex.50.50.enta.s2t.bin.gz"
         },
         {
           "name": "vocab.enta.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.enta.spm",
+          "installPath": "bin/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/vocab.enta.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/vocab.enta.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/vocab.enta.spm.gz",
           "mirrorPath": "translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/vocab.enta.spm.gz"
         }
@@ -6499,29 +6649,59 @@
           "name": "model.euen.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.euen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/model.euen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/model.euen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/model.euen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.euen.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.euen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/lex.50.50.euen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/lex.50.50.euen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/lex.50.50.euen.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.euen.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.euen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/vocab.euen.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/vocab.euen.spm.gz",
+          "mirrorPath": "translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/vocab.euen.spm.gz"
+        },
+        {
+          "name": "model.euen.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/model.euen.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/model.euen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/model.euen.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/model.euen.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.euen.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.euen.s2t.bin",
+          "installPath": "bin/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/lex.50.50.euen.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/lex.50.50.euen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/lex.50.50.euen.s2t.bin.gz",
           "mirrorPath": "translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/lex.50.50.euen.s2t.bin.gz"
         },
         {
           "name": "vocab.euen.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.euen.spm",
+          "installPath": "bin/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/vocab.euen.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/vocab.euen.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/vocab.euen.spm.gz",
           "mirrorPath": "translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/vocab.euen.spm.gz"
         }
@@ -6655,29 +6835,59 @@
           "name": "model.glen.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.glen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/model.glen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/model.glen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/model.glen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.glen.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.glen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/lex.50.50.glen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/lex.50.50.glen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/lex.50.50.glen.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.glen.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.glen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/vocab.glen.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/vocab.glen.spm.gz",
+          "mirrorPath": "translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/vocab.glen.spm.gz"
+        },
+        {
+          "name": "model.glen.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/model.glen.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/model.glen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/model.glen.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/model.glen.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.glen.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.glen.s2t.bin",
+          "installPath": "bin/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/lex.50.50.glen.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/lex.50.50.glen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/lex.50.50.glen.s2t.bin.gz",
           "mirrorPath": "translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/lex.50.50.glen.s2t.bin.gz"
         },
         {
           "name": "vocab.glen.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.glen.spm",
+          "installPath": "bin/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/vocab.glen.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/vocab.glen.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/vocab.glen.spm.gz",
           "mirrorPath": "translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/vocab.glen.spm.gz"
         }
@@ -6850,29 +7060,59 @@
           "name": "model.huen.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.huen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/model.huen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/model.huen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/model.huen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.huen.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.huen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.huen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.huen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.huen.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.huen.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.huen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.huen.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.huen.spm.gz",
+          "mirrorPath": "translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.huen.spm.gz"
+        },
+        {
+          "name": "model.huen.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/model.huen.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/model.huen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/model.huen.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/model.huen.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.huen.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.huen.s2t.bin",
+          "installPath": "bin/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/lex.50.50.huen.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/lex.50.50.huen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/lex.50.50.huen.s2t.bin.gz",
           "mirrorPath": "translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/lex.50.50.huen.s2t.bin.gz"
         },
         {
           "name": "vocab.huen.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.huen.spm",
+          "installPath": "bin/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/vocab.huen.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/vocab.huen.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/vocab.huen.spm.gz",
           "mirrorPath": "translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/vocab.huen.spm.gz"
         }
@@ -7279,29 +7519,59 @@
           "name": "model.mren.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.mren.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/model.mren.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/model.mren.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/model.mren.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.mren.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.mren.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/lex.50.50.mren.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/lex.50.50.mren.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/lex.50.50.mren.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.mren.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.mren.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/vocab.mren.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/vocab.mren.spm.gz",
+          "mirrorPath": "translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/vocab.mren.spm.gz"
+        },
+        {
+          "name": "model.mren.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/model.mren.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/model.mren.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/model.mren.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/model.mren.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.mren.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.mren.s2t.bin",
+          "installPath": "bin/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/lex.50.50.mren.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/lex.50.50.mren.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/lex.50.50.mren.s2t.bin.gz",
           "mirrorPath": "translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/lex.50.50.mren.s2t.bin.gz"
         },
         {
           "name": "vocab.mren.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.mren.spm",
+          "installPath": "bin/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/vocab.mren.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/vocab.mren.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/vocab.mren.spm.gz",
           "mirrorPath": "translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/vocab.mren.spm.gz"
         }
@@ -7630,29 +7900,59 @@
           "name": "model.ruen.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.ruen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/model.ruen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/model.ruen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/model.ruen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.ruen.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.ruen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/lex.50.50.ruen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/lex.50.50.ruen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/lex.50.50.ruen.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.ruen.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.ruen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/vocab.ruen.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/vocab.ruen.spm.gz",
+          "mirrorPath": "translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/vocab.ruen.spm.gz"
+        },
+        {
+          "name": "model.ruen.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/model.ruen.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/model.ruen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/model.ruen.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/model.ruen.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.ruen.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.ruen.s2t.bin",
+          "installPath": "bin/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/lex.50.50.ruen.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/lex.50.50.ruen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/lex.50.50.ruen.s2t.bin.gz",
           "mirrorPath": "translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/lex.50.50.ruen.s2t.bin.gz"
         },
         {
           "name": "vocab.ruen.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.ruen.spm",
+          "installPath": "bin/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/vocab.ruen.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/vocab.ruen.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/vocab.ruen.spm.gz",
           "mirrorPath": "translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/vocab.ruen.spm.gz"
         }
@@ -8206,29 +8506,59 @@
           "name": "model.uren.intgemm.alphas.bin",
           "sizeBytes": 0,
           "installPath": "bin/model.uren.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/model.uren.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1,
+          "sourcePath": "models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/model.uren.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/model.uren.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "lex.50.50.uren.s2t.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/lex.50.50.uren.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/lex.50.50.uren.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1,
+          "sourcePath": "models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/lex.50.50.uren.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/lex.50.50.uren.s2t.bin.gz"
+        },
+        {
+          "name": "vocab.uren.spm",
+          "sizeBytes": 0,
+          "installPath": "bin/vocab.uren.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/vocab.uren.spm.gz",
+          "role": "vocab",
+          "priority": 1,
+          "sourcePath": "models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/vocab.uren.spm.gz",
+          "mirrorPath": "translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/vocab.uren.spm.gz"
+        },
+        {
+          "name": "model.uren.intgemm.alphas.bin",
+          "sizeBytes": 0,
+          "installPath": "bin/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/model.uren.intgemm.alphas.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/model.uren.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/model.uren.intgemm.alphas.bin.gz",
           "mirrorPath": "translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/model.uren.intgemm.alphas.bin.gz"
         },
         {
           "name": "lex.50.50.uren.s2t.bin",
           "sizeBytes": 0,
-          "installPath": "bin/lex.50.50.uren.s2t.bin",
+          "installPath": "bin/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/lex.50.50.uren.s2t.bin",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/lex.50.50.uren.s2t.bin.gz",
           "role": "lex",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/lex.50.50.uren.s2t.bin.gz",
           "mirrorPath": "translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/lex.50.50.uren.s2t.bin.gz"
         },
         {
           "name": "vocab.uren.spm",
           "sizeBytes": 0,
-          "installPath": "bin/vocab.uren.spm",
+          "installPath": "bin/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/vocab.uren.spm",
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/vocab.uren.spm.gz",
           "role": "vocab",
-          "priority": 0,
+          "priority": 2,
           "sourcePath": "models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/vocab.uren.spm.gz",
           "mirrorPath": "translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/vocab.uren.spm.gz"
         }

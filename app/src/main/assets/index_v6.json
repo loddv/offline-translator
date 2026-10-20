@@ -1,10 +1,10 @@
 {
   "formatVersion": 6,
-  "generatedAt": 1792500707,
+  "generatedAt": 1792502389,
   "dictionaryVersion": 1,
   "sources": {
     "languageIndexVersion": 1,
-    "languageIndexUpdatedAt": 1792500707,
+    "languageIndexUpdatedAt": 1792502389,
     "dictionaryIndexVersion": 1,
     "dictionaryIndexUpdatedAt": 1784028791,
     "gcsModelsUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json",
@@ -3492,27 +3492,51 @@
       "files": [
         {
           "name": "model.been.intgemm.alphas.bin",
-          "sizeBytes": 22664530,
+          "sizeBytes": 12413897,
           "installPath": "bin/model.been.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/model.been.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.been.s2t.bin",
+          "sizeBytes": 2197076,
+          "installPath": "bin/lex.50.50.been.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/lex.50.50.been.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.been.spm",
+          "sizeBytes": 435364,
+          "installPath": "bin/vocab.been.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/vocab.been.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.been.intgemm.alphas.bin",
+          "sizeBytes": 22664530,
+          "installPath": "bin/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/model.been.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/model.been.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.been.s2t.bin",
           "sizeBytes": 2182133,
-          "installPath": "bin/lex.50.50.been.s2t.bin",
+          "installPath": "bin/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/lex.50.50.been.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/lex.50.50.been.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.been.spm",
           "sizeBytes": 435603,
-          "installPath": "bin/vocab.been.spm",
+          "installPath": "bin/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/vocab.been.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/vocab.been.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -3855,27 +3879,51 @@
       "files": [
         {
           "name": "model.enaz.intgemm.alphas.bin",
-          "sizeBytes": 23035063,
+          "sizeBytes": 13233108,
           "installPath": "bin/model.enaz.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/model.enaz.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.enaz.s2t.bin",
+          "sizeBytes": 1711544,
+          "installPath": "bin/lex.50.50.enaz.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/lex.50.50.enaz.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.enaz.spm",
+          "sizeBytes": 418956,
+          "installPath": "bin/vocab.enaz.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/vocab.enaz.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.enaz.intgemm.alphas.bin",
+          "sizeBytes": 23035063,
+          "installPath": "bin/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/model.enaz.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/model.enaz.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.enaz.s2t.bin",
           "sizeBytes": 1673403,
-          "installPath": "bin/lex.50.50.enaz.s2t.bin",
+          "installPath": "bin/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/lex.50.50.enaz.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/lex.50.50.enaz.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.enaz.spm",
           "sizeBytes": 420132,
-          "installPath": "bin/vocab.enaz.spm",
+          "installPath": "bin/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/vocab.enaz.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/vocab.enaz.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -4383,27 +4431,51 @@
       "files": [
         {
           "name": "model.engl.intgemm.alphas.bin",
-          "sizeBytes": 23427851,
+          "sizeBytes": 23269843,
           "installPath": "bin/model.engl.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/model.engl.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.engl.s2t.bin",
+          "sizeBytes": 1581710,
+          "installPath": "bin/lex.50.50.engl.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/lex.50.50.engl.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.engl.spm",
+          "sizeBytes": 410683,
+          "installPath": "bin/vocab.engl.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/vocab.engl.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.engl.intgemm.alphas.bin",
+          "sizeBytes": 23427851,
+          "installPath": "bin/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/model.engl.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/model.engl.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.engl.s2t.bin",
           "sizeBytes": 1598079,
-          "installPath": "bin/lex.50.50.engl.s2t.bin",
+          "installPath": "bin/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/lex.50.50.engl.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/lex.50.50.engl.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.engl.spm",
           "sizeBytes": 410563,
-          "installPath": "bin/vocab.engl.spm",
+          "installPath": "bin/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/vocab.engl.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/vocab.engl.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -4548,27 +4620,51 @@
       "files": [
         {
           "name": "model.enhu.intgemm.alphas.bin",
-          "sizeBytes": 22889950,
+          "sizeBytes": 23710206,
           "installPath": "bin/model.enhu.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/model.enhu.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.enhu.s2t.bin",
+          "sizeBytes": 1768398,
+          "installPath": "bin/lex.50.50.enhu.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/lex.50.50.enhu.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.enhu.spm",
+          "sizeBytes": 405720,
+          "installPath": "bin/vocab.enhu.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/vocab.enhu.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.enhu.intgemm.alphas.bin",
+          "sizeBytes": 22889950,
+          "installPath": "bin/en-hu/next26_Tzv045N-SASkA8X287pEqg/model.enhu.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/model.enhu.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.enhu.s2t.bin",
           "sizeBytes": 1794658,
-          "installPath": "bin/lex.50.50.enhu.s2t.bin",
+          "installPath": "bin/en-hu/next26_Tzv045N-SASkA8X287pEqg/lex.50.50.enhu.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/lex.50.50.enhu.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.enhu.spm",
           "sizeBytes": 421527,
-          "installPath": "bin/vocab.enhu.spm",
+          "installPath": "bin/en-hu/next26_Tzv045N-SASkA8X287pEqg/vocab.enhu.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/vocab.enhu.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -5422,27 +5518,51 @@
       "files": [
         {
           "name": "model.enta.intgemm.alphas.bin",
-          "sizeBytes": 23206004,
+          "sizeBytes": 12645399,
           "installPath": "bin/model.enta.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/model.enta.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.enta.s2t.bin",
+          "sizeBytes": 1453949,
+          "installPath": "bin/lex.50.50.enta.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/lex.50.50.enta.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.enta.spm",
+          "sizeBytes": 446752,
+          "installPath": "bin/vocab.enta.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/vocab.enta.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.enta.intgemm.alphas.bin",
+          "sizeBytes": 23206004,
+          "installPath": "bin/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/model.enta.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/model.enta.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.enta.s2t.bin",
           "sizeBytes": 1434399,
-          "installPath": "bin/lex.50.50.enta.s2t.bin",
+          "installPath": "bin/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/lex.50.50.enta.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/lex.50.50.enta.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.enta.spm",
           "sizeBytes": 449763,
-          "installPath": "bin/vocab.enta.spm",
+          "installPath": "bin/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/vocab.enta.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/vocab.enta.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -5915,27 +6035,51 @@
       "files": [
         {
           "name": "model.euen.intgemm.alphas.bin",
-          "sizeBytes": 23241057,
+          "sizeBytes": 22759889,
           "installPath": "bin/model.euen.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/model.euen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.euen.s2t.bin",
+          "sizeBytes": 2059844,
+          "installPath": "bin/lex.50.50.euen.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/lex.50.50.euen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.euen.spm",
+          "sizeBytes": 409462,
+          "installPath": "bin/vocab.euen.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/vocab.euen.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.euen.intgemm.alphas.bin",
+          "sizeBytes": 23241057,
+          "installPath": "bin/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/model.euen.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/model.euen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.euen.s2t.bin",
           "sizeBytes": 1896953,
-          "installPath": "bin/lex.50.50.euen.s2t.bin",
+          "installPath": "bin/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/lex.50.50.euen.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/lex.50.50.euen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.euen.spm",
           "sizeBytes": 412669,
-          "installPath": "bin/vocab.euen.spm",
+          "installPath": "bin/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/vocab.euen.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/vocab.euen.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -6047,27 +6191,51 @@
       "files": [
         {
           "name": "model.glen.intgemm.alphas.bin",
-          "sizeBytes": 23054964,
+          "sizeBytes": 23501364,
           "installPath": "bin/model.glen.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/model.glen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.glen.s2t.bin",
+          "sizeBytes": 2215790,
+          "installPath": "bin/lex.50.50.glen.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/lex.50.50.glen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.glen.spm",
+          "sizeBytes": 409308,
+          "installPath": "bin/vocab.glen.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/vocab.glen.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.glen.intgemm.alphas.bin",
+          "sizeBytes": 23054964,
+          "installPath": "bin/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/model.glen.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/model.glen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.glen.s2t.bin",
           "sizeBytes": 2191952,
-          "installPath": "bin/lex.50.50.glen.s2t.bin",
+          "installPath": "bin/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/lex.50.50.glen.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/lex.50.50.glen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.glen.spm",
           "sizeBytes": 410400,
-          "installPath": "bin/vocab.glen.spm",
+          "installPath": "bin/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/vocab.glen.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/vocab.glen.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -6212,27 +6380,51 @@
       "files": [
         {
           "name": "model.huen.intgemm.alphas.bin",
-          "sizeBytes": 22582446,
+          "sizeBytes": 13181613,
           "installPath": "bin/model.huen.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/model.huen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.huen.s2t.bin",
+          "sizeBytes": 2778202,
+          "installPath": "bin/lex.50.50.huen.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.huen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.huen.spm",
+          "sizeBytes": 419908,
+          "installPath": "bin/vocab.huen.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.huen.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.huen.intgemm.alphas.bin",
+          "sizeBytes": 22582446,
+          "installPath": "bin/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/model.huen.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/model.huen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.huen.s2t.bin",
           "sizeBytes": 2433968,
-          "installPath": "bin/lex.50.50.huen.s2t.bin",
+          "installPath": "bin/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/lex.50.50.huen.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/lex.50.50.huen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.huen.spm",
           "sizeBytes": 421716,
-          "installPath": "bin/vocab.huen.spm",
+          "installPath": "bin/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/vocab.huen.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/vocab.huen.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -6575,27 +6767,51 @@
       "files": [
         {
           "name": "model.mren.intgemm.alphas.bin",
-          "sizeBytes": 22289099,
+          "sizeBytes": 23528866,
           "installPath": "bin/model.mren.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/model.mren.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.mren.s2t.bin",
+          "sizeBytes": 2469059,
+          "installPath": "bin/lex.50.50.mren.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/lex.50.50.mren.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.mren.spm",
+          "sizeBytes": 442209,
+          "installPath": "bin/vocab.mren.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/vocab.mren.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.mren.intgemm.alphas.bin",
+          "sizeBytes": 22289099,
+          "installPath": "bin/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/model.mren.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/model.mren.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.mren.s2t.bin",
           "sizeBytes": 2327949,
-          "installPath": "bin/lex.50.50.mren.s2t.bin",
+          "installPath": "bin/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/lex.50.50.mren.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/lex.50.50.mren.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.mren.spm",
           "sizeBytes": 443184,
-          "installPath": "bin/vocab.mren.spm",
+          "installPath": "bin/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/vocab.mren.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/vocab.mren.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -6872,27 +7088,51 @@
       "files": [
         {
           "name": "model.ruen.intgemm.alphas.bin",
-          "sizeBytes": 22805722,
+          "sizeBytes": 12613599,
           "installPath": "bin/model.ruen.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/model.ruen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.ruen.s2t.bin",
+          "sizeBytes": 1962008,
+          "installPath": "bin/lex.50.50.ruen.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/lex.50.50.ruen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.ruen.spm",
+          "sizeBytes": 419860,
+          "installPath": "bin/vocab.ruen.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/vocab.ruen.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.ruen.intgemm.alphas.bin",
+          "sizeBytes": 22805722,
+          "installPath": "bin/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/model.ruen.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/model.ruen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.ruen.s2t.bin",
           "sizeBytes": 2139703,
-          "installPath": "bin/lex.50.50.ruen.s2t.bin",
+          "installPath": "bin/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/lex.50.50.ruen.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/lex.50.50.ruen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.ruen.spm",
           "sizeBytes": 441622,
-          "installPath": "bin/vocab.ruen.spm",
+          "installPath": "bin/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/vocab.ruen.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/vocab.ruen.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -7358,27 +7598,51 @@
       "files": [
         {
           "name": "model.uren.intgemm.alphas.bin",
-          "sizeBytes": 22876447,
+          "sizeBytes": 23064952,
           "installPath": "bin/model.uren.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/model.uren.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 1
+        },
+        {
+          "name": "lex.50.50.uren.s2t.bin",
+          "sizeBytes": 1922245,
+          "installPath": "bin/lex.50.50.uren.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/lex.50.50.uren.s2t.bin.gz",
+          "role": "lex",
+          "priority": 1
+        },
+        {
+          "name": "vocab.uren.spm",
+          "sizeBytes": 417745,
+          "installPath": "bin/vocab.uren.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/vocab.uren.spm.gz",
+          "role": "vocab",
+          "priority": 1
+        },
+        {
+          "name": "model.uren.intgemm.alphas.bin",
+          "sizeBytes": 22876447,
+          "installPath": "bin/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/model.uren.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/model.uren.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "lex.50.50.uren.s2t.bin",
           "sizeBytes": 1833159,
-          "installPath": "bin/lex.50.50.uren.s2t.bin",
+          "installPath": "bin/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/lex.50.50.uren.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/lex.50.50.uren.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 2
         },
         {
           "name": "vocab.uren.spm",
           "sizeBytes": 418061,
-          "installPath": "bin/vocab.uren.spm",
+          "installPath": "bin/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/vocab.uren.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/vocab.uren.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 2
         }
       ],
       "dependsOn": []

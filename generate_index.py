@@ -44,6 +44,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to home-trained model pairs merged onto the upstream snapshot in --mode internal.",
     )
     parser.add_argument(
+        "--upstream-previous",
+        default=str(SCRIPT_DIR / "data_sources/upstream_previous.json"),
+        help="Upstream models a snapshot refresh replaced (see upstream_upgrades.py), shipped as upgradable lower-priority variants.",
+    )
+    parser.add_argument(
         "--dictionary-index",
         default=str(SCRIPT_DIR / "data_sources/dictionary_index.json"),
         help="Path to the dictionary index snapshot for --mode internal.",
@@ -135,6 +140,30 @@ def is_deprecated_kokoro_onnx_pack(pack: dict) -> bool:
     return pack.get("feature") == "tts" and pack.get("engine") == "kokoro"
 
 
+def apply_upstream_previous(models: dict, previous_path: Path, custom_pairs: set[str]) -> None:
+    """Ship a replaced upstream model as priority 1 under its successor at 2.
+
+    Upstream lists carry no priority, so a refresh used to swap the model in
+    place: same flat install path, and the planner (which only checks that files
+    exist) kept old installs on the old weights. As explicit priority variants the
+    old model keeps the flat path and the new one gets a namespaced path, which
+    the app offers as an upgrade.
+    """
+    if not previous_path.exists():
+        return
+    previous = catalog_base.load_json(previous_path)["models"]
+    for pair, entries in sorted(previous.items()):
+        if pair in custom_pairs:
+            raise SystemExit(f"upstream_previous {pair}: pair is overridden by custom_models.json")
+        if pair not in models:
+            raise SystemExit(f"upstream_previous {pair}: upstream no longer ships this pair")
+        (old,) = entries
+        current = catalog_upstream.select_best_entry(models[pair])
+        if old["files"]["model"]["path"] == current["files"]["model"]["path"]:
+            raise SystemExit(f"upstream_previous {pair}: entry matches the current upstream model")
+        models[pair] = [{**old, "priority": 1}, {**current, "priority": 2}]
+
+
 def build_internal_catalog(args: argparse.Namespace) -> dict:
     models_manifest = catalog_base.load_json(Path(args.gcs_models))
     custom_catalog = catalog_base.load_json(Path(args.custom_models))
@@ -150,6 +179,7 @@ def build_internal_catalog(args: argparse.Namespace) -> dict:
     stale = overrides - collisions
     if stale:
         raise SystemExit(f"overridesUpstream lists pairs upstream no longer ships: {', '.join(sorted(stale))}")
+    apply_upstream_previous(models_manifest["models"], Path(args.upstream_previous), set(custom_models))
     models_manifest["models"].update(custom_models)
     dictionary_index = catalog_base.load_json(Path(args.dictionary_index))
     voices = catalog_tts.load_json(args.voices)

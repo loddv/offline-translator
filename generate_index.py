@@ -137,10 +137,19 @@ def is_deprecated_kokoro_onnx_pack(pack: dict) -> bool:
 
 def build_internal_catalog(args: argparse.Namespace) -> dict:
     models_manifest = catalog_base.load_json(Path(args.gcs_models))
-    custom_models = catalog_base.load_json(Path(args.custom_models))["models"]
+    custom_catalog = catalog_base.load_json(Path(args.custom_models))
+    custom_models = custom_catalog["models"]
+    # A pair upstream also ships stays ours only when listed in `overridesUpstream`
+    # (e.g. to keep an upgrade path across our home-made priority variants); any
+    # other overlap is an accident, and a stale override means upstream dropped it.
+    overrides = set(custom_catalog.get("overridesUpstream", []))
     collisions = set(custom_models) & set(models_manifest["models"])
-    if collisions:
-        raise SystemExit(f"custom models collide with upstream snapshot: {', '.join(sorted(collisions))}")
+    unexpected = collisions - overrides
+    if unexpected:
+        raise SystemExit(f"custom models collide with upstream snapshot: {', '.join(sorted(unexpected))}")
+    stale = overrides - collisions
+    if stale:
+        raise SystemExit(f"overridesUpstream lists pairs upstream no longer ships: {', '.join(sorted(stale))}")
     models_manifest["models"].update(custom_models)
     dictionary_index = catalog_base.load_json(Path(args.dictionary_index))
     voices = catalog_tts.load_json(args.voices)

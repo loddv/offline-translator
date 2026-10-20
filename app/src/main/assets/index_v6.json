@@ -1,17 +1,34 @@
 {
   "formatVersion": 6,
-  "generatedAt": 1788658816,
+  "generatedAt": 1792500707,
   "dictionaryVersion": 1,
   "sources": {
     "languageIndexVersion": 1,
-    "languageIndexUpdatedAt": 1788658816,
+    "languageIndexUpdatedAt": 1792500707,
     "dictionaryIndexVersion": 1,
     "dictionaryIndexUpdatedAt": 1784028791,
     "gcsModelsUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json",
-    "gcsModelsGenerated": "2026-06-18T01:48:57Z",
+    "gcsModelsGenerated": "2026-10-20T00:52:35Z",
     "piperVoiceCount": 158
   },
   "languages": {
+    "af": {
+      "meta": {
+        "code": "af",
+        "name": "Afrikaans",
+        "shortName": "Afrikaans",
+        "script": "Latn"
+      },
+      "assets": {
+        "translate": [
+          "translate-af-en",
+          "translate-en-af"
+        ],
+        "ocr": {
+          "ppocr": "ocr-ppocr-latin"
+        }
+      }
+    },
     "ar": {
       "meta": {
         "code": "ar",
@@ -82,7 +99,8 @@
       },
       "assets": {
         "translate": [
-          "translate-be-en"
+          "translate-be-en",
+          "translate-en-be"
         ],
         "dictionary": "dict-be",
         "ocr": {
@@ -358,6 +376,7 @@
       },
       "assets": {
         "translate": [
+          "translate-af-en",
           "translate-ar-en",
           "translate-az-en",
           "translate-be-en",
@@ -369,8 +388,10 @@
           "translate-da-en",
           "translate-de-en",
           "translate-el-en",
+          "translate-en-af",
           "translate-en-ar",
           "translate-en-az",
+          "translate-en-be",
           "translate-en-bg",
           "translate-en-bn",
           "translate-en-bs",
@@ -401,6 +422,7 @@
           "translate-en-lt",
           "translate-en-lv",
           "translate-en-ml",
+          "translate-en-mr",
           "translate-en-ms",
           "translate-en-nb",
           "translate-en-nl",
@@ -422,6 +444,7 @@
           "translate-en-tr",
           "translate-en-ug",
           "translate-en-uk",
+          "translate-en-ur",
           "translate-en-vi",
           "translate-en-zh",
           "translate-en-zh_hant",
@@ -1213,6 +1236,7 @@
       },
       "assets": {
         "translate": [
+          "translate-en-mr",
           "translate-mr-en"
         ],
         "dictionary": "dict-mr",
@@ -1226,6 +1250,7 @@
           "IN": {
             "displayName": "India",
             "voices": [
+              "tts-piper-mr-in-google-medium",
               "tts-mms-mr-in-standard-mms"
             ]
           }
@@ -1672,8 +1697,7 @@
             "displayName": "Sweden",
             "voices": [
               "tts-piper-sv-se-nst-medium",
-              "tts-piper-sv-se-alma-medium",
-              "tts-piper-sv-se-lisa-medium"
+              "tts-piper-sv-se-alma-medium"
             ]
           }
         },
@@ -1931,6 +1955,7 @@
       },
       "assets": {
         "translate": [
+          "translate-en-ur",
           "translate-ur-en"
         ],
         "dictionary": "dict-ur",
@@ -1944,7 +1969,8 @@
           "PK": {
             "displayName": "Pakistan",
             "voices": [
-              "tts-piper-ur-pk-fasih-medium"
+              "tts-piper-ur-pk-fasih-medium",
+              "tts-piper-ur-pk-aegis-female-medium"
             ]
           }
         },
@@ -3359,6 +3385,39 @@
       ],
       "dependsOn": []
     },
+    "translate-af-en": {
+      "feature": "translation",
+      "from": "af",
+      "to": "en",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.afen.intgemm.alphas.bin",
+          "sizeBytes": 23479680,
+          "installPath": "bin/model.afen.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/af-en/next26_HIyjLJaNReijN0eJouAJBw/exported/model.afen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "lex.50.50.afen.s2t.bin",
+          "sizeBytes": 2133684,
+          "installPath": "bin/lex.50.50.afen.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/af-en/next26_HIyjLJaNReijN0eJouAJBw/exported/lex.50.50.afen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 0
+        },
+        {
+          "name": "vocab.afen.spm",
+          "sizeBytes": 408581,
+          "installPath": "bin/vocab.afen.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/af-en/next26_HIyjLJaNReijN0eJouAJBw/exported/vocab.afen.spm.gz",
+          "role": "vocab",
+          "priority": 0
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-ar-en": {
       "feature": "translation",
       "from": "ar",
@@ -3429,29 +3488,29 @@
       "feature": "translation",
       "from": "be",
       "to": "en",
-      "experimental": true,
+      "experimental": false,
       "files": [
         {
           "name": "model.been.intgemm.alphas.bin",
-          "sizeBytes": 12413897,
+          "sizeBytes": 22664530,
           "installPath": "bin/model.been.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/model.been.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/model.been.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.been.s2t.bin",
-          "sizeBytes": 2197076,
+          "sizeBytes": 2182133,
           "installPath": "bin/lex.50.50.been.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/lex.50.50.been.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/lex.50.50.been.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.been.spm",
-          "sizeBytes": 435364,
+          "sizeBytes": 435603,
           "installPath": "bin/vocab.been.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/h1-2025_ARgOSPOSRVmOWTwFvRVOjA/exported/vocab.been.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/vocab.been.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -3722,6 +3781,39 @@
       ],
       "dependsOn": []
     },
+    "translate-en-af": {
+      "feature": "translation",
+      "from": "en",
+      "to": "af",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.enaf.intgemm.alphas.bin",
+          "sizeBytes": 23561122,
+          "installPath": "bin/model.enaf.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-af/next26_CqoXSiBvSUq9Co3ePAYA1w/exported/model.enaf.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "lex.50.50.enaf.s2t.bin",
+          "sizeBytes": 1667268,
+          "installPath": "bin/lex.50.50.enaf.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-af/next26_CqoXSiBvSUq9Co3ePAYA1w/exported/lex.50.50.enaf.s2t.bin.gz",
+          "role": "lex",
+          "priority": 0
+        },
+        {
+          "name": "vocab.enaf.spm",
+          "sizeBytes": 409344,
+          "installPath": "bin/vocab.enaf.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-af/next26_CqoXSiBvSUq9Co3ePAYA1w/exported/vocab.enaf.spm.gz",
+          "role": "vocab",
+          "priority": 0
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-en-ar": {
       "feature": "translation",
       "from": "en",
@@ -3763,25 +3855,58 @@
       "files": [
         {
           "name": "model.enaz.intgemm.alphas.bin",
-          "sizeBytes": 13233108,
+          "sizeBytes": 23035063,
           "installPath": "bin/model.enaz.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/model.enaz.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/model.enaz.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.enaz.s2t.bin",
-          "sizeBytes": 1711544,
+          "sizeBytes": 1673403,
           "installPath": "bin/lex.50.50.enaz.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/lex.50.50.enaz.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/lex.50.50.enaz.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.enaz.spm",
-          "sizeBytes": 418956,
+          "sizeBytes": 420132,
           "installPath": "bin/vocab.enaz.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/h1-2025_fu1HFuR0QY-zVBcKYQkJIA/exported/vocab.enaz.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/vocab.enaz.spm.gz",
+          "role": "vocab",
+          "priority": 0
+        }
+      ],
+      "dependsOn": []
+    },
+    "translate-en-be": {
+      "feature": "translation",
+      "from": "en",
+      "to": "be",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.enbe.intgemm.alphas.bin",
+          "sizeBytes": 22851751,
+          "installPath": "bin/model.enbe.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-be/next26-beam4_EsLoydFIQ42maj5NJ8d6Qg/exported/model.enbe.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "lex.50.50.enbe.s2t.bin",
+          "sizeBytes": 1342392,
+          "installPath": "bin/lex.50.50.enbe.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-be/next26-beam4_EsLoydFIQ42maj5NJ8d6Qg/exported/lex.50.50.enbe.s2t.bin.gz",
+          "role": "lex",
+          "priority": 0
+        },
+        {
+          "name": "vocab.enbe.spm",
+          "sizeBytes": 437794,
+          "installPath": "bin/vocab.enbe.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-be/next26-beam4_EsLoydFIQ42maj5NJ8d6Qg/exported/vocab.enbe.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -4258,25 +4383,25 @@
       "files": [
         {
           "name": "model.engl.intgemm.alphas.bin",
-          "sizeBytes": 23269843,
+          "sizeBytes": 23427851,
           "installPath": "bin/model.engl.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/model.engl.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/model.engl.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.engl.s2t.bin",
-          "sizeBytes": 1581710,
+          "sizeBytes": 1598079,
           "installPath": "bin/lex.50.50.engl.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/lex.50.50.engl.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/lex.50.50.engl.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.engl.spm",
-          "sizeBytes": 410683,
+          "sizeBytes": 410563,
           "installPath": "bin/vocab.engl.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/vocab.engl.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/vocab.engl.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -4423,25 +4548,25 @@
       "files": [
         {
           "name": "model.enhu.intgemm.alphas.bin",
-          "sizeBytes": 23710206,
+          "sizeBytes": 22889950,
           "installPath": "bin/model.enhu.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/model.enhu.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/model.enhu.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.enhu.s2t.bin",
-          "sizeBytes": 1768398,
+          "sizeBytes": 1794658,
           "installPath": "bin/lex.50.50.enhu.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/lex.50.50.enhu.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/lex.50.50.enhu.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.enhu.spm",
-          "sizeBytes": 405720,
+          "sizeBytes": 421527,
           "installPath": "bin/vocab.enhu.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/vocab.enhu.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/vocab.enhu.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -4794,6 +4919,39 @@
       ],
       "dependsOn": []
     },
+    "translate-en-mr": {
+      "feature": "translation",
+      "from": "en",
+      "to": "mr",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.enmr.intgemm.alphas.bin",
+          "sizeBytes": 22896929,
+          "installPath": "bin/model.enmr.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-mr/indictrans2-teacher_YxWwPatgTHy0imIiIafh5A/exported/model.enmr.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "lex.50.50.enmr.s2t.bin",
+          "sizeBytes": 1401383,
+          "installPath": "bin/lex.50.50.enmr.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-mr/indictrans2-teacher_YxWwPatgTHy0imIiIafh5A/exported/lex.50.50.enmr.s2t.bin.gz",
+          "role": "lex",
+          "priority": 0
+        },
+        {
+          "name": "vocab.enmr.spm",
+          "sizeBytes": 443275,
+          "installPath": "bin/vocab.enmr.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-mr/indictrans2-teacher_YxWwPatgTHy0imIiIafh5A/exported/vocab.enmr.spm.gz",
+          "role": "vocab",
+          "priority": 0
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-en-ms": {
       "feature": "translation",
       "from": "en",
@@ -5128,7 +5286,7 @@
       "feature": "translation",
       "from": "en",
       "to": "sq",
-      "experimental": true,
+      "experimental": false,
       "files": [
         {
           "name": "model.ensq.intgemm.alphas.bin",
@@ -5264,25 +5422,25 @@
       "files": [
         {
           "name": "model.enta.intgemm.alphas.bin",
-          "sizeBytes": 12645399,
+          "sizeBytes": 23206004,
           "installPath": "bin/model.enta.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/model.enta.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/model.enta.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.enta.s2t.bin",
-          "sizeBytes": 1453949,
+          "sizeBytes": 1434399,
           "installPath": "bin/lex.50.50.enta.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/lex.50.50.enta.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/lex.50.50.enta.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.enta.spm",
-          "sizeBytes": 446752,
+          "sizeBytes": 449763,
           "installPath": "bin/vocab.enta.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/h1-2025_aPztISjSRums11fBuT--4A/exported/vocab.enta.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/vocab.enta.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -5408,6 +5566,30 @@
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-tl/hymt2_distill_20260722/exported/vocab.entl.spm.gz",
           "role": "vocab",
           "priority": 2
+        },
+        {
+          "name": "model.entl.intgemm.alphas.bin",
+          "sizeBytes": 23500661,
+          "installPath": "bin/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/model.entl.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/model.entl.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 3
+        },
+        {
+          "name": "lex.50.50.entl.s2t.bin",
+          "sizeBytes": 1412886,
+          "installPath": "bin/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/lex.50.50.entl.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/lex.50.50.entl.s2t.bin.gz",
+          "role": "lex",
+          "priority": 3
+        },
+        {
+          "name": "vocab.entl.spm",
+          "sizeBytes": 408817,
+          "installPath": "bin/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/vocab.entl.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/vocab.entl.spm.gz",
+          "role": "vocab",
+          "priority": 3
         }
       ],
       "dependsOn": []
@@ -5505,6 +5687,39 @@
           "sizeBytes": 436850,
           "installPath": "bin/vocab.enuk.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/en-uk/docmt-vocab_a2OVwdI-Sg-SBZ_0Joqb0w/exported/vocab.enuk.spm.gz",
+          "role": "vocab",
+          "priority": 0
+        }
+      ],
+      "dependsOn": []
+    },
+    "translate-en-ur": {
+      "feature": "translation",
+      "from": "en",
+      "to": "ur",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.enur.intgemm.alphas.bin",
+          "sizeBytes": 22684591,
+          "installPath": "bin/model.enur.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ur/indictrans2_SUOSu0mESlOMc6IkS5_3sQ/exported/model.enur.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "lex.50.50.enur.s2t.bin",
+          "sizeBytes": 1498625,
+          "installPath": "bin/lex.50.50.enur.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ur/indictrans2_SUOSu0mESlOMc6IkS5_3sQ/exported/lex.50.50.enur.s2t.bin.gz",
+          "role": "lex",
+          "priority": 0
+        },
+        {
+          "name": "vocab.enur.spm",
+          "sizeBytes": 417745,
+          "installPath": "bin/vocab.enur.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/en-ur/indictrans2_SUOSu0mESlOMc6IkS5_3sQ/exported/vocab.enur.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -5700,25 +5915,25 @@
       "files": [
         {
           "name": "model.euen.intgemm.alphas.bin",
-          "sizeBytes": 22759889,
+          "sizeBytes": 23241057,
           "installPath": "bin/model.euen.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/model.euen.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/model.euen.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.euen.s2t.bin",
-          "sizeBytes": 2059844,
+          "sizeBytes": 1896953,
           "installPath": "bin/lex.50.50.euen.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/lex.50.50.euen.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/lex.50.50.euen.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.euen.spm",
-          "sizeBytes": 409462,
+          "sizeBytes": 412669,
           "installPath": "bin/vocab.euen.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/vocab.euen.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/vocab.euen.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -5832,25 +6047,25 @@
       "files": [
         {
           "name": "model.glen.intgemm.alphas.bin",
-          "sizeBytes": 23501364,
+          "sizeBytes": 23054964,
           "installPath": "bin/model.glen.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/model.glen.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/model.glen.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.glen.s2t.bin",
-          "sizeBytes": 2215790,
+          "sizeBytes": 2191952,
           "installPath": "bin/lex.50.50.glen.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/lex.50.50.glen.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/lex.50.50.glen.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.glen.spm",
-          "sizeBytes": 409308,
+          "sizeBytes": 410400,
           "installPath": "bin/vocab.glen.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/vocab.glen.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/vocab.glen.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -5997,25 +6212,25 @@
       "files": [
         {
           "name": "model.huen.intgemm.alphas.bin",
-          "sizeBytes": 13181613,
+          "sizeBytes": 22582446,
           "installPath": "bin/model.huen.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/model.huen.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/model.huen.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.huen.s2t.bin",
-          "sizeBytes": 2778202,
+          "sizeBytes": 2433968,
           "installPath": "bin/lex.50.50.huen.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.huen.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/lex.50.50.huen.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.huen.spm",
-          "sizeBytes": 419908,
+          "sizeBytes": 421716,
           "installPath": "bin/vocab.huen.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/andre_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.huen.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/vocab.huen.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -6356,29 +6571,29 @@
       "feature": "translation",
       "from": "mr",
       "to": "en",
-      "experimental": true,
+      "experimental": false,
       "files": [
         {
           "name": "model.mren.intgemm.alphas.bin",
-          "sizeBytes": 23528866,
+          "sizeBytes": 22289099,
           "installPath": "bin/model.mren.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/model.mren.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/model.mren.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.mren.s2t.bin",
-          "sizeBytes": 2469059,
+          "sizeBytes": 2327949,
           "installPath": "bin/lex.50.50.mren.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/lex.50.50.mren.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/lex.50.50.mren.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.mren.spm",
-          "sizeBytes": 442209,
+          "sizeBytes": 443184,
           "installPath": "bin/vocab.mren.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/vocab.mren.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/vocab.mren.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -6657,25 +6872,25 @@
       "files": [
         {
           "name": "model.ruen.intgemm.alphas.bin",
-          "sizeBytes": 12613599,
+          "sizeBytes": 22805722,
           "installPath": "bin/model.ruen.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/model.ruen.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/model.ruen.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.ruen.s2t.bin",
-          "sizeBytes": 1962008,
+          "sizeBytes": 2139703,
           "installPath": "bin/lex.50.50.ruen.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/lex.50.50.ruen.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/lex.50.50.ruen.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.ruen.spm",
-          "sizeBytes": 419860,
+          "sizeBytes": 441622,
           "installPath": "bin/vocab.ruen.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/spring-2024_QrcdYgbwS7e7xbhtOSdoNQ/exported/vocab.ruen.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/vocab.ruen.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -6884,7 +7099,7 @@
       "feature": "translation",
       "from": "ta",
       "to": "en",
-      "experimental": true,
+      "experimental": false,
       "files": [
         {
           "name": "model.taen.intgemm.alphas.bin",
@@ -6991,7 +7206,7 @@
           "installPath": "bin/model.tlen.intgemm.alphas.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/tl-en/opusmt_distill_20260713/exported/model.tlen.intgemm.alphas.bin.gz",
           "role": "model",
-          "priority": 0
+          "priority": 1
         },
         {
           "name": "lex.50.50.tlen.s2t.bin",
@@ -6999,7 +7214,7 @@
           "installPath": "bin/lex.50.50.tlen.s2t.bin",
           "url": "https://offline-translator.davidv.dev/translation/1/models/tl-en/opusmt_distill_20260713/exported/lex.50.50.tlen.s2t.bin.gz",
           "role": "lex",
-          "priority": 0
+          "priority": 1
         },
         {
           "name": "vocab.tlen.spm",
@@ -7007,7 +7222,31 @@
           "installPath": "bin/vocab.tlen.spm",
           "url": "https://offline-translator.davidv.dev/translation/1/models/tl-en/opusmt_distill_20260713/exported/vocab.tlen.spm.gz",
           "role": "vocab",
-          "priority": 0
+          "priority": 1
+        },
+        {
+          "name": "model.tlen.intgemm.alphas.bin",
+          "sizeBytes": 23110247,
+          "installPath": "bin/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/model.tlen.intgemm.alphas.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/model.tlen.intgemm.alphas.bin.gz",
+          "role": "model",
+          "priority": 2
+        },
+        {
+          "name": "lex.50.50.tlen.s2t.bin",
+          "sizeBytes": 2546344,
+          "installPath": "bin/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/lex.50.50.tlen.s2t.bin",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/lex.50.50.tlen.s2t.bin.gz",
+          "role": "lex",
+          "priority": 2
+        },
+        {
+          "name": "vocab.tlen.spm",
+          "sizeBytes": 408906,
+          "installPath": "bin/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/vocab.tlen.spm",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/vocab.tlen.spm.gz",
+          "role": "vocab",
+          "priority": 2
         }
       ],
       "dependsOn": []
@@ -7115,29 +7354,29 @@
       "feature": "translation",
       "from": "ur",
       "to": "en",
-      "experimental": true,
+      "experimental": false,
       "files": [
         {
           "name": "model.uren.intgemm.alphas.bin",
-          "sizeBytes": 23064952,
+          "sizeBytes": 22876447,
           "installPath": "bin/model.uren.intgemm.alphas.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/model.uren.intgemm.alphas.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/model.uren.intgemm.alphas.bin.gz",
           "role": "model",
           "priority": 0
         },
         {
           "name": "lex.50.50.uren.s2t.bin",
-          "sizeBytes": 1922245,
+          "sizeBytes": 1833159,
           "installPath": "bin/lex.50.50.uren.s2t.bin",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/lex.50.50.uren.s2t.bin.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/lex.50.50.uren.s2t.bin.gz",
           "role": "lex",
           "priority": 0
         },
         {
           "name": "vocab.uren.spm",
-          "sizeBytes": 417745,
+          "sizeBytes": 418061,
           "installPath": "bin/vocab.uren.spm",
-          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/vocab.uren.spm.gz",
+          "url": "https://offline-translator.davidv.dev/translation/1/models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/vocab.uren.spm.gz",
           "role": "vocab",
           "priority": 0
         }
@@ -7671,6 +7910,23 @@
           "sizeBytes": 92345,
           "installPath": "bin/espeak-ng-data/ml_dict",
           "url": "https://offline-translator.davidv.dev/tts/1/espeak-ng-data/ml_dict",
+          "role": "espeakDict",
+          "priority": 0
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-core-v1"
+      ]
+    },
+    "tts-espeak-dict-mr": {
+      "feature": "support",
+      "kind": "tts-espeak-dict",
+      "files": [
+        {
+          "name": "mr_dict",
+          "sizeBytes": 87391,
+          "installPath": "bin/espeak-ng-data/mr_dict",
+          "url": "https://offline-translator.davidv.dev/tts/1/espeak-ng-data/mr_dict",
           "role": "espeakDict",
           "priority": 0
         }
@@ -10656,6 +10912,41 @@
       ],
       "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ml/meera_medium.opus"
     },
+    "tts-piper-mr-in-google-medium": {
+      "feature": "tts",
+      "engine": "piper",
+      "auxRole": "sidecar",
+      "language": "mr",
+      "locale": "mr_IN",
+      "region": "IN",
+      "voice": "google",
+      "quality": "medium",
+      "numSpeakers": 9,
+      "defaultSpeakerId": 0,
+      "aliases": [],
+      "files": [
+        {
+          "name": "mr_IN-google-medium.mnn",
+          "sizeBytes": 20317492,
+          "installPath": "bin/piper/mr/mr_IN/google/medium/mr_IN-google-medium.mnn",
+          "url": "https://offline-translator.davidv.dev/tts/1/mr/mr_IN/google/medium/mr_IN-google-medium.mnn",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "mr_IN-google-medium.onnx.json",
+          "sizeBytes": 5467,
+          "installPath": "bin/piper/mr/mr_IN/google/medium/mr_IN-google-medium.onnx.json",
+          "url": "https://offline-translator.davidv.dev/tts/1/mr/mr_IN/google/medium/mr_IN-google-medium.onnx.json",
+          "role": "sidecar",
+          "priority": 0
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-dict-mr"
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/mr/google_medium.opus"
+    },
     "tts-mms-mr-in-standard-mms": {
       "feature": "tts",
       "engine": "mms",
@@ -11685,40 +11976,6 @@
       ],
       "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sv/alma_medium.opus"
     },
-    "tts-piper-sv-se-lisa-medium": {
-      "feature": "tts",
-      "engine": "piper",
-      "auxRole": "sidecar",
-      "language": "sv",
-      "locale": "sv_SE",
-      "region": "SE",
-      "voice": "lisa",
-      "quality": "medium",
-      "numSpeakers": 1,
-      "aliases": [],
-      "files": [
-        {
-          "name": "sv_SE-lisa-medium.mnn",
-          "sizeBytes": 16974228,
-          "installPath": "bin/piper/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.mnn",
-          "url": "https://offline-translator.davidv.dev/tts/1/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.mnn",
-          "role": "model",
-          "priority": 0
-        },
-        {
-          "name": "sv_SE-lisa-medium.onnx.json",
-          "sizeBytes": 7239,
-          "installPath": "bin/piper/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx.json",
-          "url": "https://offline-translator.davidv.dev/tts/1/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx.json",
-          "role": "sidecar",
-          "priority": 0
-        }
-      ],
-      "dependsOn": [
-        "tts-espeak-dict-sv"
-      ],
-      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sv/lisa_medium.opus"
-    },
     "tts-piper-sw-cd-lanfrica-medium": {
       "feature": "tts",
       "engine": "piper",
@@ -12121,6 +12378,40 @@
         "tts-espeak-dict-ur"
       ],
       "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ur/fasih_medium.opus"
+    },
+    "tts-piper-ur-pk-aegis-female-medium": {
+      "feature": "tts",
+      "engine": "piper",
+      "auxRole": "sidecar",
+      "language": "ur",
+      "locale": "ur_PK",
+      "region": "PK",
+      "voice": "aegis_female",
+      "quality": "medium",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [
+        {
+          "name": "ur_PK-aegis_female-medium.mnn",
+          "sizeBytes": 16977404,
+          "installPath": "bin/piper/ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.mnn",
+          "url": "https://offline-translator.davidv.dev/tts/1/ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.mnn",
+          "role": "model",
+          "priority": 0
+        },
+        {
+          "name": "ur_PK-aegis_female-medium.onnx.json",
+          "sizeBytes": 5236,
+          "installPath": "bin/piper/ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx.json",
+          "url": "https://offline-translator.davidv.dev/tts/1/ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx.json",
+          "role": "sidecar",
+          "priority": 0
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-dict-ur"
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ur/aegis_female_medium.opus"
     },
     "tts-piper-vi-vn-vais1000-medium": {
       "feature": "tts",
@@ -13544,6 +13835,14 @@
       "feature": "tts"
     },
     {
+      "onnx": "bin/piper/mr/mr_IN/google/medium/mr_IN-google-medium.onnx",
+      "mnn": "bin/piper/mr/mr_IN/google/medium/mr_IN-google-medium.mnn",
+      "quantBits": 8,
+      "onnxBytes": 0,
+      "mnnBytes": 20317492,
+      "feature": "tts"
+    },
+    {
       "onnx": "bin/mms/mr/mr_IN/standard/medium/model.onnx",
       "mnn": "bin/mms/mr/mr_IN/standard/medium/model.mnn",
       "quantBits": 8,
@@ -13784,14 +14083,6 @@
       "feature": "tts"
     },
     {
-      "onnx": "bin/piper/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx",
-      "mnn": "bin/piper/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.mnn",
-      "quantBits": 8,
-      "onnxBytes": 63511038,
-      "mnnBytes": 16974228,
-      "feature": "tts"
-    },
-    {
       "onnx": "bin/piper/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx",
       "mnn": "bin/piper/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.mnn",
       "quantBits": 8,
@@ -13877,6 +14168,14 @@
       "quantBits": 8,
       "onnxBytes": 63532015,
       "mnnBytes": 16981908,
+      "feature": "tts"
+    },
+    {
+      "onnx": "bin/piper/ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx",
+      "mnn": "bin/piper/ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.mnn",
+      "quantBits": 8,
+      "onnxBytes": 0,
+      "mnnBytes": 16977404,
       "feature": "tts"
     },
     {

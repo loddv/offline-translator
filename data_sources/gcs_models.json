@@ -1,7 +1,45 @@
 {
-  "generated": "2026-06-18T01:48:57Z",
+  "generated": "2026-10-20T00:52:35Z",
   "baseUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data",
   "models": {
+    "af-en": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "af",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/af-en/next26_HIyjLJaNReijN0eJouAJBw/exported/lex.50.50.afen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/af-en/next26_HIyjLJaNReijN0eJouAJBw/exported/model.afen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "d43baa7ab565a6cdc2bc230a4ab6fcaf7b4a871e53e42cc7128e55871ef36086"
+          },
+          "vocab": {
+            "path": "models/af-en/next26_HIyjLJaNReijN0eJouAJBw/exported/vocab.afen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 55.0721,
+            "chrf": 75.443,
+            "chrfpp": 74.1703,
+            "comet22": 0.8831,
+            "llm-ref": 4.454,
+            "metricx24-qe": 2.3787,
+            "metricx24": 2.2041,
+            "spbleu": 58.4549
+          }
+        }
+      }
+    ],
     "ar-en": [
       {
         "architecture": "base",
@@ -78,6 +116,42 @@
     ],
     "az-en": [
       {
+        "architecture": "base-memory",
+        "releaseStatus": null,
+        "sourceLanguage": "az",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/az-en/next26-distil-bt_euvrgq58RB2_-glyT2Rfdg/exported/lex.50.50.azen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/az-en/next26-distil-bt_euvrgq58RB2_-glyT2Rfdg/exported/model.azen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "defaed6e089f588a605810b032d870b508e6909a5cc4bc2ca27c3ab35e42ef7a"
+          },
+          "vocab": {
+            "path": "models/az-en/next26-distil-bt_euvrgq58RB2_-glyT2Rfdg/exported/vocab.azen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 20.8633,
+            "chrf": 52.2849,
+            "chrfpp": 49.8182,
+            "comet22": 0.8447,
+            "llm-ref": 4.22,
+            "metricx24-qe": 3.4778,
+            "metricx24": 3.9987,
+            "spbleu": 24.6714
+          }
+        }
+      },
+      {
         "architecture": "tiny",
         "releaseStatus": "Nightly",
         "sourceLanguage": "az",
@@ -106,7 +180,7 @@
             "chrf": 50.9086,
             "chrfpp": 48.3922,
             "comet22": 0.8314,
-            "llm-ref": 4.092,
+            "llm-ref": 4.084,
             "metricx24-qe": 4.074,
             "metricx24": 4.6637,
             "spbleu": 23.0559
@@ -115,6 +189,42 @@
       }
     ],
     "be-en": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "be",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/lex.50.50.been.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/model.been.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "bd7148a6eef3df7d631f4ad1ebc01cd5770404a224c3c35eb54a901ac5340563"
+          },
+          "vocab": {
+            "path": "models/be-en/next26-distil-bt_XYnREECUTc2uO371KfMnkA/exported/vocab.been.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 17.6434,
+            "chrf": 51.7095,
+            "chrfpp": 48.8455,
+            "comet22": 0.8041,
+            "llm-ref": 4.312,
+            "metricx24-qe": 3.8448,
+            "metricx24": 4.4473,
+            "spbleu": 21.5024
+          }
+        }
+      },
       {
         "architecture": "tiny",
         "releaseStatus": "Nightly",
@@ -528,6 +638,44 @@
         }
       }
     ],
+    "en-af": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "af",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-af/next26_CqoXSiBvSUq9Co3ePAYA1w/exported/lex.50.50.enaf.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-af/next26_CqoXSiBvSUq9Co3ePAYA1w/exported/model.enaf.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "afc1dcb25774e61f513fe722e037744a18c23063ba799bb01f5cdec5cc79b502"
+          },
+          "vocab": {
+            "path": "models/en-af/next26_CqoXSiBvSUq9Co3ePAYA1w/exported/vocab.enaf.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 41.6762,
+            "chrf": 69.223,
+            "chrfpp": 66.9997,
+            "comet22": 0.8654,
+            "llm-ref": 4.44,
+            "metricx24-qe": 2.1428,
+            "metricx24": 1.9696,
+            "spbleu": 47.5015
+          }
+        }
+      }
+    ],
     "en-ar": [
       {
         "architecture": "base",
@@ -604,6 +752,42 @@
     ],
     "en-az": [
       {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "az",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/lex.50.50.enaz.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/model.enaz.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "fcf1f5f36dd586db7078e938252f17ecb90ae6f2d1b28952fc3878738f81336a"
+          },
+          "vocab": {
+            "path": "models/en-az/next26_ZfHA551CQiOdY5lzUcGhVA/exported/vocab.enaz.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 13.7455,
+            "chrf": 47.7924,
+            "chrfpp": 43.5138,
+            "comet22": 0.8507,
+            "llm-ref": 4.388,
+            "metricx24-qe": 3.6888,
+            "metricx24": 4.8869,
+            "spbleu": 24.4055
+          }
+        }
+      },
+      {
         "architecture": "tiny",
         "releaseStatus": "Release",
         "sourceLanguage": "en",
@@ -636,6 +820,44 @@
             "metricx24-qe": 4.3605,
             "metricx24": 5.7126,
             "spbleu": 23.3404
+          }
+        }
+      }
+    ],
+    "en-be": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "be",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-be/next26-beam4_EsLoydFIQ42maj5NJ8d6Qg/exported/lex.50.50.enbe.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-be/next26-beam4_EsLoydFIQ42maj5NJ8d6Qg/exported/model.enbe.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "88fb3a6e2cc4b936313596eef445a548e63e1ca3ef0dfa54b88229c3ce877116"
+          },
+          "vocab": {
+            "path": "models/en-be/next26-beam4_EsLoydFIQ42maj5NJ8d6Qg/exported/vocab.enbe.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 13.6515,
+            "chrf": 45.2795,
+            "chrfpp": 41.5599,
+            "comet22": 0.8321,
+            "llm-ref": 4.328,
+            "metricx24-qe": 3.0662,
+            "metricx24": 3.7453,
+            "spbleu": 26.4205
           }
         }
       }
@@ -1288,15 +1510,15 @@
         "targetLanguage": "gl",
         "files": {
           "lexicalShortlist": {
-            "path": "models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/lex.50.50.engl.s2t.bin.gz"
+            "path": "models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/lex.50.50.engl.s2t.bin.gz"
           },
           "model": {
-            "path": "models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/model.engl.intgemm.alphas.bin.gz",
+            "path": "models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/model.engl.intgemm.alphas.bin.gz",
             "uncompressedSize": 31561787,
-            "uncompressedHash": "b17a8f656701f8828c66f07a6ad916ee9c0ab395676da32b1d221d5444fb2600"
+            "uncompressedHash": "bec08e5408932c3813ccfb565ab7003d334dd6ca148c9d2bd074e17b8c0be1b1"
           },
           "vocab": {
-            "path": "models/en-gl/engl-scielo_R-ohtLgdRzaBOXRG0v66NA/exported/vocab.engl.spm.gz"
+            "path": "models/en-gl/engl-finetranslations_d_vpGU94Qz-VGUAvC-QW1w/exported/vocab.engl.spm.gz"
           }
         },
         "modelStatistics": {
@@ -1306,14 +1528,14 @@
         },
         "metrics": {
           "flores200-plus": {
-            "bleu": 35.3971,
-            "chrf": 62.214,
-            "chrfpp": 59.9838,
-            "comet22": 0.8603,
+            "bleu": 35.6493,
+            "chrf": 62.4016,
+            "chrfpp": 60.1852,
+            "comet22": 0.8616,
             "llm-ref": 4.474,
-            "metricx24-qe": 2.6182,
-            "metricx24": 2.5415,
-            "spbleu": 39.6673
+            "metricx24-qe": 2.6513,
+            "metricx24": 2.5292,
+            "spbleu": 39.981
           }
         }
       }
@@ -1514,15 +1736,15 @@
         "targetLanguage": "hu",
         "files": {
           "lexicalShortlist": {
-            "path": "models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/lex.50.50.enhu.s2t.bin.gz"
+            "path": "models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/lex.50.50.enhu.s2t.bin.gz"
           },
           "model": {
-            "path": "models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/model.enhu.intgemm.alphas.bin.gz",
+            "path": "models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/model.enhu.intgemm.alphas.bin.gz",
             "uncompressedSize": 31561787,
-            "uncompressedHash": "ec0c210d09cd5d8a5edf7a50462db0a8fb5dd78d03bbc6d4d72d91074f0490e4"
+            "uncompressedHash": "0c42f56edca74b3f732a74c64553c47d0005b50cf095f43024601985fab5d461"
           },
           "vocab": {
-            "path": "models/en-hu/h1-2025_J8_9zNmQT2GfHg7_heOI_Q/exported/vocab.enhu.spm.gz"
+            "path": "models/en-hu/next26_Tzv045N-SASkA8X287pEqg/exported/vocab.enhu.spm.gz"
           }
         },
         "modelStatistics": {
@@ -1532,14 +1754,14 @@
         },
         "metrics": {
           "flores200-plus": {
-            "bleu": 28.8016,
-            "chrf": 60.0567,
-            "chrfpp": 56.9363,
-            "comet22": 0.8801,
-            "llm-ref": 4.462,
-            "metricx24-qe": 2.8526,
-            "metricx24": 3.1018,
-            "spbleu": 39.5129
+            "bleu": 29.2264,
+            "chrf": 60.376,
+            "chrfpp": 57.2682,
+            "comet22": 0.8857,
+            "llm-ref": 4.476,
+            "metricx24-qe": 2.5774,
+            "metricx24": 2.7853,
+            "spbleu": 39.8847
           }
         }
       },
@@ -2107,6 +2329,44 @@
         }
       }
     ],
+    "en-mr": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "mr",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-mr/indictrans2-teacher_YxWwPatgTHy0imIiIafh5A/exported/lex.50.50.enmr.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-mr/indictrans2-teacher_YxWwPatgTHy0imIiIafh5A/exported/model.enmr.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "1520f77c2f1c703b6148e4452b376ac28aec1e63c467eedec8a986864827ce8c"
+          },
+          "vocab": {
+            "path": "models/en-mr/indictrans2-teacher_YxWwPatgTHy0imIiIafh5A/exported/vocab.enmr.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 19.5325,
+            "chrf": 55.2746,
+            "chrfpp": 51.1125,
+            "comet22": 0.7599,
+            "llm-ref": 4.538,
+            "metricx24-qe": 2.2302,
+            "metricx24": 2.7877,
+            "spbleu": 32.7356
+          }
+        }
+      }
+    ],
     "en-ms": [
       {
         "architecture": "tiny",
@@ -2634,7 +2894,7 @@
     "en-sq": [
       {
         "architecture": "tiny",
-        "releaseStatus": null,
+        "releaseStatus": "Release",
         "sourceLanguage": "en",
         "targetLanguage": "sq",
         "files": {
@@ -2746,6 +3006,42 @@
       }
     ],
     "en-ta": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "ta",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/lex.50.50.enta.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/model.enta.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "83266ea604611756d1c3c358d7bed1fdf79a646c1f701b42c1db501c237c0f3b"
+          },
+          "vocab": {
+            "path": "models/en-ta/next26-nobcbpcc_RgO3iURPQH2EjhUm533NWA/exported/vocab.enta.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 22.5238,
+            "chrf": 62.2143,
+            "chrfpp": 56.6295,
+            "comet22": 0.8855,
+            "llm-ref": 4.47,
+            "metricx24-qe": 2.5094,
+            "metricx24": 2.9326,
+            "spbleu": 39.6506
+          }
+        }
+      },
       {
         "architecture": "tiny",
         "releaseStatus": "Release",
@@ -2859,6 +3155,44 @@
         }
       }
     ],
+    "en-tl": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "tl",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/lex.50.50.entl.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/model.entl.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "33b71965ab9c9c533c63444551c9483e811dd540e75e4cfe21d062a83a60b72f"
+          },
+          "vocab": {
+            "path": "models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/vocab.entl.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 36.1269,
+            "chrf": 62.4092,
+            "chrfpp": 60.6389,
+            "comet22": 0.8339,
+            "llm-ref": 4.416,
+            "metricx24-qe": 3.9716,
+            "metricx24": 4.2749,
+            "spbleu": 37.4373
+          }
+        }
+      }
+    ],
     "en-tr": [
       {
         "architecture": "tiny",
@@ -2893,6 +3227,42 @@
             "metricx24-qe": 4.1835,
             "metricx24": 4.3359,
             "spbleu": 41.2647
+          }
+        }
+      }
+    ],
+    "en-ug": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "ug",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-ug/davidv-hymt2_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.enug.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-ug/davidv-hymt2_xxxxxxxxRxSxxxxxxxxxxA/exported/model.enug.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561635,
+            "uncompressedHash": "0fe41f8efab57c8f763d82af523f0219f5e4b90d559abccb4bf0c51d6af16660"
+          },
+          "vocab": {
+            "path": "models/en-ug/davidv-hymt2_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.enug.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 9.7501,
+            "chrf": 47.0718,
+            "chrfpp": 41.5686,
+            "comet22": 0.8387,
+            "llm-ref": 4.326,
+            "spbleu": 25.6966
           }
         }
       }
@@ -2967,6 +3337,44 @@
             "metricx24-qe": 3.1142,
             "metricx24": 3.493,
             "spbleu": 38.1428
+          }
+        }
+      }
+    ],
+    "en-ur": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "ur",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-ur/indictrans2_SUOSu0mESlOMc6IkS5_3sQ/exported/lex.50.50.enur.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-ur/indictrans2_SUOSu0mESlOMc6IkS5_3sQ/exported/model.enur.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "0c29a5776a42ccb68f7969f41e64c0cd7a16ff00a5bfed0ed2809039febc202e"
+          },
+          "vocab": {
+            "path": "models/en-ur/indictrans2_SUOSu0mESlOMc6IkS5_3sQ/exported/vocab.enur.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 25.8722,
+            "chrf": 52.7482,
+            "chrfpp": 50.6775,
+            "comet22": 0.8316,
+            "llm-ref": 4.48,
+            "metricx24-qe": 2.0999,
+            "metricx24": 2.7683,
+            "spbleu": 33.0421
           }
         }
       }
@@ -3211,15 +3619,15 @@
         "targetLanguage": "en",
         "files": {
           "lexicalShortlist": {
-            "path": "models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/lex.50.50.euen.s2t.bin.gz"
+            "path": "models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/lex.50.50.euen.s2t.bin.gz"
           },
           "model": {
-            "path": "models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/model.euen.intgemm.alphas.bin.gz",
+            "path": "models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/model.euen.intgemm.alphas.bin.gz",
             "uncompressedSize": 31561787,
-            "uncompressedHash": "2d6be5d47595b0c27da48e30a914ecdc5214ec4e4ec1e8db80270e9cf6602711"
+            "uncompressedHash": "f0a31e26b381d6340b069da4d505e11d18ac91e42f0189d37ed5fe6aa3685ed4"
           },
           "vocab": {
-            "path": "models/eu-en/euen-topk10_ebPYPysJRlmwmEIVWuv-YQ/exported/vocab.euen.spm.gz"
+            "path": "models/eu-en/euen-finetranslations_Blfz7PCVT4qOGYPj9q6oMg/exported/vocab.euen.spm.gz"
           }
         },
         "modelStatistics": {
@@ -3229,14 +3637,14 @@
         },
         "metrics": {
           "flores200-plus": {
-            "bleu": 29.0765,
-            "chrf": 57.8367,
-            "chrfpp": 55.6421,
-            "comet22": 0.859,
-            "llm-ref": 4.426,
-            "metricx24-qe": 3.1116,
-            "metricx24": 3.2113,
-            "spbleu": 33.8287
+            "bleu": 28.5387,
+            "chrf": 57.7377,
+            "chrfpp": 55.5033,
+            "comet22": 0.8617,
+            "llm-ref": 4.45,
+            "metricx24-qe": 2.9648,
+            "metricx24": 3.0883,
+            "spbleu": 33.2035
           }
         }
       }
@@ -3363,15 +3771,15 @@
         "targetLanguage": "en",
         "files": {
           "lexicalShortlist": {
-            "path": "models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/lex.50.50.glen.s2t.bin.gz"
+            "path": "models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/lex.50.50.glen.s2t.bin.gz"
           },
           "model": {
-            "path": "models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/model.glen.intgemm.alphas.bin.gz",
+            "path": "models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/model.glen.intgemm.alphas.bin.gz",
             "uncompressedSize": 31561787,
-            "uncompressedHash": "93237db88c19391b065d0c19aff292f8632ec0f63c3b8b2ec17a6b3dd2fba516"
+            "uncompressedHash": "7e8ea0279166c72b0b430327533c643a88f26e80e4a9f9f294244a84213f3e6d"
           },
           "vocab": {
-            "path": "models/gl-en/gl-topk10_JaJ_E6cmSMSMhMEs8zHqzw/exported/vocab.glen.spm.gz"
+            "path": "models/gl-en/gl-finetranslations_M9yGl6Y4Q5ysCI8bqEZfTQ/exported/vocab.glen.spm.gz"
           }
         },
         "modelStatistics": {
@@ -3381,14 +3789,14 @@
         },
         "metrics": {
           "flores200-plus": {
-            "bleu": 37.6711,
-            "chrf": 65.5189,
-            "chrfpp": 63.58,
-            "comet22": 0.8704,
-            "llm-ref": 4.464,
-            "metricx24-qe": 2.7002,
-            "metricx24": 2.8686,
-            "spbleu": 42.1228
+            "bleu": 37.405,
+            "chrf": 65.4733,
+            "chrfpp": 63.4933,
+            "comet22": 0.873,
+            "llm-ref": 4.482,
+            "metricx24-qe": 2.5223,
+            "metricx24": 2.6789,
+            "spbleu": 41.8234
           }
         }
       }
@@ -3570,6 +3978,42 @@
       }
     ],
     "hu-en": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "hu",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/lex.50.50.huen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/model.huen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "477d9ff69eaaf692e9c87b5bad681748f56da2f81b0dd393665c90f5d6f7d55e"
+          },
+          "vocab": {
+            "path": "models/hu-en/next26_ehk9UNnTTNCsQ0eZhWcNXg/exported/vocab.huen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 33.9999,
+            "chrf": 62.3081,
+            "chrfpp": 60.1033,
+            "comet22": 0.8736,
+            "llm-ref": 4.446,
+            "metricx24-qe": 2.659,
+            "metricx24": 2.6801,
+            "spbleu": 38.6556
+          }
+        }
+      },
       {
         "architecture": "tiny",
         "releaseStatus": "Release",
@@ -4090,20 +4534,20 @@
     "mr-en": [
       {
         "architecture": "base-memory",
-        "releaseStatus": null,
+        "releaseStatus": "Release",
         "sourceLanguage": "mr",
         "targetLanguage": "en",
         "files": {
           "lexicalShortlist": {
-            "path": "models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/lex.50.50.mren.s2t.bin.gz"
+            "path": "models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/lex.50.50.mren.s2t.bin.gz"
           },
           "model": {
-            "path": "models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/model.mren.intgemm.alphas.bin.gz",
+            "path": "models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/model.mren.intgemm.alphas.bin.gz",
             "uncompressedSize": 31561787,
-            "uncompressedHash": "29e889dd24c9c91e4810b2b90bdd6019ef6c40d1753d567e3f331431df285274"
+            "uncompressedHash": "7e4ce4102d159b1d0154193859ee36e26232ad6b1bc656fd9de23ebf530d67b0"
           },
           "vocab": {
-            "path": "models/mr-en/next26_XkZJEQltRmKRcBirmiL30g/exported/vocab.mren.spm.gz"
+            "path": "models/mr-en/indictrans2_TZJkvk4_Qy6353ek8nD7cw/exported/vocab.mren.spm.gz"
           }
         },
         "modelStatistics": {
@@ -4113,14 +4557,14 @@
         },
         "metrics": {
           "flores200-plus": {
-            "bleu": 30.3653,
-            "chrf": 59.3067,
-            "chrfpp": 57.0813,
-            "comet22": 0.8569,
-            "llm-ref": 4.172,
-            "metricx24-qe": 3.8705,
-            "metricx24": 3.7795,
-            "spbleu": 33.6654
+            "bleu": 32.7874,
+            "chrf": 60.9046,
+            "chrfpp": 58.7801,
+            "comet22": 0.8641,
+            "llm-ref": 4.208,
+            "metricx24-qe": 3.6368,
+            "metricx24": 3.452,
+            "spbleu": 36.3821
           }
         }
       }
@@ -4431,6 +4875,42 @@
     ],
     "ru-en": [
       {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "ru",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/lex.50.50.ruen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/model.ruen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "aa0efa194b3dbd2da129ba0b8db8ef139126cb0914e57072f62061294746f1e2"
+          },
+          "vocab": {
+            "path": "models/ru-en/next26_RSpwfHrcSUC_rKTnhOEXzw/exported/vocab.ruen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 31.8771,
+            "chrf": 60.7106,
+            "chrfpp": 58.6184,
+            "comet22": 0.8497,
+            "llm-ref": 4.406,
+            "metricx24-qe": 2.8461,
+            "metricx24": 3.0849,
+            "spbleu": 35.9252
+          }
+        }
+      },
+      {
         "architecture": "tiny",
         "releaseStatus": "Release",
         "sourceLanguage": "ru",
@@ -4696,7 +5176,7 @@
     "ta-en": [
       {
         "architecture": "base-memory",
-        "releaseStatus": null,
+        "releaseStatus": "Release",
         "sourceLanguage": "ta",
         "targetLanguage": "en",
         "files": {
@@ -4807,6 +5287,44 @@
         }
       }
     ],
+    "tl-en": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "tl",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/lex.50.50.tlen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/model.tlen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "be2e4b60b2be35d8f32e3f68f0a3a567e6a4a27c521d5a9fd6017d1e47599e37"
+          },
+          "vocab": {
+            "path": "models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/vocab.tlen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 43.1957,
+            "chrf": 66.7538,
+            "chrfpp": 65.3626,
+            "comet22": 0.8541,
+            "llm-ref": 4.352,
+            "metricx24-qe": 3.0804,
+            "metricx24": 3.082,
+            "spbleu": 46.5946
+          }
+        }
+      }
+    ],
     "tr-en": [
       {
         "architecture": "tiny",
@@ -4841,6 +5359,42 @@
             "metricx24-qe": 3.3381,
             "metricx24": 3.3868,
             "spbleu": 37.29
+          }
+        }
+      }
+    ],
+    "ug-en": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "ug",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/ug-en/davidv-hymt2_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.ugen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/ug-en/davidv-hymt2_xxxxxxxxRxSxxxxxxxxxxA/exported/model.ugen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561635,
+            "uncompressedHash": "ffc0db5c5de708fb4dd6440b1d6b1e4645ad48a8963d98d9240aec8bb044d0f9"
+          },
+          "vocab": {
+            "path": "models/ug-en/davidv-hymt2_xxxxxxxxRxSxxxxxxxxxxA/exported/vocab.ugen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 19.4912,
+            "chrf": 49.0373,
+            "chrfpp": 46.4812,
+            "comet22": 0.8391,
+            "llm-ref": 4.178,
+            "spbleu": 21.6349
           }
         }
       }
@@ -4886,20 +5440,20 @@
     "ur-en": [
       {
         "architecture": "base-memory",
-        "releaseStatus": null,
+        "releaseStatus": "Release",
         "sourceLanguage": "ur",
         "targetLanguage": "en",
         "files": {
           "lexicalShortlist": {
-            "path": "models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/lex.50.50.uren.s2t.bin.gz"
+            "path": "models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/lex.50.50.uren.s2t.bin.gz"
           },
           "model": {
-            "path": "models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/model.uren.intgemm.alphas.bin.gz",
+            "path": "models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/model.uren.intgemm.alphas.bin.gz",
             "uncompressedSize": 31561787,
-            "uncompressedHash": "489e21ef4519cacf9e1743b2debfb0561e7ef1eb976dab679e399af449d79d53"
+            "uncompressedHash": "4915518d1699fb72c390603605d3ead9fb87a8c2f70092089a27df22a7c540d0"
           },
           "vocab": {
-            "path": "models/ur-en/next26-lowerbc_YQbMSoalT82NnQU9H1-G-w/exported/vocab.uren.spm.gz"
+            "path": "models/ur-en/indictrans2-bt_UkKC_Ph4SVqxtSbkfmVM2g/exported/vocab.uren.spm.gz"
           }
         },
         "modelStatistics": {
@@ -4909,14 +5463,14 @@
         },
         "metrics": {
           "flores200-plus": {
-            "bleu": 30.7873,
-            "chrf": 58.6985,
-            "chrfpp": 56.5899,
-            "comet22": 0.8452,
-            "llm-ref": 4.128,
-            "metricx24-qe": 3.7506,
-            "metricx24": 4.0005,
-            "spbleu": 33.1753
+            "bleu": 32.0305,
+            "chrf": 59.564,
+            "chrfpp": 57.5011,
+            "comet22": 0.8482,
+            "llm-ref": 4.15,
+            "metricx24-qe": 3.6061,
+            "metricx24": 3.9225,
+            "spbleu": 34.6165
           }
         }
       }

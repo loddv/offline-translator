@@ -72,6 +72,7 @@ DICTIONARY_BASE_URL = "https://offline-translator.davidv.dev/dictionaries"
 DICT_VERSION = 1
 
 LANGUAGE_NAMES = {
+    "af": "Afrikaans",
     "ar": "Arabic",
     "az": "Azerbaijani",
     "be": "Belarusian",
@@ -144,6 +145,7 @@ SHORT_DISPLAY_NAMES = {
 }
 
 LANGUAGE_SCRIPTS = {
+    "af": "Latn",
     "ar": "Arab",
     "az": "Latn",
     "be": "Cyrl",

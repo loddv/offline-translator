@@ -1,6 +1,7 @@
 """TTS sample texts per language (rainbow passage translations)."""
 
 TTS_SAMPLES = {
+    "af": "'n Reënboog is 'n meteorologiese verskynsel wat veroorsaak word deur die weerkaatsing, breking en verstrooiing van lig in waterdruppels, wat 'n spektrum van lig in die lug laat verskyn.",
     "ar": "قوس قزح ظاهرة جوية تنتج عن انعكاس الضوء وانكساره وتشتته في قطرات الماء، مما يؤدي إلى ظهور طيف من الألوان في السماء.",
     "az": "Göy qurşağı işığın su damcılarında əks olunması, sınması və səpilməsi nəticəsində yaranan meteoroloji hadisədir və bunun nəticəsində səmada işıq spektri görünür.",
     "be": "Вясёлка — гэта метэаралагічная з'ява, выкліканая адлюстраваннем, праламленнем і рассейваннем святла ў кроплях вады, у выніку чаго ў небе з'яўляецца спектр святла.",

@@ -4,5 +4,7 @@
 - Better fit on VERY small screens
 - Shared text opens in the translate popup, and the main screen remembers how you split input and output
 - System TTS reports only voices that are installed, and lowers other audio while speaking
-- New languages: Afrikaans, and English -> Urdu / Belarusian / Marathi
-- Newer models for Tagalog, Urdu, Marathi, Russian, Hungarian and more (upgrade in 'Manage languages')
+- New languages: Afrikaans
+- Languages are now bidirectional: Urdu, Belarusian, Marathi
+- Newer translation models for 12 languages (upgrade in 'Manage languages')
+- New voices for Marathi and Urdu

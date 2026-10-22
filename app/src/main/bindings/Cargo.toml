@@ -2,6 +2,9 @@
 name = "bindings"
 version = "0.1.0"
 edition = "2024"
+# F-Droid builds with rustc 1.88
+# need to bump both in tandem
+rust-version = "1.88"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -9,7 +12,7 @@ name = "bindings"
 path = "src/lib.rs"
 
 [features]
-default = ["dictionary", "mucab", "tts", "pdf", "odt", "epub", "transliterate", "image-render", "pdf-image-translate", "doc-align", "ppocr", "planar-tracker", "gpu"]
+default = ["dictionary", "mucab", "tts", "pdf", "odt", "epub", "transliterate", "image-render", "pdf-image-translate", "doc-align", "ppocr", "planar-tracker", "gpu", "http"]
 dictionary = ["translator/dictionary"]
 gpu = ["translator/gpu"]
 mucab = ["translator/mucab"]
@@ -23,6 +26,7 @@ pdf-image-translate = ["translator/pdf-image-translate"]
 doc-align = ["translator/doc-align"]
 ppocr = ["translator/ppocr"]
 planar-tracker = ["translator/planar-tracker"]
+http = ["translator/http"]
 
 [dependencies]
 adblock = { version = "0.12.2", default-features = false, features = ["full-regex-handling", "embedded-domain-resolver"] }

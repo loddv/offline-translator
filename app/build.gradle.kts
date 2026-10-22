@@ -31,8 +31,8 @@ android {
     applicationId = "dev.davidv.translator"
     minSdk = 23
     targetSdk = 34
-    versionCode = 27
-    versionName = "0.8.2"
+    versionCode = 30
+    versionName = "0.8.5"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -438,7 +438,6 @@ dependencies {
   implementation(libs.kotlinx.serialization.json.v162)
   implementation("com.github.yalantis:ucrop:2.2.11")
   implementation("net.java.dev.jna:jna:5.14.0@aar")
-  implementation("org.nanohttpd:nanohttpd:2.3.1")
   implementation(libs.androidx.camera.core)
   implementation(libs.androidx.camera.camera2)
   implementation(libs.androidx.camera.lifecycle)

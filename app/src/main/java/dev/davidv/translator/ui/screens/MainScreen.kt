@@ -78,10 +78,12 @@ import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadingOrder
+import dev.davidv.translator.Script
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.WordWithTaggedEntries
 import dev.davidv.translator.localizedName
+import dev.davidv.translator.singleScript
 import dev.davidv.translator.ui.components.ActionPillButton
 import dev.davidv.translator.ui.components.AlternativesDrawer
 import dev.davidv.translator.ui.components.AlternativesTarget
@@ -668,7 +670,8 @@ private fun previewLanguage(
   code = code,
   displayName = name,
   shortDisplayName = name,
-  script = "Latn",
+  script = Script.LATIN,
+  writingSystem = singleScript(Script.LATIN),
   dictionaryCode = code,
 )
 

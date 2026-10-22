@@ -15,6 +15,8 @@ def make_file(
     size_bytes: int,
     install_path: str,
     url: str,
+    role: str,
+    priority: int = 0,
     source_path: str | None = None,
 ) -> dict:
     payload = {
@@ -22,6 +24,8 @@ def make_file(
         "sizeBytes": size_bytes,
         "installPath": install_path,
         "url": url,
+        "role": role,
+        "priority": priority,
     }
     if source_path is not None:
         payload["sourcePath"] = source_path
@@ -84,6 +88,50 @@ def add_language_asset_ref(language_entry: dict, feature: str, ref) -> None:
     assets[feature] = ref
 
 
+# p1 keeps the legacy flat `bin/<name>` so models already installed at that path
+# still resolve; p2+ upgrade variants share the same file names (same pack infix)
+# so they MUST live in a distinct dir or they collide with the flat p1 file. They
+# are namespaced by `<pair>/<version>` from the source path. The runtime loads
+# whichever file the planner resolves per role (highest priority present), so the
+# split path is invisible to it — no on-startup migration needed.
+def translation_install_path(name: str, source_path: str, priority: int) -> str:
+    if priority < 2:
+        return f"bin/{name}"
+    parts = source_path.split("/")  # models/<pair>/<version>/exported/<file>
+    if len(parts) < 4:
+        return f"bin/{name}"
+    return f"bin/{parts[1]}/{parts[2]}/{name}"
+
+
+def translation_pack_files(direction: dict, translation_base_url: str) -> list[dict]:
+    def entry(file_info: dict, role: str, priority: int) -> dict:
+        return make_file(
+            name=file_info["name"],
+            size_bytes=int(file_info["sizeBytes"]),
+            install_path=translation_install_path(
+                file_info["name"], file_info["path"], priority
+            ),
+            url=f"{translation_base_url}/{file_info['path']}",
+            role=role,
+            priority=priority,
+            source_path=file_info["path"],
+        )
+
+    files = []
+    for variant in direction["variants"]:
+        priority = variant["priority"]
+        files.append(entry(variant["model"], "model", priority))
+        files.append(entry(variant["lex"], "lex", priority))
+        src_vocab = variant["srcVocab"]
+        tgt_vocab = variant["tgtVocab"]
+        if src_vocab["name"] == tgt_vocab["name"]:
+            files.append(entry(src_vocab, "vocab", priority))
+        else:
+            files.append(entry(src_vocab, "srcVocab", priority))
+            files.append(entry(tgt_vocab, "tgtVocab", priority))
+    return dedupe_files_by_install_path(files)
+
+
 def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
     translation_base_url = language_index["translationModelsBaseUrl"].rstrip("/")
     dictionary_base_url = language_index["dictionaryBaseUrl"].rstrip("/")
@@ -119,21 +167,7 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
                 "from": from_code,
                 "to": to_code,
                 "experimental": bool(direction["experimental"]),
-                "files": dedupe_files_by_install_path([
-                    make_file(
-                        name=file_info["name"],
-                        size_bytes=int(file_info["sizeBytes"]),
-                        install_path=f"bin/{file_info['name']}",
-                        url=f"{translation_base_url}/{file_info['path']}",
-                        source_path=file_info["path"],
-                    )
-                    for file_info in (
-                        direction["model"],
-                        direction["srcVocab"],
-                        direction["tgtVocab"],
-                        direction["lex"],
-                    )
-                ]),
+                "files": translation_pack_files(direction, translation_base_url),
                 "dependsOn": [],
             }
             add_language_asset_ref(language_entry, "translate", pack_id)
@@ -142,16 +176,18 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
 
         for extra_file in lang.get("extraFiles", []):
             support_pack_id = make_support_pack_id(code, extra_file)
+            kind = "mucab" if extra_file == "mucab.bin" else "file"
             packs[support_pack_id] = {
                 "feature": "support",
                 "language": code,
-                "kind": "mucab" if extra_file == "mucab.bin" else "file",
+                "kind": kind,
                 "files": [
                     make_file(
                         name=extra_file,
                         size_bytes=0,
                         install_path=f"bin/{extra_file}",
                         url=f"{dictionary_base_url}/extra/{extra_file}",
+                        role=kind,
                         source_path=f"extra/{extra_file}",
                     )
                 ],
@@ -175,6 +211,7 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
                     size_bytes=int(dict_info["size"]),
                     install_path=f"dictionaries/{dict_info['filename']}",
                     url=f"{dictionary_base_url}/{dictionary_version}/{dict_info['filename']}",
+                    role="dictionary",
                     source_path=f"{dictionary_version}/{dict_info['filename']}",
                 )
             ],
@@ -192,7 +229,7 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
     validate_manifest(languages_v2, packs)
 
     return {
-        "formatVersion": 4,
+        "formatVersion": 6,
         "generatedAt": int(time.time()),
         "translationModelsBaseUrl": translation_base_url,
         "dictionaryBaseUrl": dictionary_base_url,
@@ -241,6 +278,20 @@ def validate_manifest(languages: dict, packs: dict) -> None:
         for pack_id in assets.get("support", []):
             if pack_id not in pack_ids:
                 raise ValueError(f"{language_code}: missing support pack {pack_id}")
+
+        tts = entry.get("tts")
+        if tts is not None:
+            regions = tts["regions"]
+            if not regions:
+                raise ValueError(f"{language_code}: TTS entry without regions")
+            if tts["defaultRegion"] not in regions:
+                raise ValueError(f"{language_code}: default TTS region {tts['defaultRegion']} has no voices")
+            for region_code, region in regions.items():
+                if not region["voices"]:
+                    raise ValueError(f"{language_code}: TTS region {region_code} without voices")
+                for pack_id in region["voices"]:
+                    if pack_id not in pack_ids:
+                        raise ValueError(f"{language_code}: missing TTS voice pack {pack_id}")
 
     for pack_id, pack in packs.items():
         if pack["feature"] == "translation":

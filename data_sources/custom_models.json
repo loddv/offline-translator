@@ -61,6 +61,7 @@
         "releaseStatus": "Release",
         "sourceLanguage": "en",
         "targetLanguage": "tl",
+        "priority": 1,
         "files": {
           "lexicalShortlist": {
             "path": "models/en-tl/opusmt_distill_20260712/exported/lex.50.50.entl.s2t.bin.gz"
@@ -78,6 +79,32 @@
           "flores200-plus": {
             "chrf": 57.92,
             "bleu": 32.46
+          }
+        }
+      },
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "tl",
+        "priority": 2,
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-tl/hymt2_distill_20260722/exported/lex.50.50.entl.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-tl/hymt2_distill_20260722/exported/model.entl.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561697,
+            "uncompressedHash": "6655a272120edd76e3abafd27b6e74b3c1d756936cce0a2ad3e457d700eb7aa5"
+          },
+          "vocab": {
+            "path": "models/en-tl/hymt2_distill_20260722/exported/vocab.entl.spm.gz"
+          }
+        },
+        "metrics": {
+          "flores200-plus": {
+            "chrf": 60.41,
+            "bleu": 36.93
           }
         }
       }
@@ -159,6 +186,60 @@
           "flores200-plus": {
             "chrf": 59.74,
             "bleu": 34.02
+          }
+        }
+      }
+    ],
+    "en-ka": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "ka",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-ka/lmt60_distill_20260902/exported/lex.50.50.enka.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-ka/lmt60_distill_20260902/exported/model.enka.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561635,
+            "uncompressedHash": "201049a418490e5bfb5bf23ef61faee125a2eed33380540745b4ae6568e25a43"
+          },
+          "vocab": {
+            "path": "models/en-ka/lmt60_distill_20260902/exported/vocab.enka.spm.gz"
+          }
+        },
+        "metrics": {
+          "flores200-plus": {
+            "chrfpp": 47.36,
+            "comet22": 0.8389
+          }
+        }
+      }
+    ],
+    "ka-en": [
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "ka",
+        "targetLanguage": "en",
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/ka-en/lmt60_distill_20260902/exported/lex.50.50.kaen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/ka-en/lmt60_distill_20260902/exported/model.kaen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561635,
+            "uncompressedHash": "24540168630f034b2e246474368a308d16deef44c3d55ffb1e6885f6110f6644"
+          },
+          "vocab": {
+            "path": "models/ka-en/lmt60_distill_20260902/exported/vocab.kaen.spm.gz"
+          }
+        },
+        "metrics": {
+          "flores200-plus": {
+            "chrfpp": 48.61,
+            "comet22": 0.826
           }
         }
       }

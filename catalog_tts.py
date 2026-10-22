@@ -9,6 +9,50 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from catalog_tts_samples import TTS_SAMPLES
 
 
+def tts_file_role(filename: str) -> str:
+    if filename.endswith(".onnx.json"):
+        return "sidecar"
+    # A two-stage voice ships two networks; the vocoder is matched first so it
+    # does not fall through to the generic model rule below.
+    if filename.endswith("hifigan.mnn"):
+        return "vocoder"
+    if filename.endswith("_lexicon.bin"):
+        return "lexicon"
+    if filename.endswith(".mnn.weight"):
+        return "modelWeight"
+    if filename.endswith(".onnx") or filename.endswith(".mnn"):
+        return "model"
+    if filename == "config.json":
+        return "config"
+    if filename.endswith("tokens.txt"):
+        return "tokens"
+    if filename == "language_ids.json":
+        return "languageIds"
+    if filename == "speaker_ids.json":
+        return "speakerIds"
+    if filename.endswith(".bin"):
+        return "voices"
+    if filename.endswith("lexicon.txt.zst") or filename.endswith("lexicon.txt"):
+        return "lexicon"
+    if filename.endswith("rule.fst"):
+        return "ruleFst"
+    raise ValueError(f"unknown TTS file role for {filename!r}")
+
+
+# The auxiliary file role each engine's loader consumes alongside the model.
+AUX_ROLE_BY_ENGINE = {
+    "piper": "sidecar",
+    "mimic3": "sidecar",
+    "mms": "tokens",
+    "coqui_vits": "config",
+    "sherpa_vits": "config",
+    "cotovia_vits": "lexicon",
+    "glowtts_hifigan": "lexicon",
+    "kokoro": "voices",
+    "kokoro_mnn": "voices",
+}
+
+
 PIPER_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 KOKORO_BASE_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0"
 MMS_BASE_URL = "https://huggingface.co/willwade/mms-tts-multilingual-models-onnx/resolve/main"
@@ -40,6 +84,7 @@ ENGINE_PRIORITY = {
     "piper": 0,
     "mimic3": 0,
     "kokoro_mnn": 0,
+    "glowtts_hifigan": 1,
     "mms": 1,
     "sherpa_vits": 2,
     "coqui_vits": 2,
@@ -68,6 +113,13 @@ TTS_LANGUAGE_ALIASES = {
 }
 ESPEAK_DICT_OVERRIDES = {
     "zh": "cmn",
+}
+# Support packs a language's voices need on top of their engine's own files.
+# Japanese text has to be tokenized by mucab before anything can pronounce or
+# romanize it, so every ja voice depends on the dictionary — the language-level
+# support entry is not enough, a voice can be downloaded on its own.
+VOICE_SUPPORT_PACKS = {
+    "ja": ["support-ja-mucab"],
 }
 BANNED_TTS_VOICES = {
     # Broken Spanish Piper MLS voices. Keep them out of the generated TTS catalog.
@@ -252,6 +304,42 @@ EXTRA_TTS_VOICES = {
             "tgl/tokens.txt": {
                 "size_bytes": 337,
                 "url": f"{MMS_BASE_URL}/tgl/tokens.txt",
+            },
+        },
+        "aliases": [],
+    },
+    # alex73's Belarusian GlowTTS acoustic model and HiFiGAN vocoder, trained on
+    # Common Voice via the bel-alex73 recipe and released through Coqui
+    # (CC-BY-SA 4.0). It reads fanetyka IPA rather than Cyrillic, so the voice is
+    # only usable together with the BNKorpus grapheme-to-phoneme table shipped
+    # alongside it.
+    "be_BY-alex73-glowtts_hifigan": {
+        "engine": "glowtts_hifigan",
+        "key": "be_BY-alex73-glowtts_hifigan",
+        "name": "alex73",
+        "language": {
+            "code": "be_BY",
+            "family": "be",
+            "region": "BY",
+            "name_native": "Беларуская",
+            "name_english": "Belarusian",
+            "country_english": "Belarus",
+        },
+        "quality": "medium",
+        "num_speakers": 1,
+        "speaker_id_map": {},
+        "files": {
+            "glowtts.mnn": {
+                "size_bytes": 29431392,
+                "url": f"{TTS_BASE_URL}/{TTS_VERSION}/be/be_BY/alex73/medium/glowtts.mnn",
+            },
+            "hifigan.mnn": {
+                "size_bytes": 14083764,
+                "url": f"{TTS_BASE_URL}/{TTS_VERSION}/be/be_BY/alex73/medium/hifigan.mnn",
+            },
+            "be_lexicon.bin": {
+                "size_bytes": 3586841,
+                "url": f"{TTS_BASE_URL}/{TTS_VERSION}/be/be_BY/alex73/medium/be_lexicon.bin",
             },
         },
         "aliases": [],
@@ -1045,6 +1133,8 @@ def build_espeak_support_packs(
                 "deleteAfterExtract": True,
                 "installMarkerPath": "bin/espeak-ng-data/.install-info.json",
                 "installMarkerVersion": tts_version,
+                "role": "espeakCore",
+                "priority": 0,
             }
         ],
         "dependsOn": [],
@@ -1060,6 +1150,8 @@ def build_espeak_support_packs(
                     "sizeBytes": 0,
                     "installPath": f"bin/espeak-ng-data/{dict_code}_dict",
                     "url": f"{tts_base_url.rstrip('/')}/{tts_version}/espeak-ng-data/{dict_code}_dict",
+                    "role": "espeakDict",
+                    "priority": 0,
                 }
             ],
             "dependsOn": [core_pack_id],
@@ -1080,6 +1172,8 @@ def build_shared_tts_support_packs(catalog: dict, voices: dict) -> None:
                     "sizeBytes": file_info["size_bytes"],
                     "installPath": f"bin/kokoro/{filename}",
                     "url": file_info["url"],
+                    "role": tts_file_role(filename),
+                    "priority": 0,
                 }
                 for filename, file_info in KOKORO_VOICES_FILES.items()
             ],
@@ -1096,6 +1190,8 @@ def build_shared_tts_support_packs(catalog: dict, voices: dict) -> None:
                     "sizeBytes": file_info["size_bytes"],
                     "installPath": f"bin/kokoro/{filename}",
                     "url": file_info["url"],
+                    "role": tts_file_role(filename),
+                    "priority": 0,
                 }
                 for filename, file_info in KOKORO_SHARED_FILES.items()
             ],
@@ -1112,6 +1208,8 @@ def build_shared_tts_support_packs(catalog: dict, voices: dict) -> None:
                     "sizeBytes": file_info["size_bytes"],
                     "installPath": f"bin/kokoro_mnn/{filename}",
                     "url": file_info["url"],
+                    "role": tts_file_role(filename),
+                    "priority": 0,
                 }
                 for filename, file_info in KOKORO_MNN_SHARED_FILES.items()
             ],
@@ -1133,6 +1231,8 @@ def build_cotovia_lexicon_packs(catalog: dict, voices: dict) -> None:
                     "sizeBytes": lexicon["size_bytes"],
                     "installPath": lexicon["install_path"],
                     "url": lexicon["url"],
+                    "role": tts_file_role(lexicon["name"]),
+                    "priority": 0,
                 }
             ],
             "dependsOn": [],
@@ -1212,6 +1312,8 @@ def merge_tts(
                             filename=filename,
                         ),
                         "url": file_info.get("url") or f"{piper_base_url.rstrip('/')}/{source_path}",
+                        "role": tts_file_role(filename),
+                        "priority": 0,
                     }
                 )
 
@@ -1226,11 +1328,13 @@ def merge_tts(
             shared_pack = voice.get("shared_pack")
             if shared_pack:
                 depends_on.append(shared_pack)
+            depends_on.extend(VOICE_SUPPORT_PACKS.get(app_language, []))
             depends_on.extend(voice.get("depends_on", []))
 
             pack = {
                 "feature": "tts",
                 "engine": engine,
+                "auxRole": AUX_ROLE_BY_ENGINE[engine],
                 "language": app_language,
                 "locale": locale_code,
                 "region": region,

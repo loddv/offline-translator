@@ -72,10 +72,12 @@ import androidx.compose.ui.unit.dp
 import dev.davidv.translator.Gloss
 import dev.davidv.translator.Language
 import dev.davidv.translator.R
+import dev.davidv.translator.Script
 import dev.davidv.translator.Sense
 import dev.davidv.translator.WordEntryComplete
 import dev.davidv.translator.WordTag
 import dev.davidv.translator.WordWithTaggedEntries
+import dev.davidv.translator.singleScript
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import dev.davidv.translator.wordTag
 
@@ -454,7 +456,8 @@ fun DictionaryBottomSheetPreview() {
             code = "es",
             displayName = "Spanish",
             shortDisplayName = "Spanish",
-            script = "Latn",
+            script = Script.LATIN,
+            writingSystem = singleScript(Script.LATIN),
             dictionaryCode = "es",
           ),
         selectedEntryIndex = 0,

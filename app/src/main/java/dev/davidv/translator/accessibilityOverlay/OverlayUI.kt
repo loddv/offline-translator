@@ -28,6 +28,7 @@ import dev.davidv.translator.overlayChrome.OverlayChromeFactory
 import dev.davidv.translator.overlayChrome.OverlayInsets
 import dev.davidv.translator.overlayChrome.OverlayMenuHost
 import dev.davidv.translator.overlayChrome.OverlayMenuManager
+import dev.davidv.translator.overlayChrome.spanFullDisplay
 import dev.davidv.translator.ui.components.ScanAnimationOverlay
 import dev.davidv.translator.ui.components.SelectionSurface
 import dev.davidv.translator.ui.components.SelectionSurfaceState
@@ -284,6 +285,7 @@ class OverlayUI(
     params.gravity = Gravity.TOP or Gravity.START
     params.x = bounds.left
     params.y = bounds.top
+    params.spanFullDisplay()
 
     windowManager.addView(imageView, params)
     translationOverlays.add(imageView)
@@ -323,6 +325,7 @@ class OverlayUI(
           y = region.top
           width = region.width()
           height = region.height()
+          spanFullDisplay()
         }
       decorView.setPadding(0, 0, 0, 0)
       host.installOn(decorView)
@@ -413,6 +416,7 @@ class OverlayUI(
     params.gravity = Gravity.TOP or Gravity.START
     params.x = region.left
     params.y = region.top
+    params.spanFullDisplay()
     params.windowAnimations = 0
     windowManager.addView(host.view, params)
     scanHost = host
@@ -477,11 +481,6 @@ class OverlayUI(
 
   fun getStatusBarHeight(): Int = OverlayInsets.topInset(windowManager, service.resources)
 
-  fun getNavBarHeight(): Int {
-    val resourceId = service.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-    return if (resourceId > 0) service.resources.getDimensionPixelSize(resourceId) else 0
-  }
-
   fun showBorderWave() {
     if (borderView != null) return
     val view = BorderWaveView.create(service)
@@ -495,6 +494,7 @@ class OverlayUI(
           WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
       )
+    params.spanFullDisplay()
     windowManager.addView(view, params)
     borderView = view
     view.startAnimation()

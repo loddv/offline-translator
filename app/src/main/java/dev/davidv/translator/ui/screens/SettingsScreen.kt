@@ -84,10 +84,12 @@ import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
+import dev.davidv.translator.Script
 import dev.davidv.translator.TapToTranslateNotification
 import dev.davidv.translator.labelRes
 import dev.davidv.translator.languageNameComparator
 import dev.davidv.translator.localizedName
+import dev.davidv.translator.singleScript
 import dev.davidv.translator.ui.components.AppCard
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.delay
@@ -160,6 +162,13 @@ private fun HttpServerCard(
       modifier = Modifier.padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+      Text(
+        text = stringResource(R.string.settings_http_server_title),
+        style = MaterialTheme.typography.headlineSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(bottom = 8.dp),
+      )
+
       // Commit the port after a pause so per-keystroke edits don't rebind the
       // running server (and briefly try to bind partial numbers like "5").
       var portText by remember(settings.httpServerPort) { mutableStateOf(settings.httpServerPort.toString()) }
@@ -1452,7 +1461,8 @@ private fun previewLanguage(
   code = code,
   displayName = name,
   shortDisplayName = name,
-  script = "Latn",
+  script = Script.LATIN,
+  writingSystem = singleScript(Script.LATIN),
   dictionaryCode = code,
 )
 

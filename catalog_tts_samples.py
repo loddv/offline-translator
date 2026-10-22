@@ -3,6 +3,7 @@
 TTS_SAMPLES = {
     "ar": "قوس قزح ظاهرة جوية تنتج عن انعكاس الضوء وانكساره وتشتته في قطرات الماء، مما يؤدي إلى ظهور طيف من الألوان في السماء.",
     "az": "Göy qurşağı işığın su damcılarında əks olunması, sınması və səpilməsi nəticəsində yaranan meteoroloji hadisədir və bunun nəticəsində səmada işıq spektri görünür.",
+    "be": "Вясёлка — гэта метэаралагічная з'ява, выкліканая адлюстраваннем, праламленнем і рассейваннем святла ў кроплях вады, у выніку чаго ў небе з'яўляецца спектр святла.",
     "bg": "Дъгата е метеорологично явление, причинено от отражението, пречупването и разсейването на светлината във водните капки, в резултат на което в небето се появява светлинен спектър.",
     "bn": "রামধনু একটি আবহাওয়াগত ঘটনা, যা পানির ফোঁটার মধ্যে আলোর প্রতিফলন, প্রতিসরণ এবং বিচ্ছুরণের ফলে সৃষ্টি হয়, যার কারণে আকাশে আলোর বর্ণালী দেখা যায়।",
     "bs": "Duga je meteorološka pojava nastala refleksijom, refrakcijom i disperzijom svjetlosti u kapljicama vode, zbog čega se na nebu pojavljuje spektar svjetlosti.",
@@ -28,6 +29,7 @@ TTS_SAMPLES = {
     "is": "Regnbogi er veðurfræðilegt fyrirbæri sem verður til við endurkast, ljósbrot og dreifingu ljóss í vatnsdropum, sem leiðir til þess að litróf birtist á himninum.",
     "it": "L'arcobaleno è un fenomeno meteorologico causato dalla riflessione, dalla rifrazione e dalla dispersione della luce nelle gocce d'acqua, con il risultato che nel cielo appare uno spettro di luce.",
     "ja": "虹は、水滴の中で光が反射、屈折、分散することによって生じ、空に光のスペクトルが現れる気象現象です。",
+    "ka": "ცისარტყელა არის მეტეოროლოგიური მოვლენა, რომელიც გამოწვეულია წყლის წვეთებში სინათლის არეკვლით, გარდატეხითა და დისპერსიით, რის შედეგადაც ცაზე ჩნდება სინათლის სპექტრი.",
     "kn": "ಇಂದ್ರಧನುಷ್ ಒಂದು ಹವಾಮಾನ ಸಂಬಂಧಿತ ಪ್ರಕೃತಿ ಘಟನೆ; ಇದು ನೀರಿನ ಹನಿಗಳಲ್ಲಿನ ಬೆಳಕಿನ ಪ್ರತಿಫಲನ, ಅಪವर्तन ಮತ್ತು ಚದುರಿಕೆಯಿಂದ ಉಂಟಾಗಿ ಆಕಾಶದಲ್ಲಿ ಬೆಳಕಿನ ವರ್ಣಪಟ ಕಾಣಿಸುತ್ತದೆ。",
     "ko": "무지개는 물방울 속에서 빛이 반사되고 굴절되며 분산되어 하늘에 빛의 스펙트럼이 나타나는 기상 현상입니다.",
     "lt": "Vaivorykštė yra meteorologinis reiškinys, kurį sukelia šviesos atspindys, lūžis ir sklaida vandens lašeliuose, todėl danguje pasirodo šviesos spektras.",

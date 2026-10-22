@@ -41,6 +41,7 @@ import dev.davidv.translator.PdfPhaseProgress
 import dev.davidv.translator.PreparedImageOverlay
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadingOrder
+import dev.davidv.translator.Script
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.SpeechError
 import dev.davidv.translator.SpeechSynthesisResult
@@ -58,7 +59,9 @@ import dev.davidv.translator.sizeBytesForUri
 import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.ImageWordSelection
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +71,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -93,9 +99,6 @@ class TranslatorViewModel(
   // UI state
   private val _input = MutableStateFlow(initialText)
   val input: StateFlow<String> = _input.asStateFlow()
-
-  private val _inputTransliterated = MutableStateFlow<String?>(null)
-  val inputTransliterated: StateFlow<String?> = _inputTransliterated.asStateFlow()
 
   private val _output = MutableStateFlow<TranslatedText?>(null)
   val output: StateFlow<TranslatedText?> = _output.asStateFlow()
@@ -129,7 +132,7 @@ class TranslatorViewModel(
     val plan: PreparedImageOverlay,
     val imageRef: Bitmap,
     val sourceCode: String,
-    val sourceScript: String,
+    val sourceScript: Script,
     val readingOrder: ReadingOrder?,
     // Owns the source pixels rust-side so a language switch re-renders without re-OCR or any
     // image copy across the FFI. Null for images translated via the legacy copying path.
@@ -144,8 +147,45 @@ class TranslatorViewModel(
   private val _inputType = MutableStateFlow(InputType.TEXT)
   val inputType: StateFlow<InputType> = _inputType.asStateFlow()
 
-  private val _currentDetectedLanguage = MutableStateFlow<Language?>(null)
-  val currentDetectedLanguage: StateFlow<Language?> = _currentDetectedLanguage.asStateFlow()
+  // japaneseSpaced is read by TranslationService itself; it is carried here only so
+  // toggling the setting invalidates the request and re-runs the transliteration.
+  private data class TransliterationRequest(
+    val text: String,
+    val from: Language,
+    val japaneseSpaced: Boolean,
+  )
+
+  @OptIn(ExperimentalCoroutinesApi::class)
+  val inputTransliterated: StateFlow<String?> =
+    combine(_input, _from, _inputType, settingsManager.settings) { text, fromLang, inputType, settings ->
+      val enabled = settings.showTransliterationOnInput && inputType == InputType.TEXT
+      if (!enabled || fromLang == null || text.isBlank()) {
+        null
+      } else {
+        TransliterationRequest(text, fromLang, settings.addSpacesForJapaneseTransliteration)
+      }
+    }.distinctUntilChanged()
+      .mapLatest { request ->
+        if (request == null) {
+          null
+        } else {
+          withContext(Dispatchers.Default) { translationCoordinator.transliterate(request.text, request.from) }
+        }
+      }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+  // A text detection only stays valid while the input is at least as long as
+  // the text that produced it; deleting below that point drops the detection
+  // so a stale suggestion can't outlive the words it was based on.
+  private data class LanguageDetection(
+    val language: Language,
+    val inputLength: Int,
+  )
+
+  private val _currentDetectedLanguage = MutableStateFlow<LanguageDetection?>(null)
+  val currentDetectedLanguage: StateFlow<Language?> =
+    _currentDetectedLanguage
+      .map { it?.language }
+      .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
   private val _isAutoSource = MutableStateFlow(false)
   val isAutoSource: StateFlow<Boolean> = _isAutoSource.asStateFlow()
@@ -184,6 +224,11 @@ class TranslatorViewModel(
 
   private val _pendingSharedImage = MutableSharedFlow<Uri>(replay = 1, extraBufferCapacity = 1)
   val pendingSharedImage: SharedFlow<Uri> = _pendingSharedImage.asSharedFlow()
+
+  // Deep link from the system TTS settings ("install voice data"). Conflated so a
+  // request raised before the UI is listening is still delivered, exactly once.
+  private val _languageManagerRequests = Channel<Unit>(Channel.CONFLATED)
+  val languageManagerRequests: Flow<Unit> = _languageManagerRequests.receiveAsFlow()
 
   val navigationState: StateFlow<NavigationState> =
     combine(languageStateManager.languageState, _from, to) { langState, fromLang, toLang ->
@@ -357,13 +402,6 @@ class TranslatorViewModel(
         if (message.text.isBlank()) {
           _currentDetectedLanguage.value = null
         }
-        val settings = settingsManager.settings.value
-        val fromLang = _from.value
-        if (settings.showTransliterationOnInput && fromLang != null && message.text.isNotBlank()) {
-          _inputTransliterated.value = translationCoordinator.transliterate(message.text, fromLang)
-        } else {
-          _inputTransliterated.value = null
-        }
         triggerTranslation()
       }
 
@@ -449,7 +487,6 @@ class TranslatorViewModel(
         _displayImage.value = null
         _output.value = null
         _input.value = ""
-        _inputTransliterated.value = null
         _inputType.value = InputType.TEXT
         _originalImage.value = null
         ocrCache = null
@@ -548,6 +585,10 @@ class TranslatorViewModel(
     _pendingSharedImage.tryEmit(uri)
   }
 
+  fun requestLanguageManager() {
+    _languageManagerRequests.trySend(Unit)
+  }
+
   // A shared document (pdf/odt/txt/epub) reaches the same drawer as a picked one:
   // copy the content URI into cache off the main thread, then drive the pending
   // document state the file picker also feeds.
@@ -606,21 +647,21 @@ class TranslatorViewModel(
       viewModelScope.launch {
         val settings = settingsManager.settings.value
         if (!settings.disableCLD) {
-          if (_input.value.isBlank()) {
+          val text = _input.value
+          if (text.isBlank()) {
             _currentDetectedLanguage.value = null
           } else {
+            val prior = _currentDetectedLanguage.value?.takeIf { text.length >= it.inputLength }
             val detected =
               translationCoordinator.detectLanguageRobust(
-                _input.value,
+                text,
                 _from.value,
                 languageStateManager.languageState.value.allLanguages(),
               )
-            if (detected != null) {
-              _currentDetectedLanguage.value = detected
-            }
+            _currentDetectedLanguage.value = detected?.let { LanguageDetection(it, text.length) } ?: prior
           }
           if (_isAutoSource.value) {
-            val detected = _currentDetectedLanguage.value
+            val detected = _currentDetectedLanguage.value?.language
             if (detected != null && languageStateManager.languageState.value.availabilityFor(detected)?.translatorFiles == true) {
               if (detected != activeTo) {
                 _from.value = detected
@@ -684,6 +725,8 @@ class TranslatorViewModel(
     }
   }
 
+  private fun isAutoSourceActive() = _isAutoSource.value && !settingsManager.settings.value.disableCLD
+
   private suspend fun runImageTranslation(
     bitmap: Bitmap,
     fromLang: Language,
@@ -719,9 +762,9 @@ class TranslatorViewModel(
           bitmap,
           onMessage = onMessage,
           readingOrder = readingOrder,
-          isAutoSource = _isAutoSource.value,
+          isAutoSource = isAutoSourceActive(),
           onMissingDetectedLanguage = { detected ->
-            _currentDetectedLanguage.value = detected
+            _currentDetectedLanguage.value = LanguageDetection(detected, 0)
           },
           onDetectedRegions = { boxes, w, h ->
             _detectedRegions.value = DetectedRegions(w, h, boxes)
@@ -830,7 +873,6 @@ class TranslatorViewModel(
     ocrCache = null
     _output.value = null
     _input.value = ""
-    _inputTransliterated.value = null
     _inputType.value = InputType.FILE
     _currentDetectedLanguage.value = null
 
@@ -861,14 +903,13 @@ class TranslatorViewModel(
     languageState: dev.davidv.translator.LanguageAvailabilityState,
   ) {
     val settings = settingsManager.settings.value
-    _currentDetectedLanguage.value =
+    val detected =
       if (!settings.disableCLD) {
         translationCoordinator.detectLanguageRobust(initialText, _from.value, languageState.allLanguages())
       } else {
         null
       }
-
-    val detected = _currentDetectedLanguage.value
+    _currentDetectedLanguage.value = detected?.let { LanguageDetection(it, initialText.length) }
     val translated: TranslationResult?
 
     if (detected != null) {
@@ -1120,4 +1161,6 @@ private fun speechErrorMessage(
       context.getString(R.string.tts_no_voice, reason.language.localizedName())
     is SpeechError.SynthesisFailed ->
       context.getString(R.string.tts_synthesis_failed, reason.language.localizedName())
+    is SpeechError.SynthesisError ->
+      context.getString(R.string.tts_synthesis_error, reason.language.localizedName(), reason.reason)
   }

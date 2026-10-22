@@ -88,6 +88,7 @@
     <string name="langmgr_default">DEFAULT</string>
     <string name="langmgr_filter">Filter languages</string>
     <string name="langmgr_ocr_upgrade_available">An improved text detection model is available.</string>
+    <string name="langmgr_translation_upgrade_available">Improved translation available for: %1$s</string>
     <string name="langmgr_delete_shared_title">Delete shared dictionary?</string>
     <string name="langmgr_delete_shared_body">This dictionary is shared with %1$s.\nDeleting it will remove the dictionary for all of them.</string>
     <string name="langmgr_download_size">Download %1$s</string>
@@ -135,6 +136,7 @@
     <string name="tts_catalog_unavailable">Catalog unavailable</string>
     <string name="tts_no_voice">No voice installed for %1$s</string>
     <string name="tts_synthesis_failed">Speech synthesis failed for %1$s</string>
+    <string name="tts_synthesis_error">Speech synthesis failed for %1$s: %2$s</string>
     <string name="tts_sample_fallback">This is a text-to-speech sample from Offline Translator.</string>
 
     <!-- translation -->
@@ -144,6 +146,7 @@
     <string name="download_failed_core">%1$s download failed</string>
     <string name="download_failed_ocr">%1$s text recognition download failed</string>
     <string name="download_failed_ocr_batch">Text recognition batch download failed</string>
+    <string name="download_failed_translation_batch">Translation upgrade download failed</string>
     <string name="download_failed_dictionary">%1$s dictionary download failed</string>
     <string name="download_failed_tts">%1$s voice download failed</string>
     <string name="download_failed_adblock">Adblock download failed</string>
@@ -322,6 +325,7 @@
     <string name="settings_http_server_bind">Bind on</string>
     <string name="settings_http_server_bind_localhost">localhost</string>
     <string name="settings_http_server_bind_all">all interfaces</string>
+    <string name="settings_http_server_title">API Server</string>
     <string name="http_server_notif_channel_name">Translation API</string>
     <string name="http_server_notif_channel_desc">Shown while the LibreTranslate compatible server is running</string>
     <string name="http_server_notif_running">Translation API</string>

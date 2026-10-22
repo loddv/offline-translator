@@ -6,16 +6,14 @@ class TransliterateBinding {
   fun transliterate(
     text: String,
     languageCode: String,
-    sourceScript: String,
-    targetScript: String = "Latn",
+    writingSystem: WritingSystem,
     japaneseDictPath: String? = null,
     japaneseSpaced: Boolean = true,
   ): String? =
     transliterateWithPolicyRecord(
       text,
       languageCode,
-      sourceScript,
-      targetScript,
+      writingSystem,
       japaneseDictPath,
       japaneseSpaced,
     )

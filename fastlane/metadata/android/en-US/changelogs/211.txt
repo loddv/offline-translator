@@ -1,0 +1,9 @@
+Go to 'Manage languages' to download a faster OCR detection model (1MB)
+
+- Implement experimental 'screen translation' mode
+- Fix image handling for vertical Japanese text
+- Keep screen on when camera is running
+- Expose 'share' of documents into app (PDF, ODT, TXT, EPUB)
+- Improve performance of live-camera mode, document translation
+- Implement voice input (if you already have a keyboard or app that does dictation, this uses it)
+- Fix PDF rendering for RTL scripts

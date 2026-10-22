@@ -18,7 +18,14 @@
 package dev.davidv.translator
 
 object Constants {
-  const val DEFAULT_CATALOG_INDEX_URL = "https://offline-translator.davidv.dev/index_v3.json"
+  const val DEFAULT_CATALOG_INDEX_URL = "https://offline-translator.davidv.dev/index_v5.json"
+}
+
+enum class AssistantAction(
+  val displayName: String,
+) {
+  STILL_IMAGE("Translate once"),
+  LIVE_SCREEN("Start live translation"),
 }
 
 data class AppSettings(
@@ -26,14 +33,12 @@ data class AppSettings(
   val defaultSourceLanguageCode: String? = null,
   val catalogIndexUrl: String = Constants.DEFAULT_CATALOG_INDEX_URL,
   val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
-  val preferredOcrEngine: PreferredOcrEngine = PreferredOcrEngine.PADDLE,
   val minConfidence: Int = 75,
   val maxImageSize: Int = 1400,
   val disableCLD: Boolean = false,
   val enableOutputTransliteration: Boolean = true,
   val useExternalStorage: Boolean = false,
   val fontFactor: Float = 1.0f,
-  val showOCRDetection: Boolean = false,
   val showTransliterationOnInput: Boolean = false,
   val onlyShowOutputOnReadonlyModal: Boolean = false,
   val readonlyModalOutputAlignment: ReadonlyModalOutputAlignment = ReadonlyModalOutputAlignment.MIDDLE,
@@ -47,4 +52,5 @@ data class AppSettings(
   val translatePdfImages: Boolean = true,
   val liveCameraOverlayEnabled: Boolean = true,
   val registerAsBrowser: Boolean = true,
+  val assistantAction: AssistantAction = AssistantAction.STILL_IMAGE,
 )

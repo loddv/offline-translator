@@ -87,37 +87,6 @@ class TranslationService(
       BatchTextTranslationOutput.Translated(translatedByText)
     }
 
-  suspend fun translateStructuredFragments(
-    fragments: List<StyledFragment>,
-    forcedSourceLanguage: Language?,
-    targetLanguage: Language,
-    availableLanguages: List<Language>,
-    screenshot: android.graphics.Bitmap?,
-  ): StructuredFragmentTranslationOutput =
-    withContext(Dispatchers.IO) {
-      val catalog =
-        filePathManager.loadCatalog()
-          ?: return@withContext StructuredFragmentTranslationOutput.Error("Catalog unavailable")
-      val result =
-        catalog.translateStructuredFragments(
-          fragments = fragments,
-          forcedSourceLanguage = forcedSourceLanguage,
-          targetLanguage = targetLanguage,
-          availableLanguages = availableLanguages,
-          screenshot = screenshot,
-          backgroundMode = settingsManager.settings.value.backgroundMode,
-        )
-
-      result.errorMessage?.let { message ->
-        return@withContext StructuredFragmentTranslationOutput.Error(message)
-      }
-      val nothingReason = result.nothingReason
-      if (nothingReason != null && result.blocks.isEmpty()) {
-        return@withContext StructuredFragmentTranslationOutput.NothingToTranslate(nothingReason)
-      }
-      StructuredFragmentTranslationOutput.Success(result.blocks)
-    }
-
   suspend fun translate(
     from: Language,
     to: Language,
@@ -146,6 +115,15 @@ class TranslationService(
       TranslationResult.Success(TranslatedText(result, transliterated))
     }
 
+  /**
+   * Abort the in-flight document translation. Non-suspending so the cancel
+   * button can call it directly; the cached catalog is the same instance
+   * running the translation, so slimt's workers stop within ~one batch.
+   */
+  fun cancelOngoingWork() {
+    filePathManager.loadCatalog()?.cancelOngoingWork()
+  }
+
   suspend fun translateDocumentPath(
     inputPath: String,
     outputPath: String,
@@ -153,6 +131,7 @@ class TranslationService(
     to: Language,
     availableLanguages: List<Language>,
     translatePdfImages: Boolean,
+    txtLayout: TxtLayoutChoice,
     onProgress: (DocumentTranslationProgress) -> Unit = {},
     isCancelled: () -> Boolean = { false },
   ): Result<String> =
@@ -162,7 +141,7 @@ class TranslationService(
           ?: return@withContext Result.failure(IllegalStateException("Catalog unavailable"))
       try {
         Result.success(
-          catalog.translateDocumentPath(inputPath, outputPath, from, to, availableLanguages, translatePdfImages, onProgress, isCancelled),
+          catalog.translateDocumentPath(inputPath, outputPath, from, to, availableLanguages, translatePdfImages, txtLayout, onProgress, isCancelled),
         )
       } catch (e: CatalogException.MissingAsset) {
         Result.failure(IllegalStateException("Language pair ${from.code} -> ${to.code} not installed", e))
@@ -204,18 +183,4 @@ sealed class TranslationResult {
   data class Error(
     val message: String,
   ) : TranslationResult()
-}
-
-sealed class StructuredFragmentTranslationOutput {
-  data class Success(
-    val blocks: List<uniffi.translator.TranslatedStyledBlock>,
-  ) : StructuredFragmentTranslationOutput()
-
-  data class NothingToTranslate(
-    val reason: NothingReason,
-  ) : StructuredFragmentTranslationOutput()
-
-  data class Error(
-    val message: String,
-  ) : StructuredFragmentTranslationOutput()
 }

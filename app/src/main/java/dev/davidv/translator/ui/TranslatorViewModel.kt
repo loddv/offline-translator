@@ -36,7 +36,6 @@ import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.PcmAudio
 import dev.davidv.translator.PdfPhaseProgress
-import dev.davidv.translator.PreferredOcrEngine
 import dev.davidv.translator.PreparedImageOverlay
 import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.SettingsManager
@@ -45,7 +44,14 @@ import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
+import dev.davidv.translator.TxtLayoutChoice
 import dev.davidv.translator.WordWithTaggedEntries
+import dev.davidv.translator.copyDocumentUriToCache
+import dev.davidv.translator.displayNameForUri
+import dev.davidv.translator.sizeBytesForUri
+import dev.davidv.translator.ui.components.DetectedRegions
+import dev.davidv.translator.ui.components.ImageWordSelection
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -58,6 +64,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class TranslatorViewModel(
@@ -97,19 +104,27 @@ class TranslatorViewModel(
   private val _originalImage = MutableStateFlow<Bitmap?>(null)
   val originalImage: StateFlow<Bitmap?> = _originalImage.asStateFlow()
 
+  private val _imageWordSelection = MutableStateFlow<ImageWordSelection?>(null)
+  val imageWordSelection: StateFlow<ImageWordSelection?> = _imageWordSelection.asStateFlow()
+
+  private val _detectedRegions = MutableStateFlow<DetectedRegions?>(null)
+  val detectedRegions: StateFlow<DetectedRegions?> = _detectedRegions.asStateFlow()
+
   private data class OcrCacheEntry(
     val plan: PreparedImageOverlay,
     val imageRef: Bitmap,
     val sourceCode: String,
     val sourceScript: String,
-    val readingOrder: ReadingOrder,
-    val engine: PreferredOcrEngine,
+    val readingOrder: ReadingOrder?,
+    // Owns the source pixels rust-side so a language switch re-renders without re-OCR or any
+    // image copy across the FFI. Null for images translated via the legacy copying path.
+    val ocrImage: uniffi.bindings.OcrImage?,
   )
 
   private var ocrCache: OcrCacheEntry? = null
 
-  private val _ocrReadingOrder = MutableStateFlow(ReadingOrder.LEFT_TO_RIGHT)
-  val ocrReadingOrder: StateFlow<ReadingOrder> = _ocrReadingOrder.asStateFlow()
+  private val _ocrReadingOrder = MutableStateFlow<ReadingOrder?>(null)
+  val ocrReadingOrder: StateFlow<ReadingOrder?> = _ocrReadingOrder.asStateFlow()
 
   private val _inputType = MutableStateFlow(InputType.TEXT)
   val inputType: StateFlow<InputType> = _inputType.asStateFlow()
@@ -135,12 +150,18 @@ class TranslatorViewModel(
   private val _dictionaryLookupLanguage = MutableStateFlow<Language?>(null)
   val dictionaryLookupLanguage: StateFlow<Language?> = _dictionaryLookupLanguage.asStateFlow()
 
-  private val _ttsVoices = MutableStateFlow<Map<String, List<uniffi.translator.InstalledTtsPack>>>(emptyMap())
-  val ttsVoices: StateFlow<Map<String, List<uniffi.translator.InstalledTtsPack>>> = _ttsVoices.asStateFlow()
+  private val _ttsVoices = MutableStateFlow<Map<String, List<uniffi.translator_core.InstalledTtsPack>>>(emptyMap())
+  val ttsVoices: StateFlow<Map<String, List<uniffi.translator_core.InstalledTtsPack>>> = _ttsVoices.asStateFlow()
 
   private val _documentTranslation = MutableStateFlow<DocumentTranslationUiState?>(null)
   val documentTranslation: StateFlow<DocumentTranslationUiState?> = _documentTranslation.asStateFlow()
   private var dismissedInProgressDocumentTaskId: Long? = null
+
+  // Picked-but-not-yet-started document. Drives the Configure sheet
+  // (source/dest + per-type options) before the translation service is
+  // launched; cleared once the user confirms or cancels.
+  private val _pendingDocument = MutableStateFlow<PendingDocument?>(null)
+  val pendingDocument: StateFlow<PendingDocument?> = _pendingDocument.asStateFlow()
 
   // One-shot UI events (Toast, errors, etc.)
   private val _uiEvents = MutableSharedFlow<UiEvent>()
@@ -407,8 +428,9 @@ class TranslatorViewModel(
       TranslatorMessage.ToggleJapaneseOcrMode -> {
         _ocrReadingOrder.value =
           when (_ocrReadingOrder.value) {
-            ReadingOrder.LEFT_TO_RIGHT -> ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT
-            ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT -> ReadingOrder.LEFT_TO_RIGHT
+            null -> ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT
+            ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> ReadingOrder.LEFT_TO_RIGHT
+            ReadingOrder.LEFT_TO_RIGHT -> null
           }
         val fromLang = _from.value
         if (_inputType.value == InputType.IMAGE && fromLang?.code == "ja") {
@@ -480,6 +502,25 @@ class TranslatorViewModel(
 
   fun setSharedImageUri(uri: Uri) {
     _pendingSharedImage.tryEmit(uri)
+  }
+
+  // A shared document (pdf/odt/txt/epub) reaches the same drawer as a picked one:
+  // copy the content URI into cache off the main thread, then drive the pending
+  // document state the file picker also feeds.
+  fun setSharedDocumentUri(uri: Uri) {
+    viewModelScope.launch {
+      try {
+        val file = withContext(Dispatchers.IO) { copyDocumentUriToCache(appContext, uri) }
+        handleDocumentPath(
+          path = file.absolutePath,
+          displayName = displayNameForUri(appContext, uri) ?: file.name,
+          sizeBytes = sizeBytesForUri(appContext, uri) ?: file.length(),
+          deleteAfterLoad = true,
+        )
+      } catch (e: Exception) {
+        Log.e("SharedDocument", "Failed to import shared document: $uri", e)
+      }
+    }
   }
 
   fun setModalVisible(visible: Boolean) {
@@ -567,18 +608,15 @@ class TranslatorViewModel(
     fromLang: Language,
     toLang: Language,
   ) {
+    _imageWordSelection.value = null
+    _detectedRegions.value = null
     val readingOrder = currentReadingOrderFor(fromLang)
-    val engine = settingsManager.settings.value.preferredOcrEngine
     val cached =
       ocrCache?.takeIf { entry ->
         !_isAutoSource.value &&
           entry.imageRef === bitmap &&
           entry.readingOrder == readingOrder &&
-          entry.engine == engine &&
-          when (engine) {
-            PreferredOcrEngine.PADDLE -> entry.sourceScript == fromLang.script
-            PreferredOcrEngine.TESSERACT -> entry.sourceCode == fromLang.code
-          }
+          entry.sourceScript == fromLang.script
       }
     val onMessage: (TranslatorMessage.ImageTextDetected) -> Unit = { msg ->
       _input.value = msg.extractedText
@@ -591,6 +629,7 @@ class TranslatorViewModel(
           fromLang,
           toLang,
           onMessage = onMessage,
+          ocrImage = cached.ocrImage,
         )
       } else {
         translationCoordinator.translateImageWithOverlay(
@@ -603,11 +642,22 @@ class TranslatorViewModel(
           onMissingDetectedLanguage = { detected ->
             _currentDetectedLanguage.value = detected
           },
+          onDetectedRegions = { boxes, w, h ->
+            _detectedRegions.value = DetectedRegions(w, h, boxes)
+          },
         )
       }
+    _detectedRegions.value = null
     result?.let {
       _displayImage.value = it.correctedBitmap
       _output.value = TranslatedText(it.translatedText, null)
+      _imageWordSelection.value =
+        ImageWordSelection(
+          imageWidth = it.metadata.width.toInt(),
+          imageHeight = it.metadata.height.toInt(),
+          sourceWords = it.metadata.sourceWords,
+          translatedWords = it.translatedWords,
+        )
       ocrCache =
         OcrCacheEntry(
           plan = it.metadata,
@@ -615,7 +665,7 @@ class TranslatorViewModel(
           sourceCode = fromLang.code,
           sourceScript = fromLang.script,
           readingOrder = readingOrder,
-          engine = engine,
+          ocrImage = it.ocrImage,
         )
     }
   }
@@ -666,12 +716,34 @@ class TranslatorViewModel(
     sizeBytes: Long,
     deleteAfterLoad: Boolean,
   ) {
-    if (_isAutoSource.value) {
-      viewModelScope.launch {
-        _uiEvents.emit(UiEvent.ShowToast("Please select source language first"))
-      }
-      return
+    Log.d("SetDocumentPath", "Selected document for translation: $displayName ($path)")
+    _pendingDocument.value =
+      PendingDocument(
+        path = path,
+        displayName = displayName,
+        sizeBytes = sizeBytes,
+        deleteAfterLoad = deleteAfterLoad,
+        extension = File(path).extension.lowercase(),
+      )
+  }
+
+  fun dismissPendingDocument() {
+    val pending = _pendingDocument.value ?: return
+    if (pending.deleteAfterLoad) {
+      runCatching { File(pending.path).delete() }
     }
+    _pendingDocument.value = null
+  }
+
+  fun startPendingDocumentTranslation(
+    from: Language,
+    to: Language,
+    txtLayout: TxtLayoutChoice,
+    translatePdfImages: Boolean,
+  ) {
+    val pending = _pendingDocument.value ?: return
+    _pendingDocument.value = null
+
     _displayImage.value = null
     _originalImage.value = null
     ocrCache = null
@@ -680,42 +752,27 @@ class TranslatorViewModel(
     _inputTransliterated.value = null
     _inputType.value = InputType.FILE
     _currentDetectedLanguage.value = null
-    Log.d("SetDocumentPath", "Selected document for translation: $displayName ($path)")
 
-    val fromLang = _from.value
-    val toLang = _to.value
-    if (fromLang == null || toLang == null) {
-      _documentTranslation.value =
-        DocumentTranslationUiState(
-          taskId = System.currentTimeMillis(),
-          fileName = displayName,
-          fileSizeBytes = sizeBytes,
-          errorMessage = "Languages are not ready yet",
-        )
-      viewModelScope.launch {
-        _uiEvents.emit(UiEvent.ShowToast("Languages are not ready yet"))
-      }
-      return
-    }
-
-    val outputFile = translatedDocumentOutputFile(displayName, fromLang, toLang)
+    val outputFile = translatedDocumentOutputFile(pending.displayName, from, to)
     DocumentTranslationService.startTranslation(
       context = appContext,
-      inputPath = path,
+      inputPath = pending.path,
       outputPath = outputFile.absolutePath,
-      displayName = displayName,
-      sizeBytes = sizeBytes,
-      from = fromLang,
-      to = toLang,
-      deleteAfterLoad = deleteAfterLoad,
+      displayName = pending.displayName,
+      sizeBytes = pending.sizeBytes,
+      from = from,
+      to = to,
+      deleteAfterLoad = pending.deleteAfterLoad,
+      translatePdfImages = translatePdfImages,
+      txtLayout = txtLayout,
     )
   }
 
-  private fun currentReadingOrderFor(fromLang: Language): ReadingOrder =
+  private fun currentReadingOrderFor(fromLang: Language): ReadingOrder? =
     if (fromLang.code == "ja") {
       _ocrReadingOrder.value
     } else {
-      ReadingOrder.LEFT_TO_RIGHT
+      null
     }
 
   private suspend fun autoTranslateInitialText(
@@ -885,6 +942,14 @@ sealed class UiEvent {
   data class PlayAudio(val audioChunks: Flow<PcmAudio>) : UiEvent()
 }
 
+data class PendingDocument(
+  val path: String,
+  val displayName: String,
+  val sizeBytes: Long,
+  val deleteAfterLoad: Boolean,
+  val extension: String,
+)
+
 data class DocumentTranslationUiState(
   val taskId: Long,
   val fileName: String,
@@ -895,20 +960,10 @@ data class DocumentTranslationUiState(
   val errorMessage: String? = null,
   val progressLabel: String = "Preparing file",
   val pdfPhases: PdfPhaseProgress? = null,
-  val progressCurrent: Int? = null,
-  val progressTotal: Int? = null,
-  val progressUnit: String? = null,
+  val progressFraction: Float? = null,
 ) {
   val isTranslating: Boolean
     get() = outputPath == null && errorMessage == null
-
-  val progressFraction: Float?
-    get() {
-      val current = progressCurrent ?: return null
-      val total = progressTotal ?: return null
-      if (total <= 0) return null
-      return (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-    }
 }
 
 private fun DocumentTranslationServiceState.toUiState(): DocumentTranslationUiState =
@@ -922,15 +977,14 @@ private fun DocumentTranslationServiceState.toUiState(): DocumentTranslationUiSt
     errorMessage = errorMessage,
     progressLabel = progressLabel,
     pdfPhases = pdfPhases,
-    progressCurrent = progressCurrent,
-    progressTotal = progressTotal,
-    progressUnit = progressUnit,
+    progressFraction = progressFraction,
   )
 
 private fun mimeTypeForDocumentPath(path: String): String =
   when (File(path).extension.lowercase()) {
     "pdf" -> "application/pdf"
     "odt" -> "application/vnd.oasis.opendocument.text"
+    "epub" -> "application/epub+zip"
     "txt" -> "text/plain"
     else -> "application/octet-stream"
   }

@@ -73,25 +73,12 @@ class SettingsManager(
         defaults.backgroundMode
       }
 
-    val preferredOcrEngineName = prefs.getString("preferred_ocr_engine", null)
-    val preferredOcrEngine =
-      if (preferredOcrEngineName != null) {
-        try {
-          PreferredOcrEngine.valueOf(preferredOcrEngineName)
-        } catch (_: IllegalArgumentException) {
-          defaults.preferredOcrEngine
-        }
-      } else {
-        defaults.preferredOcrEngine
-      }
-
     val minConfidence = prefs.getInt("min_confidence", defaults.minConfidence)
     val maxImageSize = prefs.getInt("max_image_size", defaults.maxImageSize).coerceIn(600, 2000)
     val disableCLD = prefs.getBoolean("disable_cld", defaults.disableCLD)
     val enableOutputTransliteration = prefs.getBoolean("enable_output_transliteration", defaults.enableOutputTransliteration)
     val useExternalStorage = prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
     val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
-    val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
     val showTransliterationOnInput = prefs.getBoolean("show_transliteration_on_input", defaults.showTransliterationOnInput)
     val onlyShowOutputOnReadonlyModal =
       prefs.getBoolean(
@@ -142,20 +129,29 @@ class SettingsManager(
       prefs.getBoolean("live_camera_overlay_enabled", defaults.liveCameraOverlayEnabled)
     val registerAsBrowser =
       prefs.getBoolean("register_as_browser", defaults.registerAsBrowser)
+    val assistantActionName = prefs.getString("assistant_action", null)
+    val assistantAction =
+      if (assistantActionName != null) {
+        try {
+          AssistantAction.valueOf(assistantActionName)
+        } catch (_: IllegalArgumentException) {
+          defaults.assistantAction
+        }
+      } else {
+        defaults.assistantAction
+      }
 
     return AppSettings(
       defaultTargetLanguageCode = defaultTargetLanguageCode,
       defaultSourceLanguageCode = defaultSourceLanguageCode,
       catalogIndexUrl = catalogIndexUrl,
       backgroundMode = backgroundMode,
-      preferredOcrEngine = preferredOcrEngine,
       minConfidence = minConfidence,
       maxImageSize = maxImageSize,
       disableCLD = disableCLD,
       enableOutputTransliteration = enableOutputTransliteration,
       useExternalStorage = useExternalStorage,
       fontFactor = fontFactor,
-      showOCRDetection = showOCRDetection,
       showTransliterationOnInput = showTransliterationOnInput,
       onlyShowOutputOnReadonlyModal = onlyShowOutputOnReadonlyModal,
       readonlyModalOutputAlignment = readonlyModalOutputAlignment,
@@ -169,6 +165,7 @@ class SettingsManager(
       translatePdfImages = translatePdfImages,
       liveCameraOverlayEnabled = liveCameraOverlayEnabled,
       registerAsBrowser = registerAsBrowser,
+      assistantAction = assistantAction,
     )
   }
 
@@ -196,10 +193,6 @@ class SettingsManager(
         putString("background_mode", newSettings.backgroundMode.name)
         modifiedSettings.add("background_mode")
       }
-      if (newSettings.preferredOcrEngine != currentSettings.preferredOcrEngine) {
-        putString("preferred_ocr_engine", newSettings.preferredOcrEngine.name)
-        modifiedSettings.add("preferred_ocr_engine")
-      }
       if (newSettings.minConfidence != currentSettings.minConfidence) {
         putInt("min_confidence", newSettings.minConfidence)
         modifiedSettings.add("min_confidence")
@@ -219,10 +212,6 @@ class SettingsManager(
       if (newSettings.useExternalStorage != currentSettings.useExternalStorage) {
         putBoolean("use_external_storage", newSettings.useExternalStorage)
         modifiedSettings.add("use_external_storage")
-      }
-      if (newSettings.showOCRDetection != currentSettings.showOCRDetection) {
-        putBoolean("show_ocr_detection", newSettings.showOCRDetection)
-        modifiedSettings.add("show_ocr_detection")
       }
       if (newSettings.fontFactor != currentSettings.fontFactor) {
         putFloat("font_factor", newSettings.fontFactor)
@@ -281,6 +270,10 @@ class SettingsManager(
         putBoolean("register_as_browser", newSettings.registerAsBrowser)
         modifiedSettings.add("register_as_browser")
         applyBrowserAliasState(newSettings.registerAsBrowser)
+      }
+      if (newSettings.assistantAction != currentSettings.assistantAction) {
+        putString("assistant_action", newSettings.assistantAction.name)
+        modifiedSettings.add("assistant_action")
       }
       remove("translation_models_base_url_v3")
       remove("tesseract_models_base_url")

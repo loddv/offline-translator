@@ -18,26 +18,85 @@ Language packs contain the full translation models, translation happens _on your
 
 ## Screenshots
 
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/01_main_interface.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/04_image_translation_big.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png)
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/03_transliteration.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/02_image_translation.png)
+[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/05_language_packs.png)
 [<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07_dictionary.png" width="200px">](fastlane/metadata/android/en-US/images/phoneScreenshots/07_dictionary.png)
+
+https://github.com/user-attachments/assets/bf774a4f-3d58-49b7-b4e2-cb30eb395b39
+
+## Supported languages
+
+- Albanian
+- Arabic
+- Azerbaijani
+- Basque
+- Belarusian
+- Bengali
+- Bosnian
+- Bulgarian
+- Catalan
+- Chinese (简体)
+- Chinese (繁體)
+- Croatian
+- Czech
+- Danish
+- Dutch
+- English
+- Estonian
+- Finnish
+- French
+- Galician
+- German
+- Greek
+- Gujarati
+- Hebrew
+- Hindi
+- Hungarian
+- Icelandic
+- Indonesian
+- Italian
+- Japanese
+- Kannada
+- Korean
+- Latvian
+- Lithuanian
+- Malay
+- Malayalam
+- Marathi
+- Norwegian
+- Norwegian Bokmål
+- Norwegian Nynorsk
+- Persian
+- Polish
+- Portuguese
+- Romanian
+- Russian
+- Serbian
+- Slovak
+- Slovenian
+- Spanish
+- Swedish
+- Tamil
+- Telugu
+- Thai
+- Turkish
+- Ukrainian
+- Urdu
+- Vietnamese
 
 ## Tech
 
 - Translation models are Firefox' [translations models](https://github.com/mozilla/translations)
-- OCR models are [Tesseract](https://github.com/tesseract-ocr/tesseract)
+- OCR models are [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
 - Automatic language detection is done via [cld2](https://github.com/CLD2Owners/cld2)
 - Dictionary is based on data from Wiktionary, exported by [Kaikki](https://kaikki.org/)
   - For Japanese specifically, there's a second "word dictionary" (Mecab) for transliterating Kanji
 - TTS uses [Piper](https://github.com/OHF-Voice/piper1-gpl), [Coqui](https://github.com/coqui-ai/tts), [Kokoro](https://github.com/hexgrad/kokoro), [MMS](https://huggingface.co/facebook/mms-tts), [Sherpa ONNX](https://github.com/k2-fsa/sherpa-onnx), [Mimic3](https://github.com/MycroftAI/mimic3) voices
-- PDF surgery uses [mupdf](https://github.com/ArtifexSoftware/mupdf) and [lopdf](https://github.com/J-F-Liu/lopdf).
+- PDF surgery uses [mupdf](https://github.com/ArtifexSoftware/mupdf) and [lopdf](https://github.com/J-F-Liu/lopdf)
 - Inference engines are:
   - Translation models: [slimt](https://github.com/jerinphilip/slimt)
-  - Paddle OCR, Kokoro TTS: [MNN](https://github.com/alibaba/MNN/)
-  - Other TTS: [OnnxRuntime](https://github.com/microsoft/onnxruntime)
+  - Paddle OCR, TTS, document alignment: [MNN](https://github.com/alibaba/MNN/)
 
 ## Features & How to Use
 

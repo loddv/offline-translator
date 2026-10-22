@@ -5,10 +5,24 @@ import uniffi.bindings.CatalogException
 import uniffi.bindings.CatalogHandle
 import uniffi.bindings.DocumentProgressEvent
 import uniffi.bindings.DocumentProgressSink
-import uniffi.bindings.sampleOverlayColorsRgba
+import uniffi.bindings.TxtLayout
 import java.nio.ByteBuffer
 
 typealias CatalogError = CatalogException
+
+// / Caller-chosen layout for `.txt` translation. Ignored for other
+// / document types. `Reflow.wrapColumns == null` means do not re-wrap.
+sealed class TxtLayoutChoice {
+  data object Preserve : TxtLayoutChoice()
+
+  data class Reflow(val wrapColumns: Int?) : TxtLayoutChoice()
+
+  fun toUniffi(): TxtLayout =
+    when (this) {
+      Preserve -> TxtLayout.Preserve
+      is Reflow -> TxtLayout.Reflow(wrap = wrapColumns?.toUInt())
+    }
+}
 
 sealed class DocumentTranslationProgress {
   data object Preparing : DocumentTranslationProgress()
@@ -19,10 +33,21 @@ sealed class DocumentTranslationProgress {
     val rasterPages: Int,
   ) : DocumentTranslationProgress()
 
-  data class Translating(
+  /** Text-translation completion as a smooth fraction in [0, 1]. */
+  data class TranslatingText(
+    val fraction: Float,
+  ) : DocumentTranslationProgress()
+
+  /** Image-XObject OCR pass: real item counts. */
+  data class TranslatingImages(
     val current: Int,
     val total: Int,
-    val unit: String,
+  ) : DocumentTranslationProgress()
+
+  /** Page-raster overlay pass: real item counts. */
+  data class TranslatingRasterPages(
+    val current: Int,
+    val total: Int,
   ) : DocumentTranslationProgress()
 
   data object Writing : DocumentTranslationProgress()
@@ -37,129 +62,31 @@ private fun DocumentProgressEvent.toDocumentTranslationProgress(): DocumentTrans
         imageXobjects = imageXobjects.toInt(),
         rasterPages = rasterPages.toInt(),
       )
-    is DocumentProgressEvent.Translating ->
-      DocumentTranslationProgress.Translating(
+    is DocumentProgressEvent.TranslatingText ->
+      DocumentTranslationProgress.TranslatingText(fraction = fraction)
+    is DocumentProgressEvent.TranslatingImages ->
+      DocumentTranslationProgress.TranslatingImages(
         current = current.toInt(),
         total = total.toInt(),
-        unit = unit,
+      )
+    is DocumentProgressEvent.TranslatingRasterPages ->
+      DocumentTranslationProgress.TranslatingRasterPages(
+        current = current.toInt(),
+        total = total.toInt(),
       )
     DocumentProgressEvent.Writing -> DocumentTranslationProgress.Writing
   }
 
-private fun rgbaBytes(bitmap: Bitmap): ByteArray =
-  ByteArray(bitmap.byteCount).also { bytes ->
+private fun rgbaBytes(bitmap: Bitmap): ByteArray {
+  val start = System.nanoTime()
+  return ByteArray(bitmap.byteCount).also { bytes ->
     bitmap.copyPixelsToBuffer(ByteBuffer.wrap(bytes))
-  }
-
-private data class CroppedOverlayScreenshot(
-  val screenshot: uniffi.translator.OverlayScreenshot,
-  val left: Int,
-  val top: Int,
-)
-
-private fun cropOverlayScreenshot(
-  bitmap: Bitmap,
-  fragments: List<StyledFragment>,
-  marginPx: Int = 4,
-): CroppedOverlayScreenshot? {
-  if (fragments.isEmpty()) return null
-
-  var left = Int.MAX_VALUE
-  var top = Int.MAX_VALUE
-  var right = Int.MIN_VALUE
-  var bottom = Int.MIN_VALUE
-  fragments.forEach { fragment ->
-    val bounds = fragment.bounds
-    left = minOf(left, bounds.left)
-    top = minOf(top, bounds.top)
-    right = maxOf(right, bounds.right)
-    bottom = maxOf(bottom, bounds.bottom)
-  }
-
-  if (left == Int.MAX_VALUE || top == Int.MAX_VALUE) return null
-
-  val cropLeft = (left - marginPx).coerceIn(0, bitmap.width)
-  val cropTop = (top - marginPx).coerceIn(0, bitmap.height)
-  val cropRight = (right + marginPx).coerceIn(cropLeft, bitmap.width)
-  val cropBottom = (bottom + marginPx).coerceIn(cropTop, bitmap.height)
-  val cropWidth = cropRight - cropLeft
-  val cropHeight = cropBottom - cropTop
-  if (cropWidth <= 0 || cropHeight <= 0) return null
-
-  val croppedBitmap = Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropWidth, cropHeight)
-  try {
-    return CroppedOverlayScreenshot(
-      screenshot =
-        uniffi.translator.OverlayScreenshot(
-          rgbaBytes(croppedBitmap),
-          croppedBitmap.width.toUInt(),
-          croppedBitmap.height.toUInt(),
-        ),
-      left = cropLeft,
-      top = cropTop,
+    android.util.Log.i(
+      "CatalogModels",
+      "rgbaBytes extract: ${bitmap.width}x${bitmap.height} ${bytes.size / 1024}KB — ${(System.nanoTime() - start) / 1_000_000.0}ms",
     )
-  } finally {
-    croppedBitmap.recycle()
   }
 }
-
-private fun shiftStyledFragment(
-  fragment: StyledFragment,
-  dx: Int,
-  dy: Int,
-): StyledFragment {
-  val bounds = fragment.bounds
-  return StyledFragment(
-    text = fragment.text,
-    boundingBox =
-      Rect(
-        left = (bounds.left - dx).coerceAtLeast(0),
-        top = (bounds.top - dy).coerceAtLeast(0),
-        right = (bounds.right - dx).coerceAtLeast(0),
-        bottom = (bounds.bottom - dy).coerceAtLeast(0),
-      ).toUniffiRect(),
-    style = fragment.style,
-    layoutGroup = fragment.layoutGroup,
-    translationGroup = fragment.translationGroup,
-    clusterGroup = fragment.clusterGroup,
-  )
-}
-
-private fun shiftStructuredTranslationResult(
-  result: uniffi.translator.StructuredTranslationResult,
-  dx: Int,
-  dy: Int,
-): uniffi.translator.StructuredTranslationResult =
-  uniffi.translator.StructuredTranslationResult(
-    blocks =
-      result.blocks.map { block ->
-        val bounds =
-          Rect(
-            block.boundingBox.left.toInt() + dx,
-            block.boundingBox.top.toInt() + dy,
-            block.boundingBox.right.toInt() + dx,
-            block.boundingBox.bottom.toInt() + dy,
-          ).toUniffiRect()
-        uniffi.translator.TranslatedStyledBlock(
-          text = block.text,
-          boundingBox = bounds,
-          sourceRects =
-            block.sourceRects.map { rect ->
-              Rect(
-                rect.left.toInt() + dx,
-                rect.top.toInt() + dy,
-                rect.right.toInt() + dx,
-                rect.bottom.toInt() + dy,
-              ).toUniffiRect()
-            },
-          styleSpans = block.styleSpans,
-          backgroundArgb = block.backgroundArgb,
-          foregroundArgb = block.foregroundArgb,
-        )
-      },
-    nothingReason = result.nothingReason,
-    errorMessage = result.errorMessage,
-  )
 
 data class LanguageTtsRegionV2(
   val displayName: String,
@@ -180,6 +107,7 @@ data class CatalogFileEntry(
 
 class LanguageCatalog private constructor(
   private val handle: CatalogHandle,
+  val baseDir: String,
   val formatVersion: Int,
   val generatedAt: Long,
   val dictionaryVersion: Int,
@@ -204,10 +132,8 @@ class LanguageCatalog private constructor(
                 code = row.language.code,
                 displayName = row.language.displayName,
                 shortDisplayName = row.language.shortDisplayName,
-                tessName = row.language.tessName,
                 script = row.language.script,
                 dictionaryCode = row.language.dictionaryCode,
-                tessdataSizeBytes = row.language.tessdataSizeBytes.toLong(),
               ),
             availability =
               LangAvailability(
@@ -225,6 +151,7 @@ class LanguageCatalog private constructor(
         languageRows.associate { row -> row.language.code to row.availability }
       return LanguageCatalog(
         handle = handle,
+        baseDir = baseDir,
         formatVersion = handle.formatVersion(),
         generatedAt = handle.generatedAt(),
         dictionaryVersion = handle.dictionaryVersion(),
@@ -283,6 +210,13 @@ class LanguageCatalog private constructor(
     engine: String,
   ): DownloadPlan = handle.planOcrEngineDownloads(languageCodes, engine)
 
+  fun planOcrEngineUpgrades(
+    languageCodes: List<String>,
+    engine: String,
+  ): DownloadPlan = handle.planOcrEngineUpgrades(languageCodes, engine)
+
+  fun planDeleteSupersededFiles(): DeletePlan = handle.planDeleteSupersededFiles()
+
   fun ttsVoicePickerRegions(languageCode: String): List<TtsVoicePickerRegion> = handle.ttsVoicePickerRegions(languageCode)
 
   fun installedTtsVoicePickerRegions(languageCode: String): List<TtsVoicePickerRegion> = handle.installedTtsVoicePickerRegions(languageCode)
@@ -316,7 +250,7 @@ class LanguageCatalog private constructor(
     forcedSourceLanguage: Language?,
     targetLanguage: Language,
     availableLanguages: List<Language>,
-  ): uniffi.translator.MixedTextTranslationResult =
+  ): uniffi.translator_translate.MixedTextTranslationResult =
     handle.translateMixedTexts(
       inputs,
       forcedSourceLanguage?.code,
@@ -331,51 +265,17 @@ class LanguageCatalog private constructor(
     fragments: List<String>,
   ): List<String> = handle.translateHtmlFragments(from.code, to.code, fragments)
 
-  fun translateStructuredFragments(
-    fragments: List<StyledFragment>,
-    forcedSourceLanguage: Language?,
-    targetLanguage: Language,
-    availableLanguages: List<Language>,
-    screenshot: Bitmap?,
-    backgroundMode: BackgroundMode,
-  ): uniffi.translator.StructuredTranslationResult {
-    val needsScreenshotSampling =
-      backgroundMode == BackgroundMode.AUTO_DETECT &&
-        fragments.any { !(it.style?.hasRealBackground() ?: false) }
-    val croppedScreenshot = screenshot?.takeIf { needsScreenshotSampling }?.let { cropOverlayScreenshot(it, fragments) }
-    val nativeFragments =
-      if (croppedScreenshot != null) {
-        fragments.map { shiftStyledFragment(it, croppedScreenshot.left, croppedScreenshot.top) }
-      } else {
-        fragments
-      }
-    val result =
-      handle.translateStructuredFragments(
-        nativeFragments,
-        forcedSourceLanguage?.code,
-        targetLanguage.code,
-        availableLanguages.map { it.code },
-        croppedScreenshot?.screenshot,
-        backgroundMode,
-      )
-    return if (croppedScreenshot != null) {
-      shiftStructuredTranslationResult(result, croppedScreenshot.left, croppedScreenshot.top)
-    } else {
-      result
-    }
-  }
-
   @Throws(CatalogException::class)
   fun translateImagePlan(
     bitmap: Bitmap,
     maxImageSize: Int,
-    sourceSelection: uniffi.translator.OcrSourceSelection,
+    sourceSelection: uniffi.translator_core.OcrSourceSelection,
     to: Language,
     minConfidence: Int,
-    readingOrder: ReadingOrder,
+    readingOrder: ReadingOrder?,
     backgroundMode: BackgroundMode,
-    preferredOcrEngine: PreferredOcrEngine,
-  ): uniffi.translator.PreparedImageOverlay =
+    detection: List<uniffi.translator_core.DetectedTextBox>? = null,
+  ): uniffi.translator_core.PreparedImageOverlay =
     handle.translateImagePlan(
       rgbaBytes(bitmap),
       bitmap.width.toUInt(),
@@ -386,19 +286,74 @@ class LanguageCatalog private constructor(
       minConfidence.toUInt(),
       readingOrder,
       backgroundMode,
-      preferredOcrEngine,
+      detection,
+    )
+
+  @Throws(CatalogException::class)
+  fun detectImageBoxes(
+    bitmap: Bitmap,
+    maxImageSize: Int,
+  ): List<uniffi.translator_core.DetectedTextBox> =
+    handle.detectImageBoxes(
+      rgbaBytes(bitmap),
+      bitmap.width.toUInt(),
+      bitmap.height.toUInt(),
+      maxImageSize.toUInt(),
     )
 
   @Throws(CatalogException::class)
   fun retranslateImagePlan(
-    prepared: uniffi.translator.PreparedImageOverlay,
+    prepared: uniffi.translator_core.PreparedImageOverlay,
     from: Language,
     to: Language,
-  ): uniffi.translator.PreparedImageOverlay = handle.retranslateImagePlan(prepared, from.code, to.code)
+  ): uniffi.translator_core.PreparedImageOverlay = handle.retranslateImagePlan(prepared, from.code, to.code)
 
-  /** Allocate an empty Rust-side frame buffer with reserved `capacity` bytes,
-   *  to be filled later via JNI memcpy or `resetViaUniffi`. */
-  fun makeFrameBuffer(capacity: Int): uniffi.bindings.FrameHandle = handle.makeFrameBuffer(capacity.toUInt())
+  @Throws(CatalogException::class)
+  fun ocrImageDetect(
+    img: uniffi.bindings.OcrImage,
+    maxImageSize: Int,
+  ): List<uniffi.translator_core.DetectedTextBox> = img.detect(handle, maxImageSize.toUInt())
+
+  @Throws(CatalogException::class)
+  fun ocrImagePlan(
+    img: uniffi.bindings.OcrImage,
+    maxImageSize: Int,
+    sourceSelection: uniffi.translator_core.OcrSourceSelection,
+    to: Language,
+    minConfidence: Int,
+    readingOrder: ReadingOrder?,
+    backgroundMode: BackgroundMode,
+    detection: List<uniffi.translator_core.DetectedTextBox>?,
+  ): uniffi.translator_core.PreparedImageOverlay =
+    img.ocr(
+      handle,
+      maxImageSize.toUInt(),
+      sourceSelection,
+      to.code,
+      minConfidence.toUInt(),
+      readingOrder,
+      backgroundMode,
+      detection,
+    )
+
+  @Throws(CatalogException::class)
+  fun ocrImageRenderInto(
+    img: uniffi.bindings.OcrImage,
+    plan: uniffi.translator_core.PreparedImageOverlay,
+    to: Language,
+    minFontSizePx: Float,
+    dstAddr: Long,
+  ): List<uniffi.translator_core.PositionedWord> = img.renderInto(plan, to.code, minFontSizePx, dstAddr.toULong())
+
+  @Throws(CatalogException::class)
+  fun ocrImageRetranslateInto(
+    img: uniffi.bindings.OcrImage,
+    plan: uniffi.translator_core.PreparedImageOverlay,
+    from: Language,
+    to: Language,
+    minFontSizePx: Float,
+    dstAddr: Long,
+  ): uniffi.bindings.RetranslateResult = img.retranslateInto(handle, plan, from.code, to.code, minFontSizePx, dstAddr.toULong())
 
   /** Internal accessor for the raw uniffi `CatalogHandle`. The live-
    *  overlay pipeline constructor takes this so it can hold an Arc to
@@ -408,23 +363,23 @@ class LanguageCatalog private constructor(
 
   @Throws(CatalogException::class)
   fun renderTranslatedOverlay(
-    plan: uniffi.translator.PreparedImageOverlay,
+    plan: uniffi.translator_core.PreparedImageOverlay,
     targetLanguage: Language,
     minFontSizePx: Float,
-  ): ByteArray = uniffi.bindings.renderTranslatedOverlay(plan, targetLanguage.code, minFontSizePx)
+  ): uniffi.translator_render.RenderedOverlay = uniffi.bindings.renderTranslatedOverlay(plan, targetLanguage.code, minFontSizePx)
 
   @Throws(CatalogException::class)
-  fun detectDocumentQuad(bitmap: Bitmap): uniffi.translator.DocumentDetection? =
+  fun detectDocumentQuad(bitmap: Bitmap): uniffi.translator_align.DocumentDetection? =
     handle.detectDocumentQuad(rgbaBytes(bitmap), bitmap.width.toUInt(), bitmap.height.toUInt())
 
   @Throws(CatalogException::class)
   fun warpDocumentRgba(
     bitmap: Bitmap,
-    quad: uniffi.translator.DocumentQuad,
+    quad: uniffi.translator_align.DocumentQuad,
     outWidth: Int? = null,
     outHeight: Int? = null,
     postprocess: Boolean = true,
-  ): uniffi.translator.WarpedImageRgba =
+  ): uniffi.translator_align.WarpedImageRgba =
     handle.warpDocumentRgba(
       rgbaBytes(bitmap),
       bitmap.width.toUInt(),
@@ -443,6 +398,7 @@ class LanguageCatalog private constructor(
     to: Language,
     availableLanguages: List<Language>,
     translatePdfImages: Boolean,
+    txtLayout: TxtLayoutChoice,
     onProgress: (DocumentTranslationProgress) -> Unit = {},
     isCancelled: () -> Boolean = { false },
   ): String =
@@ -453,6 +409,7 @@ class LanguageCatalog private constructor(
       to.code,
       availableLanguages.map { it.code },
       translatePdfImages,
+      txtLayout.toUniffi(),
       object : DocumentProgressSink {
         override fun onProgress(event: DocumentProgressEvent) {
           onProgress(event.toDocumentTranslationProgress())
@@ -461,6 +418,17 @@ class LanguageCatalog private constructor(
         override fun isCancelled(): Boolean = isCancelled()
       },
     )
+
+  /** Abort an in-flight document translation; workers stop within ~one batch. */
+  fun cancelOngoingWork() = handle.cancelOngoingWork()
+
+  /** ONNX→MNN migrations needed for this install (only entries whose `.onnx` is
+   *  on disk). Run `needsConvert` jobs through [ModelConverterJni], then pass the
+   *  finished/cleanup/discarded jobs to [discardMigration]. */
+  fun planMigration(): List<uniffi.bindings.MigrationJobRecord> = handle.planMigration()
+
+  /** Delete each job's source `.onnx` and refresh the catalog snapshot. */
+  fun discardMigration(jobs: List<uniffi.bindings.MigrationJobRecord>) = handle.discardMigration(jobs)
 
   fun planDownload(
     languageCode: String,
@@ -495,8 +463,13 @@ class LanguageCatalog private constructor(
 
   fun supportInstalledByKind(kind: String): Boolean {
     val sizeBytes = supportSizeBytesByKind(kind)
-    val plan = planSupportDownloadByKind(kind) ?: return false
-    return sizeBytes > 0 && plan.tasks.isEmpty()
+    val plan = planSupportDownloadByKind(kind)
+    val installed = plan != null && sizeBytes > 0 && plan.tasks.isEmpty()
+    android.util.Log.i(
+      "CatalogSupport",
+      "supportInstalledByKind $kind: size=$sizeBytes tasks=${plan?.tasks?.size ?: -1} -> $installed",
+    )
+    return installed
   }
 
   fun availableTtsVoices(languageCode: String): List<TtsVoiceOption> =
@@ -508,7 +481,7 @@ class LanguageCatalog private constructor(
       )
     }
 
-  fun installedTtsVoices(languageCode: String): List<uniffi.translator.InstalledTtsPack> = handle.installedTtsVoices(languageCode)
+  fun installedTtsVoices(languageCode: String): List<uniffi.translator_core.InstalledTtsPack> = handle.installedTtsVoices(languageCode)
 
   fun planSpeechChunks(
     languageCode: String,
@@ -536,65 +509,4 @@ class LanguageCatalog private constructor(
       handle.synthesizeSpeechPcm(languageCode, text, speechSpeed, voiceName, isPhonemes, packId)
     return PcmAudio(sampleRate = audio.sampleRate, pcmSamples = audio.pcmSamples.toShortArray())
   }
-}
-
-fun sampleOverlayColors(
-  bitmap: Bitmap,
-  bounds: Rect,
-  backgroundMode: BackgroundMode,
-  wordRects: Array<Rect>? = null,
-): OverlayColors {
-  val sampleMargin = 4
-  val cropLeft = (bounds.left - sampleMargin).coerceAtLeast(0)
-  val cropTop = (bounds.top - sampleMargin).coerceAtLeast(0)
-  val cropRight = (bounds.right + sampleMargin).coerceAtMost(bitmap.width)
-  val cropBottom = (bounds.bottom + sampleMargin).coerceAtMost(bitmap.height)
-  val cropWidth = cropRight - cropLeft
-  val cropHeight = cropBottom - cropTop
-  if (cropWidth <= 0 || cropHeight <= 0) {
-    return OverlayColors(
-      background = android.graphics.Color.WHITE,
-      foreground = android.graphics.Color.BLACK,
-    )
-  }
-
-  val croppedBitmap = Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropWidth, cropHeight)
-  val localBounds =
-    uniffi.translator.Rect(
-      left = (bounds.left - cropLeft).coerceIn(0, cropWidth).toUInt(),
-      top = (bounds.top - cropTop).coerceIn(0, cropHeight).toUInt(),
-      right = (bounds.right - cropLeft).coerceIn(0, cropWidth).toUInt(),
-      bottom = (bounds.bottom - cropTop).coerceIn(0, cropHeight).toUInt(),
-    )
-  val localWordRects =
-    wordRects?.mapNotNull { rect ->
-      val left = (rect.left - cropLeft).coerceIn(0, cropWidth)
-      val top = (rect.top - cropTop).coerceIn(0, cropHeight)
-      val right = (rect.right - cropLeft).coerceIn(0, cropWidth)
-      val bottom = (rect.bottom - cropTop).coerceIn(0, cropHeight)
-      if (right <= left || bottom <= top) {
-        null
-      } else {
-        uniffi.translator.Rect(
-          left = left.toUInt(),
-          top = top.toUInt(),
-          right = right.toUInt(),
-          bottom = bottom.toUInt(),
-        )
-      }
-    }
-  val colors =
-    sampleOverlayColorsRgba(
-      rgbaBytes(croppedBitmap),
-      croppedBitmap.width.toUInt(),
-      croppedBitmap.height.toUInt(),
-      localBounds,
-      backgroundMode,
-      localWordRects,
-    )
-  croppedBitmap.recycle()
-  return OverlayColors(
-    background = colors?.backgroundArgb?.toInt() ?: android.graphics.Color.WHITE,
-    foreground = colors?.foregroundArgb?.toInt() ?: android.graphics.Color.BLACK,
-  )
 }

@@ -94,6 +94,7 @@ class SpeechService(
                   packId = selectedPackId,
                 )
               } catch (e: uniffi.bindings.CatalogException) {
+                Log.e("SpeechService", "synthesizeSpeechPcm failed lang=${language.code} pack=$selectedPackId", e)
                 throw IllegalStateException(
                   "Speech synthesis failed for ${language.displayName}",
                   e,
@@ -125,7 +126,7 @@ class SpeechService(
       catalog.availableTtsVoices(language.code)
     }
 
-  suspend fun installedTtsVoices(language: Language): List<uniffi.translator.InstalledTtsPack> =
+  suspend fun installedTtsVoices(language: Language): List<uniffi.translator_core.InstalledTtsPack> =
     withContext(Dispatchers.IO) {
       val catalog = filePathManager.loadCatalog() ?: return@withContext emptyList()
       catalog.installedTtsVoices(language.code)

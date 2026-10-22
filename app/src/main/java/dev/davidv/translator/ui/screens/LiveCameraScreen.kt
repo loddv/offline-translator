@@ -21,6 +21,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureResult
@@ -35,14 +36,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
-import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
@@ -99,19 +101,48 @@ import androidx.core.content.FileProvider
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityState
 import dev.davidv.translator.LanguageMetadata
-import dev.davidv.translator.LiveFrameJni
 import dev.davidv.translator.LivePlanarOcrEngine
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.ui.components.LanguageSelector
-import dev.davidv.translator.ui.components.LiveTranslatorSurfaceView
+import dev.davidv.translator.ui.components.LiveGlSurfaceView
 import java.io.File
 import java.util.concurrent.Executor
 import android.util.Size as AndroidSize
 
 private const val TAG = "LiveCameraScreen"
 private val TARGET_RESOLUTION = AndroidSize(1080, 1920)
-private val ANALYZER_RESOLUTION = AndroidSize(1080, 1920)
+private val PREVIEW_RESOLUTION = AndroidSize(1080, 1920)
+
+/** Minimum change in target focus (diopters, 1/m) before we re-issue a
+ *  capture request. A deadband: holding the camera still leaves scale
+ *  essentially constant, so without it we'd churn `setCaptureRequestOptions`
+ *  every frame and chase sub-pixel scale jitter into focus jitter. */
+private const val FOCUS_UPDATE_DEADBAND_DIOPTERS = 0.5f
+
+/** EMA weight applied to the raw tracker `scale` before it drives focus.
+ *  Handheld jitter pushes per-frame scale around by a few % even on a
+ *  static scene; smoothing it absorbs that without adding meaningful lag
+ *  for real zoom-in/out motion. */
+private const val FOCUS_SCALE_EMA_ALPHA = 0.25f
+
+/** Minimum interval between focus-distance writes. Caps how often we
+ *  rebuild the repeating capture request from the steer path even when
+ *  the deadband is repeatedly crossed (slow drift across many frames). */
+private const val FOCUS_UPDATE_MIN_INTERVAL_MS = 750L
+
+/** Reference captured when the tracker-driven focus lock is established:
+ *  the focus distance ([refDiopters], 1/m) the lens was at and the
+ *  tracker scale ([refScale]) at that instant, tagged with the chain
+ *  [rootAnchorId] they belong to. Target focus for a later frame with
+ *  scale `s` is `refDiopters * s / refScale` — image scale is inversely
+ *  proportional to subject distance, and focus distance is in diopters
+ *  (1/m), so diopters track scale linearly. */
+private data class FocusBaseline(
+  val rootAnchorId: Long,
+  val refDiopters: Float,
+  val refScale: Float,
+)
 
 /** Show a small overlay pill in the corner reporting tracker state
  *  (Idle/Acquiring/Locked/Lost + inliers + last acquire's det/rec
@@ -320,29 +351,36 @@ private fun CameraSurface(
   // capture request and startFocusAndMetering silently no-ops.
   val focusLockedRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
 
-  val imageAnalysis =
+  // Reference scale/distance the focus lock was seeded from, plus the
+  // last focus distance we actually pushed to the lens. Both written
+  // from the trackerStatus collector and reset by tap-to-focus (all on
+  // the main thread, but held in atomics to keep the cross-effect reads
+  // honest). `null` baseline = not yet seeded; once seeded we stay in
+  // AF_MODE=OFF and steer focus from tracker scale until the next tap.
+  val focusBaselineRef =
+    remember { java.util.concurrent.atomic.AtomicReference<FocusBaseline?>(null) }
+  val heldFocusDiopters =
+    remember { java.util.concurrent.atomic.AtomicReference<Float?>(null) }
+
+  // CameraX `Preview` use case. Its output Surface is provided by
+  // `LiveGlSurfaceView`'s SurfaceTexture (the GL render thread owns the
+  // external-OES texture the SurfaceTexture wraps). No `ImageAnalysis`:
+  // per-frame pixels never cross JNI as CPU bytes — the engine renders
+  // canonical luma on the GPU from the same external texture the present
+  // composite samples.
+  val preview =
     remember {
-      // Cap analyzer source at ~1.5 MP regardless of device. The bigger the source,
-      // the slower the per-frame bitmap conversion (RGBA copy + rotation) — and
-      // detection downscales to a fixed 400k target anyway, so the larger source
-      // mostly burns memory bandwidth.
-      val maxPixels = 2_500_000L
       val resolutionSelector =
         ResolutionSelector.Builder()
           .setResolutionStrategy(
             ResolutionStrategy(
-              ANALYZER_RESOLUTION,
+              PREVIEW_RESOLUTION,
               ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
             ),
           )
-          .setResolutionFilter { sizes, _ ->
-            sizes.filter { it.width.toLong() * it.height <= maxPixels }
-          }
           .build()
       val builder =
-        ImageAnalysis.Builder()
-          .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-          .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+        Preview.Builder()
           .setResolutionSelector(resolutionSelector)
       Camera2Interop.Extender(builder).setSessionCaptureCallback(
         object : CameraCaptureSession.CaptureCallback() {
@@ -371,7 +409,11 @@ private fun CameraSurface(
       )
       builder.build()
     }
-  val analyzerExecutor =
+  // Background executor for the CameraX SurfaceProvider's surface-release
+  // callback. CameraX cancels surface requests on this executor; the
+  // single-thread is plenty since the callback fires at most a handful of
+  // times over the Composable's lifetime.
+  val cameraSurfaceExecutor =
     remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
 
   val workerScope = androidx.compose.runtime.rememberCoroutineScope()
@@ -380,10 +422,9 @@ private fun CameraSurface(
   var previewSizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
   DisposableEffect(Unit) {
-    onDispose { analyzerExecutor.shutdown() }
+    onDispose { cameraSurfaceExecutor.shutdown() }
   }
 
-  val analyzerSession = remember { java.util.concurrent.atomic.AtomicLong(0L) }
   LaunchedEffect(from.code, isAutoSource, hasPaddleOcrModels, liveOverlayDefaultEnabled) {
     liveOverlayOn = liveOverlayDefaultEnabled && hasPaddleOcrModels
     if (!liveOverlayOn) liveOcrEngine?.clear()
@@ -400,188 +441,147 @@ private fun CameraSurface(
     }
   }
 
-  // Lock focus to the AF-converged distance once the tracker reaches
-  // LOCKED, release on any other state. Avoids AF excursions blurring
-  // frames mid-track (which kills BRIEF descriptors → tracker drops).
-  // The trade-off is accepted by design: progressive blur as the user
-  // physically moves the camera, OCR still works on slightly blurry
-  // frames, tracking stays glued. AF re-fires implicitly on the next
-  // re-acquire / tap-to-focus.
+  // Pin focus when the tracker first locks, then *steer* it from the
+  // tracked plane's scale instead of ever handing control back to AF.
+  // Autofocus excursions blur frames mid-track, which kills BRIEF
+  // descriptors and drops the tracker — and the old policy re-enabled
+  // continuous AF on every drop, so the camera hunted in a loop even on a
+  // perfectly still scene. Here AF stays OFF after the first lock: as the
+  // user nears/recedes the plane its scale changes, and we move
+  // LENS_FOCUS_DISTANCE to match (image scale ∝ 1/distance ∝ diopters).
+  // Focus is handed back to AF only on an explicit tap (see the tap
+  // handler). A full re-acquire restarts the scale baseline (new chain
+  // root) but the camera hasn't teleported, so we re-baseline at the
+  // focus distance we're already holding — no hunt, no jump.
   LaunchedEffect(camera, liveOcrEngine) {
     val engine = liveOcrEngine ?: return@LaunchedEffect
     val cam = camera ?: return@LaunchedEffect
+    // Closest the lens can focus, in diopters (1/m); 0 = infinity. Caps
+    // the steered distance so we never command past the optics.
+    val minFocusDiopters =
+      runCatching {
+        Camera2CameraInfo
+          .from(cam.cameraInfo)
+          .getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)
+      }.getOrNull() ?: 10f
+
+    fun applyFocus(diopters: Float) {
+      // Explicitly hold AE = ON in the same bundle. Empirically some
+      // Camera2 implementations couple AF and AE state; if
+      // setCaptureRequestOptions replaces the bundle and AE wasn't named,
+      // AE can transiently destabilise. Tiny exposure shifts kill BRIEF
+      // descriptor matches (256 sign-bit comparisons; pixels near a
+      // comparison's zero crossing flip on sub-1/3-EV shifts), which
+      // manifested as sudden inlier collapses on frames where nothing
+      // actually moved.
+      Log.i(TAG, "applyFocus d=$diopters")
+      val opts =
+        CaptureRequestOptions.Builder()
+          .setCaptureRequestOption(
+            CaptureRequest.CONTROL_AF_MODE,
+            CameraMetadata.CONTROL_AF_MODE_OFF,
+          )
+          .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, diopters)
+          .setCaptureRequestOption(
+            CaptureRequest.CONTROL_AE_MODE,
+            CameraMetadata.CONTROL_AE_MODE_ON,
+          )
+          .build()
+      Camera2CameraControl.from(cam.cameraControl).captureRequestOptions = opts
+    }
+
+    var smoothedScale = Float.NaN
+    var lastSeenRoot = -1L
+    var lastFocusUpdateMs = 0L
     engine.trackerStatus.collect { status ->
-      val shouldLock = status.state == uniffi.bindings.PlanarTrackerState.LOCKED
-      if (shouldLock && !focusLockedRef.get()) {
-        val d = latestFocusedDistance.value ?: return@collect
-        try {
-          val ctrl = Camera2CameraControl.from(cam.cameraControl)
-          // Explicitly hold AE = ON in the same bundle. Empirically
-          // some Camera2 implementations couple AF and AE state; if
-          // `setCaptureRequestOptions` replaces the bundle and AE
-          // wasn't named, AE can transiently destabilise. Tiny
-          // exposure shifts kill BRIEF descriptor matches (256
-          // sign-bit comparisons; pixels near a comparison's zero
-          // crossing flip on sub-1/3-EV shifts), which manifested as
-          // sudden inlier collapses on frames where nothing actually
-          // moved.
-          val opts =
-            CaptureRequestOptions.Builder()
-              .setCaptureRequestOption(
-                CaptureRequest.CONTROL_AF_MODE,
-                CameraMetadata.CONTROL_AF_MODE_OFF,
-              )
-              .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, d)
-              .setCaptureRequestOption(
-                CaptureRequest.CONTROL_AE_MODE,
-                CameraMetadata.CONTROL_AE_MODE_ON,
-              )
-              .build()
-          ctrl.captureRequestOptions = opts
-          focusLockedRef.set(true)
-          Log.i(TAG, "AF locked at distance=$d (tracker LOCKED)")
-        } catch (e: Throwable) {
-          Log.w(TAG, "AF lock failed", e)
+      if (status.state != uniffi.bindings.PlanarTrackerState.LOCKED) {
+        smoothedScale = Float.NaN
+        lastSeenRoot = -1L
+        return@collect
+      }
+      val raw = if (status.scale > 0f) status.scale else 1f
+      smoothedScale =
+        if (smoothedScale.isNaN() || status.rootAnchorId != lastSeenRoot) {
+          raw
+        } else {
+          smoothedScale + FOCUS_SCALE_EMA_ALPHA * (raw - smoothedScale)
         }
-      } else if (!shouldLock && focusLockedRef.get()) {
-        try {
-          val ctrl = Camera2CameraControl.from(cam.cameraControl)
-          val opts =
-            CaptureRequestOptions.Builder()
-              .setCaptureRequestOption(
-                CaptureRequest.CONTROL_AF_MODE,
-                CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_PICTURE,
-              )
-              .build()
-          ctrl.captureRequestOptions = opts
-          focusLockedRef.set(false)
-          Log.i(TAG, "AF released (tracker state=${status.state})")
-        } catch (e: Throwable) {
-          Log.w(TAG, "AF release failed", e)
+      lastSeenRoot = status.rootAnchorId
+      val scale = smoothedScale
+
+      val existing = focusBaselineRef.get()
+      if (existing == null) {
+        // First lock since startup or a tap: seed from whatever distance
+        // AF converged to while it was still running. Wait for it.
+        val d0 = latestFocusedDistance.value ?: return@collect
+        runCatching {
+          applyFocus(d0)
+          focusBaselineRef.set(FocusBaseline(status.rootAnchorId, d0, scale))
+          heldFocusDiopters.set(d0)
+          focusLockedRef.set(true)
+          Log.i(TAG, "focus pinned d0=$d0 s0=$scale root=${status.rootAnchorId}")
+        }.onFailure { Log.w(TAG, "focus pin failed", it) }
+        return@collect
+      }
+
+      val baseline =
+        if (status.rootAnchorId != existing.rootAnchorId) {
+          val held = heldFocusDiopters.get() ?: existing.refDiopters
+          FocusBaseline(status.rootAnchorId, held, scale).also {
+            focusBaselineRef.set(it)
+            Log.i(TAG, "focus re-baseline root=${status.rootAnchorId} held=$held s0=$scale")
+          }
+        } else {
+          existing
+        }
+
+      val target =
+        (baseline.refDiopters * scale / baseline.refScale).coerceIn(0f, minFocusDiopters)
+      val prev = heldFocusDiopters.get()
+      if (prev == null || kotlin.math.abs(target - prev) > FOCUS_UPDATE_DEADBAND_DIOPTERS) {
+        val nowMs = android.os.SystemClock.uptimeMillis()
+        if (nowMs - lastFocusUpdateMs >= FOCUS_UPDATE_MIN_INTERVAL_MS) {
+          lastFocusUpdateMs = nowMs
+          runCatching {
+            applyFocus(target)
+            heldFocusDiopters.set(target)
+          }.onFailure { Log.w(TAG, "focus steer failed", it) }
         }
       }
     }
   }
 
-  // The analyzer is the only source of pixels for the SurfaceView, so
-  // keep it attached whenever an engine exists — even when the OCR
-  // overlay is off or unavailable (missing models). In that case the
-  // engine runs the tracker in SUPPRESSED mode and composites
-  // camera-only frames; we just keep showing the camera without
-  // overlays. Gating this on `liveOverlayOn` would leave the surface
-  // black on startup whenever OCR models for the current language
-  // aren't installed.
-  DisposableEffect(liveOcrEngine, from.code, to.code, isAutoSource) {
-    val engine = liveOcrEngine
-    val mySession = analyzerSession.incrementAndGet()
-    if (engine != null) {
-      imageAnalysis.setAnalyzer(analyzerExecutor) { proxy ->
-        val handle = engine.acquireFrameHandle()
-        if (handle == null) {
-          proxy.close()
-          return@setAnalyzer
-        }
-        val plane = proxy.planes[0]
-        val rowStride = plane.rowStride
-        val pixelStride = plane.pixelStride
-        val width = proxy.width
-        val height = proxy.height
-        val rotation = proxy.imageInfo.rotationDegrees
-        val captureTs = proxy.imageInfo.timestamp
-        val length = width * pixelStride * height
-        // Zero-copy fast path: contiguous RGBA_8888 DirectByteBuffer →
-        // record the camera buffer's native address inside the
-        // FrameHandle without memcpying. The ImageProxy stays open for
-        // the duration of `processFrame` below; the pipeline either
-        // materializes an owned copy (acquire/refresh) or drops the
-        // borrow (pure tracking frame) before returning, after which
-        // we close the proxy.
-        //
-        // Stride-padded fallback (rare): repack row-by-row through
-        // uniffi (eager copy); proxy can close immediately.
-        val ok: Boolean
-        if (rowStride == width * pixelStride) {
-          plane.buffer.rewind()
-          ok =
-            LiveFrameJni.setExternalBuffer(
-              handle.rawAddressForJni().toLong(),
-              plane.buffer,
-              length,
-              width,
-              height,
-              rotation,
-            )
-        } else {
-          val src = ByteArray(plane.buffer.remaining())
-          plane.buffer.rewind()
-          plane.buffer.get(src)
-          val packed = ByteArray(length)
-          val rowBytes = width * pixelStride
-          for (row in 0 until height) {
-            System.arraycopy(src, row * rowStride, packed, row * rowBytes, rowBytes)
-          }
-          handle.resetViaUniffi(packed, width.toUInt(), height.toUInt(), rotation)
-          ok = true
-          proxy.close()
-        }
-        if (!ok || analyzerSession.get() != mySession) {
-          if (ok) proxy.close()
-          engine.releaseFrameHandle(handle)
-          return@setAnalyzer
-        }
-        try {
-          engine.processFrame(
-            handle,
-            width,
-            height,
-            rotation,
-            cropFocusNormalized.x,
-            cropFocusNormalized.y,
-            from,
-            to,
-            isAutoSource,
-            captureTs,
-          )
-        } finally {
-          // Always close the ImageProxy (the borrow we set above is
-          // gone by this point — pipeline materialized or cleared it)
-          // and return the FrameHandle to the pool.
-          if (rowStride == width * pixelStride) {
-            proxy.close()
-          }
-          engine.releaseFrameHandle(handle)
-        }
-      }
-    } else {
-      imageAnalysis.clearAnalyzer()
-    }
-    onDispose {
-      analyzerSession.incrementAndGet()
-      imageAnalysis.clearAnalyzer()
-      engine?.clear()
-    }
+  // Push language config into the tracker whenever it changes. The
+  // pipeline only diffs the call internally if the codes/auto flag
+  // actually change, so calling once per real change is safe and cheap.
+  LaunchedEffect(liveOcrEngine, from.code, to.code, isAutoSource) {
+    liveOcrEngine?.setLanguages(from, to, isAutoSource)
+  }
+
+  // Tap-to-focus = fresh-start intent. The GL thread doesn't see the
+  // tap; bump the tracker generation here so any in-flight async job
+  // bails at its next gen-check.
+  LaunchedEffect(liveOcrEngine, cropFocusNormalized) {
+    liveOcrEngine?.resetTracker()
   }
 
   val liveSurfaceView =
-    remember { LiveTranslatorSurfaceView(context) }
+    remember { LiveGlSurfaceView(context).apply { keepScreenOn = true } }
 
-  // Publish SurfaceView dims to the engine so its `display_crop`
-  // matches the FILL_CENTER visible region. Surface dims arrive
-  // asynchronously via `surfaceChanged`; until then `setViewSize(0,0)`
-  // is the no-op default and the engine falls back to full-display
-  // crop on the first few frames.
+  // Hand the tracker pointer + per-frame result callback to the GL
+  // thread. The GL render loop, driven by `SurfaceTexture.onFrameAvailable`
+  // from CameraX's `Preview`, calls `LivePipelineJni.processFrameGl`
+  // directly with this pointer and forwards the packed result here so
+  // the debug pill stays in sync.
   DisposableEffect(liveSurfaceView, liveOcrEngine) {
     val engine = liveOcrEngine
     if (engine != null) {
-      liveSurfaceView.onSizeChanged = { w, h -> engine.setViewSize(w, h) }
-      // Push the current dims in case the surface was already sized
-      // before the engine attached.
-      if (liveSurfaceView.width > 0 && liveSurfaceView.height > 0) {
-        engine.setViewSize(liveSurfaceView.width, liveSurfaceView.height)
-      }
+      liveSurfaceView.pipelinePtr = engine.pipelinePtr
+      liveSurfaceView.onFrameResult = { packed -> engine.onFrameResult(packed) }
     }
     onDispose {
-      liveSurfaceView.onSizeChanged = null
+      liveSurfaceView.pipelinePtr = 0L
+      liveSurfaceView.onFrameResult = null
     }
   }
 
@@ -616,19 +616,20 @@ private fun CameraSurface(
               )
             val cam = camera ?: return true
             // If the tracker-driven lock is currently pinning focus via
-            // Camera2 interop (AF_MODE=OFF + fixed LENS_FOCUS_DISTANCE),
+            // Camera2 interop (AF_MODE=OFF + steered LENS_FOCUS_DISTANCE),
             // startFocusAndMetering would be silently overridden on the
             // next capture request. Clear the interop bundle first, drop
-            // the latched distance so the lock effect waits for AF to
-            // re-converge at the tapped point before re-pinning, and
-            // reset the lock flag so the next LOCKED emission can fire
-            // the lock path again.
+            // the latched distance and the scale baseline so the focus
+            // controller waits for AF to re-converge at the tapped point
+            // before re-seeding, and reset the lock flag.
             if (focusLockedRef.getAndSet(false)) {
               runCatching {
                 Camera2CameraControl.from(cam.cameraControl).captureRequestOptions =
                   CaptureRequestOptions.Builder().build()
               }.onFailure { Log.w(TAG, "clear interop options failed", it) }
               latestFocusedDistance.value = null
+              focusBaselineRef.set(null)
+              heldFocusDiopters.set(null)
             }
             // Without a PreviewView there's no built-in
             // MeteringPointFactory, so we hand-build one against the
@@ -655,37 +656,46 @@ private fun CameraSurface(
     onDispose { liveSurfaceView.setOnTouchListener(null) }
   }
 
-  DisposableEffect(lifecycleOwner) {
+  DisposableEffect(lifecycleOwner, liveSurfaceView) {
     val providerFuture = ProcessCameraProvider.getInstance(context)
     providerFuture.addListener({
       val provider = providerFuture.get()
       try {
         provider.unbindAll()
-        // No `Preview` UseCase — the analyzer stream is our single
-        // source of pixels. `LiveTranslatorSurfaceView` draws the
-        // composited result (camera + overlay) produced by the engine
-        // per analyzer frame. This eliminates the preview-vs-overlay
-        // timing mismatch that the old two-surface architecture had.
+        // CameraX `Preview` writes camera frames into the GL surface
+        // view's SurfaceTexture (GL_TEXTURE_EXTERNAL_OES). The render
+        // thread, woken by SurfaceTexture.onFrameAvailable, GPU-renders
+        // canonical luma for the tracker and composites the same
+        // external texture + overlay into the EGL surface. One camera
+        // consumer; no `ImageAnalysis` stream, no per-frame CPU bytes.
+        preview.setSurfaceProvider(cameraSurfaceExecutor) { request ->
+          val resolution = request.resolution
+          Log.i(TAG, "Preview SurfaceRequest resolution=${resolution.width}x${resolution.height}")
+          liveSurfaceView.setCameraBufferSize(resolution.width, resolution.height)
+          val surface = liveSurfaceView.awaitCameraSurface()
+          if (surface == null) {
+            request.willNotProvideSurface()
+            return@setSurfaceProvider
+          }
+          request.provideSurface(surface, cameraSurfaceExecutor) {
+            // The Surface is released when the GL thread tears down
+            // (surfaceDestroyed); CameraX's release callback is a no-op.
+          }
+        }
         val boundCamera =
           provider.bindToLifecycle(
             lifecycleOwner,
             CameraSelector.DEFAULT_BACK_CAMERA,
             imageCapture,
-            imageAnalysis,
+            preview,
           )
         camera = boundCamera
         hasFlashUnit = boundCamera.cameraInfo.hasFlashUnit()
-        // Bias auto-exposure toward shorter exposure / lower ISO. The
-        // camera's AE algorithm sees this as "user wants ~2/3 stop
-        // darker" and tends to shorten shutter (less motion blur on
-        // handheld pans) without us going full manual. -2 here is in
-        // device step units, usually 1/3 EV per step. If a device's
-        // range doesn't include -2 the API clamps silently.
-        try {
-          boundCamera.cameraControl.setExposureCompensationIndex(-4)
-        } catch (e: Exception) {
-          Log.w(TAG, "exposure compensation not supported", e)
-        }
+        // Sensor mount angle (CW degrees the sensor is rotated vs the
+        // natural display orientation). Plumbed into the UV xform so the
+        // composite is upright on devices with a non-90° mount, instead
+        // of hard-coding the back-camera-on-portrait-phone case.
+        liveSurfaceView.setCameraOrientationDegrees(boundCamera.cameraInfo.sensorRotationDegrees)
       } catch (e: Exception) {
         Log.e(TAG, "Failed to bind camera", e)
       }
@@ -713,13 +723,10 @@ private fun CameraSurface(
     // this language aren't installed), the engine still receives
     // frames and composites camera-only — the tracker is held in
     // SUPPRESSED so no acquire/refresh worker runs.
-    val composited by
-      (liveOcrEngine?.compositedFrame ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) })
-        .collectAsState()
     AndroidView(
       factory = { liveSurfaceView },
       modifier = Modifier.fillMaxSize(),
-      update = { view -> view.update(composited) },
+      update = { },
     )
 
     if (DEBUG_SHOW_TRACKER_STATUS && liveOcrEngine != null) {

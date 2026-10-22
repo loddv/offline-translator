@@ -1,3 +1,4 @@
+use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::{fs, path::Path};
 
@@ -13,7 +14,7 @@ pub(crate) const PER_FRAME_TIMING_LOG: bool = false;
 use thiserror::Error;
 use translator::{
     CatalogSnapshot, Feature, FsPackInstallChecker, TranslatorError, TranslatorErrorKind,
-    TranslatorSession, language_rows_in_snapshot, sample_overlay_colors,
+    TranslatorSession, language_rows_in_snapshot,
 };
 
 #[derive(Debug, Error, uniffi::Error)]
@@ -51,29 +52,51 @@ impl From<TranslatorError> for CatalogError {
 pub enum DocumentProgressEvent {
     Preparing,
     /// PDF-only: emitted once after inventory, before any pass starts.
-    /// Lets the UI render three labelled progress lines (pages /
-    /// images / raster pages) with their totals up-front, instead of
-    /// one bar that resets when each phase ends. Subsequent
-    /// `Translating` events update the matching counter via `unit`:
-    ///   - "page" → text-translation pages
-    ///   - "image" → image-XObject pass
-    ///   - "raster_page" → page-raster overlay pass
-    /// `raster_pages` is an upper bound; the raster pass refines it
-    /// once the image pass has narrowed the actual set, by reporting
-    /// the smaller `total` in its ticks.
+    /// Lets the UI render three labelled progress lines (text / images /
+    /// raster pages) with their image/raster totals up-front, instead of
+    /// one bar that resets when each phase ends. The text bar is driven by
+    /// `TranslatingText`, the image bar by `TranslatingImages`, the raster
+    /// bar by `TranslatingRasterPages`.
+    /// `raster_pages` is an upper bound; the raster pass refines it once the
+    /// image pass has narrowed the actual set, by reporting the smaller
+    /// `total` in its ticks.
     PdfPlan {
         text_pages: u32,
         image_xobjects: u32,
         raster_pages: u32,
     },
-    Translating {
-        current: u32,
-        total: u32,
-        unit: String,
-    },
+    /// Text-translation progress as a smooth completion fraction in
+    /// `[0.0, 1.0]` (source-length weighted). Used for every text path
+    /// (txt/odt/epub and the PDF text pass) — the per-paragraph/page counts it
+    /// replaced were interpolated estimates, not real positions, so a fraction
+    /// is the honest representation.
+    TranslatingText { fraction: f32 },
+    /// Image-XObject OCR+translation pass: real, in-order item counts.
+    TranslatingImages { current: u32, total: u32 },
+    /// Page-raster overlay OCR+translation pass: real, in-order item counts.
+    TranslatingRasterPages { current: u32, total: u32 },
     Writing,
 }
 
+/// Caller-chosen layout for `.txt` translation. `wrap` of `0` (or absent)
+/// means "do not re-wrap"; any positive value is the output column width.
+/// Ignored for non-txt documents.
+#[derive(Debug, Clone, uniffi::Enum)]
+pub enum TxtLayout {
+    Preserve,
+    Reflow { wrap: Option<u32> },
+}
+
+impl From<TxtLayout> for translator::txt::TxtLayout {
+    fn from(value: TxtLayout) -> Self {
+        match value {
+            TxtLayout::Preserve => Self::Preserve,
+            TxtLayout::Reflow { wrap } => Self::Reflow {
+                wrap: wrap.and_then(NonZeroU32::new),
+            },
+        }
+    }
+}
 
 #[uniffi::export(with_foreign)]
 pub trait DocumentProgressSink: Send + Sync {
@@ -126,6 +149,56 @@ impl From<translator::catalog::AssetFileV2> for CatalogFileRecord {
     }
 }
 
+/// One on-device ONNX→MNN migration step. Paths are relative to the catalog's
+/// `base_dir` (the same one passed to `CatalogHandle.open`). When `needs_convert`
+/// is false the `.mnn` already exists and only the stray `.onnx` needs dropping.
+/// The actual conversion runs in the separate converter native lib; deletion +
+/// snapshot refresh go through `discard_migration`.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct MigrationJobRecord {
+    pub onnx_path: String,
+    pub mnn_path: String,
+    pub quant_bits: i32,
+    pub onnx_bytes: u64,
+    pub mnn_bytes: u64,
+    pub feature: String,
+    pub needs_convert: bool,
+}
+
+impl From<translator::catalog::MigrationJob> for MigrationJobRecord {
+    fn from(job: translator::catalog::MigrationJob) -> Self {
+        Self {
+            onnx_path: job.entry.onnx,
+            mnn_path: job.entry.mnn,
+            quant_bits: job.entry.quant_bits,
+            onnx_bytes: job.entry.onnx_bytes,
+            mnn_bytes: job.entry.mnn_bytes,
+            feature: job.entry.feature,
+            needs_convert: matches!(job.action, translator::catalog::MigrationAction::Convert),
+        }
+    }
+}
+
+impl From<MigrationJobRecord> for translator::catalog::MigrationJob {
+    fn from(record: MigrationJobRecord) -> Self {
+        translator::catalog::MigrationJob {
+            entry: translator::catalog::MigrationEntry {
+                onnx: record.onnx_path,
+                mnn: record.mnn_path,
+                quant_bits: record.quant_bits,
+                onnx_bytes: record.onnx_bytes,
+                mnn_bytes: record.mnn_bytes,
+                feature: record.feature,
+            },
+            action: if record.needs_convert {
+                translator::catalog::MigrationAction::Convert
+            } else {
+                translator::catalog::MigrationAction::CleanupOnly
+            },
+        }
+    }
+}
+
 #[cfg(feature = "dictionary")]
 fn map_dictionary_word(word: translator::tarkka::WordWithTaggedEntries) -> DictionaryWordRecord {
     DictionaryWordRecord {
@@ -157,25 +230,6 @@ fn map_dictionary_word(word: translator::tarkka::WordWithTaggedEntries) -> Dicti
     }
 }
 
-#[uniffi::export]
-fn sample_overlay_colors_rgba(
-    rgba_bytes: Vec<u8>,
-    width: u32,
-    height: u32,
-    bounds: translator::Rect,
-    background_mode: translator::BackgroundMode,
-    word_rects: Option<Vec<translator::Rect>>,
-) -> Option<translator::OverlayColors> {
-    sample_overlay_colors(
-        &rgba_bytes,
-        width,
-        height,
-        bounds,
-        background_mode,
-        word_rects.as_deref(),
-    )
-    .ok()
-}
 
 /// Rasterize the translated overlay onto `prepared`. Returns the new RGBA
 /// buffer (same dimensions as `prepared.width` x `prepared.height`).
@@ -189,7 +243,7 @@ fn render_translated_overlay(
     prepared: translator::PreparedImageOverlay,
     language: String,
     min_font_size_px: f32,
-) -> Result<Vec<u8>, CatalogError> {
+) -> Result<translator::image_render::RenderedOverlay, CatalogError> {
     use translator::image_render::{RenderOptions, render_overlay};
     let opts = RenderOptions {
         language,
@@ -199,6 +253,201 @@ fn render_translated_overlay(
     render_overlay(&prepared, &provider, &opts).map_err(|e| CatalogError::Other {
         reason: e.to_string(),
     })
+}
+
+#[derive(uniffi::Record)]
+pub struct RetranslateResult {
+    pub plan: translator::PreparedImageOverlay,
+    pub words: Vec<translator::ocr::PositionedWord>,
+}
+
+/// Owns a copy of a still image's pixels rust-side so detection, OCR, and overlay rendering
+/// run as separate FFI calls without re-marshalling the (multi-MB) image between them. The
+/// source pixels are read-only after construction; `render_into` composes the translated
+/// overlay into a *caller-provided* buffer, leaving the source intact (re-renderable).
+#[derive(uniffi::Object)]
+pub struct OcrImage {
+    source: Vec<u8>,
+    width: u32,
+    height: u32,
+    // Display-orient RGB + detector downscale, built once and shared by `detect` + `ocr` so the
+    // staged pass doesn't rebuild it (`None` until the first detect/ocr).
+    #[cfg(feature = "ppocr")]
+    still: std::sync::Mutex<Option<Arc<translator::live_frame::StillImage>>>,
+    // Erased background produced by `ocr`, kept rust-side so `render_into` draws onto it
+    // without the erased image crossing the FFI boundary.
+    erased: std::sync::Mutex<Option<Vec<u8>>>,
+}
+
+impl OcrImage {
+    #[cfg(feature = "ppocr")]
+    fn ensure_still(
+        &self,
+        catalog: &CatalogHandle,
+        max_image_size: u32,
+    ) -> Result<Arc<translator::live_frame::StillImage>, CatalogError> {
+        let mut guard = self.still.lock().expect("ocr image still lock");
+        if let Some(still) = guard.as_ref() {
+            return Ok(still.clone());
+        }
+        let still = Arc::new(
+            catalog
+                .session
+                .build_still_image(&self.source, self.width, self.height, max_image_size)
+                .map_err(CatalogError::from)?,
+        );
+        *guard = Some(still.clone());
+        Ok(still)
+    }
+}
+
+#[uniffi::export]
+impl OcrImage {
+    /// Copy the pixels at `pixels_addr` (a locked `ARGB_8888` bitmap, `width*height*4` bytes,
+    /// from [`NativeBitmap.lockPixels`]) into an owned buffer. The caller may unlock immediately.
+    #[uniffi::constructor]
+    fn from_pixels(pixels_addr: u64, width: u32, height: u32) -> Arc<Self> {
+        let len = (width as usize) * (height as usize) * 4;
+        let source = unsafe { std::slice::from_raw_parts(pixels_addr as *const u8, len) }.to_vec();
+        Arc::new(OcrImage {
+            source,
+            width,
+            height,
+            #[cfg(feature = "ppocr")]
+            still: std::sync::Mutex::new(None),
+            erased: std::sync::Mutex::new(None),
+        })
+    }
+
+    #[cfg(feature = "ppocr")]
+    fn detect(
+        &self,
+        catalog: Arc<CatalogHandle>,
+        max_image_size: u32,
+    ) -> Result<Vec<translator::DetectedTextBox>, CatalogError> {
+        let still = self.ensure_still(&catalog, max_image_size)?;
+        catalog
+            .session
+            .detect_boxes_from_still(&still, self.width, self.height)
+            .map_err(CatalogError::from)
+    }
+
+    #[cfg(feature = "ppocr")]
+    #[allow(clippy::too_many_arguments)]
+    fn ocr(
+        &self,
+        catalog: Arc<CatalogHandle>,
+        max_image_size: u32,
+        source_selection: translator::OcrSourceSelection,
+        target_code: String,
+        min_confidence: u32,
+        reading_order: Option<translator::ReadingOrder>,
+        background_mode: translator::BackgroundMode,
+        detection: Option<Vec<translator::DetectedTextBox>>,
+    ) -> Result<translator::PreparedImageOverlay, CatalogError> {
+        let still = self.ensure_still(&catalog, max_image_size)?;
+        let mut overlay = catalog
+            .session
+            .translate_from_still(
+                &still,
+                &self.source,
+                self.width,
+                self.height,
+                source_selection,
+                &target_code,
+                min_confidence,
+                reading_order,
+                background_mode,
+                detection,
+            )
+            .map_err(CatalogError::from)?;
+        // Stash the erased background (move, no clone) and hand back metadata only.
+        *self.erased.lock().expect("ocr image erased lock") =
+            Some(std::mem::take(&mut overlay.rgba_bytes));
+        Ok(overlay)
+    }
+
+    #[cfg(feature = "image-render")]
+    fn render_into(
+        &self,
+        plan: translator::PreparedImageOverlay,
+        language: String,
+        min_font_size_px: f32,
+        dst_addr: u64,
+    ) -> Result<Vec<translator::ocr::PositionedWord>, CatalogError> {
+        use translator::image_render::{RenderOptions, render_overlay};
+        let erased = self
+            .erased
+            .lock()
+            .expect("ocr image erased lock")
+            .clone()
+            .ok_or_else(|| CatalogError::Other {
+                reason: "render_into called before ocr".to_string(),
+            })?;
+        let mut prepared = plan;
+        prepared.rgba_bytes = erased;
+        let opts = RenderOptions {
+            language,
+            min_font_size_px,
+        };
+        let provider = crate::android_font_provider::AndroidFontProvider;
+        let rendered = render_overlay(&prepared, &provider, &opts).map_err(|e| {
+            CatalogError::Other {
+                reason: e.to_string(),
+            }
+        })?;
+        let len = (self.width as usize) * (self.height as usize) * 4;
+        let dst = unsafe { std::slice::from_raw_parts_mut(dst_addr as *mut u8, len) };
+        dst.copy_from_slice(&rendered.rgba_bytes);
+        Ok(rendered.translated_words)
+    }
+
+    /// Re-translate the cached OCR result to a new language and compose it into `dst`, reusing
+    /// the cached erased background — no re-OCR, and the erased image never crosses the FFI.
+    #[cfg(feature = "image-render")]
+    fn retranslate_into(
+        &self,
+        catalog: Arc<CatalogHandle>,
+        plan: translator::PreparedImageOverlay,
+        source_code: String,
+        target_code: String,
+        min_font_size_px: f32,
+        dst_addr: u64,
+    ) -> Result<RetranslateResult, CatalogError> {
+        use translator::image_render::{RenderOptions, render_overlay};
+        let erased = self
+            .erased
+            .lock()
+            .expect("ocr image erased lock")
+            .clone()
+            .ok_or_else(|| CatalogError::Other {
+                reason: "retranslate_into called before ocr".to_string(),
+            })?;
+        let mut prepared = plan;
+        prepared.rgba_bytes = erased;
+        let mut retranslated = catalog
+            .session
+            .retranslate_prepared_overlay(prepared, &source_code, &target_code)
+            .map_err(CatalogError::from)?;
+        let opts = RenderOptions {
+            language: target_code,
+            min_font_size_px,
+        };
+        let provider = crate::android_font_provider::AndroidFontProvider;
+        let rendered = render_overlay(&retranslated, &provider, &opts).map_err(|e| {
+            CatalogError::Other {
+                reason: e.to_string(),
+            }
+        })?;
+        let len = (self.width as usize) * (self.height as usize) * 4;
+        let dst = unsafe { std::slice::from_raw_parts_mut(dst_addr as *mut u8, len) };
+        dst.copy_from_slice(&rendered.rgba_bytes);
+        retranslated.rgba_bytes = Vec::new();
+        Ok(RetranslateResult {
+            plan: retranslated,
+            words: rendered.translated_words,
+        })
+    }
 }
 
 fn document_extension(path: &str) -> String {
@@ -224,7 +473,8 @@ fn translate_document_path_impl(
     target_code: String,
     available_language_codes: Vec<String>,
     translate_pdf_images: bool,
-    mut on_progress: impl FnMut(DocumentProgressEvent),
+    txt_layout: TxtLayout,
+    on_progress: impl Fn(DocumentProgressEvent) + Sync,
     is_cancelled: impl Fn() -> bool + Send + Sync,
 ) -> Result<String, CatalogError> {
     let check_cancelled = || {
@@ -232,6 +482,20 @@ fn translate_document_path_impl(
             Err(CatalogError::Cancelled)
         } else {
             Ok(())
+        }
+    };
+    // The text translators report a smooth completion fraction per sentence
+    // from slimt worker threads, so `report_text` is called concurrently.
+    // Forward to the foreign sink only when the fraction advances by ≥0.1%, so
+    // we cross the FFI boundary at most ~1000 times instead of once per
+    // sentence. Cancellation no longer rides this callback — the app calls
+    // `cancel_ongoing_work()`, which the workers observe directly.
+    let last_permille = std::sync::atomic::AtomicUsize::new(0);
+    let report_text = |fraction: f32| {
+        let permille = (fraction * 1000.0) as usize;
+        let prev = last_permille.fetch_max(permille, std::sync::atomic::Ordering::Relaxed);
+        if permille > prev || fraction >= 1.0 {
+            on_progress(DocumentProgressEvent::TranslatingText { fraction });
         }
     };
     check_cancelled()?;
@@ -254,22 +518,20 @@ fn translate_document_path_impl(
             let text = String::from_utf8(input_bytes).map_err(|error| CatalogError::Other {
                 reason: format!("text document is not UTF-8: {error}"),
             })?;
-            on_progress(DocumentProgressEvent::Translating {
-                current: 0,
-                total: 1,
-                unit: "block".to_string(),
-            });
-            check_cancelled()?;
-            let translated = session
-                .translate_text(source_code, &target_code, &text)
-                .map_err(CatalogError::from)?;
-            check_cancelled()?;
-            on_progress(DocumentProgressEvent::Translating {
-                current: 1,
-                total: 1,
-                unit: "block".to_string(),
-            });
-            check_cancelled()?;
+            let translated = translator::txt::translate_txt_with_progress(
+                session,
+                &text,
+                source_code,
+                &target_code,
+                txt_layout.into(),
+                report_text,
+            )
+            .map_err(|error| match error {
+                translator::txt::TxtTranslateError::Cancelled => CatalogError::Cancelled,
+                translator::txt::TxtTranslateError::Translation(message) => CatalogError::Other {
+                    reason: format!("failed to translate text: {message}"),
+                },
+            })?;
             translated.into_bytes()
         }
         "odt" => {
@@ -281,25 +543,7 @@ fn translate_document_path_impl(
                     forced_source_code.as_deref(),
                     &target_code,
                     &available,
-                    |progress| {
-                        if is_cancelled() {
-                            return Err(translator::odt::OdtTranslateError::Cancelled);
-                        }
-                        let translator::odt::OdtTranslateProgress::TranslatingBlock {
-                            current,
-                            total,
-                        } = progress;
-                        on_progress(DocumentProgressEvent::Translating {
-                            current: current as u32,
-                            total: total as u32,
-                            unit: "block".to_string(),
-                        });
-                        if is_cancelled() {
-                            Err(translator::odt::OdtTranslateError::Cancelled)
-                        } else {
-                            Ok(())
-                        }
-                    },
+                    report_text,
                 )
                 .map_err(|error| match error {
                     translator::odt::OdtTranslateError::Cancelled => CatalogError::Cancelled,
@@ -313,6 +557,32 @@ fn translate_document_path_impl(
                 let _ = (forced_source_code, target_code, available);
                 return Err(CatalogError::Other {
                     reason: "odt feature disabled".to_string(),
+                });
+            }
+        }
+        "epub" => {
+            #[cfg(feature = "epub")]
+            {
+                translator::epub::translate_epub_with_progress(
+                    session,
+                    &input_bytes,
+                    forced_source_code.as_deref(),
+                    &target_code,
+                    &available,
+                    report_text,
+                )
+                .map_err(|error| match error {
+                    translator::epub::EpubTranslateError::Cancelled => CatalogError::Cancelled,
+                    other => CatalogError::Other {
+                        reason: format!("failed to translate EPUB: {other}"),
+                    },
+                })?
+            }
+            #[cfg(not(feature = "epub"))]
+            {
+                let _ = (forced_source_code, target_code, available);
+                return Err(CatalogError::Other {
+                    reason: "epub feature disabled".to_string(),
                 });
             }
         }
@@ -368,25 +638,7 @@ fn translate_document_path_impl(
                     forced_source_code.as_deref(),
                     &target_code,
                     &available,
-                    |progress| {
-                        if is_cancelled() {
-                            return Err(translator::pdf_translate::PdfTranslateError::Cancelled);
-                        }
-                        let translator::pdf_translate::PdfTranslateProgress::TranslatingPage {
-                            current,
-                            total,
-                        } = progress;
-                        on_progress(DocumentProgressEvent::Translating {
-                            current: current as u32,
-                            total: total as u32,
-                            unit: "page".to_string(),
-                        });
-                        if is_cancelled() {
-                            Err(translator::pdf_translate::PdfTranslateError::Cancelled)
-                        } else {
-                            Ok(())
-                        }
-                    },
+                    report_text,
                 );
                 // If no native text was found but image translation
                 // can still add overlay content, proceed with an empty
@@ -424,10 +676,9 @@ fn translate_document_path_impl(
                     if translate_pdf_images && forced_source_code.is_some() {
                         let src = forced_source_code.as_deref().unwrap_or("");
                         let xobject_progress = |current: usize, total: usize| {
-                            on_progress(DocumentProgressEvent::Translating {
+                            on_progress(DocumentProgressEvent::TranslatingImages {
                                 current: current as u32,
                                 total: total as u32,
-                                unit: "image".to_string(),
                             });
                         };
                         let xobject_output =
@@ -455,10 +706,9 @@ fn translate_document_path_impl(
                             .copied()
                             .collect();
                         let page_progress = |current: usize, total: usize| {
-                            on_progress(DocumentProgressEvent::Translating {
+                            on_progress(DocumentProgressEvent::TranslatingRasterPages {
                                 current: current as u32,
                                 total: total as u32,
-                                unit: "raster_page".to_string(),
                             });
                         };
                         let final_bytes =
@@ -572,6 +822,28 @@ impl CatalogHandle {
             .collect()
     }
 
+    /// ONNX→MNN conversions needed to migrate this install to the MNN-only
+    /// runtime (only entries whose `.onnx` is present on disk). The caller runs
+    /// the `needs_convert` jobs through the converter native lib, then passes the
+    /// finished jobs (plus any cleanup-only / discarded ones) to
+    /// `discard_migration` to drop the `.onnx` and refresh.
+    fn plan_migration(&self) -> Vec<MigrationJobRecord> {
+        self.session
+            .plan_migration()
+            .into_iter()
+            .map(Into::into)
+            .collect()
+    }
+
+    /// Delete the source `.onnx` of each job and refresh the catalog snapshot.
+    /// Use after a successful conversion, for cleanup-only jobs, or when the user
+    /// opts to drop models instead of migrating them.
+    fn discard_migration(&self, jobs: Vec<MigrationJobRecord>) {
+        let jobs: Vec<translator::catalog::MigrationJob> =
+            jobs.into_iter().map(Into::into).collect();
+        self.session.discard_migration(&jobs);
+    }
+
     fn lookup_dictionary(
         &self,
         language_code: String,
@@ -634,6 +906,22 @@ impl CatalogHandle {
             .map(translator::LanguageCode::from)
             .collect::<Vec<_>>();
         translator::plan_ocr_engine_downloads(&self.snapshot(), &language_codes, &engine)
+    }
+
+    fn plan_ocr_engine_upgrades(
+        &self,
+        language_codes: Vec<String>,
+        engine: String,
+    ) -> translator::DownloadPlan {
+        let language_codes = language_codes
+            .into_iter()
+            .map(translator::LanguageCode::from)
+            .collect::<Vec<_>>();
+        translator::plan_ocr_engine_upgrades(&self.snapshot(), &language_codes, &engine)
+    }
+
+    fn plan_delete_superseded_files(&self) -> translator::DeletePlan {
+        translator::plan_delete_superseded_files(&self.snapshot())
     }
 
     fn tts_sample_text(&self, language_code: String) -> Option<String> {
@@ -722,35 +1010,6 @@ impl CatalogHandle {
             .unwrap_or_else(|_| translator::MixedTextTranslationResult::default())
     }
 
-    fn translate_structured_fragments(
-        &self,
-        fragments: Vec<translator::StructuredStyledFragment>,
-        forced_source_code: Option<String>,
-        target_code: String,
-        available_language_codes: Vec<String>,
-        screenshot: Option<translator::OverlayScreenshot>,
-        background_mode: translator::BackgroundMode,
-    ) -> translator::StructuredTranslationResult {
-        let available = available_language_codes
-            .into_iter()
-            .map(translator::LanguageCode::from)
-            .collect::<Vec<_>>();
-        self.session
-            .translate_structured_fragments(
-                &fragments,
-                forced_source_code.as_deref(),
-                &target_code,
-                &available,
-                screenshot.as_ref(),
-                background_mode,
-            )
-            .unwrap_or_else(|error| translator::StructuredTranslationResult {
-                blocks: Vec::new(),
-                nothing_reason: None,
-                error_message: Some(error.message),
-            })
-    }
-
     fn translate_image_plan(
         &self,
         rgba_bytes: Vec<u8>,
@@ -760,11 +1019,11 @@ impl CatalogHandle {
         source_selection: translator::OcrSourceSelection,
         target_code: String,
         min_confidence: u32,
-        reading_order: translator::ReadingOrder,
+        reading_order: Option<translator::ReadingOrder>,
         background_mode: translator::BackgroundMode,
-        preferred_engine: translator::PreferredOcrEngine,
+        detection: Option<Vec<translator::DetectedTextBox>>,
     ) -> Result<translator::PreparedImageOverlay, CatalogError> {
-        #[cfg(any(feature = "tesseract", feature = "ppocr"))]
+        #[cfg(feature = "ppocr")]
         {
             return self
                 .session
@@ -778,11 +1037,11 @@ impl CatalogHandle {
                     min_confidence,
                     reading_order,
                     background_mode,
-                    preferred_engine,
+                    detection,
                 )
                 .map_err(CatalogError::from);
         }
-        #[cfg(not(any(feature = "tesseract", feature = "ppocr")))]
+        #[cfg(not(feature = "ppocr"))]
         {
             let _ = (
                 rgba_bytes,
@@ -794,8 +1053,31 @@ impl CatalogHandle {
                 min_confidence,
                 reading_order,
                 background_mode,
-                preferred_engine,
+                detection,
             );
+            Err(CatalogError::Other {
+                reason: "OCR feature disabled".to_string(),
+            })
+        }
+    }
+
+    fn detect_image_boxes(
+        &self,
+        rgba_bytes: Vec<u8>,
+        width: u32,
+        height: u32,
+        max_image_size: u32,
+    ) -> Result<Vec<translator::DetectedTextBox>, CatalogError> {
+        #[cfg(feature = "ppocr")]
+        {
+            return self
+                .session
+                .detect_image_boxes(&rgba_bytes, width, height, max_image_size)
+                .map_err(CatalogError::from);
+        }
+        #[cfg(not(feature = "ppocr"))]
+        {
+            let _ = (rgba_bytes, width, height, max_image_size);
             Err(CatalogError::Other {
                 reason: "OCR feature disabled".to_string(),
             })
@@ -813,6 +1095,16 @@ impl CatalogHandle {
             .map_err(CatalogError::from)
     }
 
+    /// Request cancellation of an in-flight `translate_document_path*` call.
+    /// Safe to call from another thread (e.g. a UI "cancel" tap) while a
+    /// document translation is running — slimt's worker pool observes it and
+    /// stops within ~one batch, and the call returns `CatalogError::Cancelled`.
+    /// A no-op if nothing is translating; the next document translation clears
+    /// the flag at its start.
+    fn cancel_ongoing_work(&self) {
+        self.session.cancel_ongoing_work();
+    }
+
     fn translate_document_path(
         &self,
         input_path: String,
@@ -821,6 +1113,7 @@ impl CatalogHandle {
         target_code: String,
         available_language_codes: Vec<String>,
         translate_pdf_images: bool,
+        txt_layout: TxtLayout,
     ) -> Result<String, CatalogError> {
         translate_document_path_impl(
             &self.session,
@@ -830,6 +1123,7 @@ impl CatalogHandle {
             target_code,
             available_language_codes,
             translate_pdf_images,
+            txt_layout,
             |_| {},
             || false,
         )
@@ -843,6 +1137,7 @@ impl CatalogHandle {
         target_code: String,
         available_language_codes: Vec<String>,
         translate_pdf_images: bool,
+        txt_layout: TxtLayout,
         progress: Arc<dyn DocumentProgressSink>,
     ) -> Result<String, CatalogError> {
         translate_document_path_impl(
@@ -853,6 +1148,7 @@ impl CatalogHandle {
             target_code,
             available_language_codes,
             translate_pdf_images,
+            txt_layout,
             |event| progress.on_progress(event),
             || progress.is_cancelled(),
         )
@@ -1063,70 +1359,6 @@ impl CatalogHandle {
             })
         }
     }
-
-    /// Allocate a Rust-side frame buffer with a pre-sized capacity. The
-    /// buffer is reusable: feed bytes in via either
-    /// [`FrameHandle::reset_via_uniffi`] or the `LiveFrameJni.writeFrom`
-    /// JNI fast-path. Pool the handle on the Kotlin side to amortise the
-    /// Rust allocation across many frames.
-    #[cfg(feature = "ppocr")]
-    fn make_frame_buffer(&self, capacity: u32) -> Arc<FrameHandle> {
-        Arc::new(FrameHandle::new(capacity as usize))
-    }
-}
-
-/// Uniffi-visible handle around a `translator::live_frame::LiveFrame`.
-/// Holds an `Arc<LiveFrame>` so the JNI shims can dereference the
-/// stable Rust-heap address while the pipeline (and any in-flight
-/// async worker job) keep additional `Arc` clones alive.
-#[cfg(feature = "ppocr")]
-#[derive(uniffi::Object)]
-pub struct FrameHandle {
-    pub(crate) inner: Arc<translator::live_frame::LiveFrame>,
-}
-
-#[cfg(feature = "ppocr")]
-impl FrameHandle {
-    pub(crate) fn new(initial_capacity: usize) -> Self {
-        FrameHandle {
-            inner: Arc::new(translator::live_frame::LiveFrame::new(initial_capacity)),
-        }
-    }
-}
-
-#[cfg(feature = "ppocr")]
-#[uniffi::export]
-impl FrameHandle {
-    /// Returns this handle's `LiveFrame` Rust-heap address as a `u64`.
-    /// Paired with `LiveFrameJni.{writeFrom,setExternalBuffer}` for
-    /// zero-JVM-copy byte transfer from a camera DirectByteBuffer into
-    /// this frame's storage, and with `LivePipelineJni.processFrame`
-    /// for the per-frame tracker+composite call.
-    fn raw_address_for_jni(&self) -> u64 {
-        self.inner.raw_address()
-    }
-
-    /// Fallback path that copies bytes in via uniffi's standard marshalling.
-    /// Slower than the JNI shim but useful when the camera's plane isn't
-    /// a contiguous DirectByteBuffer.
-    fn reset_via_uniffi(&self, rgba: Vec<u8>, width: u32, height: u32, rotation_degrees: i32) {
-        self.inner.reset_owned(rgba, width, height, rotation_degrees);
-    }
-
-    /// `true` while the pipeline (or its worker thread) still holds an
-    /// `Arc<LiveFrame>` clone of the underlying frame — i.e. an
-    /// in-flight acquire or refresh job is still reading from this
-    /// frame's state. The Kotlin frame pool uses this to skip
-    /// "busy" handles when picking the next ingest target so a new
-    /// `setExternalBuffer` doesn't race with an async pipeline read.
-    ///
-    /// Implementation note: checks `Arc::strong_count(&self.inner)`.
-    /// A count of 1 means only this wrapper holds it; > 1 means at
-    /// least one extra clone exists (most commonly the pipeline
-    /// worker's job-local Arc).
-    fn is_busy(&self) -> bool {
-        Arc::strong_count(&self.inner) > 1
-    }
 }
 
 // =========================================================================
@@ -1138,10 +1370,12 @@ impl FrameHandle {
 // uniffi `LivePlanarTracker` is a thin shim that holds an `Arc` to it
 // + forwards a handful of uniffi-facing methods (set config, reset,
 // telemetry getter). The hot per-frame entry is the JNI extern fn
-// `Java_..._LivePipelineJni_processFrame`, which dereferences the
-// raw address from `raw_address_for_jni` and calls
-// `LiveTrackerPipeline::process_frame` directly with a `&mut [u8]`
-// pointing at the Bitmap's pixel memory.
+// `Java_..._LivePipelineJni_processFrameGl`, which dereferences the
+// raw address from `raw_address_for_jni`, GPU-renders canonical luma
+// from the camera's external-OES texture into a fresh `LiveFrame`,
+// runs `LiveTrackerPipeline::process_frame` with an
+// `ExternalPresentTarget`, and on acquire reads back full-res RGBA
+// from the same texture.
 // =========================================================================
 
 #[cfg(feature = "planar-tracker")]
@@ -1252,7 +1486,8 @@ impl LivePlanarTracker {
     }
 
     fn set_languages(&self, from_code: String, to_code: String, is_auto_source: bool) {
-        self.pipeline.set_languages(&from_code, &to_code, is_auto_source);
+        self.pipeline
+            .set_languages(&from_code, &to_code, is_auto_source);
     }
 
     fn set_target_mode(&self, mode: PipelineTargetMode) {
@@ -1277,6 +1512,76 @@ impl LivePlanarTracker {
     /// poll. Used by Kotlin to update the debug status pill.
     fn last_acquire_telemetry(&self) -> Option<AcquireTelemetryRecord> {
         self.pipeline.last_acquire_telemetry().map(Into::into)
+    }
+}
+
+/// No-tracker screen-translate pipeline (flat fronto-parallel capture →
+/// identity placement). Thin uniffi shim over
+/// `translator::live_screen::LiveScreenPipeline`, mirroring
+/// [`LivePlanarTracker`]: the per-frame fast path grabs the raw address from
+/// `raw_address_for_jni` and calls `processScreenFrameGl`.
+#[cfg(feature = "planar-tracker")]
+#[derive(uniffi::Object)]
+pub struct LiveScreenTracker {
+    pub(crate) pipeline: Arc<translator::live_screen::LiveScreenPipeline>,
+}
+
+#[cfg(feature = "planar-tracker")]
+#[uniffi::export]
+impl LiveScreenTracker {
+    #[uniffi::constructor]
+    fn new(catalog: Arc<CatalogHandle>) -> Arc<Self> {
+        let session = catalog.session_arc();
+        let provider: Arc<dyn translator::font_provider::FontProvider + Send + Sync> =
+            Arc::new(crate::android_font_provider::AndroidFontProvider);
+        Arc::new(Self {
+            pipeline: translator::live_screen::LiveScreenPipeline::new(session, provider),
+        })
+    }
+
+    fn raw_address_for_jni(&self) -> u64 {
+        Arc::as_ptr(&self.pipeline) as u64
+    }
+
+    fn set_languages(&self, from_code: String, to_code: String, is_auto_source: bool) {
+        self.pipeline
+            .set_languages(&from_code, &to_code, is_auto_source);
+    }
+
+    fn reset(&self) {
+        self.pipeline.reset();
+    }
+
+    fn clear_overlay(&self) {
+        self.pipeline.clear_overlay();
+    }
+
+    /// Restrict OCR + the motion monitor to a normalized `[0,1]` region, or pass
+    /// `None` to translate the whole screen.
+    fn set_region(&self, region: Option<ScreenRegion>) {
+        self.pipeline.set_region(region.map(Into::into));
+    }
+}
+
+/// A capture region in normalized `[0,1]` coordinates (origin top-left).
+#[cfg(feature = "planar-tracker")]
+#[derive(uniffi::Record, Clone, Copy, Debug)]
+pub struct ScreenRegion {
+    pub left: f32,
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
+}
+
+#[cfg(feature = "planar-tracker")]
+impl From<ScreenRegion> for translator::live_screen::NormRect {
+    fn from(r: ScreenRegion) -> Self {
+        translator::live_screen::NormRect {
+            left: r.left,
+            top: r.top,
+            right: r.right,
+            bottom: r.bottom,
+        }
     }
 }
 

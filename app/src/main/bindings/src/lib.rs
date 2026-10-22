@@ -6,11 +6,11 @@ pub mod bergamot;
 pub mod transliterate;
 pub mod uniffi_catalog;
 
-#[cfg(all(feature = "ppocr", target_os = "android"))]
-mod live_frame_jni;
-
 #[cfg(all(feature = "planar-tracker", target_os = "android"))]
 mod live_pipeline_jni;
+
+#[cfg(target_os = "android")]
+mod bitmap_jni;
 
 /// Idempotent logger init. Called from the first uniffi entry point
 /// (`CatalogHandle::open`) because uniffi 0.29 for Kotlin loads the

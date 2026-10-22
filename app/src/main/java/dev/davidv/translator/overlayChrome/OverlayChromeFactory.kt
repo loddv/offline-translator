@@ -22,15 +22,11 @@ data class LanguageToolbarViews(
   val targetLabel: TextView,
   val readingOrderButton: View? = null,
   val readingOrderIcon: ImageView? = null,
-  val ocrButton: View? = null,
-  val ocrIcon: ImageView? = null,
-  val wandButton: View? = null,
-  val wandIcon: ImageView? = null,
+  val pauseIcon: ImageView? = null,
+  val flipIcon: ImageView? = null,
 )
 
 object OverlayChromeFactory {
-  private const val ACTIVE_OCR_BLUE = "#4488FF"
-
   fun formatSourceLabel(
     forcedSourceLanguage: Language?,
     isAutoSource: Boolean,
@@ -48,18 +44,19 @@ object OverlayChromeFactory {
     forcedTargetLanguage: Language?,
     defaultTargetLanguage: Language,
     onClose: () -> Unit,
+    onTranslateScreenClick: (() -> Unit)? = null,
     onSourceClick: () -> Unit,
     onSwap: () -> Unit,
     onTargetClick: () -> Unit,
     showReadingOrderButton: Boolean = false,
-    readingOrder: ReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
+    readingOrder: ReadingOrder? = null,
     onReadingOrderClick: (() -> Unit)? = null,
-    showOcrButton: Boolean = false,
-    onOcrClick: (() -> Unit)? = null,
-    onOcrLongClick: (() -> Unit)? = null,
-    showWandButton: Boolean = false,
-    onWandClick: (() -> Unit)? = null,
-    onMenuClick: () -> Unit,
+    onRefreshClick: (() -> Unit)? = null,
+    onRegionClick: (() -> Unit)? = null,
+    onFlipOriginal: (() -> Unit)? = null,
+    onPauseClick: (() -> Unit)? = null,
+    isPaused: Boolean = false,
+    onMenuClick: (() -> Unit)? = null,
     isAutoSource: Boolean = false,
   ): LanguageToolbarViews {
     val toolbar = FrameLayout(context)
@@ -79,6 +76,26 @@ object OverlayChromeFactory {
         gravity = Gravity.START or Gravity.CENTER_VERTICAL
       },
     )
+
+    val hasTranslateScreen = onTranslateScreenClick != null
+    onTranslateScreenClick?.let {
+      val screenBtn =
+        ImageView(context).apply {
+          setImageResource(R.drawable.videocam)
+          setColorFilter(Color.WHITE)
+          setPadding(iconPad, iconPad, iconPad, iconPad)
+          setOnClickListener { onTranslateScreenClick() }
+          contentDescription = "Translate screen live"
+        }
+      val screenPill = makePill(context, dpToPx, screenBtn)
+      toolbar.addView(
+        screenPill,
+        FrameLayout.LayoutParams(btnSize, btnSize).apply {
+          gravity = Gravity.START or Gravity.CENTER_VERTICAL
+          leftMargin = btnSize + dpToPx(6)
+        },
+      )
+    }
 
     var readingOrderIcon: ImageView? = null
     val readingOrderPill =
@@ -101,7 +118,7 @@ object OverlayChromeFactory {
             pill,
             FrameLayout.LayoutParams(btnSize, btnSize).apply {
               gravity = Gravity.START or Gravity.CENTER_VERTICAL
-              leftMargin = btnSize + dpToPx(6)
+              leftMargin = (btnSize + dpToPx(6)) * (if (hasTranslateScreen) 2 else 1)
             },
           )
         }
@@ -156,62 +173,90 @@ object OverlayChromeFactory {
         gravity = Gravity.CENTER_VERTICAL
       }
 
-    var wandIcon: ImageView? = null
-    val wandPill =
-      onWandClick?.let {
-        val wandBtn =
-          ImageView(context).apply {
-            setImageResource(R.drawable.auto_awesome)
-            setColorFilter(Color.WHITE)
-            setPadding(iconPad, iconPad, iconPad, iconPad)
-            setOnClickListener { onWandClick() }
-          }
-        wandIcon = wandBtn
-        makePill(context, dpToPx, wandBtn).also { pill ->
-          pill.visibility = if (showWandButton) View.VISIBLE else View.GONE
-          rightActions.addView(
-            pill,
-            LinearLayout.LayoutParams(btnSize, btnSize).apply {
-              marginEnd = dpToPx(6)
-            },
-          )
+    onRefreshClick?.let {
+      val refreshBtn =
+        ImageView(context).apply {
+          setImageResource(R.drawable.refresh)
+          setColorFilter(Color.WHITE)
+          setPadding(iconPad, iconPad, iconPad, iconPad)
+          setOnClickListener { onRefreshClick() }
+          contentDescription = "Refresh"
         }
-      }
+      val refreshPill = makePill(context, dpToPx, refreshBtn)
+      rightActions.addView(
+        refreshPill,
+        LinearLayout.LayoutParams(btnSize, btnSize).apply {
+          marginEnd = dpToPx(6)
+        },
+      )
+    }
 
-    var ocrIcon: ImageView? = null
-    val ocrPill =
-      onOcrClick?.let {
-        val ocrBtn =
-          ImageView(context).apply {
-            setImageResource(R.drawable.activity_zone)
-            setColorFilter(Color.WHITE)
-            setPadding(iconPad, iconPad, iconPad, iconPad)
-            setOnClickListener { onOcrClick() }
-            if (onOcrLongClick != null) {
-              setOnLongClickListener {
-                onOcrLongClick()
-                true
-              }
-            }
-          }
-        ocrIcon = ocrBtn
-        makePill(context, dpToPx, ocrBtn).also { pill ->
-          pill.visibility = if (showOcrButton) View.VISIBLE else View.GONE
-          rightActions.addView(
-            pill,
-            LinearLayout.LayoutParams(btnSize, btnSize).apply {
-              marginEnd = dpToPx(6)
-            },
-          )
+    onRegionClick?.let {
+      val regionBtn =
+        ImageView(context).apply {
+          setImageResource(R.drawable.activity_zone)
+          setColorFilter(Color.WHITE)
+          setPadding(iconPad, iconPad, iconPad, iconPad)
+          setOnClickListener { onRegionClick() }
+          contentDescription = "Set translation area"
         }
-      }
+      val regionPill = makePill(context, dpToPx, regionBtn)
+      rightActions.addView(
+        regionPill,
+        LinearLayout.LayoutParams(btnSize, btnSize).apply {
+          marginEnd = dpToPx(6)
+        },
+      )
+    }
 
-    val menuBtn = ImageView(context)
-    menuBtn.setImageResource(R.drawable.more_vert)
-    menuBtn.setPadding(iconPad, iconPad, iconPad, iconPad)
-    menuBtn.setOnClickListener { onMenuClick() }
-    val menuPill = makePill(context, dpToPx, menuBtn)
-    rightActions.addView(menuPill, LinearLayout.LayoutParams(btnSize, btnSize))
+    var flipIcon: ImageView? = null
+    onFlipOriginal?.let {
+      val flipBtn =
+        ImageView(context).apply {
+          setImageResource(R.drawable.flip)
+          setColorFilter(Color.WHITE)
+          setPadding(iconPad, iconPad, iconPad, iconPad)
+          setOnClickListener { onFlipOriginal() }
+          contentDescription = "Show original"
+        }
+      flipIcon = flipBtn
+      val flipPill = makePill(context, dpToPx, flipBtn)
+      rightActions.addView(
+        flipPill,
+        LinearLayout.LayoutParams(btnSize, btnSize).apply {
+          marginEnd = dpToPx(6)
+        },
+      )
+    }
+
+    var pauseIcon: ImageView? = null
+    onPauseClick?.let {
+      val pauseBtn =
+        ImageView(context).apply {
+          setImageResource(if (isPaused) R.drawable.play_arrow else R.drawable.pause)
+          setColorFilter(Color.WHITE)
+          setPadding(iconPad, iconPad, iconPad, iconPad)
+          setOnClickListener { onPauseClick() }
+          contentDescription = "Pause or resume"
+        }
+      pauseIcon = pauseBtn
+      val pausePill = makePill(context, dpToPx, pauseBtn)
+      rightActions.addView(
+        pausePill,
+        LinearLayout.LayoutParams(btnSize, btnSize).apply {
+          marginEnd = dpToPx(6)
+        },
+      )
+    }
+
+    onMenuClick?.let {
+      val menuBtn = ImageView(context)
+      menuBtn.setImageResource(R.drawable.more_vert)
+      menuBtn.setPadding(iconPad, iconPad, iconPad, iconPad)
+      menuBtn.setOnClickListener { onMenuClick() }
+      val menuPill = makePill(context, dpToPx, menuBtn)
+      rightActions.addView(menuPill, LinearLayout.LayoutParams(btnSize, btnSize))
+    }
     toolbar.addView(
       rightActions,
       FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -225,47 +270,37 @@ object OverlayChromeFactory {
       targetLabel = targetLabel,
       readingOrderButton = readingOrderPill,
       readingOrderIcon = readingOrderIcon,
-      ocrButton = ocrPill,
-      ocrIcon = ocrIcon,
-      wandButton = wandPill,
-      wandIcon = wandIcon,
+      pauseIcon = pauseIcon,
+      flipIcon = flipIcon,
     )
+  }
+
+  fun setPauseIconState(
+    pauseIcon: ImageView?,
+    isPaused: Boolean,
+  ) {
+    pauseIcon?.setImageResource(if (isPaused) R.drawable.play_arrow else R.drawable.pause)
+    pauseIcon?.setColorFilter(Color.WHITE)
   }
 
   fun updateReadingOrderButtonState(
     readingButton: View?,
     readingIcon: ImageView?,
     visible: Boolean,
-    readingOrder: ReadingOrder,
+    readingOrder: ReadingOrder?,
   ) {
     readingButton?.visibility = if (visible) View.VISIBLE else View.GONE
     readingIcon?.apply {
-      val isVertical = readingOrder == ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT
-      setImageResource(if (isVertical) R.drawable.text_rotate_vertical else R.drawable.text_rotation_none)
+      val (iconRes, description) =
+        when (readingOrder) {
+          null -> R.drawable.text_rotation_auto to "Japanese OCR auto mode"
+          ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> R.drawable.text_rotate_vertical to "Japanese OCR vertical mode"
+          ReadingOrder.LEFT_TO_RIGHT -> R.drawable.text_rotation_none to "Japanese OCR horizontal mode"
+        }
+      setImageResource(iconRes)
       setColorFilter(Color.WHITE)
-      contentDescription = if (isVertical) "Japanese OCR vertical mode" else "Japanese OCR horizontal mode"
+      contentDescription = description
     }
-  }
-
-  fun setOcrButtonActive(
-    ocrButton: View?,
-    ocrIcon: ImageView?,
-    active: Boolean,
-  ) {
-    ocrIcon?.setColorFilter(Color.parseColor(if (active) ACTIVE_OCR_BLUE else "#FFFFFF"))
-    if (ocrButton != null && !active) {
-      ocrButton.alpha = 1f
-    }
-  }
-
-  fun setWandButtonEnabled(
-    wandButton: View?,
-    wandIcon: ImageView?,
-    enabled: Boolean,
-  ) {
-    wandButton?.isEnabled = enabled
-    wandButton?.alpha = if (enabled) 1f else 0.35f
-    wandIcon?.isEnabled = enabled
   }
 
   fun createLanguagePicker(
@@ -273,6 +308,7 @@ object OverlayChromeFactory {
     dpToPx: (Int) -> Int,
     isSource: Boolean,
     availableLangs: List<Language>,
+    allowAuto: Boolean = true,
     onPick: (Language?) -> Unit,
   ): ScrollView {
     val scroll = ScrollView(context)
@@ -285,7 +321,7 @@ object OverlayChromeFactory {
     val listPad = dpToPx(8)
     list.setPadding(listPad, listPad, listPad, listPad)
 
-    if (isSource) {
+    if (isSource && allowAuto) {
       addMenuItem(context, list, dpToPx, "\u2728  Auto-detect") {
         onPick(null)
       }

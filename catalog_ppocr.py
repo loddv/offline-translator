@@ -1,8 +1,8 @@
 """PaddleOCR v5 script-based recognizer mapping.
 
 The PPOCR rec models are organised by script, not by language: one model
-covers every language that uses that script. Maps the script "slugs" used
-in PaddleOCR filenames to the catalog's language codes.
+covers every language that uses that script. A language's recognizer is
+derived from its ISO 15924 script, so adding a language gives it OCR for free.
 
 The shared "cj" model handles Chinese (simplified + traditional) and Japanese
 together. Korean uses its own recognizer.
@@ -14,9 +14,56 @@ import catalog_base
 PPOCR_ENGINE = "ppocr"
 PPOCR_BUCKET_BASE = "ocr/1/PP-OCRv5"
 PPOCR_INSTALL_BASE = "ppocr/PP-OCRv5"
+PPOCR_V6_BUCKET_BASE = "ocr/1/PP-OCRv6"
+PPOCR_V6_INSTALL_BASE = "ppocr/PP-OCRv6"
 PPOCR_DETECTOR_PACK_ID = "ocr-ppocr-detector"
 
-PPOCR_DETECTOR_FILENAME = "PP-OCRv5_mobile_det_int8.mnn"
+# Detector alternatives, lowest to highest priority. Older entries stay
+# listed so existing installs keep counting as installed; clients download
+# only the highest-priority file and offer it as an upgrade over older ones.
+# The v6 tiny detector has its DBNet head folded to emit the probability
+# map at 1/4 resolution (same boxes, ~35% faster than the v5 detector).
+PPOCR_DETECTOR_FILENAMES = [
+#    "PP-OCRv5_mobile_det_int8.mnn",
+#    "det_quarter_int8.mnn",
+    "PP-OCRv6_tiny_det_half_int8.mnn",
+    "PP-OCRv6_tiny_det_int8.mnn",
+]
+PPOCR_V6_FILENAMES = {
+    "PP-OCRv6_tiny_det_half_int8.mnn",
+    "PP-OCRv6_tiny_det_int8.mnn",
+    "PP-OCRv6_tiny_rec_int8.mnn",
+    "PP-OCRv6_tiny_keys.txt",
+    "PP-OCRv6_small_rec_int8.mnn",
+    "PP-OCRv6_small_keys.txt",
+    "hebrew_rec_int8.mnn",
+    "hebrew_keys.txt",
+    "indic_r2e10_int8.mnn",
+    "indic_keys.txt",
+    "ink_bold_int8.mnn",
+    "ink_bold_line_int8.mnn",
+}
+
+# v6 recognizer upgrades per script slug: (model, keys). The unified v6
+# model covers Latin and Chinese+Japanese; tiny has no kana so the cj slot
+# gets the small tier. Other scripts stay on their v5 recognizers.
+PPOCR_V6_RECOGNIZER_FILENAMES = {
+    "latin": ("PP-OCRv6_tiny_rec_int8.mnn", "PP-OCRv6_tiny_keys.txt"),
+    "cj": ("PP-OCRv6_small_rec_int8.mnn", "PP-OCRv6_small_keys.txt"),
+}
+
+# Scripts whose only recognizer is a v6 fine-tune (no v5 base): (model, keys).
+# These cover languages PaddleOCR never shipped a recognizer for, which were
+# tesseract-only before. `indic` is one merged model over Bengali, Gujarati,
+# Kannada and Malayalam.
+PPOCR_V6_NATIVE_RECOGNIZER_FILENAMES = {
+    "hebrew": ("hebrew_rec_int8.mnn", "hebrew_keys.txt"),
+    "indic": ("indic_r2e10_int8.mnn", "indic_keys.txt"),
+}
+# Per-strip ink model, optional at runtime. Lowest→highest priority like the detector above, so
+# existing installs are offered the newer file as an upgrade. The *_line_* model adds a 3rd
+# channel (rule); the channel count is self-describing, so older app builds read it as matte+bold.
+PPOCR_INK_FILENAMES = ["ink_bold_int8.mnn", "ink_bold_line_int8.mnn"]
 PPOCR_SCRIPT_CLASSIFIER_FILENAME = "PULC_int8.mnn"
 PPOCR_TEXTLINE_ORIENTATION_FILENAME = "textline_ori_x1_0_fp32.mnn"
 PPOCR_TEXTLINE_ORIENTATION_FILENAME = "textline_ori_x0_25_wq8.mnn"
@@ -36,106 +83,146 @@ PPOCR_RECOGNIZER_FILENAMES = {
     "cj": "PP-OCRv5_mobile_rec_int8.mnn",
 }
 
-# Language codes (catalog keys) served by each PPOCR script.
+# ISO 15924 script code → PPOCR recognizer slug. PPOCR rec models are
+# organised by script, so a language's recognizer follows directly from its
+# script and a newly-added language gets OCR automatically. The one
+# language-level distinction is East Slavic Cyrillic (see below).
 #
-# Specialization tiers: each language is assigned to its most suitable model.
-# English uses the shared Latin model instead of the dedicated English model;
-# `eslav` is preferred over `cyrillic` for Russian / Belarusian / Ukrainian.
-# The fallback slugs (`latin`, `cyrillic`) cover the languages that don't have
-# a script-or-language-specific model.
-#
-# Languages whose script is not covered by PPOCR at all (Bengali,
-# Gujarati, Hebrew, Kannada, Malayalam) are absent here and stay
-# tesseract-only.
-PPOCR_SCRIPT_TO_LANGUAGES = {
-    "arabic": ["ar", "fa"],
-    "cyrillic": ["bg", "sr"],          # non-East-Slavic Cyrillic only
-    "devanagari": ["hi"],
-    "el": ["el"],
-    "eslav": ["be", "ru", "uk"],       # specialized East Slavic Cyrillic
-    "korean": ["ko"],
-    "latin": [                         # all Latin-script langs, including en
-        "az", "bs", "ca", "cs", "da", "de", "es", "et", "fi", "fr",
-        "hr", "hu", "id", "is", "it", "lt", "lv", "ms", "nb", "nl",
-        "nn", "no", "pl", "pt", "ro", "sk", "sl", "sq", "sv", "tr",
-        "vi", "en",
-    ],
-    "ta": ["ta"],
-    "te": ["te"],
-    "th": ["th"],
-    "cj": ["ja", "zh", "zh_hant"],
+# `indic` is one merged v6 recognizer over the four non-Devanagari Indic
+# scripts; Devanagari keeps its dedicated v5 recognizer. `hebrew` and `indic`
+# are v6 fine-tunes covering scripts PaddleOCR never shipped a recognizer for
+# (tesseract-only before). The shared `cj` model handles Chinese (simplified +
+# traditional) and Japanese; Korean has its own recognizer.
+ISO_SCRIPT_TO_PPOCR = {
+    "Arab": "arabic",
+    "Beng": "indic",
+    "Cyrl": "cyrillic",
+    "Deva": "devanagari",
+    "Grek": "el",
+    "Gujr": "indic",
+    "Hang": "korean",
+    "Hans": "cj",
+    "Hant": "cj",
+    "Hebr": "hebrew",
+    "Jpan": "cj",
+    "Knda": "indic",
+    "Latn": "latin",
+    "Mlym": "indic",
+    "Taml": "ta",
+    "Telu": "te",
+    "Thai": "th",
 }
 
+# East Slavic languages use the specialized `eslav` recognizer in place of the
+# generic `cyrillic` one.
+PPOCR_EAST_SLAVIC_LANGS = {"be", "ru", "uk"}
 
-def language_to_ppocr_script() -> dict:
-    """Reverse mapping: language code → ppocr script slug.
+# Every recognizer slug that gets a pack, in stable output order.
+PPOCR_RECOGNIZER_SLUGS = [
+    "arabic", "cyrillic", "devanagari", "el", "eslav", "hebrew",
+    "indic", "korean", "latin", "ta", "te", "th", "cj",
+]
 
-    A language only appears here if PPOCR has a recognizer that covers
-    its script. Returned as a fresh dict on each call.
+assert set(ISO_SCRIPT_TO_PPOCR.values()) | {"eslav"} == set(PPOCR_RECOGNIZER_SLUGS)
+
+
+def ppocr_slug_for_language(code: str, script: str) -> str | None:
+    """PPOCR recognizer slug covering `code`, or None if no recognizer fits.
+
+    Derived from the ISO 15924 script, with East Slavic Cyrillic upgraded to
+    the specialized `eslav` recognizer.
     """
-    out = {}
-    for script, langs in PPOCR_SCRIPT_TO_LANGUAGES.items():
-        for lang in langs:
-            if lang in out:
-                raise ValueError(
-                    f"Language {lang} mapped to two ppocr scripts: "
-                    f"{out[lang]} and {script}"
-                )
-            out[lang] = script
-    return out
+    slug = ISO_SCRIPT_TO_PPOCR.get(script)
+    if slug == "cyrillic" and code in PPOCR_EAST_SLAVIC_LANGS:
+        return "eslav"
+    return slug
 
 
 def _keys_filename(script: str) -> str:
     return f"{script}_PP-OCRv5_keys.txt"
 
 
-def _make_file(name: str) -> dict:
-    install_path = f"{PPOCR_INSTALL_BASE}/{name}"
-    mirror_path = f"{PPOCR_BUCKET_BASE}/{name}"
-    return {
+def _make_file(name: str, role: str, priority: int = 0, optional: bool = False) -> dict:
+    if name in PPOCR_V6_FILENAMES:
+        install_path = f"{PPOCR_V6_INSTALL_BASE}/{name}"
+        mirror_path = f"{PPOCR_V6_BUCKET_BASE}/{name}"
+    else:
+        install_path = f"{PPOCR_INSTALL_BASE}/{name}"
+        mirror_path = f"{PPOCR_BUCKET_BASE}/{name}"
+    file = {
         "name": name,
         "sizeBytes": 0,
         "installPath": install_path,
         "url": f"https://offline-translator.davidv.dev/{mirror_path}",
         "mirrorPath": mirror_path,
+        "role": role,
+        "priority": priority,
     }
+    if optional:
+        file["optional"] = True
+    return file
 
 
 def add_ppocr_packs(catalog: dict) -> None:
+    detector_files = [
+        _make_file(name, "detector", priority)
+        for priority, name in enumerate(PPOCR_DETECTOR_FILENAMES)
+    ]
     catalog["packs"][PPOCR_DETECTOR_PACK_ID] = {
         "feature": "ocr",
         "engine": PPOCR_ENGINE,
         "role": "detector",
-        "files": [
-            _make_file(PPOCR_DETECTOR_FILENAME),
-            _make_file(PPOCR_SCRIPT_CLASSIFIER_FILENAME),
-            _make_file(PPOCR_TEXTLINE_ORIENTATION_FILENAME),
+        "files": detector_files
+        + [
+            _make_file(PPOCR_SCRIPT_CLASSIFIER_FILENAME, "scriptClassifier"),
+            _make_file(PPOCR_TEXTLINE_ORIENTATION_FILENAME, "textlineOrientation"),
+            *[
+                _make_file(name, "ink", priority=priority, optional=True)
+                for priority, name in enumerate(PPOCR_INK_FILENAMES)
+            ],
         ],
         "dependsOn": [],
     }
 
     languages = catalog["languages"]
     latin_pack_id = catalog_base.make_ocr_pack_id(PPOCR_ENGINE, "latin")
-    for script, langs in PPOCR_SCRIPT_TO_LANGUAGES.items():
-        rec_filename = PPOCR_RECOGNIZER_FILENAMES[script]
-        keys_filename = _keys_filename(script)
+    for script in PPOCR_RECOGNIZER_SLUGS:
         pack_id = catalog_base.make_ocr_pack_id(PPOCR_ENGINE, script)
         depends_on = [PPOCR_DETECTOR_PACK_ID]
         if script != "latin":
             depends_on.append(latin_pack_id)
+        # Recognizer and keys alternates must stay paired: the engine picks
+        # the keys file whose priority matches the chosen recognizer's, so a
+        # half-downloaded upgrade falls back to the older complete pair.
+        if script in PPOCR_V6_NATIVE_RECOGNIZER_FILENAMES:
+            rec_filename, keys_filename = PPOCR_V6_NATIVE_RECOGNIZER_FILENAMES[script]
+            files = [
+                _make_file(rec_filename, "recognizer"),
+                _make_file(keys_filename, "keys"),
+            ]
+        else:
+            rec_filename = PPOCR_RECOGNIZER_FILENAMES[script]
+            keys_filename = _keys_filename(script)
+            files = [
+                _make_file(rec_filename, "recognizer"),
+                _make_file(keys_filename, "keys"),
+            ]
+            if script in PPOCR_V6_RECOGNIZER_FILENAMES:
+                v6_rec, v6_keys = PPOCR_V6_RECOGNIZER_FILENAMES[script]
+                files.append(_make_file(v6_rec, "recognizer", priority=1))
+                files.append(_make_file(v6_keys, "keys", priority=1))
         catalog["packs"][pack_id] = {
             "feature": "ocr",
             "engine": PPOCR_ENGINE,
             "role": "recognizer",
             "script": script,
-            "files": [
-                _make_file(rec_filename),
-                _make_file(keys_filename),
-            ],
+            "files": files,
             "dependsOn": depends_on,
         }
-        for lang in langs:
-            if lang not in languages:
-                continue
-            ocr_assets = languages[lang]["assets"].setdefault("ocr", {})
-            ocr_assets[PPOCR_ENGINE] = pack_id
+
+    for lang, language in languages.items():
+        slug = ppocr_slug_for_language(lang, language["meta"]["script"])
+        if slug is None:
+            continue
+        ocr_assets = language["assets"].setdefault("ocr", {})
+        ocr_assets[PPOCR_ENGINE] = catalog_base.make_ocr_pack_id(PPOCR_ENGINE, slug)

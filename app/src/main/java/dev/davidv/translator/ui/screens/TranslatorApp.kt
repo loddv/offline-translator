@@ -91,6 +91,7 @@ import dev.davidv.translator.parseVoiceOverride
 import dev.davidv.translator.ui.DocumentTranslationUiState
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.UiEvent
+import dev.davidv.translator.ui.components.DocumentConfigureSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.StateFlow
@@ -101,11 +102,11 @@ import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.math.roundToInt
 
-private fun defaultVoiceNameForLanguage(packs: List<uniffi.translator.InstalledTtsPack>): String? =
+private fun defaultVoiceNameForLanguage(packs: List<uniffi.translator_core.InstalledTtsPack>): String? =
   packs.firstOrNull()?.voices?.firstOrNull()?.name
 
 private fun packsContainVoice(
-  packs: List<uniffi.translator.InstalledTtsPack>,
+  packs: List<uniffi.translator_core.InstalledTtsPack>,
   voiceName: String,
 ): Boolean = packs.any { pack -> pack.voices.any { it.name == voiceName } }
 
@@ -139,7 +140,7 @@ fun shareImageUri(
   val intent = Intent(Intent.ACTION_SEND)
   intent.putExtra(Intent.EXTRA_STREAM, uri)
   intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-  intent.setType("image/png")
+  intent.setType("image/jpeg")
 
   startActivity(context, intent, null)
 }
@@ -191,10 +192,10 @@ suspend fun saveImage(
     var uri: Uri? = null
     try {
       imagesFolder.mkdirs()
-      val file = File(imagesFolder, "shared_image.png")
+      val file = File(imagesFolder, "shared_image.jpg")
 
       val stream = FileOutputStream(file)
-      image.compress(Bitmap.CompressFormat.PNG, 90, stream)
+      image.compress(Bitmap.CompressFormat.JPEG, 90, stream)
       stream.flush()
       stream.close()
       uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -250,7 +251,7 @@ private fun DocumentTranslationDialog(
         if (document.isTranslating) {
           val phases = document.pdfPhases
           if (phases != null) {
-            PdfPhaseRow("Pages", phases.textCurrent, phases.textTotal)
+            PdfPhaseFractionRow("Text", phases.textFraction)
             PdfPhaseRow("Images", phases.imageCurrent, phases.imageTotal)
             PdfPhaseRow("Bitmap pages", phases.rasterCurrent, phases.rasterTotal)
           } else {
@@ -260,16 +261,7 @@ private fun DocumentTranslationDialog(
                 progress = { progressFraction },
                 modifier = Modifier.fillMaxWidth(),
               )
-              val current = document.progressCurrent ?: 0
-              val total = document.progressTotal ?: 0
-              val displayCurrent = if (current < total) current + 1 else current
-              val unit =
-                when (document.progressUnit) {
-                  "page" -> "Page"
-                  "image" -> "Image"
-                  else -> "Block"
-                }
-              Text("$unit $displayCurrent/$total")
+              Text("${(progressFraction * 100).toInt()}%")
             } else {
               Text(document.progressLabel)
             }
@@ -320,6 +312,27 @@ private fun PdfPhaseRow(
     }
     LinearProgressIndicator(
       progress = { fraction },
+      modifier = Modifier.fillMaxWidth(),
+    )
+  }
+}
+
+@Composable
+private fun PdfPhaseFractionRow(
+  label: String,
+  fraction: Float,
+) {
+  val f = fraction.coerceIn(0f, 1f)
+  Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Text(label, modifier = Modifier.weight(1f))
+      Text("${(f * 100).toInt()}%")
+    }
+    LinearProgressIndicator(
+      progress = { f },
       modifier = Modifier.fillMaxWidth(),
     )
   }
@@ -377,6 +390,8 @@ fun TranslatorApp(
   val to by viewModel.to.collectAsState()
   val displayImage by viewModel.displayImage.collectAsState()
   val originalImage by viewModel.originalImage.collectAsState()
+  val imageWordSelection by viewModel.imageWordSelection.collectAsState()
+  val detectedRegions by viewModel.detectedRegions.collectAsState()
   val ocrReadingOrder by viewModel.ocrReadingOrder.collectAsState()
   val currentDetectedLanguage by viewModel.currentDetectedLanguage.collectAsState()
   val isAutoSource by viewModel.isAutoSource.collectAsState()
@@ -459,6 +474,32 @@ fun TranslatorApp(
   DisposableEffect(pcmAudioPlayer) {
     onDispose {
       pcmAudioPlayer.release()
+    }
+  }
+
+  val pendingDocument by viewModel.pendingDocument.collectAsState()
+  pendingDocument?.let { pending ->
+    val docCatalog = viewModel.languageStateManager.catalog.collectAsState().value
+    val docAvailableLanguages =
+      (languageState.translatorLanguages() + listOfNotNull(docCatalog?.english))
+        .distinctBy { it.code }
+    val initialFrom = from ?: docAvailableLanguages.firstOrNull()
+    val initialTo = to ?: docCatalog?.english ?: docAvailableLanguages.firstOrNull()
+    if (initialFrom != null && initialTo != null) {
+      DocumentConfigureSheet(
+        fileName = pending.displayName,
+        fileSizeBytes = pending.sizeBytes,
+        extension = pending.extension,
+        initialFrom = initialFrom,
+        initialTo = initialTo,
+        availableLanguages = docAvailableLanguages,
+        languageMetadata = languageMetadata,
+        defaultTranslatePdfImages = settings.translatePdfImages,
+        onDismiss = { viewModel.dismissPendingDocument() },
+        onTranslate = { selFrom, selTo, txtLayout, translatePdfImages ->
+          viewModel.startPendingDocumentTranslation(selFrom, selTo, txtLayout, translatePdfImages)
+        },
+      )
     }
   }
 
@@ -703,6 +744,8 @@ fun TranslatorApp(
                 detectedLanguage = currentDetectedLanguage,
                 displayImage = displayImage,
                 originalImage = originalImage,
+                imageWordSelection = imageWordSelection,
+                detectedRegions = detectedRegions,
                 ocrReadingOrder = ocrReadingOrder,
                 isTranslating = viewModel.translationCoordinator.isTranslating,
                 isOcrInProgress = viewModel.translationCoordinator.isOcrInProgress,

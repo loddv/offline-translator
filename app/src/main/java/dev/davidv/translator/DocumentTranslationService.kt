@@ -46,10 +46,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.coroutineContext
 import kotlin.system.measureTimeMillis
 
-private val pdfPhaseUnits = setOf("page", "image", "raster_page")
-
 data class PdfPhaseProgress(
-  val textCurrent: Int = 0,
+  // Text translation is a smooth fraction; the image and raster passes are
+  // real, in-order item counts. `textTotal` (page count) is kept for the
+  // combined-progress weighting and the page-count display.
+  val textFraction: Float = 0f,
   val textTotal: Int,
   val imageCurrent: Int = 0,
   val imageTotal: Int,
@@ -69,9 +70,8 @@ data class DocumentTranslationServiceState(
   // pages); each phase ticks its own counter. Null for non-PDF
   // (odt/txt) flows where the legacy single-bar fields drive the UI.
   val pdfPhases: PdfPhaseProgress? = null,
-  val progressCurrent: Int? = null,
-  val progressTotal: Int? = null,
-  val progressUnit: String? = null,
+  // Non-PDF (txt/odt/epub) text-translation completion fraction in [0, 1].
+  val progressFraction: Float? = null,
 ) {
   val isTranslating: Boolean
     get() = outputPath == null && errorMessage == null
@@ -93,6 +93,9 @@ class DocumentTranslationService : Service() {
     private const val EXTRA_FROM_CODE = "from_code"
     private const val EXTRA_TO_CODE = "to_code"
     private const val EXTRA_DELETE_AFTER_LOAD = "delete_after_load"
+    private const val EXTRA_TRANSLATE_PDF_IMAGES = "translate_pdf_images"
+    private const val EXTRA_TXT_LAYOUT_REFLOW = "txt_layout_reflow"
+    private const val EXTRA_TXT_WRAP_COLUMNS = "txt_wrap_columns"
 
     private const val CHANNEL_ID = "document_translation"
     private const val NOTIFICATION_ID = 1002
@@ -109,6 +112,8 @@ class DocumentTranslationService : Service() {
       from: Language,
       to: Language,
       deleteAfterLoad: Boolean,
+      translatePdfImages: Boolean,
+      txtLayout: TxtLayoutChoice,
     ) {
       val taskId = System.currentTimeMillis()
       _documentTranslationState.value =
@@ -129,6 +134,9 @@ class DocumentTranslationService : Service() {
           putExtra(EXTRA_FROM_CODE, from.code)
           putExtra(EXTRA_TO_CODE, to.code)
           putExtra(EXTRA_DELETE_AFTER_LOAD, deleteAfterLoad)
+          putExtra(EXTRA_TRANSLATE_PDF_IMAGES, translatePdfImages)
+          putExtra(EXTRA_TXT_LAYOUT_REFLOW, txtLayout is TxtLayoutChoice.Reflow)
+          putExtra(EXTRA_TXT_WRAP_COLUMNS, (txtLayout as? TxtLayoutChoice.Reflow)?.wrapColumns ?: -1)
         }
       ContextCompat.startForegroundService(context, intent)
     }
@@ -199,7 +207,7 @@ class DocumentTranslationService : Service() {
           .toList()
 
       updateState(request.taskId) {
-        it.copy(progressLabel = "Preparing file", progressCurrent = null, progressTotal = null, progressUnit = null)
+        it.copy(progressLabel = "Preparing file", progressFraction = null)
       }
 
       var result: Result<String>? = null
@@ -212,7 +220,8 @@ class DocumentTranslationService : Service() {
               from = from,
               to = to,
               availableLanguages = availableLanguages,
-              translatePdfImages = app.settingsManager.settings.value.translatePdfImages,
+              translatePdfImages = request.translatePdfImages,
+              txtLayout = request.txtLayout,
               onProgress = { progress ->
                 updateProgress(request.taskId, progress)
               },
@@ -234,11 +243,11 @@ class DocumentTranslationService : Service() {
               outputPath = outputPath,
               errorMessage = null,
               progressLabel = "Translated file",
-              progressCurrent = it.progressTotal,
+              progressFraction = 1f,
               pdfPhases =
                 it.pdfPhases?.let { p ->
                   p.copy(
-                    textCurrent = p.textTotal,
+                    textFraction = 1f,
                     imageCurrent = p.imageTotal,
                     rasterCurrent = p.rasterTotal,
                   )
@@ -276,6 +285,10 @@ class DocumentTranslationService : Service() {
 
   private fun cancelDocumentTranslation() {
     cancelRequested.set(true)
+    // Push the cancel into the engine so slimt's workers abort the in-flight
+    // single-batch translation within ~one batch (the `isCancelled` flag is
+    // only polled at coarse pre-phase checkpoints now).
+    (application as TranslatorApplication).translationCoordinator.cancelOngoingWork()
     _documentTranslationState.value = null
     removeForegroundNotification()
   }
@@ -300,48 +313,36 @@ class DocumentTranslationService : Service() {
                 rasterTotal = progress.rasterPages,
               ),
           )
-        is DocumentTranslationProgress.Translating ->
-          if (current.pdfPhases != null && progress.unit in pdfPhaseUnits) {
-            // PDF flow: tick the matching phase counter and refresh
-            // its total (the raster pass narrows its denominator
-            // once the image pass has run).
-            val phases = current.pdfPhases
-            val updatedPhases =
-              when (progress.unit) {
-                "page" ->
-                  phases.copy(
-                    textCurrent = progress.current,
-                    textTotal = progress.total,
-                  )
-                "image" ->
-                  phases.copy(
-                    imageCurrent = progress.current,
-                    imageTotal = progress.total,
-                  )
-                "raster_page" ->
-                  phases.copy(
-                    rasterCurrent = progress.current,
-                    rasterTotal = progress.total,
-                  )
-                else -> phases
-              }
+        is DocumentTranslationProgress.TranslatingText ->
+          if (current.pdfPhases != null) {
             current.copy(
               progressLabel = "Translating",
-              pdfPhases = updatedPhases,
+              pdfPhases = current.pdfPhases.copy(textFraction = progress.fraction),
             )
           } else {
             current.copy(
-              progressLabel =
-                when (progress.unit) {
-                  "page" -> "Translating page"
-                  "image" -> "Translating image"
-                  else -> "Translating block"
-                },
-              progressCurrent = progress.current,
-              progressTotal = progress.total,
-              progressUnit = progress.unit,
+              progressLabel = "Translating",
+              progressFraction = progress.fraction,
             )
           }
+        is DocumentTranslationProgress.TranslatingImages ->
+          current.copy(
+            progressLabel = "Translating",
+            pdfPhases =
+              current.pdfPhases?.copy(
+                imageCurrent = progress.current,
+                imageTotal = progress.total,
+              ),
+          )
+        is DocumentTranslationProgress.TranslatingRasterPages ->
+          current.copy(
+            progressLabel = "Translating",
+            pdfPhases =
+              current.pdfPhases?.copy(
+                rasterCurrent = progress.current,
+                rasterTotal = progress.total,
+              ),
+          )
         DocumentTranslationProgress.Writing ->
           current.copy(
             progressLabel = "Saving translated file",
@@ -389,16 +390,21 @@ class DocumentTranslationService : Service() {
     if (state.isTranslating) {
       val phases = state.pdfPhases
       if (phases != null) {
+        // Combine the three phases into one bar: the text pass contributes
+        // `fraction × pages` page-equivalents alongside the real image/raster
+        // counts.
         val total = phases.textTotal + phases.imageTotal + phases.rasterTotal
         if (total > 0) {
-          val current = phases.textCurrent + phases.imageCurrent + phases.rasterCurrent
+          val current =
+            (phases.textFraction * phases.textTotal).toInt() +
+              phases.imageCurrent +
+              phases.rasterCurrent
           notification.setProgress(total, current.coerceIn(0, total), false)
         }
       } else {
-        val current = state.progressCurrent
-        val total = state.progressTotal
-        if (current != null && total != null && total > 0) {
-          notification.setProgress(total, current.coerceIn(0, total), false)
+        val fraction = state.progressFraction
+        if (fraction != null) {
+          notification.setProgress(1000, (fraction * 1000).toInt().coerceIn(0, 1000), false)
         }
       }
     }
@@ -411,27 +417,19 @@ class DocumentTranslationService : Service() {
     if (state.outputPath != null) return File(state.outputPath).name
     val phases = state.pdfPhases
     if (phases != null) {
-      // Show all three counters on one line so the user always sees
-      // total work; "0/N" entries make pending phases visible.
+      // One line with all three phases so pending work stays visible: text as
+      // a percentage, image/raster as real counts.
       return buildString {
-        append("Pages ").append(phases.textCurrent).append('/').append(phases.textTotal)
+        append("Text ").append((phases.textFraction * 100).toInt()).append('%')
         append("  •  ")
         append("Images ").append(phases.imageCurrent).append('/').append(phases.imageTotal)
         append("  •  ")
         append("Bitmap pages ").append(phases.rasterCurrent).append('/').append(phases.rasterTotal)
       }
     }
-    val current = state.progressCurrent
-    val total = state.progressTotal
-    if (current != null && total != null && total > 0) {
-      val displayCurrent = if (current < total) current + 1 else current
-      val unit =
-        when (state.progressUnit) {
-          "page" -> "Page"
-          "image" -> "Image"
-          else -> "Block"
-        }
-      return "$unit $displayCurrent/$total"
+    val fraction = state.progressFraction
+    if (fraction != null) {
+      return "${(fraction * 100).toInt()}%"
     }
     return state.progressLabel
   }
@@ -484,6 +482,13 @@ class DocumentTranslationService : Service() {
     if (taskId < 0 || inputPath == null || outputPath == null || fileName == null || fromCode == null || toCode == null) {
       return null
     }
+    val wrapColumns = getIntExtra(EXTRA_TXT_WRAP_COLUMNS, -1)
+    val txtLayout =
+      if (getBooleanExtra(EXTRA_TXT_LAYOUT_REFLOW, false)) {
+        TxtLayoutChoice.Reflow(wrapColumns = wrapColumns.takeIf { it > 0 })
+      } else {
+        TxtLayoutChoice.Preserve
+      }
     return DocumentTranslationRequest(
       taskId = taskId,
       inputPath = inputPath,
@@ -493,6 +498,8 @@ class DocumentTranslationService : Service() {
       fromCode = fromCode,
       toCode = toCode,
       deleteAfterLoad = getBooleanExtra(EXTRA_DELETE_AFTER_LOAD, false),
+      translatePdfImages = getBooleanExtra(EXTRA_TRANSLATE_PDF_IMAGES, false),
+      txtLayout = txtLayout,
     )
   }
 
@@ -513,4 +520,6 @@ private data class DocumentTranslationRequest(
   val fromCode: String,
   val toCode: String,
   val deleteAfterLoad: Boolean,
+  val translatePdfImages: Boolean,
+  val txtLayout: TxtLayoutChoice,
 )

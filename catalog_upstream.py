@@ -66,7 +66,6 @@ def add_adblock_packs(catalog: dict) -> None:
 
 
 MODELS_MANIFEST_URL = "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json"
-TESSERACT_BASE_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/refs/heads/main"
 DICTIONARY_BASE_URL = "https://offline-translator.davidv.dev/dictionaries"
 DICT_VERSION = 1
 
@@ -85,9 +84,11 @@ LANGUAGE_NAMES = {
     "en": "English",
     "es": "Spanish",
     "et": "Estonian",
+    "eu": "Basque",
     "fa": "Persian",
     "fi": "Finnish",
     "fr": "French",
+    "gl": "Galician",
     "gu": "Gujarati",
     "he": "Hebrew",
     "hi": "Hindi",
@@ -102,6 +103,7 @@ LANGUAGE_NAMES = {
     "lt": "Lithuanian",
     "lv": "Latvian",
     "ml": "Malayalam",
+    "mr": "Marathi",
     "ms": "Malay",
     "nb": "Norwegian Bokmal",
     "nl": "Dutch",
@@ -121,66 +123,12 @@ LANGUAGE_NAMES = {
     "th": "Thai",
     "tr": "Turkish",
     "uk": "Ukrainian",
+    "ur": "Urdu",
     "vi": "Vietnamese",
     "zh": "Chinese (简体)",
     "zh_hant": "Chinese (繁體)",
 }
 
-TESSERACT_LANGUAGE_MAPPINGS = {
-    "ar": "ara",
-    "az": "aze",
-    "be": "bel",
-    "bg": "bul",
-    "bn": "ben",
-    "bs": "bos",
-    "ca": "cat",
-    "cs": "ces",
-    "da": "dan",
-    "de": "deu",
-    "el": "ell",
-    "en": "eng",
-    "es": "spa",
-    "et": "est",
-    "fa": "fas",
-    "fi": "fin",
-    "fr": "fra",
-    "gu": "guj",
-    "he": "heb",
-    "hi": "hin",
-    "hr": "hrv",
-    "hu": "hun",
-    "id": "ind",
-    "is": "isl",
-    "it": "ita",
-    "ja": "jpn",
-    "kn": "kan",
-    "ko": "kor",
-    "lt": "lit",
-    "lv": "lav",
-    "ml": "mal",
-    "ms": "msa",
-    "nb": "nor",
-    "nl": "nld",
-    "nn": "nor",
-    "no": "nor",
-    "pl": "pol",
-    "pt": "por",
-    "ro": "ron",
-    "ru": "rus",
-    "sk": "slk",
-    "sl": "slv",
-    "sq": "sqi",
-    "sr": "srp",
-    "sv": "swe",
-    "ta": "tam",
-    "te": "tel",
-    "th": "tha",
-    "tr": "tur",
-    "uk": "ukr",
-    "vi": "vie",
-    "zh": "chi_sim",
-    "zh_hant": "chi_tra",
-}
 
 SHORT_DISPLAY_NAMES = {
     "zh": "简体",
@@ -204,9 +152,11 @@ LANGUAGE_SCRIPTS = {
     "en": "Latn",
     "es": "Latn",
     "et": "Latn",
+    "eu": "Latn",
     "fa": "Arab",
     "fi": "Latn",
     "fr": "Latn",
+    "gl": "Latn",
     "gu": "Gujr",
     "he": "Hebr",
     "hi": "Deva",
@@ -221,6 +171,7 @@ LANGUAGE_SCRIPTS = {
     "lt": "Latn",
     "lv": "Latn",
     "ml": "Mlym",
+    "mr": "Deva",
     "ms": "Latn",
     "nb": "Latn",
     "nl": "Latn",
@@ -240,6 +191,7 @@ LANGUAGE_SCRIPTS = {
     "th": "Thai",
     "tr": "Latn",
     "uk": "Cyrl",
+    "ur": "Arab",
     "vi": "Latn",
     "zh": "Hans",
     "zh_hant": "Hant",
@@ -249,6 +201,13 @@ MODEL_TYPE_PRIORITY = {
     "tiny": 1,
     "base": 2,
     "base-memory": 3,
+}
+
+RELEASE_STATUS_PRIORITY = {
+    "Release Android": 4,
+    "Release": 3,
+    "Release Desktop": 2,
+    "Nightly": 1,
 }
 
 MANIFEST_FILE_TYPES = {
@@ -276,8 +235,17 @@ def strip_compression_suffix(filename: str) -> str:
     return filename
 
 
+def is_experimental_release(release_status: str | None) -> bool:
+    return not (release_status or "").startswith("Release")
+
+
 def select_best_entry(entries: list[dict]) -> dict:
-    return max(entries, key=lambda entry: MODEL_TYPE_PRIORITY.get(entry.get("architecture", ""), 0))
+    def rank(entry: dict) -> tuple[int, int]:
+        release = RELEASE_STATUS_PRIORITY.get(entry.get("releaseStatus"), 0)
+        architecture = MODEL_TYPE_PRIORITY.get(entry.get("architecture", ""), 0)
+        return (release, architecture)
+
+    return max(entries, key=rank)
 
 
 def build_pair_files(manifest: dict) -> dict[tuple[str, str], dict]:
@@ -310,7 +278,10 @@ def build_pair_files(manifest: dict) -> dict[tuple[str, str], dict]:
                 "path": path,
             }
 
-        pair_files[(src, tgt)] = files
+        pair_files[(src, tgt)] = {
+            "files": files,
+            "experimental": is_experimental_release(best_entry.get("releaseStatus")),
+        }
 
     return pair_files
 
@@ -319,7 +290,8 @@ def build_language_data(pair_files: dict[tuple[str, str], dict]) -> tuple[dict, 
     from_english = {}
     to_english = {}
 
-    for (src, tgt), files in pair_files.items():
+    for (src, tgt), pair in pair_files.items():
+        files = pair["files"]
         if "model" not in files:
             continue
         if src != "en" and tgt != "en":
@@ -339,6 +311,7 @@ def build_language_data(pair_files: dict[tuple[str, str], dict]) -> tuple[dict, 
             "srcVocab": src_vocab,
             "tgtVocab": tgt_vocab,
             "lex": lex,
+            "experimental": pair["experimental"],
         }
 
         if src == "en":
@@ -356,13 +329,13 @@ def format_direction(entry: dict) -> dict:
         "srcVocab": entry["srcVocab"],
         "tgtVocab": entry["tgtVocab"],
         "lex": entry["lex"],
+        "experimental": entry["experimental"],
     }
 
 
 def build_language_index(
     *,
     models_manifest: dict,
-    tesseract_base_url: str = TESSERACT_BASE_URL,
     dictionary_base_url: str = DICTIONARY_BASE_URL,
     dictionary_version: int = DICT_VERSION,
 ) -> dict:
@@ -371,11 +344,7 @@ def build_language_index(
 
     languages = []
     for lang_code in sorted(all_languages):
-        if lang_code not in LANGUAGE_NAMES:
-            continue
-
-        tess_name = TESSERACT_LANGUAGE_MAPPINGS.get(lang_code)
-        if tess_name is None:
+        if lang_code not in LANGUAGE_NAMES or lang_code not in LANGUAGE_SCRIPTS:
             continue
 
         languages.append(
@@ -383,10 +352,8 @@ def build_language_index(
                 "code": lang_code,
                 "name": LANGUAGE_NAMES[lang_code],
                 "shortName": SHORT_DISPLAY_NAMES.get(lang_code, LANGUAGE_NAMES[lang_code]),
-                "tessName": tess_name,
                 "script": LANGUAGE_SCRIPTS[lang_code],
                 "dictionaryCode": DICTIONARY_CODE_OVERRIDES.get(lang_code, lang_code),
-                "tessdataSizeBytes": 0,
                 "toEnglish": format_direction(to_english[lang_code]) if lang_code in to_english else None,
                 "fromEnglish": format_direction(from_english[lang_code]) if lang_code in from_english else None,
                 "extraFiles": EXTRA_FILES.get(lang_code, []),
@@ -397,7 +364,6 @@ def build_language_index(
         "version": 1,
         "updatedAt": int(time.time()),
         "translationModelsBaseUrl": models_manifest["baseUrl"].rstrip("/"),
-        "tesseractModelsBaseUrl": tesseract_base_url.rstrip("/"),
         "dictionaryBaseUrl": dictionary_base_url.rstrip("/"),
         "dictionaryVersion": int(dictionary_version),
         "languages": languages,

@@ -65,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -76,7 +77,6 @@ import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageCatalog
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.PermissionHelper
-import dev.davidv.translator.PreferredOcrEngine
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
 import dev.davidv.translator.TapToTranslateNotification
@@ -155,7 +155,6 @@ fun SettingsScreen(
 ) {
   val context = LocalContext.current
   var showPermissionDialog by remember { mutableStateOf(false) }
-  var assistantRoleHeld by remember { mutableStateOf(isAssistantRoleHeld(context)) }
 
   val permissionLauncher =
     rememberLauncherForActivityResult(
@@ -180,9 +179,7 @@ fun SettingsScreen(
   val assistantRoleLauncher =
     rememberLauncherForActivityResult(
       contract = ActivityResultContracts.StartActivityForResult(),
-    ) { _ ->
-      assistantRoleHeld = isAssistantRoleHeld(context)
-    }
+    ) { _ -> }
 
   val notificationPermissionLauncher =
     rememberLauncherForActivityResult(
@@ -492,7 +489,8 @@ fun SettingsScreen(
               modifier =
                 Modifier
                   .menuAnchor()
-                  .fillMaxWidth(),
+                  .fillMaxWidth()
+                  .testTag("export-options:Popup position"),
               colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )
             ExposedDropdownMenu(
@@ -549,9 +547,7 @@ fun SettingsScreen(
           )
 
           Text(
-            text =
-              "Translate text directly on top of other apps.\n" +
-                "Tech preview, expect bugs.",
+            text = "Translate text directly on top of other apps.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -563,14 +559,39 @@ fun SettingsScreen(
           ) {
             Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = "Device Assistant",
+                text = "Always-on floating button",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
               )
               Text(
-                text =
-                  "Requires assistant gesture.\n" +
-                    "Higher quality.",
+                text = "Requires accessibility role",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+
+            TextButton(
+              onClick = {
+                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+              },
+            ) {
+              Text("Manage")
+            }
+          }
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Translate screen on shortcut",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = "Long-press home or power to trigger",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
@@ -588,36 +609,49 @@ fun SettingsScreen(
                 }
               },
             ) {
-              Text(if (assistantRoleHeld) "Manage" else "Request")
+              Text("Manage")
             }
           }
 
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "Floating shortcut",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-              )
-              Text(
-                text =
-                  "Requires accessibility permissions\n" +
-                    "Quality depends on target app.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-            }
+          var assistantActionExpanded by remember { mutableStateOf(false) }
 
-            TextButton(
-              onClick = {
-                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+          Text(
+            text = "On shortcut invocation",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          ExposedDropdownMenuBox(
+            expanded = assistantActionExpanded,
+            onExpandedChange = { assistantActionExpanded = it },
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            OutlinedTextField(
+              value = settings.assistantAction.displayName,
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = assistantActionExpanded)
               },
+              modifier =
+                Modifier
+                  .menuAnchor()
+                  .fillMaxWidth(),
+              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            )
+            ExposedDropdownMenu(
+              expanded = assistantActionExpanded,
+              onDismissRequest = { assistantActionExpanded = false },
             ) {
-              Text("Manage")
+              dev.davidv.translator.AssistantAction.entries.forEach { action ->
+                DropdownMenuItem(
+                  text = { Text(action.displayName) },
+                  onClick = {
+                    onSettingsChange(settings.copy(assistantAction = action))
+                    assistantActionExpanded = false
+                  },
+                )
+              }
             }
           }
         }
@@ -639,47 +673,6 @@ fun SettingsScreen(
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary,
           )
-
-          // Preferred OCR Engine
-          var preferredEngineExpanded by remember { mutableStateOf(false) }
-
-          Text(
-            text = "Preferred Engine",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-          )
-
-          ExposedDropdownMenuBox(
-            expanded = preferredEngineExpanded,
-            onExpandedChange = { preferredEngineExpanded = it },
-            modifier = Modifier.fillMaxWidth(),
-          ) {
-            OutlinedTextField(
-              value = settings.preferredOcrEngine.displayName,
-              onValueChange = {},
-              readOnly = true,
-              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = preferredEngineExpanded) },
-              modifier =
-                Modifier
-                  .menuAnchor()
-                  .fillMaxWidth(),
-              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            )
-            ExposedDropdownMenu(
-              expanded = preferredEngineExpanded,
-              onDismissRequest = { preferredEngineExpanded = false },
-            ) {
-              PreferredOcrEngine.entries.forEach { engine ->
-                DropdownMenuItem(
-                  text = { Text(engine.displayName) },
-                  onClick = {
-                    onSettingsChange(settings.copy(preferredOcrEngine = engine))
-                    preferredEngineExpanded = false
-                  },
-                )
-              }
-            }
-          }
 
           // Background Mode
           var backgroundModeExpanded by remember { mutableStateOf(false) }
@@ -703,7 +696,8 @@ fun SettingsScreen(
               modifier =
                 Modifier
                   .menuAnchor()
-                  .fillMaxWidth(),
+                  .fillMaxWidth()
+                  .testTag("export-options:Background Mode"),
               colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )
             ExposedDropdownMenu(
@@ -848,27 +842,6 @@ fun SettingsScreen(
                   } else {
                     onSettingsChange(settings.copy(useExternalStorage = false))
                   }
-                },
-              )
-            }
-
-            // Show OCR Detection Toggle
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                text = "Show OCR detection",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f).padding(end = 8.dp),
-              )
-
-              Switch(
-                checked = settings.showOCRDetection,
-                onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(showOCRDetection = checked))
                 },
               )
             }
@@ -1280,13 +1253,6 @@ private fun formatSize(sizeBytes: Long): String {
   }
 }
 
-private fun isAssistantRoleHeld(context: android.content.Context): Boolean {
-  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-  val roleManager = context.getSystemService(RoleManager::class.java) ?: return false
-  if (!roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT)) return false
-  return roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)
-}
-
 private fun shouldLaunchAssistantRoleRequest(context: Context): Boolean {
   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
   if (getConfiguredAssistant(context).isNullOrBlank()) return false
@@ -1325,10 +1291,8 @@ private fun previewLanguage(
   code = code,
   displayName = name,
   shortDisplayName = name,
-  tessName = code,
   script = "Latn",
   dictionaryCode = code,
-  tessdataSizeBytes = 0,
 )
 
 @Preview(showBackground = true)

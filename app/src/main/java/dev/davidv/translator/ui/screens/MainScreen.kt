@@ -17,15 +17,19 @@
 
 package dev.davidv.translator.ui.screens
 
+import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.speech.RecognizerIntent
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,15 +41,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -55,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,9 +95,11 @@ import dev.davidv.translator.browser.BrowserActivity
 import dev.davidv.translator.isSupportedDocumentUrl
 import dev.davidv.translator.isWebUrl
 import dev.davidv.translator.ui.components.DetectedLanguageSection
+import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.DictionaryBottomSheet
 import dev.davidv.translator.ui.components.ImageCaptureHandler
 import dev.davidv.translator.ui.components.ImageDisplaySection
+import dev.davidv.translator.ui.components.ImageWordSelection
 import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.components.LanguageSelectionRow
 import dev.davidv.translator.ui.components.SpeechPlaybackButton
@@ -123,7 +127,9 @@ fun MainScreen(
   detectedLanguage: Language?,
   displayImage: Bitmap?,
   originalImage: Bitmap?,
-  ocrReadingOrder: ReadingOrder,
+  imageWordSelection: ImageWordSelection?,
+  detectedRegions: DetectedRegions?,
+  ocrReadingOrder: ReadingOrder?,
   isTranslating: StateFlow<Boolean>,
   isOcrInProgress: StateFlow<Boolean>,
   dictionaryWord: WordWithTaggedEntries?,
@@ -144,10 +150,10 @@ fun MainScreen(
   languageMetadata: Map<Language, LanguageMetadata>,
   downloadStates: Map<Language, DownloadState> = emptyMap(),
   settings: AppSettings,
-  availableSourceTtsVoices: List<uniffi.translator.InstalledTtsPack> = emptyList(),
+  availableSourceTtsVoices: List<uniffi.translator_core.InstalledTtsPack> = emptyList(),
   selectedSourceTtsVoiceName: String? = null,
   sourceTtsPlaybackSpeed: Float = 1.0f,
-  availableTtsVoices: List<uniffi.translator.InstalledTtsPack> = emptyList(),
+  availableTtsVoices: List<uniffi.translator_core.InstalledTtsPack> = emptyList(),
   selectedTtsVoiceName: String? = null,
   targetTtsPlaybackSpeed: Float = 1.0f,
   onTtsPlaybackSpeedChange: (Float) -> Unit = {},
@@ -162,6 +168,9 @@ fun MainScreen(
 ) {
   var showFullScreenImage by remember { mutableStateOf(false) }
   var showImageSourceSheet by remember { mutableStateOf(false) }
+  // Flip the main image between the translation and the original (resets on a new image).
+  var showOriginal by remember(displayImage) { mutableStateOf(false) }
+  val isImageProcessing = isOcrInProgress.collectAsState().value || isTranslating.collectAsState().value
   val inputFocusController = remember { StyledTextFieldFocusController() }
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
   val context = LocalContext.current
@@ -265,29 +274,19 @@ fun MainScreen(
           val parentHeight = maxHeight
 
           Column(
-            modifier =
-              Modifier
-                .fillMaxWidth()
-                .let { modifier ->
-                  if (displayImage != null) {
-                    modifier.verticalScroll(rememberScrollState())
-                  } else {
-                    modifier
-                  }
-                },
+            modifier = Modifier.fillMaxWidth(),
           ) {
             if (displayImage != null) {
-              Box(
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = parentHeight * 0.7f),
-              ) {
+              Box(modifier = Modifier.fillMaxWidth()) {
                 ImageDisplaySection(
                   displayImage = displayImage,
-                  isOcrInProgress = isOcrInProgress,
-                  isTranslating = isTranslating,
-                  onShowFullScreenImage = { showFullScreenImage = true },
+                  originalImage = originalImage,
+                  showOriginal = showOriginal,
+                  isProcessing = isImageProcessing,
+                  detectedRegions = detectedRegions,
+                  wordSelection = imageWordSelection,
+                  maxHeight = parentHeight * 0.85f,
+                  modifier = Modifier.fillMaxWidth(),
                 )
                 Row(
                   modifier =
@@ -302,6 +301,14 @@ fun MainScreen(
                       onMessage = onMessage,
                     )
                   }
+                  if (originalImage != null) {
+                    ActionPillButton(
+                      iconRes = R.drawable.flip,
+                      contentDescription = if (showOriginal) "Show translated image" else "Show original image",
+                      showBackdrop = true,
+                      onClick = { showOriginal = !showOriginal },
+                    )
+                  }
                   ShareImage(onMessage)
                   ClearInput(
                     onMessage = onMessage,
@@ -311,7 +318,7 @@ fun MainScreen(
               }
             }
 
-            if (!showOnlyOutputInReadonlyModal && (displayImage == null || settings.showOCRDetection)) {
+            if (!showOnlyOutputInReadonlyModal && displayImage == null) {
               val showTranslit = settings.showTransliterationOnInput && inputTransliteration != null
               Column(
                 modifier =
@@ -356,13 +363,12 @@ fun MainScreen(
                       modifier = Modifier.align(Alignment.TopEnd),
                       horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                      Row {
-                        if (input.isNotEmpty()) {
-                          ClearInput(onMessage)
-                        } else {
-                          PasteButton(onMessage)
-                        }
+                      if (input.isNotEmpty()) {
+                        ClearInput(onMessage)
+                      } else {
+                        PasteButton(onMessage)
                       }
+                      SpeechInputButton(input, from, onMessage, modifier = Modifier.padding(top = 6.dp))
                       val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isInputAudioPlaying && !isInputAudioLoading
                       if (input.isNotBlank() && languageState.availabilityFor(from)?.ttsFiles == true && !isOtherAudioActive) {
                         SpeechPlaybackButton(
@@ -440,7 +446,7 @@ fun MainScreen(
               },
             )
 
-            if (!showOnlyOutputInReadonlyModal) {
+            if (!showOnlyOutputInReadonlyModal && displayImage == null) {
               Box(
                 modifier =
                   Modifier
@@ -456,43 +462,47 @@ fun MainScreen(
               }
             }
 
-            Box(
-              modifier =
-                Modifier
-                  .fillMaxWidth()
-                  .let { m ->
-                    if (displayImage == null) m.weight(1f, fill = true) else m.height(parentHeight * 0.5f)
+            // With an image the translation is shown in the image itself, so hide the output text
+            // field too (the input is already hidden above).
+            if (showOnlyOutputInReadonlyModal || displayImage == null) {
+              Box(
+                modifier =
+                  Modifier
+                    .fillMaxWidth()
+                    .let { m ->
+                      if (displayImage == null) m.weight(1f, fill = true) else m.height(parentHeight * 0.5f)
+                    },
+              ) {
+                val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isOutputAudioPlaying && !isOutputAudioLoading
+                TranslationField(
+                  text = output,
+                  textStyle =
+                    MaterialTheme.typography.bodyLarge.copy(
+                      fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
+                      lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
+                    ),
+                  onDictionaryLookup = {
+                    onMessage(TranslatorMessage.DictionaryLookup(it, to))
                   },
-            ) {
-              val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isOutputAudioPlaying && !isOutputAudioLoading
-              TranslationField(
-                text = output,
-                textStyle =
-                  MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
-                    lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
-                  ),
-                onDictionaryLookup = {
-                  onMessage(TranslatorMessage.DictionaryLookup(it, to))
-                },
-                canSpeak = languageState.availabilityFor(to)?.ttsFiles == true && !isOtherAudioActive,
-                isAudioPlaying = isOutputAudioPlaying,
-                isAudioLoading = isOutputAudioLoading,
-                speechPlaybackSpeed = targetTtsPlaybackSpeed,
-                selectedVoiceName = selectedTtsVoiceName,
-                availableVoices = availableTtsVoices,
-                onSpeak = {
-                  if (isOutputAudioPlaying || isOutputAudioLoading) {
-                    onStopAudio()
-                  } else {
-                    output?.translated?.takeIf { it.isNotBlank() }?.let { translatedText ->
-                      onSpeakOutput(translatedText, to)
+                  canSpeak = languageState.availabilityFor(to)?.ttsFiles == true && !isOtherAudioActive,
+                  isAudioPlaying = isOutputAudioPlaying,
+                  isAudioLoading = isOutputAudioLoading,
+                  speechPlaybackSpeed = targetTtsPlaybackSpeed,
+                  selectedVoiceName = selectedTtsVoiceName,
+                  availableVoices = availableTtsVoices,
+                  onSpeak = {
+                    if (isOutputAudioPlaying || isOutputAudioLoading) {
+                      onStopAudio()
+                    } else {
+                      output?.translated?.takeIf { it.isNotBlank() }?.let { translatedText ->
+                        onSpeakOutput(translatedText, to)
+                      }
                     }
-                  }
-                },
-                onSpeechPlaybackSpeedChange = onTtsPlaybackSpeedChange,
-                onVoiceSelected = onTtsVoiceSelected,
-              )
+                  },
+                  onSpeechPlaybackSpeedChange = onTtsPlaybackSpeedChange,
+                  onVoiceSelected = onTtsVoiceSelected,
+                )
+              }
             }
           }
         }
@@ -506,6 +516,9 @@ fun MainScreen(
     showImageSourceSheet = showImageSourceSheet,
     onDismissImageSourceSheet = { showImageSourceSheet = false },
     onCameraClick = onLiveCamera,
+    from = from,
+    to = to,
+    isAutoSource = isAutoSource,
     pendingSharedImage = pendingSharedImage,
   )
 
@@ -514,6 +527,7 @@ fun MainScreen(
     ZoomableImageViewer(
       bitmap = displayImage,
       originalBitmap = originalImage,
+      wordSelection = imageWordSelection,
       onDismiss = { showFullScreenImage = false },
       onShare = {
         onMessage(TranslatorMessage.ShareTranslatedImage)
@@ -551,13 +565,18 @@ fun ShareImage(onMessage: (TranslatorMessage) -> Unit) {
 
 @Composable
 fun JapaneseOcrModeToggle(
-  readingOrder: ReadingOrder,
+  readingOrder: ReadingOrder?,
   onMessage: (TranslatorMessage) -> Unit,
 ) {
-  val isVertical = readingOrder == ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT
+  val (iconRes, description) =
+    when (readingOrder) {
+      null -> R.drawable.text_rotation_auto to "Japanese OCR auto mode"
+      ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> R.drawable.text_rotate_vertical to "Japanese OCR vertical mode"
+      ReadingOrder.LEFT_TO_RIGHT -> R.drawable.text_rotation_none to "Japanese OCR horizontal mode"
+    }
   ActionPillButton(
-    iconRes = if (isVertical) R.drawable.text_rotate_vertical else R.drawable.text_rotation_none,
-    contentDescription = if (isVertical) "Japanese OCR vertical mode" else "Japanese OCR horizontal mode",
+    iconRes = iconRes,
+    contentDescription = description,
     showBackdrop = true,
     onClick = { onMessage(TranslatorMessage.ToggleJapaneseOcrMode) },
   )
@@ -612,14 +631,62 @@ fun PasteButton(
 }
 
 @Composable
+fun SpeechInputButton(
+  input: String,
+  from: Language,
+  onMessage: (TranslatorMessage) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val context = LocalContext.current
+  val isAvailable =
+    remember {
+      Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).resolveActivity(context.packageManager) != null
+    }
+  if (!isAvailable) {
+    return
+  }
+
+  val launcher =
+    rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+      if (result.resultCode != Activity.RESULT_OK) {
+        return@rememberLauncherForActivityResult
+      }
+      val spoken =
+        result.data
+          ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+          ?.firstOrNull()
+      if (!spoken.isNullOrBlank()) {
+        val appended = if (input.isBlank()) spoken else "${input.trimEnd()} $spoken"
+        onMessage(TranslatorMessage.TextInput(appended))
+      }
+    }
+
+  ActionPillButton(
+    iconRes = R.drawable.mic,
+    contentDescription = "Voice input",
+    modifier = modifier,
+    onClick = {
+      val intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+          putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+          putExtra(RecognizerIntent.EXTRA_LANGUAGE, from.code)
+        }
+      launcher.launch(intent)
+    },
+  )
+}
+
+@Composable
 private fun ActionPillButton(
   iconRes: Int,
   contentDescription: String,
   showBackdrop: Boolean = false,
+  modifier: Modifier = Modifier,
   onClick: () -> Unit,
 ) {
   if (showBackdrop) {
     Surface(
+      modifier = modifier,
       shape = CircleShape,
       color = Color(0xCC303030),
     ) {
@@ -637,7 +704,7 @@ private fun ActionPillButton(
   } else {
     IconButton(
       onClick = onClick,
-      modifier = Modifier.size(36.dp),
+      modifier = modifier.size(36.dp),
     ) {
       Icon(
         painterResource(id = iconRes),
@@ -680,10 +747,8 @@ private fun previewLanguage(
   code = code,
   displayName = name,
   shortDisplayName = name,
-  tessName = code,
   script = "Latn",
   dictionaryCode = code,
-  tessdataSizeBytes = 0,
 )
 
 private fun previewLanguageState(vararg languages: Pair<Language, LangAvailability>) =
@@ -710,6 +775,8 @@ fun PopupMode() {
       detectedLanguage = previewLanguage("fr", "French"),
       displayImage = null,
       originalImage = null,
+      imageWordSelection = null,
+      detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
@@ -749,6 +816,8 @@ fun MainScreenPreview() {
       detectedLanguage = previewLanguage("fr", "French"),
       displayImage = null,
       originalImage = null,
+      imageWordSelection = null,
+      detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
@@ -792,6 +861,8 @@ fun PreviewTranslitText() {
       detectedLanguage = null,
       displayImage = null,
       originalImage = null,
+      imageWordSelection = null,
+      detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
@@ -836,6 +907,8 @@ fun PreviewVeryLongText() {
       detectedLanguage = null,
       displayImage = null,
       originalImage = null,
+      imageWordSelection = null,
+      detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),
@@ -884,6 +957,8 @@ fun PreviewVeryLongTextImage() {
       detectedLanguage = null,
       displayImage = bitmap,
       originalImage = bitmap,
+      imageWordSelection = null,
+      detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
       isTranslating = MutableStateFlow(false).asStateFlow(),
       isOcrInProgress = MutableStateFlow(false).asStateFlow(),

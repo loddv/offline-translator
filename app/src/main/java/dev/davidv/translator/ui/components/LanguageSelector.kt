@@ -56,6 +56,7 @@ import dev.davidv.translator.Script
 import dev.davidv.translator.languageNameComparator
 import dev.davidv.translator.localizedName
 import dev.davidv.translator.singleScript
+import dev.davidv.translator.ui.theme.AppLayout
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
@@ -100,7 +101,7 @@ fun LanguageSelector(
             expanded = true
           }
           .then(if (centered) Modifier.fillMaxWidth() else Modifier)
-          .padding(vertical = 8.dp, horizontal = 4.dp),
+          .padding(vertical = AppLayout.dimens.languageSelectorVerticalPadding, horizontal = 4.dp),
       text = displayText,
       textAlign = if (centered) TextAlign.Center else TextAlign.Start,
       maxLines = 1,

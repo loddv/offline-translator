@@ -17,26 +17,22 @@
 
 package dev.davidv.translator
 
-sealed class DownloadEvent {
-  data class NewTranslationAvailable(
-    val language: Language,
-  ) : DownloadEvent()
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
 
-  data class NewDictionaryAvailable(
-    val language: Language,
-  ) : DownloadEvent()
+class InputSplitTest {
+  @Test
+  fun dragIsClampedToBounds() {
+    assertEquals(InputSplit.MAX, InputSplit.DEFAULT.dragged(1f).fraction)
+    assertEquals(InputSplit.MIN, InputSplit.DEFAULT.dragged(-1f).fraction)
+    assertEquals(0.6f, InputSplit.DEFAULT.dragged(0.1f).fraction, 1e-6f)
+  }
 
-  data class NewTtsAvailable(
-    val language: Language,
-  ) : DownloadEvent()
-
-  data class NewSupportAvailable(
-    val kind: String,
-  ) : DownloadEvent()
-
-  data object CatalogDownloaded : DownloadEvent()
-
-  data class DownloadError(
-    val message: String,
-  ) : DownloadEvent()
+  @Test
+  fun parseRejectsOutOfRange() {
+    assertEquals(InputSplit(0.3f), InputSplit.parse(0.3f))
+    assertNull(InputSplit.parse(0.9f))
+    assertNull(InputSplit.parse(Float.NaN))
+  }
 }

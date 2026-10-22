@@ -17,14 +17,10 @@
 
 package dev.davidv.translator
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -34,15 +30,16 @@ import androidx.lifecycle.ViewModelProvider
 import dev.davidv.translator.browser.BrowserActivity
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.TranslatorViewModelFactory
+import dev.davidv.translator.ui.screens.StartScreen
 import dev.davidv.translator.ui.screens.TranslatorApp
 import dev.davidv.translator.ui.theme.TranslatorTheme
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
   companion object {
     const val EXTRA_OPEN_LANGUAGE_MANAGER = "dev.davidv.translator.OPEN_LANGUAGE_MANAGER"
+
+    // Sent by the launcher's "Camera" shortcut (res/xml/shortcuts.xml).
+    const val ACTION_OPEN_LIVE_CAMERA = "dev.davidv.translator.OPEN_LIVE_CAMERA"
   }
 
   // Identity in production; only the UI-export test flips UiExportRecorder.active to record which
@@ -57,10 +54,6 @@ class MainActivity : ComponentActivity() {
   private var sharedDocumentUri: Uri? = null
   private var openLanguageManager: Boolean = false
   private lateinit var viewModel: TranslatorViewModel
-  private var downloadService: DownloadService? = null
-  private lateinit var serviceConnection: ServiceConnection
-  private val _downloadServiceState = MutableStateFlow<DownloadService?>(null)
-  private val downloadServiceState: StateFlow<DownloadService?> = _downloadServiceState.asStateFlow()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -78,6 +71,7 @@ class MainActivity : ComponentActivity() {
           translationCoordinator = app.translationCoordinator,
           settingsManager = app.settingsManager,
           filePathManager = app.filePathManager,
+          catalogRepository = app.catalogRepository,
           languageMetadataManager = app.languageMetadataManager,
           initialText = textToTranslate,
           initialLaunchMode = launchMode,
@@ -86,59 +80,32 @@ class MainActivity : ComponentActivity() {
 
     // Deliver any shared input now that the ViewModel exists.
     sharedImageUri?.let { viewModel.setSharedImageUri(it) }
-    sharedDocumentUri?.let { viewModel.setSharedDocumentUri(it) }
+    sharedDocumentUri?.let { viewModel.documents.importShared(it) }
     if (openLanguageManager) {
       viewModel.requestLanguageManager()
       openLanguageManager = false
     }
+    // Launchers start static shortcuts with NEW_TASK | CLEAR_TASK, so the shortcut always arrives
+    // here and never through onNewIntent.
+    val startScreen = if (intent?.action == ACTION_OPEN_LIVE_CAMERA) StartScreen.LiveCamera else StartScreen.Main
 
     setContent {
       TranslatorTheme {
         MigrationGate(
-          filePathManager = app.filePathManager,
-          onMigrated = {
-            TranslatorTtsEngine.notifyVoiceDataChanged(applicationContext)
-            // The Application holds its own catalog instance (used by e.g. the
-            // doc-align gate) separate from LanguageStateManager's; refresh it too.
-            app.reloadLanguageCatalog()
-            viewModel.languageStateManager.refreshLanguageAvailability()
-          },
+          catalogRepository = app.catalogRepository,
         ) {
           TranslatorApp(
             viewModel = viewModel,
-            downloadServiceState = downloadServiceState,
+            startScreen = startScreen,
+            onClose = { finish() },
           )
         }
       }
     }
-
-    serviceConnection =
-      object : ServiceConnection {
-        override fun onServiceConnected(
-          name: ComponentName?,
-          service: IBinder?,
-        ) {
-          Log.d("ServiceConnection", "download service done")
-          val binder = service as DownloadService.DownloadBinder
-          downloadService = binder.getService()
-          _downloadServiceState.value = downloadService
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-          downloadService = null
-          _downloadServiceState.value = null
-        }
-      }
-
-    val serviceIntent = Intent(this, DownloadService::class.java)
-    bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
   }
 
   override fun onDestroy() {
     super.onDestroy()
-    if (::serviceConnection.isInitialized) {
-      unbindService(serviceConnection)
-    }
     Log.i("MainActivity", "cleaning up")
   }
 
@@ -153,7 +120,7 @@ class MainActivity : ComponentActivity() {
         sharedImageUri = null
       }
       sharedDocumentUri?.let {
-        viewModel.setSharedDocumentUri(it)
+        viewModel.documents.importShared(it)
         sharedDocumentUri = null
       }
       if (openLanguageManager) {
@@ -168,37 +135,23 @@ class MainActivity : ComponentActivity() {
     openLanguageManager = intent?.getBooleanExtra(EXTRA_OPEN_LANGUAGE_MANAGER, false) == true
     when (intent?.action) {
       Intent.ACTION_SEND -> {
-        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-        val streamUri =
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-          } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(Intent.EXTRA_STREAM)
-          }
-
-        if (text != null) {
-          val trimmed = text.trim()
-          if (isWebUrl(trimmed)) {
-            if (isSupportedDocumentUrl(trimmed)) {
-              Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
+        when (val payload = parseSendIntent(intent)) {
+          is SharedText.Plain -> textToTranslate = payload.text
+          is SharedText.WebUrl -> openUrl(payload.url)
+          SharedText.UnsupportedDocumentUrl ->
+            Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
+          is SharedPayload.Stream -> {
+            // EXTRA_STREAM carries both shared images (→ crop) and shared documents
+            // (→ the document drawer); route by MIME so a pdf/odt/txt/epub doesn't
+            // get sent to the image cropper.
+            if (isImageUri(this, payload.uri)) {
+              sharedImageUri = payload.uri
             } else {
-              openUrl(trimmed)
-              return
+              sharedDocumentUri = payload.uri
             }
-          } else {
-            textToTranslate = text
+            textToTranslate = ""
           }
-        } else if (streamUri != null) {
-          // EXTRA_STREAM carries both shared images (→ crop) and shared documents
-          // (→ the document drawer); route by MIME so a pdf/odt/txt/epub doesn't
-          // get sent to the image cropper.
-          if (isImageUri(this, streamUri)) {
-            sharedImageUri = streamUri
-          } else {
-            sharedDocumentUri = streamUri
-          }
-          textToTranslate = ""
+          SharedPayload.Empty -> Log.w("MainActivity", "ACTION_SEND carried neither text nor a stream")
         }
       }
       Intent.ACTION_VIEW -> {

@@ -48,7 +48,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -56,7 +55,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -79,23 +77,28 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.davidv.translator.AppSettings
-import dev.davidv.translator.DocumentTranslationService
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadRequest
 import dev.davidv.translator.Language
 import dev.davidv.translator.LaunchMode
-import dev.davidv.translator.PcmAudioPlayer
+import dev.davidv.translator.MainSelection
 import dev.davidv.translator.R
-import dev.davidv.translator.TranslatorMessage
+import dev.davidv.translator.ReadonlyPopupSize
+import dev.davidv.translator.SupportKind
 import dev.davidv.translator.encodeVoiceOverride
 import dev.davidv.translator.parseVoiceOverride
 import dev.davidv.translator.ui.DocumentTranslationUiState
+import dev.davidv.translator.ui.MainInput
+import dev.davidv.translator.ui.SpeechTarget
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.UiEvent
+import dev.davidv.translator.ui.components.AttachmentSide
+import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.DocumentConfigureSheet
+import dev.davidv.translator.ui.components.LanguageEvent
+import dev.davidv.translator.ui.components.PopupWithAttachment
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -113,8 +116,6 @@ private fun packsContainVoice(
   packs: List<uniffi.translator_core.InstalledTtsPack>,
   voiceName: String,
 ): Boolean = packs.any { pack -> pack.voices.any { it.name == voiceName } }
-
-private enum class SpeechTarget { INPUT, OUTPUT }
 
 private data class PendingDocumentSave(
   val path: String,
@@ -354,15 +355,12 @@ private fun PdfPhaseFractionRow(
 @Composable
 fun TranslatorApp(
   viewModel: TranslatorViewModel,
-  downloadServiceState: StateFlow<DownloadService?>,
+  startScreen: StartScreen = StartScreen.Main,
   onClose: () -> Unit = {},
 ) {
   val navController = rememberNavController()
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
-  var isAudioPlaying by remember { mutableStateOf(false) }
-  var isAudioLoading by remember { mutableStateOf(false) }
-  var activeSpeechTarget by remember { mutableStateOf<SpeechTarget?>(null) }
   var pendingDocumentSave by remember { mutableStateOf<PendingDocumentSave?>(null) }
   val saveTranslatedDocument =
     rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -381,76 +379,34 @@ fun TranslatorApp(
         }
       }
     }
-  val pcmAudioPlayer =
-    remember {
-      PcmAudioPlayer { playing ->
-        isAudioPlaying = playing
-        if (playing) {
-          isAudioLoading = false
-        } else if (!playing) {
-          isAudioLoading = false
-          activeSpeechTarget = null
-        }
-      }
-    }
 
   // Collect ViewModel state
-  val input by viewModel.input.collectAsState()
-  val inputTransliterated by viewModel.inputTransliterated.collectAsState()
-  val output by viewModel.output.collectAsState()
-  val from by viewModel.from.collectAsState()
-  val to by viewModel.to.collectAsState()
-  val targetTabs by viewModel.targets.collectAsState()
-  val displayImage by viewModel.displayImage.collectAsState()
-  val originalImage by viewModel.originalImage.collectAsState()
-  val imageWordSelection by viewModel.imageWordSelection.collectAsState()
-  val detectedRegions by viewModel.detectedRegions.collectAsState()
-  val ocrReadingOrder by viewModel.ocrReadingOrder.collectAsState()
-  val currentDetectedLanguage by viewModel.currentDetectedLanguage.collectAsState()
-  val isAutoSource by viewModel.isAutoSource.collectAsState()
+  val translation = viewModel.translation
+  val input by translation.input.collectAsState()
+  val inputTransliterated by translation.inputTransliterated.collectAsState()
+  val output by translation.output.collectAsState()
+  val selection by translation.selection.collectAsState()
+  val detectedRegions by translation.detectedRegions.collectAsState()
+  val ocrReadingOrder by translation.ocrReadingOrder.collectAsState()
+  val currentDetectedLanguage by translation.currentDetectedLanguage.collectAsState()
+  val isAutoSource by translation.isAutoSource.collectAsState()
   val currentLaunchMode by viewModel.currentLaunchMode.collectAsState()
   val modalVisible by viewModel.modalVisible.collectAsState()
-  val dictionaryWord by viewModel.dictionaryWord.collectAsState()
-  val dictionaryStack by viewModel.dictionaryStack.collectAsState()
-  val dictionaryLookupLanguage by viewModel.dictionaryLookupLanguage.collectAsState()
-  val documentTranslation by viewModel.documentTranslation.collectAsState()
+  val dictionary by viewModel.dictionary.state.collectAsState()
+  val documentTranslation by viewModel.documents.documentTranslation.collectAsState()
 
   val settings by viewModel.settingsManager.settings.collectAsState()
   val languageMetadata by viewModel.languageMetadataManager.metadata.collectAsState()
-  val downloadService by downloadServiceState.collectAsState()
   val languageState by viewModel.languageStateManager.languageState.collectAsState()
-  val downloadStates by downloadService?.downloadStates?.collectAsState() ?: remember {
-    kotlinx.coroutines.flow.MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
-  }.collectAsState()
-  val adblockDownloadState by downloadService?.adblockDownloadState?.collectAsState() ?: remember {
-    kotlinx.coroutines.flow.MutableStateFlow(DownloadState())
-  }.collectAsState()
-  val isTranslating by viewModel.translationCoordinator.isTranslating.collectAsState()
-  val ttsVoicesByLanguage by viewModel.ttsVoices.collectAsState()
+  val downloadManager = (context.applicationContext as dev.davidv.translator.TranslatorApplication).downloadManager
+  val downloads by downloadManager.state.collectAsState()
+  val isImageProcessing by translation.isImageProcessing.collectAsState()
+  val ttsVoicesByLanguage by viewModel.speech.ttsVoices.collectAsState()
+  val speech by viewModel.speech.speech.collectAsState()
+  val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
-  LaunchedEffect(to?.code, to?.let { languageState.availabilityFor(it)?.ttsFiles } == true) {
-    val targetLanguage = to ?: return@LaunchedEffect
-    if (languageState.availabilityFor(targetLanguage)?.ttsFiles == true) {
-      viewModel.refreshTtsVoices(targetLanguage)
-    } else {
-      viewModel.clearTtsVoices(targetLanguage.code)
-    }
-  }
-
-  LaunchedEffect(from?.code, from?.let { languageState.availabilityFor(it)?.ttsFiles } == true) {
-    val sourceLanguage = from ?: return@LaunchedEffect
-    if (languageState.availabilityFor(sourceLanguage)?.ttsFiles == true) {
-      viewModel.refreshTtsVoices(sourceLanguage)
-    } else {
-      viewModel.clearTtsVoices(sourceLanguage.code)
-    }
-  }
-
-  // Connect/disconnect download service
-  LaunchedEffect(downloadService) {
-    downloadService?.let { service ->
-      viewModel.connectDownloadService(service)
-    }
+  LaunchedEffect(downloadManager) {
+    viewModel.languageStateManager.connectToDownloadErrors(downloadManager.errors)
   }
 
   // Collect UI events (toasts, share intents)
@@ -460,58 +416,32 @@ fun TranslatorApp(
         is UiEvent.ShowToast -> {
           Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
         }
-        UiEvent.AudioLoadingStarted -> {
-          isAudioLoading = true
-        }
-        UiEvent.AudioLoadingStopped -> {
-          isAudioLoading = false
-          activeSpeechTarget = null
-        }
         is UiEvent.ShareImage -> {
           val imageUri = saveImage(event.bitmap, context)
           if (imageUri != null) {
             shareImageUri(imageUri, context)
           }
         }
-        is UiEvent.PlayAudio -> {
-          pcmAudioPlayer.play(event.audioChunks) { message ->
-            isAudioLoading = false
-            activeSpeechTarget = null
-            Toast.makeText(context, context.getString(R.string.translator_audio_playback_failed, message), Toast.LENGTH_SHORT).show()
-          }
-        }
       }
     }
   }
 
-  DisposableEffect(pcmAudioPlayer) {
-    onDispose {
-      pcmAudioPlayer.release()
-    }
-  }
-
-  val pendingDocument by viewModel.pendingDocument.collectAsState()
+  val pendingDocument by viewModel.documents.pendingDocument.collectAsState()
   pendingDocument?.let { pending ->
-    val docCatalog = viewModel.languageStateManager.catalog.collectAsState().value
-    val docAvailableLanguages =
-      (languageState.translatorLanguages() + listOfNotNull(docCatalog?.english))
-        .distinctBy { it.code }
-    val initialFrom = from ?: docAvailableLanguages.firstOrNull()
-    val initialTo = to ?: docCatalog?.english ?: docAvailableLanguages.firstOrNull()
-    if (initialFrom != null && initialTo != null) {
+    val docSelection = selection
+    if (docSelection is MainSelection.Ready) {
       DocumentConfigureSheet(
         fileName = pending.displayName,
         fileSizeBytes = pending.sizeBytes,
         extension = pending.extension,
-        initialFrom = initialFrom,
-        initialTo = initialTo,
-        availableLanguages = docAvailableLanguages,
+        initialFrom = docSelection.source,
+        initialTo = docSelection.target,
+        sourceLanguages = languageState.sourceLanguages(),
+        targetLanguages = languageState.targetLanguages(),
         languageMetadata = languageMetadata,
         defaultTranslatePdfImages = settings.translatePdfImages,
-        onDismiss = { viewModel.dismissPendingDocument() },
-        onTranslate = { selFrom, selTo, txtLayout, translatePdfImages ->
-          viewModel.startPendingDocumentTranslation(selFrom, selTo, txtLayout, translatePdfImages)
-        },
+        onDismiss = viewModel.documents::dismissPending,
+        onTranslate = viewModel.documents::start,
       )
     }
   }
@@ -521,10 +451,9 @@ fun TranslatorApp(
       document = document,
       onDismiss = {
         if (document.isTranslating) {
-          viewModel.cancelDocumentTranslation()
+          viewModel.documents.cancel()
         } else {
-          DocumentTranslationService.dismiss(context)
-          viewModel.dismissDocumentTranslation()
+          viewModel.documents.dismissResult()
         }
       },
       onSave = { path, mimeType, fileName ->
@@ -538,8 +467,7 @@ fun TranslatorApp(
         )
       },
       onOpen = { path, mimeType ->
-        DocumentTranslationService.dismiss(context)
-        viewModel.dismissDocumentTranslation()
+        viewModel.documents.dismissResult()
         try {
           openDocumentPath(path, mimeType, context)
         } catch (e: Exception) {
@@ -549,48 +477,24 @@ fun TranslatorApp(
     )
   }
 
-  // Retranslate when isTranslating becomes false (queued translation)
-  LaunchedEffect(isTranslating) {
-    if (!isTranslating) {
-      viewModel.retranslateIfNeeded()
-    }
-  }
-
-  val navigationState by viewModel.navigationState.collectAsState()
-
-  // Map navigation state to route
   val startDestination =
     remember {
-      when (navigationState) {
-        TranslatorViewModel.NavigationState.LOADING -> "loading"
-        TranslatorViewModel.NavigationState.NO_LANGUAGES -> "no_languages"
-        TranslatorViewModel.NavigationState.READY -> "main"
+      when (selection) {
+        // Without an installed pair the language setup comes first, even from the camera shortcut.
+        MainSelection.NoLanguages -> "no_languages"
+        is MainSelection.Ready ->
+          when (startScreen) {
+            StartScreen.Main -> "main"
+            StartScreen.LiveCamera -> "live_camera"
+          }
       }
     }
-
-  // The NavHost lives inside an AnimatedVisibility that only composes its content on a
-  // later frame, so the graph is not set while the first effects run; keying on the
-  // current entry re-runs these once the host is actually there.
-  val currentBackStackEntry by navController.currentBackStackEntryAsState()
-
-  LaunchedEffect(navigationState, currentBackStackEntry) {
-    val currentRoute = currentBackStackEntry?.destination?.route
-    val targetRoute =
-      when (navigationState) {
-        TranslatorViewModel.NavigationState.LOADING -> null
-        TranslatorViewModel.NavigationState.NO_LANGUAGES -> "no_languages"
-        TranslatorViewModel.NavigationState.READY -> "main"
-      }
-    if (targetRoute != null && currentRoute != targetRoute && currentRoute == "loading") {
-      navController.navigate(targetRoute) {
-        popUpTo(currentRoute!!) { inclusive = true }
-      }
-    }
-  }
 
   LaunchedEffect(Unit) {
     viewModel.languageManagerRequests.collect {
-      val entry = navController.currentBackStackEntryFlow.first { it.destination.route != "loading" }
+      // The NavHost lives inside an AnimatedVisibility that only composes its content on a
+      // later frame, so the graph may not be set yet when the request arrives.
+      val entry = navController.currentBackStackEntryFlow.first()
       if (entry.destination.route != "language_manager") {
         navController.navigate("language_manager")
       }
@@ -603,7 +507,11 @@ fun TranslatorApp(
     targetValue =
       when {
         currentLaunchMode == LaunchMode.Normal -> 1f
-        isReadonlyPopup -> settings.readonlyModalCompactHeightFactor
+        isReadonlyPopup ->
+          when (val size = settings.readonlyPopupSize) {
+            is ReadonlyPopupSize.Fraction -> size.heightFactor
+            ReadonlyPopupSize.Expanded -> 1f
+          }
         else -> 0.6f
       },
     animationSpec = tween(300),
@@ -645,8 +553,8 @@ fun TranslatorApp(
               indication = null,
             ) {
               viewModel.setModalVisible(false)
-              kotlinx.coroutines.MainScope().launch {
-                kotlinx.coroutines.delay(400)
+              scope.launch {
+                delay(400)
                 onClose()
               }
             },
@@ -683,43 +591,55 @@ fun TranslatorApp(
           },
         ),
     ) {
-      Box(
-        modifier =
-          Modifier
-            .fillMaxHeight(heightFactor)
-            .fillMaxWidth(widthFactor)
-            .then(
-              if (currentLaunchMode == LaunchMode.Normal) {
-                Modifier
-              } else {
-                Modifier.clip(RoundedCornerShape(10.dp))
+      PopupWithAttachment(
+        side = if (popupAlignment == Alignment.BottomCenter) AttachmentSide.Above else AttachmentSide.Below,
+        attachment = {
+          val popupSelection = selection
+          val popupInputHidden =
+            currentLaunchMode == LaunchMode.ReadonlyModal && settings.onlyShowOutputOnReadonlyModal && input !is MainInput.Image
+          if (currentLaunchMode != LaunchMode.Normal && !popupInputHidden && currentRoute == "main" && popupSelection is MainSelection.Ready) {
+            DetectedLanguageSection(
+              detectedLanguage = currentDetectedLanguage,
+              from = popupSelection.source,
+              languageState = languageState,
+              onMessage = viewModel::handleMessage,
+              downloads = downloads,
+              isAutoSource = isAutoSource,
+              onEvent = { event ->
+                when (event) {
+                  is LanguageEvent.Download -> downloadManager.enqueue(DownloadRequest.Core(event.language))
+                  is LanguageEvent.Cancel -> downloadManager.cancel(DownloadId.Core(event.language))
+                  else -> error("Unexpected detected-language event: $event")
+                }
               },
-            ),
-      ) {
-        NavHost(
-          navController = navController,
-          startDestination = startDestination,
-        ) {
-          composable("loading") {
-            Box(
-              modifier = Modifier.fillMaxSize(),
-              contentAlignment = Alignment.Center,
-            ) {
-              CircularProgressIndicator()
-            }
+            )
           }
-
-          composable("no_languages") {
-            val currentDownloadService = downloadService
-            if (currentDownloadService != null) {
+        },
+      ) {
+        Box(
+          modifier =
+            Modifier
+              .fillMaxHeight(heightFactor)
+              .fillMaxWidth(widthFactor)
+              .then(
+                if (currentLaunchMode == LaunchMode.Normal) {
+                  Modifier
+                } else {
+                  Modifier.clip(RoundedCornerShape(10.dp))
+                },
+              ),
+        ) {
+          NavHost(
+            navController = navController,
+            startDestination = startDestination,
+          ) {
+            composable("no_languages") {
               NoLanguagesScreen(
                 settingsManager = viewModel.settingsManager,
                 onDone = {
-                  if (languageState.hasLanguages) {
-                    MainScope().launch {
-                      navController.navigate("main") {
-                        popUpTo("no_languages") { inclusive = true }
-                      }
+                  if (selection is MainSelection.Ready) {
+                    navController.navigate("main") {
+                      popUpTo("no_languages") { inclusive = true }
                     }
                   }
                 },
@@ -728,145 +648,132 @@ fun TranslatorApp(
                 },
                 languageStateManager = viewModel.languageStateManager,
                 languageMetadataManager = viewModel.languageMetadataManager,
-                downloadService = currentDownloadService,
+                downloadManager = downloadManager,
               )
             }
-          }
 
-          composable("main") {
-            // Safe to use from/to non-null here: navigationState is READY
-            val currentFrom = from
-            val currentTo = to
-            if (currentFrom != null && currentTo != null) {
-              val availableSourceTtsVoices = ttsVoicesByLanguage[currentFrom.code].orEmpty()
-              val selectedSourceTtsVoiceName =
-                parseVoiceOverride(settings.ttsVoiceOverrides[currentFrom.code])
-                  ?.voiceName
-                  ?.takeIf { voiceName -> packsContainVoice(availableSourceTtsVoices, voiceName) }
-                  ?: defaultVoiceNameForLanguage(availableSourceTtsVoices)
-              val sourceTtsPlaybackSpeed = ttsPlaybackSpeedFor(settings, currentFrom, selectedSourceTtsVoiceName)
-              val availableTtsVoices = ttsVoicesByLanguage[currentTo.code].orEmpty()
-              val selectedTtsVoiceName =
-                parseVoiceOverride(settings.ttsVoiceOverrides[currentTo.code])
-                  ?.voiceName
-                  ?.takeIf { voiceName -> packsContainVoice(availableTtsVoices, voiceName) }
-                  ?: defaultVoiceNameForLanguage(availableTtsVoices)
-              val targetTtsPlaybackSpeed = ttsPlaybackSpeedFor(settings, currentTo, selectedTtsVoiceName)
-              MainScreen(
-                onSettings = { navController.navigate("settings") },
-                onLiveCamera = { navController.navigate("live_camera") },
-                input = input,
-                inputTransliteration = inputTransliterated,
-                output = output,
-                from = currentFrom,
-                to = currentTo,
-                targetTabs = targetTabs?.tabs ?: listOf(currentTo),
-                detectedLanguage = currentDetectedLanguage,
-                displayImage = displayImage,
-                originalImage = originalImage,
-                imageWordSelection = imageWordSelection,
-                detectedRegions = detectedRegions,
-                ocrReadingOrder = ocrReadingOrder,
-                isTranslating = viewModel.translationCoordinator.isTranslating,
-                isOcrInProgress = viewModel.translationCoordinator.isOcrInProgress,
-                dictionaryWord = dictionaryWord,
-                dictionaryStack = dictionaryStack,
-                dictionaryLookupLanguage = dictionaryLookupLanguage,
-                isAudioPlaying = isAudioPlaying,
-                isAudioLoading = isAudioLoading,
-                isInputAudioPlaying = activeSpeechTarget == SpeechTarget.INPUT && isAudioPlaying,
-                isInputAudioLoading = activeSpeechTarget == SpeechTarget.INPUT && isAudioLoading,
-                isOutputAudioPlaying = activeSpeechTarget == SpeechTarget.OUTPUT && isAudioPlaying,
-                isOutputAudioLoading = activeSpeechTarget == SpeechTarget.OUTPUT && isAudioLoading,
-                onMessage = viewModel::handleMessage,
-                onSteerPreview = viewModel::steerPreview,
-                canSwapLanguages = viewModel.languageStateManager.canSwapLanguages(currentFrom, currentTo),
-                onStopAudio = {
-                  isAudioLoading = false
-                  activeSpeechTarget = null
-                  pcmAudioPlayer.stop()
-                },
-                languageState = languageState,
-                languageMetadata = languageMetadata,
-                downloadStates = downloadStates,
-                settings = settings,
-                availableSourceTtsVoices = availableSourceTtsVoices,
-                selectedSourceTtsVoiceName = selectedSourceTtsVoiceName,
-                sourceTtsPlaybackSpeed = sourceTtsPlaybackSpeed,
-                availableTtsVoices = availableTtsVoices,
-                selectedTtsVoiceName = selectedTtsVoiceName,
-                targetTtsPlaybackSpeed = targetTtsPlaybackSpeed,
-                onTtsPlaybackSpeedChange = { newSpeed ->
-                  val voiceName = selectedTtsVoiceName
-                  val quantizedSpeed = quantizePlaybackSpeed(newSpeed)
-                  viewModel.settingsManager.updateSettings(
-                    if (voiceName != null) {
-                      settings.copy(
-                        ttsPlaybackSpeedOverrides =
-                          settings.ttsPlaybackSpeedOverrides +
-                            (ttsPlaybackSpeedOverrideKey(currentTo, voiceName) to quantizedSpeed),
-                      )
-                    } else {
-                      settings.copy(ttsPlaybackSpeed = quantizedSpeed)
+            composable("main") {
+              when (val mainSelection = selection) {
+                // Deleting the last language from the manager leaves main below it on the stack.
+                MainSelection.NoLanguages ->
+                  LaunchedEffect(Unit) {
+                    navController.navigate("no_languages") {
+                      popUpTo("main") { inclusive = true }
+                    }
+                  }
+                is MainSelection.Ready -> {
+                  val currentFrom = mainSelection.source
+                  val currentTo = mainSelection.target
+                  val availableSourceTtsVoices = ttsVoicesByLanguage[currentFrom.code].orEmpty()
+                  val selectedSourceTtsVoiceName =
+                    parseVoiceOverride(settings.ttsVoiceOverrides[currentFrom.code])
+                      ?.voiceName
+                      ?.takeIf { voiceName -> packsContainVoice(availableSourceTtsVoices, voiceName) }
+                      ?: defaultVoiceNameForLanguage(availableSourceTtsVoices)
+                  val sourceTtsPlaybackSpeed = ttsPlaybackSpeedFor(settings, currentFrom, selectedSourceTtsVoiceName)
+                  val availableTtsVoices = ttsVoicesByLanguage[currentTo.code].orEmpty()
+                  val selectedTtsVoiceName =
+                    parseVoiceOverride(settings.ttsVoiceOverrides[currentTo.code])
+                      ?.voiceName
+                      ?.takeIf { voiceName -> packsContainVoice(availableTtsVoices, voiceName) }
+                      ?: defaultVoiceNameForLanguage(availableTtsVoices)
+                  val targetTtsPlaybackSpeed = ttsPlaybackSpeedFor(settings, currentTo, selectedTtsVoiceName)
+                  val image = input as? MainInput.Image
+                  MainScreen(
+                    onSettings = { navController.navigate("settings") },
+                    onLiveCamera = { navController.navigate("live_camera") },
+                    input = input.text,
+                    inputTransliteration = inputTransliterated,
+                    output = output,
+                    from = currentFrom,
+                    to = currentTo,
+                    targetTabs = mainSelection.targets.tabs,
+                    detectedLanguage = currentDetectedLanguage,
+                    displayImage = image?.display,
+                    originalImage = image?.original,
+                    imageWordSelection = image?.words,
+                    detectedRegions = detectedRegions,
+                    ocrReadingOrder = ocrReadingOrder,
+                    isImageProcessing = isImageProcessing,
+                    dictionary = dictionary,
+                    speech = speech,
+                    onMessage = viewModel::handleMessage,
+                    onSteerPreview = translation::steerPreview,
+                    canSwapLanguages = viewModel.languageStateManager.canSwapLanguages(currentFrom, currentTo),
+                    onStopAudio = viewModel.speech::stop,
+                    languageState = languageState,
+                    languageMetadata = languageMetadata,
+                    downloads = downloads,
+                    onDownload = downloadManager::enqueue,
+                    onCancelDownload = downloadManager::cancel,
+                    settings = settings,
+                    availableSourceTtsVoices = availableSourceTtsVoices,
+                    selectedSourceTtsVoiceName = selectedSourceTtsVoiceName,
+                    sourceTtsPlaybackSpeed = sourceTtsPlaybackSpeed,
+                    availableTtsVoices = availableTtsVoices,
+                    selectedTtsVoiceName = selectedTtsVoiceName,
+                    targetTtsPlaybackSpeed = targetTtsPlaybackSpeed,
+                    onInputSplitChange = { split ->
+                      viewModel.settingsManager.update { it.copy(mainInputSplit = split) }
                     },
-                  )
-                },
-                onSourceTtsPlaybackSpeedChange = { newSpeed ->
-                  val voiceName = selectedSourceTtsVoiceName
-                  val quantizedSpeed = quantizePlaybackSpeed(newSpeed)
-                  viewModel.settingsManager.updateSettings(
-                    if (voiceName != null) {
-                      settings.copy(
-                        ttsPlaybackSpeedOverrides =
-                          settings.ttsPlaybackSpeedOverrides +
-                            (ttsPlaybackSpeedOverrideKey(currentFrom, voiceName) to quantizedSpeed),
-                      )
-                    } else {
-                      settings.copy(ttsPlaybackSpeed = quantizedSpeed)
+                    onTtsPlaybackSpeedChange = { newSpeed ->
+                      val voiceName = selectedTtsVoiceName
+                      val quantizedSpeed = quantizePlaybackSpeed(newSpeed)
+                      viewModel.settingsManager.update { current ->
+                        if (voiceName != null) {
+                          current.copy(
+                            ttsPlaybackSpeedOverrides =
+                              current.ttsPlaybackSpeedOverrides +
+                                (ttsPlaybackSpeedOverrideKey(currentTo, voiceName) to quantizedSpeed),
+                          )
+                        } else {
+                          current.copy(ttsPlaybackSpeed = quantizedSpeed)
+                        }
+                      }
                     },
+                    onSourceTtsPlaybackSpeedChange = { newSpeed ->
+                      val voiceName = selectedSourceTtsVoiceName
+                      val quantizedSpeed = quantizePlaybackSpeed(newSpeed)
+                      viewModel.settingsManager.update { current ->
+                        if (voiceName != null) {
+                          current.copy(
+                            ttsPlaybackSpeedOverrides =
+                              current.ttsPlaybackSpeedOverrides +
+                                (ttsPlaybackSpeedOverrideKey(currentFrom, voiceName) to quantizedSpeed),
+                          )
+                        } else {
+                          current.copy(ttsPlaybackSpeed = quantizedSpeed)
+                        }
+                      }
+                    },
+                    onSourceTtsVoiceSelected = { packId, voiceName ->
+                      viewModel.settingsManager.update { current ->
+                        current.copy(
+                          ttsVoiceOverrides =
+                            current.ttsVoiceOverrides +
+                              (currentFrom.code to encodeVoiceOverride(packId, voiceName)),
+                        )
+                      }
+                    },
+                    onTtsVoiceSelected = { packId, voiceName ->
+                      viewModel.settingsManager.update { current ->
+                        current.copy(
+                          ttsVoiceOverrides =
+                            current.ttsVoiceOverrides +
+                              (currentTo.code to encodeVoiceOverride(packId, voiceName)),
+                        )
+                      }
+                    },
+                    onSpeakInput = { text, language -> viewModel.speech.speak(text, language, SpeechTarget.INPUT) },
+                    onSpeakOutput = { text, language -> viewModel.speech.speak(text, language, SpeechTarget.OUTPUT) },
+                    launchMode = currentLaunchMode,
+                    pendingSharedImage = viewModel.pendingSharedImage,
+                    isAutoSource = isAutoSource,
                   )
-                },
-                onSourceTtsVoiceSelected = { packId, voiceName ->
-                  viewModel.settingsManager.updateSettings(
-                    settings.copy(
-                      ttsVoiceOverrides =
-                        settings.ttsVoiceOverrides +
-                          (currentFrom.code to encodeVoiceOverride(packId, voiceName)),
-                    ),
-                  )
-                },
-                onTtsVoiceSelected = { packId, voiceName ->
-                  viewModel.settingsManager.updateSettings(
-                    settings.copy(
-                      ttsVoiceOverrides =
-                        settings.ttsVoiceOverrides +
-                          (currentTo.code to encodeVoiceOverride(packId, voiceName)),
-                    ),
-                  )
-                },
-                onSpeakInput = { text, language ->
-                  activeSpeechTarget = SpeechTarget.INPUT
-                  viewModel.handleMessage(TranslatorMessage.SpeakTranslatedText(text, language))
-                },
-                onSpeakOutput = { text, language ->
-                  activeSpeechTarget = SpeechTarget.OUTPUT
-                  viewModel.handleMessage(TranslatorMessage.SpeakTranslatedText(text, language))
-                },
-                launchMode = currentLaunchMode,
-                pendingSharedImage = viewModel.pendingSharedImage,
-                isAutoSource = isAutoSource,
-              )
+                }
+              }
             }
-          }
-          composable("language_manager") {
-            val curDownloadService = downloadService
-            val catalog = viewModel.languageStateManager.catalog.collectAsState().value
-            if (curDownloadService != null && catalog != null) {
-              val dictionaryDownloadStates by curDownloadService.dictionaryDownloadStates.collectAsState()
-              val ttsDownloadStates by curDownloadService.ttsDownloadStates.collectAsState()
-              val activeTtsPackIds by curDownloadService.activeTtsPackIds.collectAsState()
-              val queuedTtsPackIds by curDownloadService.queuedTtsPackIds.collectAsState()
-              val repairDownloadState by curDownloadService.repairDownloadState.collectAsState()
+            composable("language_manager") {
               Scaffold(
                 modifier =
                   Modifier
@@ -880,89 +787,82 @@ fun TranslatorApp(
                     languageStateManager = viewModel.languageStateManager,
                     languageMetadataManager = viewModel.languageMetadataManager,
                     settingsManager = viewModel.settingsManager,
-                    catalog = catalog,
-                    languageAvailabilityState = languageState,
-                    downloadStates = downloadStates,
-                    dictionaryDownloadStates = dictionaryDownloadStates,
-                    ttsDownloadStates = ttsDownloadStates,
-                    activeTtsPackIds = activeTtsPackIds,
-                    queuedTtsPackIds = queuedTtsPackIds,
-                    repairDownloadState = repairDownloadState,
+                    downloadManager = downloadManager,
                   )
                 }
               }
             }
-          }
-          composable("settings") {
-            val catalog = viewModel.languageStateManager.catalog.collectAsState().value
-            val englishLang = catalog?.english
-            val availableWithEnglish =
-              if (englishLang != null) {
-                (languageState.translatorLanguages() + englishLang).distinctBy { it.code }
-              } else {
-                languageState.translatorLanguages()
-              }
-            val app = context.applicationContext as dev.davidv.translator.TranslatorApplication
-            val adblockReady by app.adblockManager.ready.collectAsState()
-            SettingsScreen(
-              settings = settings,
-              languageMetadataManager = viewModel.languageMetadataManager,
-              availableLanguages = availableWithEnglish,
-              catalog = catalog,
-              adblockDownloadState = adblockDownloadState,
-              adblockInstalled = adblockReady || catalog?.supportInstalledByKind("adblock") == true,
-              onSettingsChange = { newSettings ->
-                viewModel.settingsManager.updateSettings(newSettings)
-                if (newSettings.defaultTargetLanguageCode != settings.defaultTargetLanguageCode) {
-                  val targetLang = catalog?.languageByCode(newSettings.defaultTargetLanguageCode)
-                  if (targetLang != null) {
-                    viewModel.handleMessage(dev.davidv.translator.TranslatorMessage.ToLang(targetLang))
-                  }
-                }
-                if (newSettings.useExternalStorage != settings.useExternalStorage) {
-                  viewModel.languageStateManager.refreshLanguageAvailability()
-                }
-              },
-              onManageLanguages = {
-                navController.navigate("language_manager")
-              },
-              onDeleteAdblockSupport = {
-                viewModel.languageStateManager.deleteSupportByKind("adblock")
-                app.adblockManager.reload()
-              },
-              onHowToUse = {
-                navController.navigate("how_to_use")
-              },
-            )
-          }
-          composable("how_to_use") {
-            HowToUseScreen(onBack = { navController.popBackStack() })
-          }
-          composable("live_camera") {
-            val currentFrom = from
-            val currentTo = to
-            val liveCatalog by viewModel.languageStateManager.catalog.collectAsState()
-            if (currentFrom != null && currentTo != null) {
-              LiveCameraScreen(
-                from = currentFrom,
-                to = currentTo,
-                isAutoSource = isAutoSource,
-                canSwap = viewModel.languageStateManager.canSwapLanguages(currentFrom, currentTo),
-                languageState = languageState,
-                languageMetadata = languageMetadata,
-                onMessage = viewModel::handleMessage,
-                showAutoOption = !settings.disableCLD,
-                liveOverlayDefaultEnabled = settings.liveCameraOverlayEnabled,
-                catalog = liveCatalog,
-                onClose = {
-                  navController.popBackStack("main", inclusive = false)
+            composable("settings") {
+              val catalog = viewModel.languageStateManager.catalog.collectAsState().value
+              val app = context.applicationContext as dev.davidv.translator.TranslatorApplication
+              val adblockReady by app.adblockManager.ready.collectAsState()
+              SettingsScreen(
+                settings = settings,
+                sourceLanguages = languageState.sourceLanguages(),
+                targetLanguages = languageState.targetLanguages(),
+                catalog = catalog,
+                adblockDownload = downloads[DownloadId.Support(SupportKind.ADBLOCK)],
+                onDownloadAdblockSupport = { downloadManager.enqueue(DownloadRequest.Support(SupportKind.ADBLOCK)) },
+                onCancelAdblockDownload = { downloadManager.cancel(DownloadId.Support(SupportKind.ADBLOCK)) },
+                adblockInstalled = adblockReady || catalog.supportInstalledByKind("adblock"),
+                onSettingsChange = viewModel.settingsManager::update,
+                onDefaultTargetLanguageSelected = translation::setDefaultTarget,
+                onManageLanguages = {
+                  navController.navigate("language_manager")
                 },
-                onImageCaptured = viewModel::setSharedImageUri,
+                onDeleteAdblockSupport = {
+                  viewModel.languageStateManager.deleteSupportByKind("adblock")
+                  app.adblockManager.reload()
+                },
+                onHowToUse = {
+                  navController.navigate("how_to_use")
+                },
               )
+            }
+            composable("how_to_use") {
+              HowToUseScreen(onBack = { navController.popBackStack() })
+            }
+            composable("live_camera") {
+              val liveSelection = selection
+              val liveCatalog by viewModel.languageStateManager.catalog.collectAsState()
+              if (liveSelection is MainSelection.Ready) {
+                val currentFrom = liveSelection.source
+                val currentTo = liveSelection.target
+                LiveCameraScreen(
+                  from = currentFrom,
+                  to = currentTo,
+                  isAutoSource = isAutoSource,
+                  canSwap = viewModel.languageStateManager.canSwapLanguages(currentFrom, currentTo),
+                  languageState = languageState,
+                  languageMetadata = languageMetadata,
+                  onMessage = viewModel::handleMessage,
+                  showAutoOption = !settings.disableCLD,
+                  liveOverlayDefaultEnabled = settings.liveCameraOverlayEnabled,
+                  catalog = liveCatalog,
+                  // Opened from the launcher shortcut the camera is the root, so leaving it exits the
+                  // app and a capture has to bring main up in its place.
+                  onClose = {
+                    if (!navController.popBackStack("main", inclusive = false)) onClose()
+                  },
+                  onImageCaptured = { uri ->
+                    viewModel.setSharedImageUri(uri)
+                    if (!navController.popBackStack("main", inclusive = false)) {
+                      navController.navigate("main") {
+                        popUpTo("live_camera") { inclusive = true }
+                      }
+                    }
+                  },
+                )
+              }
             }
           }
         }
       }
     }
   }
+}
+
+enum class StartScreen {
+  Main,
+  LiveCamera,
 }

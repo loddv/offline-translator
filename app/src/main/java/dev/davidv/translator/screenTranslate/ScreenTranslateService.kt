@@ -43,12 +43,11 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageStateManager
+import dev.davidv.translator.LanguageAvailabilityState
+import dev.davidv.translator.OverlayLanguageSelection
+import dev.davidv.translator.OverlayLanguageSide
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorApplication
-import dev.davidv.translator.languageNameComparator
-import dev.davidv.translator.localizedName
 import dev.davidv.translator.overlayChrome.FloatingBubble
 import dev.davidv.translator.overlayChrome.NormalizedRegion
 import dev.davidv.translator.overlayChrome.OverlayChromeFactory
@@ -56,10 +55,10 @@ import dev.davidv.translator.overlayChrome.OverlayInsets
 import dev.davidv.translator.overlayChrome.OverlayMenuHost
 import dev.davidv.translator.overlayChrome.OverlayMenuManager
 import dev.davidv.translator.overlayChrome.RegionSelectView
+import dev.davidv.translator.overlayPickerLanguages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -87,13 +86,10 @@ class ScreenTranslateService : Service() {
   private var displayManager: DisplayManager? = null
 
   // Live control state, mutated from the bubble menu and re-applied to the tracker.
-  private var currentFrom: Language? = null
-  private var currentTo: Language? = null
-  private var currentIsAutoSource = true
+  private var selection: OverlayLanguageSelection? = null
   private var currentRegion: NormalizedRegion? = null
   private var userPaused = false
 
-  private var langStateManager: LanguageStateManager? = null
   private var menuManager: OverlayMenuManager? = null
   private var bubble: FloatingBubble? = null
   private var regionView: View? = null
@@ -160,12 +156,7 @@ class ScreenTranslateService : Service() {
     startForegroundNotification()
 
     val app = applicationContext as TranslatorApplication
-    val catalog = app.languageCatalog
-    if (catalog == null) {
-      Log.e(TAG, "No language catalog; stopping")
-      stopEverything()
-      return START_NOT_STICKY
-    }
+    val catalog = app.catalogRepository.catalog.value
     if (!catalog.ocrEngineReady()) {
       // Without the detector pack every frame fails OCR and the overlay just
       // sits there empty — refuse to start and say why (issue #246).
@@ -185,15 +176,21 @@ class ScreenTranslateService : Service() {
     proj.registerCallback(projectionCallback, null)
     projection = proj
 
+    val requested =
+      parseSelection(
+        app,
+        sourceCode = intent.getStringExtra(EXTRA_SOURCE_LANG),
+        targetCode = intent.getStringExtra(EXTRA_TARGET_LANG),
+        isAutoSource = intent.getBooleanExtra(EXTRA_AUTO_SOURCE, true),
+      )
+    if (requested == null) {
+      stopEverything()
+      return START_NOT_STICKY
+    }
+
     val tracker = uniffi.bindings.LiveScreenTracker(catalog.planarHandle())
     screenTracker = tracker
-    configureLanguages(
-      tracker,
-      app,
-      sourceCode = intent.getStringExtra(EXTRA_SOURCE_LANG),
-      targetCode = intent.getStringExtra(EXTRA_TARGET_LANG),
-      isAutoSource = intent.getBooleanExtra(EXTRA_AUTO_SOURCE, true),
-    )
+    applySelection(requested)
 
     setupOverlayAndCapture(tracker, proj)
     broadcastLiveState(active = true)
@@ -207,35 +204,37 @@ class ScreenTranslateService : Service() {
     return START_NOT_STICKY
   }
 
-  private fun configureLanguages(
-    tracker: uniffi.bindings.LiveScreenTracker,
+  private fun parseSelection(
     app: TranslatorApplication,
     sourceCode: String?,
     targetCode: String?,
     isAutoSource: Boolean,
-  ) {
-    val catalog = app.languageCatalog ?: return
-    val settings = app.settingsManager.settings.value
+  ): OverlayLanguageSelection? {
+    val catalog = app.catalogRepository.catalog.value
+    val defaults = OverlayLanguageSelection.defaults(LanguageAvailabilityState.of(catalog), app.settingsManager.settings.value)
     // Target: the caller's choice (assistant selection) → app default → en.
-    val to =
-      catalog.languageByCode(targetCode ?: settings.defaultTargetLanguageCode)
-        ?: catalog.languageByCode("en")
-        ?: return
-    currentTo = to
-    currentIsAutoSource = isAutoSource
-    // A forced source skips the script classifier; auto leaves it off (the `from`
-    // value is then just a hint, so we keep it null and fall back to `to`).
-    currentFrom = if (isAutoSource) null else sourceCode?.let { catalog.languageByCode(it) }
-    applyLanguages()
+    val target = targetCode?.let { catalog.languageByCode(it) } ?: defaults.target
+    if (isAutoSource) {
+      return defaults.withTarget(target)
+    }
+    val source = sourceCode?.let { catalog.languageByCode(it) }
+    if (source == null) {
+      Log.e(TAG, "fixed source requested with unknown language '$sourceCode'; stopping")
+      return null
+    }
+    return defaults.withTarget(target).withSource(source)
   }
 
   /** Push the current language selection into the tracker (live, no restart). */
-  private fun applyLanguages() {
-    val tracker = screenTracker ?: return
-    val to = currentTo ?: return
-    val from = if (currentIsAutoSource) to else (currentFrom ?: to)
-    tracker.setLanguages(from.code, to.code, currentIsAutoSource)
-    Log.i(TAG, "languages: from=${from.code} to=${to.code} auto=$currentIsAutoSource")
+  private fun applySelection(next: OverlayLanguageSelection) {
+    selection = next
+    val tracker = checkNotNull(screenTracker) { "language selection applied without a tracker" }
+    // A forced source skips the script classifier; under auto the `from` value is only a
+    // placeholder the tracker ignores.
+    val from = next.sourceLanguage ?: next.target
+    tracker.setLanguages(from.code, next.target.code, next.isAutoSource)
+    Log.i(TAG, "languages: from=${from.code} to=${next.target.code} auto=${next.isAutoSource}")
+    OverlayChromeFactory.showSelection(sourceLabelView, targetLabelView, null, null, next)
   }
 
   private fun overlayWindowType(): Int =
@@ -398,9 +397,6 @@ class ScreenTranslateService : Service() {
       )
 
     bubble = FloatingBubble(this, wm, type, ::dpToPx) { showToolbar() }.also { it.show() }
-
-    val app = applicationContext as TranslatorApplication
-    langStateManager = LanguageStateManager(scope, app.filePathManager)
   }
 
   /** Tap-the-bubble expands the collapsed dot into the shared flat toolbar (the
@@ -409,20 +405,18 @@ class ScreenTranslateService : Service() {
   private fun showToolbar() {
     val wm = windowManager ?: return
     if (toolbarView != null) return
-    val to = currentTo ?: return
+    val current = checkNotNull(selection) { "toolbar shown before languages were configured" }
     bubble?.setShown(false)
 
     val views =
       OverlayChromeFactory.createLanguageToolbar(
         context = this,
         dpToPx = ::dpToPx,
-        forcedSourceLanguage = currentFrom,
-        forcedTargetLanguage = currentTo,
-        defaultTargetLanguage = to,
+        selection = current,
         onClose = { stopEverything() },
-        onSourceClick = { showPicker(isSource = true) },
+        onSourceClick = { showPicker(OverlayLanguageSide.SOURCE) },
         onSwap = { swapLiveLanguages() },
-        onTargetClick = { showPicker(isSource = false) },
+        onTargetClick = { showPicker(OverlayLanguageSide.TARGET) },
         onRegionClick = {
           hideToolbar()
           showRegionEditor()
@@ -432,7 +426,6 @@ class ScreenTranslateService : Service() {
           OverlayChromeFactory.setPauseIconState(pauseIconView, userPaused)
         },
         isPaused = userPaused,
-        isAutoSource = false,
       )
     sourceLabelView = views.sourceLabel
     targetLabelView = views.targetLabel
@@ -478,17 +471,17 @@ class ScreenTranslateService : Service() {
   }
 
   private fun swapLiveLanguages() {
-    val from = currentFrom ?: return
-    val to = currentTo ?: return
-    currentFrom = to
-    currentTo = from
-    applyLanguages()
-    updateLiveToolbarLabels()
+    val current = checkNotNull(selection) { "swap before languages were configured" }
+    val catalog = (applicationContext as TranslatorApplication).catalogRepository.catalog.value
+    val swapped = current.swapped(catalog::canSwapLanguages) ?: return
+    chooseSelection(swapped)
   }
 
-  private fun updateLiveToolbarLabels() {
-    sourceLabelView?.text = OverlayChromeFactory.formatSourceLabel(currentFrom, isAutoSource = false)
-    targetLabelView?.text = currentTo?.shortDisplayName ?: "?"
+  // Only picks made in this overlay are remembered for the next overlay; the pair it was started
+  // with came from the caller.
+  private fun chooseSelection(next: OverlayLanguageSelection) {
+    (applicationContext as TranslatorApplication).settingsManager.update { it.copy(overlayLanguages = next.remembered()) }
+    applySelection(next)
   }
 
   private fun statusBarHeight(): Int {
@@ -509,27 +502,14 @@ class ScreenTranslateService : Service() {
     }
   }
 
-  private fun showPicker(isSource: Boolean) {
+  private fun showPicker(side: OverlayLanguageSide) {
     val mm = menuManager ?: return
-    val lsm = langStateManager ?: return
-    scope.launch {
-      lsm.refreshLanguageAvailability()
-      lsm.languageState.first { !it.isChecking }
-      val langs =
-        lsm.languageState.value
-          .translatorLanguages(requireOcr = isSource)
-          .sortedWith(compareBy(languageNameComparator()) { it.localizedName() })
-      // Live screen translate never runs in auto-source mode, so no Auto option.
-      mm.showLanguagePicker(isSource, langs, allowAuto = false) { lang ->
-        if (isSource) {
-          if (lang != null) currentFrom = lang
-        } else if (lang != null) {
-          currentTo = lang
-        }
-        applyLanguages()
-        updateLiveToolbarLabels()
-      }
-    }
+    val current = checkNotNull(selection) { "picker opened before languages were configured" }
+    val app = applicationContext as TranslatorApplication
+    val availability = LanguageAvailabilityState.of(app.catalogRepository.catalog.value)
+    val langs = overlayPickerLanguages(availability, app.languageMetadataManager.metadata.value, side)
+    // Live screen translate never runs in auto-source mode, so no Auto option.
+    mm.showLanguagePicker(side, current, langs, allowAuto = false) { chooseSelection(it) }
   }
 
   private fun showRegionEditor() {

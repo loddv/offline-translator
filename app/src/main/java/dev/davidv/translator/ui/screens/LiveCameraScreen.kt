@@ -166,7 +166,7 @@ fun LiveCameraScreen(
   onMessage: (TranslatorMessage) -> Unit,
   showAutoOption: Boolean,
   liveOverlayDefaultEnabled: Boolean,
-  catalog: dev.davidv.translator.LanguageCatalog?,
+  catalog: dev.davidv.translator.LanguageCatalog,
   onClose: () -> Unit,
   onImageCaptured: (Uri) -> Unit,
 ) {
@@ -219,7 +219,6 @@ fun LiveCameraScreen(
           showAutoOption = showAutoOption,
           liveOverlayDefaultEnabled = liveOverlayDefaultEnabled,
           catalog = catalog,
-          onClose = onClose,
           onImageCaptured = onImageCaptured,
         )
       hasAsked ->
@@ -286,8 +285,7 @@ private fun CameraSurface(
   onMessage: (TranslatorMessage) -> Unit,
   showAutoOption: Boolean,
   liveOverlayDefaultEnabled: Boolean,
-  catalog: dev.davidv.translator.LanguageCatalog?,
-  onClose: () -> Unit,
+  catalog: dev.davidv.translator.LanguageCatalog,
   onImageCaptured: (Uri) -> Unit,
 ) {
   val context = LocalContext.current
@@ -298,12 +296,11 @@ private fun CameraSurface(
   val hasPaddleOcrModels =
     remember(catalog, languageState, from.code, isAutoSource) {
       if (isAutoSource) {
-        catalog != null &&
-          languageState.allLanguages().any { language ->
-            catalog.installedOcrEngines(language.code).contains("ppocr")
-          }
+        languageState.allLanguages().any { language ->
+          catalog.installedOcrEngines(language.code).contains("ppocr")
+        }
       } else {
-        catalog?.installedOcrEngines(from.code)?.contains("ppocr") == true
+        catalog.installedOcrEngines(from.code).contains("ppocr")
       }
     }
   var liveOverlayOn by remember { mutableStateOf(liveOverlayDefaultEnabled && hasPaddleOcrModels) }
@@ -433,8 +430,11 @@ private fun CameraSurface(
     remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
 
   val workerScope = androidx.compose.runtime.rememberCoroutineScope()
-  val liveOcrEngine: LivePlanarOcrEngine? =
-    remember(catalog) { catalog?.let { LivePlanarOcrEngine(it, workerScope) } }
+  val liveOcrEngine =
+    // Keyed on the session handle rather than the catalog: every install-state change publishes
+    // a new catalog over the same session, and rebuilding would swap the native pipeline out
+    // from under the GL thread mid-frame.
+    remember(catalog.planarHandle()) { LivePlanarOcrEngine(catalog.planarHandle(), workerScope) }
   var previewSizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
   DisposableEffect(Unit) {
@@ -443,17 +443,16 @@ private fun CameraSurface(
 
   LaunchedEffect(from.code, isAutoSource, hasPaddleOcrModels, liveOverlayDefaultEnabled) {
     liveOverlayOn = liveOverlayDefaultEnabled && hasPaddleOcrModels
-    if (!liveOverlayOn) liveOcrEngine?.clear()
+    if (!liveOverlayOn) liveOcrEngine.clear()
   }
 
   LaunchedEffect(liveOcrEngine, liveOverlayOn) {
-    liveOcrEngine?.setOverlayEnabled(liveOverlayOn)
+    liveOcrEngine.setOverlayEnabled(liveOverlayOn)
   }
 
   LaunchedEffect(liveOcrEngine) {
-    val engine = liveOcrEngine ?: return@LaunchedEffect
     afScanning.collect { scanning ->
-      if (scanning) engine.onAfScanStart() else engine.onAfScanEnd()
+      if (scanning) liveOcrEngine.onAfScanStart() else liveOcrEngine.onAfScanEnd()
     }
   }
 
@@ -470,7 +469,6 @@ private fun CameraSurface(
   // root) but the camera hasn't teleported, so we re-baseline at the
   // focus distance we're already holding — no hunt, no jump.
   LaunchedEffect(camera, liveOcrEngine) {
-    val engine = liveOcrEngine ?: return@LaunchedEffect
     val cam = camera ?: return@LaunchedEffect
     // Closest the lens can focus, in diopters (1/m); 0 = infinity. Caps
     // the steered distance so we never command past the optics.
@@ -509,7 +507,7 @@ private fun CameraSurface(
     var smoothedScale = Float.NaN
     var lastSeenRoot = -1L
     var lastFocusUpdateMs = 0L
-    engine.trackerStatus.collect { status ->
+    liveOcrEngine.trackerStatus.collect { status ->
       if (status.state != uniffi.bindings.PlanarTrackerState.LOCKED) {
         smoothedScale = Float.NaN
         lastSeenRoot = -1L
@@ -571,14 +569,14 @@ private fun CameraSurface(
   // pipeline only diffs the call internally if the codes/auto flag
   // actually change, so calling once per real change is safe and cheap.
   LaunchedEffect(liveOcrEngine, from.code, to.code, isAutoSource) {
-    liveOcrEngine?.setLanguages(from, to, isAutoSource)
+    liveOcrEngine.setLanguages(from, to, isAutoSource)
   }
 
   // Tap-to-focus = fresh-start intent. The GL thread doesn't see the
   // tap; bump the tracker generation here so any in-flight async job
   // bails at its next gen-check.
   LaunchedEffect(liveOcrEngine, cropFocusNormalized) {
-    liveOcrEngine?.resetTracker()
+    liveOcrEngine.resetTracker()
   }
 
   val liveSurfaceView =
@@ -590,11 +588,8 @@ private fun CameraSurface(
   // directly with this pointer and forwards the packed result here so
   // the debug pill stays in sync.
   DisposableEffect(liveSurfaceView, liveOcrEngine) {
-    val engine = liveOcrEngine
-    if (engine != null) {
-      liveSurfaceView.pipelinePtr = engine.pipelinePtr
-      liveSurfaceView.onFrameResult = { packed -> engine.onFrameResult(packed) }
-    }
+    liveSurfaceView.pipelinePtr = liveOcrEngine.pipelinePtr
+    liveSurfaceView.onFrameResult = { packed -> liveOcrEngine.onFrameResult(packed) }
     onDispose {
       liveSurfaceView.pipelinePtr = 0L
       liveSurfaceView.onFrameResult = null
@@ -734,7 +729,7 @@ private fun CameraSurface(
       update = { },
     )
 
-    if (DEBUG_SHOW_TRACKER_STATUS && liveOcrEngine != null) {
+    if (DEBUG_SHOW_TRACKER_STATUS) {
       val status by liveOcrEngine.trackerStatus.collectAsState()
       TrackerStatusPill(status)
     }
@@ -800,7 +795,7 @@ private fun CameraSurface(
           return@BottomControls
         }
         liveOverlayOn = !liveOverlayOn
-        if (!liveOverlayOn) liveOcrEngine?.clear()
+        if (!liveOverlayOn) liveOcrEngine.clear()
       },
       isCapturing = isCapturing,
       onCapture = {
@@ -821,7 +816,6 @@ private fun CameraSurface(
                 )
               isCapturing = false
               onImageCaptured(uri)
-              onClose()
             }
 
             override fun onError(exception: ImageCaptureException) {
@@ -852,14 +846,8 @@ private fun TopLanguagePills(
   showAutoOption: Boolean,
   modifier: Modifier = Modifier,
 ) {
-  val fromLanguages =
-    languageState.allLanguages().filter { x ->
-      (isAutoSource || x != from) && (languageState.availabilityFor(x)?.hasToEnglish == true || x.isEnglish)
-    }
-  val toLanguages =
-    languageState.allLanguages().filter { x ->
-      (isAutoSource || x != from) && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
-    }
+  val fromLanguages = languageState.sourceLanguages().filter { isAutoSource || it != from }
+  val toLanguages = languageState.targetLanguages().filter { (isAutoSource || it != from) && it != to }
   val pillShape = RoundedCornerShape(50)
   val pillBackground = Color.Black.copy(alpha = 0.5f)
 

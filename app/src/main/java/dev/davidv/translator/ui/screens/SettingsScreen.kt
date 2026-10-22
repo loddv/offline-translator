@@ -75,17 +75,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.CatalogRepository
+import dev.davidv.translator.DownloadStatus
+import dev.davidv.translator.FilePathManager
 import dev.davidv.translator.HttpServerBindMode
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageCatalog
-import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.PermissionHelper
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
+import dev.davidv.translator.ReadonlyPopupSize
 import dev.davidv.translator.Script
-import dev.davidv.translator.TapToTranslateNotification
+import dev.davidv.translator.accessibilityOverlay.isAccessibilityServiceOffered
+import dev.davidv.translator.accessibilityOverlay.setAccessibilityServiceOffered
+import dev.davidv.translator.inFlightProgress
 import dev.davidv.translator.labelRes
 import dev.davidv.translator.languageNameComparator
 import dev.davidv.translator.localizedName
@@ -93,6 +96,7 @@ import dev.davidv.translator.singleScript
 import dev.davidv.translator.ui.components.AppCard
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -153,7 +157,7 @@ private fun LanguageDropdown(
 @Composable
 private fun HttpServerCard(
   settings: AppSettings,
-  onSettingsChange: (AppSettings) -> Unit,
+  onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
 ) {
   AppCard(
     modifier = Modifier.fillMaxWidth().testTag("export-section:HttpServer"),
@@ -175,7 +179,7 @@ private fun HttpServerCard(
       LaunchedEffect(portText) {
         delay(500)
         portText.toIntOrNull()?.takeIf { it in 1..65535 }?.let { port ->
-          if (port != settings.httpServerPort) onSettingsChange(settings.copy(httpServerPort = port))
+          if (port != settings.httpServerPort) onSettingsChange { it.copy(httpServerPort = port) }
         }
       }
 
@@ -222,7 +226,7 @@ private fun HttpServerCard(
             DropdownMenuItem(
               text = { Text(stringResource(mode.labelRes)) },
               onClick = {
-                onSettingsChange(settings.copy(httpServerBindMode = mode))
+                onSettingsChange { it.copy(httpServerBindMode = mode) }
                 bindExpanded = false
               },
             )
@@ -237,18 +241,22 @@ private fun HttpServerCard(
 @Composable
 fun SettingsScreen(
   settings: AppSettings,
-  languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
-  availableLanguages: List<Language>,
-  catalog: LanguageCatalog?,
-  adblockDownloadState: DownloadState,
+  sourceLanguages: List<Language>,
+  targetLanguages: List<Language>,
+  catalog: LanguageCatalog,
+  adblockDownload: DownloadStatus?,
   adblockInstalled: Boolean,
-  onSettingsChange: (AppSettings) -> Unit,
+  onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
+  onDefaultTargetLanguageSelected: (Language) -> Unit,
   onManageLanguages: () -> Unit,
+  onDownloadAdblockSupport: () -> Unit,
+  onCancelAdblockDownload: () -> Unit,
   onDeleteAdblockSupport: () -> Unit,
   onHowToUse: () -> Unit,
 ) {
   val context = LocalContext.current
   var showPermissionDialog by remember { mutableStateOf(false) }
+  var accessibilityServiceOffered by remember { mutableStateOf(isAccessibilityServiceOffered(context)) }
 
   val permissionLauncher =
     rememberLauncherForActivityResult(
@@ -256,9 +264,9 @@ fun SettingsScreen(
     ) { permissions ->
       val allGranted = permissions.values.all { it }
       if (allGranted) {
-        onSettingsChange(settings.copy(useExternalStorage = true))
+        onSettingsChange { it.copy(useExternalStorage = true) }
       } else {
-        onSettingsChange(settings.copy(useExternalStorage = false))
+        onSettingsChange { it.copy(useExternalStorage = false) }
       }
     }
 
@@ -267,7 +275,7 @@ fun SettingsScreen(
       contract = ActivityResultContracts.StartActivityForResult(),
     ) { _ ->
       val gotPerms = PermissionHelper.hasExternalStoragePermission(context)
-      onSettingsChange(settings.copy(useExternalStorage = gotPerms))
+      onSettingsChange { it.copy(useExternalStorage = gotPerms) }
     }
 
   val assistantRoleLauncher =
@@ -280,8 +288,7 @@ fun SettingsScreen(
       contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
       if (granted) {
-        onSettingsChange(settings.copy(tapToTranslateEnabled = true))
-        TapToTranslateNotification.show(context)
+        onSettingsChange { it.copy(tapToTranslateEnabled = true) }
       }
     }
   Scaffold(
@@ -353,21 +360,21 @@ fun SettingsScreen(
 
           LanguageDropdown(
             label = stringResource(R.string.settings_default_from),
-            selectedLanguage = settings.defaultSourceLanguageCode?.let { catalog?.languageByCode(it) },
-            availableLanguages = availableLanguages,
-            fallbackLanguage = availableLanguages.firstOrNull { it.code != settings.defaultTargetLanguageCode },
+            selectedLanguage = settings.defaultSourceLanguageCode?.let { catalog.languageByCode(it) },
+            availableLanguages = sourceLanguages,
+            fallbackLanguage = sourceLanguages.firstOrNull { it.code != settings.defaultTargetLanguageCode },
             onLanguageSelected = { language ->
-              onSettingsChange(settings.copy(defaultSourceLanguageCode = language.code))
+              onSettingsChange { it.copy(defaultSourceLanguageCode = language.code) }
             },
           )
 
           LanguageDropdown(
             label = stringResource(R.string.settings_default_to),
-            selectedLanguage = catalog?.languageByCode(settings.defaultTargetLanguageCode),
-            availableLanguages = availableLanguages,
+            selectedLanguage = catalog.languageByCode(settings.defaultTargetLanguageCode),
+            availableLanguages = targetLanguages,
             fallbackLanguage = null,
             onLanguageSelected = { language ->
-              onSettingsChange(settings.copy(defaultTargetLanguageCode = language.code))
+              onDefaultTargetLanguageSelected(language)
             },
           )
 
@@ -382,7 +389,7 @@ fun SettingsScreen(
           Slider(
             value = settings.fontFactor,
             onValueChange = { value ->
-              onSettingsChange(settings.copy(fontFactor = value))
+              onSettingsChange { it.copy(fontFactor = value) }
               showExampleText = true
             },
             valueRange = 1.0f..3.0f,
@@ -441,12 +448,10 @@ fun SettingsScreen(
                   ) {
                     notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                   } else {
-                    onSettingsChange(settings.copy(tapToTranslateEnabled = true))
-                    TapToTranslateNotification.show(context)
+                    onSettingsChange { it.copy(tapToTranslateEnabled = true) }
                   }
                 } else {
-                  onSettingsChange(settings.copy(tapToTranslateEnabled = false))
-                  TapToTranslateNotification.hide(context)
+                  onSettingsChange { it.copy(tapToTranslateEnabled = false) }
                 }
               },
             )
@@ -470,12 +475,12 @@ fun SettingsScreen(
 
           WebTranslatorAssetRow(
             label = stringResource(R.string.settings_adblock_support),
-            secondaryLabel = catalog?.supportSizeBytesByKind("adblock")?.let(::formatSize),
+            secondaryLabel = formatSize(catalog.supportSizeBytesByKind("adblock")),
             installed = adblockInstalled,
-            downloadState = adblockDownloadState,
-            onDownload = { DownloadService.startAdblockDownload(context) },
+            downloadStatus = adblockDownload,
+            onDownload = onDownloadAdblockSupport,
             onDelete = onDeleteAdblockSupport,
-            onCancel = { DownloadService.cancelAdblockDownload(context) },
+            onCancel = onCancelAdblockDownload,
           )
 
           Row(
@@ -498,7 +503,7 @@ fun SettingsScreen(
             Switch(
               checked = settings.clearWebTranslatorDataOnClose,
               onCheckedChange = { enabled ->
-                onSettingsChange(settings.copy(clearWebTranslatorDataOnClose = enabled))
+                onSettingsChange { it.copy(clearWebTranslatorDataOnClose = enabled) }
               },
             )
           }
@@ -533,7 +538,7 @@ fun SettingsScreen(
             Switch(
               checked = settings.ttsReadUrlsAndHashtags,
               onCheckedChange = { enabled ->
-                onSettingsChange(settings.copy(ttsReadUrlsAndHashtags = enabled))
+                onSettingsChange { it.copy(ttsReadUrlsAndHashtags = enabled) }
               },
             )
           }
@@ -575,7 +580,7 @@ fun SettingsScreen(
             Switch(
               checked = settings.onlyShowOutputOnReadonlyModal,
               onCheckedChange = { checked ->
-                onSettingsChange(settings.copy(onlyShowOutputOnReadonlyModal = checked))
+                onSettingsChange { it.copy(onlyShowOutputOnReadonlyModal = checked) }
               },
             )
           }
@@ -615,7 +620,7 @@ fun SettingsScreen(
                 DropdownMenuItem(
                   text = { Text(stringResource(alignment.labelRes)) },
                   onClick = {
-                    onSettingsChange(settings.copy(readonlyModalOutputAlignment = alignment))
+                    onSettingsChange { it.copy(readonlyModalOutputAlignment = alignment) }
                     readonlyModalAlignmentExpanded = false
                   },
                 )
@@ -624,20 +629,23 @@ fun SettingsScreen(
           }
 
           Text(
-            text = stringResource(R.string.settings_popup_size, (settings.readonlyModalCompactHeightFactor * 100).toInt()),
+            text =
+              when (val size = settings.readonlyPopupSize) {
+                is ReadonlyPopupSize.Fraction -> stringResource(R.string.settings_popup_size, (size.heightFactor * 100).roundToInt())
+                ReadonlyPopupSize.Expanded -> stringResource(R.string.settings_popup_size_expanded)
+              },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
           )
 
           Slider(
-            value = settings.readonlyModalCompactHeightFactor,
+            value = settings.readonlyPopupSize.sliderPosition,
             onValueChange = { value ->
-              onSettingsChange(
-                settings.copy(readonlyModalCompactHeightFactor = (value * 20f).roundToInt() / 20f),
-              )
+              val size = checkNotNull(ReadonlyPopupSize.fromSliderPosition(value)) { "slider produced $value" }
+              onSettingsChange { it.copy(readonlyPopupSize = size) }
             },
-            valueRange = 0.2f..0.8f,
-            steps = 11,
+            valueRange = ReadonlyPopupSize.SLIDER_RANGE,
+            steps = ReadonlyPopupSize.SLIDER_STEPS,
             modifier = Modifier.fillMaxWidth(),
           )
         }
@@ -662,7 +670,7 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
 
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && accessibilityServiceOffered) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -711,11 +719,9 @@ fun SettingsScreen(
 
             TextButton(
               onClick = {
-                if (shouldLaunchAssistantRoleRequest(context)) {
-                  val roleManager = context.getSystemService(RoleManager::class.java) ?: return@TextButton
-                  assistantRoleLauncher.launch(
-                    roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),
-                  )
+                val roleRequest = assistantRoleRequest(context)
+                if (roleRequest != null) {
+                  assistantRoleLauncher.launch(roleRequest)
                 } else {
                   openAssistantSettings(context)
                 }
@@ -759,7 +765,7 @@ fun SettingsScreen(
                 DropdownMenuItem(
                   text = { Text(stringResource(action.labelRes)) },
                   onClick = {
-                    onSettingsChange(settings.copy(assistantAction = action))
+                    onSettingsChange { it.copy(assistantAction = action) }
                     assistantActionExpanded = false
                   },
                 )
@@ -816,7 +822,7 @@ fun SettingsScreen(
                 DropdownMenuItem(
                   text = { Text(stringResource(mode.labelRes)) },
                   onClick = {
-                    onSettingsChange(settings.copy(backgroundMode = mode))
+                    onSettingsChange { it.copy(backgroundMode = mode) }
                     backgroundModeExpanded = false
                   },
                 )
@@ -834,7 +840,7 @@ fun SettingsScreen(
           Slider(
             value = settings.minConfidence.toFloat(),
             onValueChange = { value ->
-              onSettingsChange(settings.copy(minConfidence = value.toInt()))
+              onSettingsChange { it.copy(minConfidence = value.toInt()) }
             },
             valueRange = 70f..100f,
             steps = 5,
@@ -851,7 +857,7 @@ fun SettingsScreen(
           Slider(
             value = settings.maxImageSize.toFloat(),
             onValueChange = { value ->
-              onSettingsChange(settings.copy(maxImageSize = value.toInt()))
+              onSettingsChange { it.copy(maxImageSize = value.toInt()) }
             },
             valueRange = 1300f..2000f,
             steps = 6,
@@ -905,8 +911,8 @@ fun SettingsScreen(
 
             OutlinedTextField(
               value = settings.catalogIndexUrl,
-              onValueChange = {
-                onSettingsChange(settings.copy(catalogIndexUrl = it))
+              onValueChange = { url ->
+                onSettingsChange { it.copy(catalogIndexUrl = url) }
               },
               modifier = Modifier.fillMaxWidth(),
               singleLine = true,
@@ -930,7 +936,7 @@ fun SettingsScreen(
                 onCheckedChange = { checked ->
                   if (checked) {
                     if (PermissionHelper.hasExternalStoragePermission(context)) {
-                      onSettingsChange(settings.copy(useExternalStorage = true))
+                      onSettingsChange { it.copy(useExternalStorage = true) }
                     } else if (PermissionHelper.needsSpecialPermissionIntent()) {
                       // Android 11+ - Show dialog first, then launch Settings
                       showPermissionDialog = true
@@ -940,11 +946,11 @@ fun SettingsScreen(
                       if (permissions.isNotEmpty()) {
                         permissionLauncher.launch(permissions)
                       } else {
-                        onSettingsChange(settings.copy(useExternalStorage = true))
+                        onSettingsChange { it.copy(useExternalStorage = true) }
                       }
                     }
                   } else {
-                    onSettingsChange(settings.copy(useExternalStorage = false))
+                    onSettingsChange { it.copy(useExternalStorage = false) }
                   }
                 },
               )
@@ -966,9 +972,38 @@ fun SettingsScreen(
               Switch(
                 checked = settings.disableCLD,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(disableCLD = checked))
+                  onSettingsChange { it.copy(disableCLD = checked) }
                 },
               )
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                  Text(
+                    text = stringResource(R.string.settings_offer_accessibility_service),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                  )
+                  Text(
+                    text = stringResource(R.string.settings_offer_accessibility_service_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+
+                Switch(
+                  checked = accessibilityServiceOffered,
+                  onCheckedChange = { checked ->
+                    setAccessibilityServiceOffered(context, checked)
+                    accessibilityServiceOffered = checked
+                  },
+                )
+              }
             }
 
             // Experimental screen-translate entry in the input source row
@@ -987,7 +1022,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.experimentalScreenTranslate,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(experimentalScreenTranslate = checked))
+                  onSettingsChange { it.copy(experimentalScreenTranslate = checked) }
                 },
               )
             }
@@ -1008,7 +1043,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.multiTargetEnabled,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(multiTargetEnabled = checked))
+                  onSettingsChange { it.copy(multiTargetEnabled = checked) }
                 },
               )
             }
@@ -1029,7 +1064,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.enableOutputTransliteration,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(enableOutputTransliteration = checked))
+                  onSettingsChange { it.copy(enableOutputTransliteration = checked) }
                 },
               )
             }
@@ -1050,7 +1085,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.showTransliterationOnInput,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(showTransliterationOnInput = checked))
+                  onSettingsChange { it.copy(showTransliterationOnInput = checked) }
                 },
               )
             }
@@ -1071,7 +1106,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.addSpacesForJapaneseTransliteration,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(addSpacesForJapaneseTransliteration = checked))
+                  onSettingsChange { it.copy(addSpacesForJapaneseTransliteration = checked) }
                 },
               )
             }
@@ -1091,7 +1126,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.translatePdfImages,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(translatePdfImages = checked))
+                  onSettingsChange { it.copy(translatePdfImages = checked) }
                 },
               )
             }
@@ -1110,7 +1145,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.liveCameraOverlayEnabled,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(liveCameraOverlayEnabled = checked))
+                  onSettingsChange { it.copy(liveCameraOverlayEnabled = checked) }
                 },
               )
             }
@@ -1135,7 +1170,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.registerAsBrowser,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(registerAsBrowser = checked))
+                  onSettingsChange { it.copy(registerAsBrowser = checked) }
                 },
               )
             }
@@ -1160,7 +1195,7 @@ fun SettingsScreen(
               Switch(
                 checked = settings.httpServerEnabled,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(httpServerEnabled = checked))
+                  onSettingsChange { it.copy(httpServerEnabled = checked) }
                 },
               )
             }
@@ -1305,7 +1340,7 @@ private fun WebTranslatorAssetRow(
   label: String,
   secondaryLabel: String?,
   installed: Boolean,
-  downloadState: DownloadState,
+  downloadStatus: DownloadStatus?,
   onDownload: () -> Unit,
   onDelete: () -> Unit,
   onCancel: () -> Unit,
@@ -1334,7 +1369,7 @@ private fun WebTranslatorAssetRow(
     }
 
     SupportActionButton(
-      downloadState = downloadState,
+      downloadStatus = downloadStatus,
       installed = installed,
       onDownload = onDownload,
       onDelete = onDelete,
@@ -1345,25 +1380,20 @@ private fun WebTranslatorAssetRow(
 
 @Composable
 private fun SupportActionButton(
-  downloadState: DownloadState,
+  downloadStatus: DownloadStatus?,
   installed: Boolean,
   onDownload: () -> Unit,
   onDelete: () -> Unit,
   onCancel: () -> Unit,
 ) {
-  if (downloadState.isDownloading) {
+  val inFlightProgress = downloadStatus.inFlightProgress
+  if (inFlightProgress != null) {
     Box(
       contentAlignment = Alignment.Center,
       modifier = Modifier.size(40.dp),
     ) {
-      val targetProgress =
-        if (downloadState.totalSize > 0) {
-          downloadState.downloaded.toFloat() / downloadState.totalSize.toFloat()
-        } else {
-          0f
-        }
       val animatedProgress by animateFloatAsState(
-        targetValue = targetProgress,
+        targetValue = inFlightProgress,
         animationSpec = tween(durationMillis = 300),
         label = "adblock-progress",
       )
@@ -1394,14 +1424,14 @@ private fun SupportActionButton(
           id =
             when {
               installed -> R.drawable.delete
-              downloadState.isCancelled || downloadState.error != null -> R.drawable.refresh
+              downloadStatus is DownloadStatus.Failed -> R.drawable.refresh
               else -> R.drawable.add
             },
         ),
       contentDescription =
         when {
           installed -> stringResource(R.string.a11y_delete)
-          downloadState.isCancelled || downloadState.error != null -> stringResource(R.string.a11y_retry_download)
+          downloadStatus is DownloadStatus.Failed -> stringResource(R.string.a11y_retry_download)
           else -> stringResource(R.string.a11y_download)
         },
     )
@@ -1423,12 +1453,12 @@ private fun formatSize(sizeBytes: Long): String {
   }
 }
 
-private fun shouldLaunchAssistantRoleRequest(context: Context): Boolean {
-  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-  if (getConfiguredAssistant(context).isNullOrBlank()) return false
-  val roleManager = context.getSystemService(RoleManager::class.java) ?: return false
-  return roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT) &&
-    !roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)
+private fun assistantRoleRequest(context: Context): Intent? {
+  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+  if (getConfiguredAssistant(context).isNullOrBlank()) return null
+  val roleManager = context.getSystemService(RoleManager::class.java) ?: return null
+  if (!roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT) || roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)) return null
+  return roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT)
 }
 
 private fun getConfiguredAssistant(context: Context): String? =
@@ -1466,6 +1496,12 @@ private fun previewLanguage(
   dictionaryCode = code,
 )
 
+@Composable
+private fun previewCatalog(context: Context): LanguageCatalog =
+  remember {
+    CatalogRepository.open(context, FilePathManager(context, MutableStateFlow(AppSettings()))).catalog.value
+  }
+
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
@@ -1479,13 +1515,16 @@ fun SettingsScreenPreview() {
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(),
-      languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
-      availableLanguages = previewLangs,
-      catalog = null,
-      adblockDownloadState = DownloadState(),
+      sourceLanguages = previewLangs,
+      targetLanguages = previewLangs,
+      catalog = previewCatalog(context),
+      adblockDownload = null,
       adblockInstalled = false,
       onSettingsChange = {},
+      onDefaultTargetLanguageSelected = {},
       onManageLanguages = {},
+      onDownloadAdblockSupport = {},
+      onCancelAdblockDownload = {},
       onDeleteAdblockSupport = {},
       onHowToUse = {},
     )
@@ -1508,13 +1547,16 @@ fun SettingsScreenDarkPreview() {
   TranslatorTheme {
     SettingsScreen(
       settings = AppSettings(fontFactor = 3.0f),
-      languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
-      availableLanguages = previewLangs,
-      catalog = null,
-      adblockDownloadState = DownloadState(),
+      sourceLanguages = previewLangs,
+      targetLanguages = previewLangs,
+      catalog = previewCatalog(context),
+      adblockDownload = null,
       adblockInstalled = true,
       onSettingsChange = {},
+      onDefaultTargetLanguageSelected = {},
       onManageLanguages = {},
+      onDownloadAdblockSupport = {},
+      onCancelAdblockDownload = {},
       onDeleteAdblockSupport = {},
       onHowToUse = {},
     )

@@ -105,6 +105,8 @@ data class CatalogFileEntry(
   val url: String,
 )
 
+// Rows are copied out when the repository publishes; handle queries read the session live. A new
+// LanguageCatalog follows every install-state change, so the two only diverge until that publish.
 class LanguageCatalog private constructor(
   private val handle: CatalogHandle,
   val baseDir: String,
@@ -117,12 +119,7 @@ class LanguageCatalog private constructor(
   private val availabilityByCode: Map<String, LangAvailability>,
 ) {
   companion object {
-    fun open(
-      bundledJson: String,
-      diskJson: String?,
-      baseDir: String,
-    ): LanguageCatalog? {
-      val handle = CatalogHandle.open(bundledJson, diskJson, baseDir)
+    fun of(handle: CatalogHandle): LanguageCatalog {
       val rows = handle.languageRows()
       val languageRows =
         rows.map { row ->
@@ -152,7 +149,7 @@ class LanguageCatalog private constructor(
         languageRows.associate { row -> row.language.code to row.availability }
       return LanguageCatalog(
         handle = handle,
-        baseDir = baseDir,
+        baseDir = handle.baseDir(),
         formatVersion = handle.formatVersion(),
         generatedAt = handle.generatedAt(),
         dictionaryVersion = handle.dictionaryVersion(),
@@ -219,8 +216,6 @@ class LanguageCatalog private constructor(
   fun planTranslationUpgrades(languageCodes: List<String>): DownloadPlan = handle.planTranslationUpgrades(languageCodes)
 
   fun translationUpgradeLanguageCodes(): List<String> = handle.translationUpgradeLanguageCodes()
-
-  fun planDeleteSupersededFiles(): DeletePlan = handle.planDeleteSupersededFiles()
 
   fun planRepair(): DownloadPlan = handle.planRepair()
 
@@ -445,11 +440,8 @@ class LanguageCatalog private constructor(
 
   /** ONNX→MNN migrations needed for this install (only entries whose `.onnx` is
    *  on disk). Run `needsConvert` jobs through [ModelConverterJni], then pass the
-   *  finished/cleanup/discarded jobs to [discardMigration]. */
+   *  finished/cleanup/discarded jobs to [CatalogRepository.discardMigration]. */
   fun planMigration(): List<uniffi.bindings.MigrationJobRecord> = handle.planMigration()
-
-  /** Delete each job's source `.onnx` and refresh the catalog snapshot. */
-  fun discardMigration(jobs: List<uniffi.bindings.MigrationJobRecord>) = handle.discardMigration(jobs)
 
   fun planDownload(
     languageCode: String,
@@ -458,6 +450,8 @@ class LanguageCatalog private constructor(
   ): DownloadPlan? = handle.planDownload(languageCode, feature, selectedTtsPackId)
 
   fun planSupportDownloadByKind(kind: String): DownloadPlan? = handle.planSupportDownloadByKind(kind)
+
+  fun downloadTaskInstalled(task: DownloadTask): Boolean = handle.downloadTaskInstalled(task)
 
   fun prepareDelete(
     languageCode: String,

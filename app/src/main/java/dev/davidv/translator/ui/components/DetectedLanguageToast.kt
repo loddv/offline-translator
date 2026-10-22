@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -41,7 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
@@ -59,10 +60,10 @@ fun DetectedLanguageToast(
   onSwitchClick: () -> Unit,
   onEvent: (LanguageEvent) -> Unit,
   modifier: Modifier = Modifier,
-  downloadStates: Map<Language, DownloadState> = emptyMap(),
+  downloadStatus: DownloadStatus?,
 ) {
   val isLanguageAvailable = languageState.availabilityFor(detectedLanguage)?.translatorFiles == true
-  val isDownloading = downloadStates[detectedLanguage]?.isDownloading == true
+  val isDownloading = downloadStatus is DownloadStatus.Queued || downloadStatus is DownloadStatus.Running
   val toastDescription = stringResource(R.string.a11y_detected_language_toast)
 
   val onToastClick: () -> Unit =
@@ -77,7 +78,12 @@ fun DetectedLanguageToast(
       modifier
         .fillMaxWidth()
         .clip(RoundedCornerShape(12.dp))
-        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        // Opaque, pre-blended over the card colour: the popups float it over other apps.
+        .background(
+          MaterialTheme.colorScheme.surfaceVariant
+            .copy(alpha = 0.5f)
+            .compositeOver(MaterialTheme.colorScheme.surfaceContainerLowest),
+        )
         .clickable(onClick = onToastClick)
         .padding(horizontal = 16.dp, vertical = 12.dp)
         .semantics { contentDescription = toastDescription },
@@ -117,7 +123,7 @@ fun DetectedLanguageToast(
     } else {
       LanguageDownloadButton(
         language = detectedLanguage,
-        downloadState = downloadStates[detectedLanguage],
+        downloadStatus = downloadStatus,
         isLanguageAvailable = false,
         onEvent = onEvent,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -131,7 +137,6 @@ private fun previewLanguageState(entries: List<Pair<Language, LangAvailability>>
   LanguageAvailabilityState(
     hasLanguages = true,
     availableLanguages = entries.map { (language, availability) -> LanguageAvailabilityEntry(language, availability) },
-    isChecking = false,
   )
 
 private fun previewLanguage(
@@ -155,7 +160,7 @@ fun DetectedLanguageToastPreview() {
       languageState = previewLanguageState(listOf(previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true))),
       onSwitchClick = {},
       onEvent = {},
-      downloadStates = emptyMap(),
+      downloadStatus = null,
     )
   }
 }
@@ -172,7 +177,7 @@ fun DetectedLanguageToastDarkPreview() {
       languageState = previewLanguageState(listOf(previewLanguage("fr", "French") to LangAvailability(true, true, true, true))),
       onSwitchClick = {},
       onEvent = {},
-      downloadStates = emptyMap(),
+      downloadStatus = null,
     )
   }
 }
@@ -189,7 +194,7 @@ fun MissingLanguage() {
       languageState = previewLanguageState(listOf(previewLanguage("fr", "French") to LangAvailability(false, false, true, true))),
       onSwitchClick = {},
       onEvent = {},
-      downloadStates = emptyMap(),
+      downloadStatus = null,
     )
   }
 }

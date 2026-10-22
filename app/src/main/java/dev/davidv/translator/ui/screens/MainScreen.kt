@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,7 +44,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -68,8 +68,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
-import dev.davidv.translator.DownloadService
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadRequest
+import dev.davidv.translator.DownloadStatus
+import dev.davidv.translator.InputSplit
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
@@ -81,9 +83,11 @@ import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.Script
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslatorMessage
-import dev.davidv.translator.WordWithTaggedEntries
 import dev.davidv.translator.localizedName
 import dev.davidv.translator.singleScript
+import dev.davidv.translator.ui.DictionaryState
+import dev.davidv.translator.ui.SpeechState
+import dev.davidv.translator.ui.SpeechTarget
 import dev.davidv.translator.ui.components.ActionPillButton
 import dev.davidv.translator.ui.components.AlternativesDrawer
 import dev.davidv.translator.ui.components.AlternativesTarget
@@ -107,11 +111,10 @@ import dev.davidv.translator.ui.components.ZoomableImageViewer
 import dev.davidv.translator.ui.components.rememberImageSourceActions
 import dev.davidv.translator.ui.components.wordAt
 import dev.davidv.translator.ui.components.wordRangeAt
+import dev.davidv.translator.ui.theme.AppLayout
+import dev.davidv.translator.ui.theme.LayoutDensity
 import dev.davidv.translator.ui.theme.TranslatorTheme
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.roundToInt
 
 @Composable
@@ -132,17 +135,9 @@ fun MainScreen(
   imageWordSelection: ImageWordSelection?,
   detectedRegions: DetectedRegions?,
   ocrReadingOrder: ReadingOrder?,
-  isTranslating: StateFlow<Boolean>,
-  isOcrInProgress: StateFlow<Boolean>,
-  dictionaryWord: WordWithTaggedEntries?,
-  dictionaryStack: List<WordWithTaggedEntries>,
-  dictionaryLookupLanguage: Language?,
-  isAudioPlaying: Boolean = false,
-  isAudioLoading: Boolean = false,
-  isInputAudioPlaying: Boolean = false,
-  isInputAudioLoading: Boolean = false,
-  isOutputAudioPlaying: Boolean = false,
-  isOutputAudioLoading: Boolean = false,
+  isImageProcessing: Boolean,
+  dictionary: DictionaryState,
+  speech: SpeechState = SpeechState.Idle,
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
   onSteerPreview: suspend (String) -> String? = { null },
@@ -151,7 +146,9 @@ fun MainScreen(
   // System integration
   languageState: LanguageAvailabilityState,
   languageMetadata: Map<Language, LanguageMetadata>,
-  downloadStates: Map<Language, DownloadState> = emptyMap(),
+  downloads: Map<DownloadId, DownloadStatus>,
+  onDownload: (DownloadRequest) -> Unit,
+  onCancelDownload: (DownloadId) -> Unit,
   settings: AppSettings,
   availableSourceTtsVoices: List<uniffi.translator_core.InstalledTtsPack> = emptyList(),
   selectedSourceTtsVoiceName: String? = null,
@@ -160,6 +157,7 @@ fun MainScreen(
   selectedTtsVoiceName: String? = null,
   targetTtsPlaybackSpeed: Float = 1.0f,
   onTtsPlaybackSpeedChange: (Float) -> Unit = {},
+  onInputSplitChange: (InputSplit) -> Unit = {},
   onSourceTtsPlaybackSpeedChange: (Float) -> Unit = {},
   onSourceTtsVoiceSelected: (String, String) -> Unit = { _, _ -> },
   onTtsVoiceSelected: (String, String) -> Unit = { _, _ -> },
@@ -195,14 +193,12 @@ fun MainScreen(
   }
   // Flip the main image between the translation and the original (resets on a new image).
   var showOriginal by remember(displayImage) { mutableStateOf(false) }
-  val isImageProcessing = isOcrInProgress.collectAsState().value || isTranslating.collectAsState().value
   val inputFocusController = remember { StyledTextFieldFocusController() }
   val sourceActions =
     rememberImageSourceActions(
       onMessage = onMessage,
       from = from,
       to = to,
-      isAutoSource = isAutoSource,
       pendingSharedImage = pendingSharedImage,
     )
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
@@ -210,11 +206,13 @@ fun MainScreen(
   val showOnlyOutputInReadonlyModal =
     launchMode == LaunchMode.ReadonlyModal && settings.onlyShowOutputOnReadonlyModal
   val detectedInstalled =
-    detectedLanguage?.takeIf { languageState.availabilityFor(it)?.translatorFiles == true }
+    detectedLanguage?.takeIf(languageState::canBeSource)
   val mainScreenDescription = stringResource(R.string.a11y_main_screen)
+  val layoutDensity = AppLayout.density
+  val dimens = layoutDensity.dimens
 
   // Handle back button when dictionary is open
-  BackHandler(enabled = dictionaryWord != null) {
+  BackHandler(enabled = dictionary is DictionaryState.Open) {
     onMessage(TranslatorMessage.ClearDictionaryStack)
   }
 
@@ -254,14 +252,14 @@ fun MainScreen(
         Modifier
           .fillMaxSize()
           .navigationBarsPadding()
-          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = 8.dp),
+          .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = dimens.screenBottomPadding),
     ) {
       Column(
         modifier =
           Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = dimens.screenHorizontalPadding),
+        verticalArrangement = Arrangement.spacedBy(dimens.sectionSpacing),
       ) {
         Box(modifier = Modifier.testTag("export-section:Language selection")) {
           LanguageSelectionRow(
@@ -302,33 +300,50 @@ fun MainScreen(
           val parentHeightPx = with(LocalDensity.current) { parentHeight.toPx() }
           // Only ever read from measure/drag lambdas: reading it during composition
           // would recompose both cards (and the interop EditText) on every drag frame.
-          val splitFraction = rememberSaveable { mutableFloatStateOf(0.5f) }
+          // Only the full screen remembers the split: popups are a fraction of the screen
+          // tall, so a proportion picked for one doesn't carry over to the other.
+          val splitFraction =
+            rememberSaveable {
+              mutableFloatStateOf(
+                when (launchMode) {
+                  LaunchMode.Normal -> settings.mainInputSplit.fraction
+                  else -> InputSplit.DEFAULT.fraction
+                },
+              )
+            }
 
           Column(
             modifier = Modifier.fillMaxWidth(),
           ) {
             // The detected-language prompt is an input modifier, so it lives at
             // the bottom of the input card; in image mode (no input card) it
-            // sits directly under the image instead.
-            val detectedLanguageSection: @Composable () -> Unit = {
-              Box(modifier = Modifier.testTag("export-section:Detected language")) {
-                DetectedLanguageSection(
-                  detectedLanguage = detectedLanguage,
-                  from = from,
-                  languageState = languageState,
-                  onMessage = onMessage,
-                  downloadStates = downloadStates,
-                  isAutoSource = isAutoSource,
-                  onEvent = { event ->
-                    when (event) {
-                      is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                      is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                      else -> Log.e("MainScreen", "Got unexpected event: $event")
-                    }
-                  },
-                )
+            // sits directly under the image instead. A popup's input card is too
+            // short to share with it, so popups draw it outside their bounds
+            // (TranslatorApp) and none is drawn here.
+            val detectedLanguageSection: (@Composable () -> Unit)? =
+              if (launchMode == LaunchMode.Normal) {
+                {
+                  Box(modifier = Modifier.testTag("export-section:Detected language")) {
+                    DetectedLanguageSection(
+                      detectedLanguage = detectedLanguage,
+                      from = from,
+                      languageState = languageState,
+                      onMessage = onMessage,
+                      downloads = downloads,
+                      isAutoSource = isAutoSource,
+                      onEvent = { event ->
+                        when (event) {
+                          is LanguageEvent.Download -> onDownload(DownloadRequest.Core(event.language))
+                          is LanguageEvent.Cancel -> onCancelDownload(DownloadId.Core(event.language))
+                          else -> Log.e("MainScreen", "Got unexpected event: $event")
+                        }
+                      },
+                    )
+                  }
+                }
+              } else {
+                null
               }
-            }
 
             if (displayImage != null) {
               Box(modifier = Modifier.fillMaxWidth()) {
@@ -377,11 +392,11 @@ fun MainScreen(
                   )
                 }
               }
-              detectedLanguageSection()
+              detectedLanguageSection?.invoke()
             }
 
             if (!showOnlyOutputInReadonlyModal && displayImage == null) {
-              val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isInputAudioPlaying && !isInputAudioLoading
+              val isOtherAudioActive = speech.target.let { it != null && it != SpeechTarget.INPUT }
               val canSpeakInput =
                 input.isNotBlank() && languageState.availabilityFor(from)?.ttsFiles == true && !isOtherAudioActive
               InputSection(
@@ -396,8 +411,8 @@ fun MainScreen(
                 inputDictMode = inputDictMode,
                 onToggleInputDict = { inputDictMode = !inputDictMode },
                 canSpeakInput = canSpeakInput,
-                isInputAudioPlaying = isInputAudioPlaying,
-                isInputAudioLoading = isInputAudioLoading,
+                isInputAudioPlaying = speech == SpeechState.Playing(SpeechTarget.INPUT),
+                isInputAudioLoading = speech == SpeechState.Loading(SpeechTarget.INPUT),
                 sourceTtsPlaybackSpeed = sourceTtsPlaybackSpeed,
                 selectedSourceTtsVoiceName = selectedSourceTtsVoiceName,
                 availableSourceTtsVoices = availableSourceTtsVoices,
@@ -425,12 +440,24 @@ fun MainScreen(
                     }
                     .testTag("export-section:Input"),
               )
-              SplitHandle(
-                onDrag = { delta ->
-                  splitFraction.floatValue =
-                    (splitFraction.floatValue + delta / parentHeightPx).coerceIn(0.25f, 0.75f)
-                },
-              )
+              // A tiny screen has no height to spare for a drag band, and its
+              // keypad users can't drag anyway, so the split stays at half.
+              when (layoutDensity) {
+                LayoutDensity.Regular ->
+                  SplitHandle(
+                    onDrag = { delta ->
+                      splitFraction.floatValue =
+                        InputSplit(splitFraction.floatValue).dragged(delta / parentHeightPx).fraction
+                    },
+                    onDragStopped = {
+                      if (launchMode == LaunchMode.Normal) {
+                        onInputSplitChange(InputSplit(splitFraction.floatValue))
+                      }
+                    },
+                  )
+
+                LayoutDensity.Compact -> Spacer(modifier = Modifier.height(dimens.sectionSpacing))
+              }
             }
 
             // With an image the translation is shown in the image itself, so hide the output text
@@ -569,13 +596,13 @@ fun MainScreen(
                       OutputTapMode.None -> {}
                     }
                   },
-                  isAudioPlaying = isOutputAudioPlaying,
-                  isAudioLoading = isOutputAudioLoading,
+                  isAudioPlaying = speech == SpeechState.Playing(SpeechTarget.OUTPUT),
+                  isAudioLoading = speech == SpeechState.Loading(SpeechTarget.OUTPUT),
                   speechPlaybackSpeed = targetTtsPlaybackSpeed,
                   selectedVoiceName = selectedTtsVoiceName,
                   availableVoices = availableTtsVoices,
                   onSpeak = {
-                    if (isOutputAudioPlaying || isOutputAudioLoading) {
+                    if (speech.target == SpeechTarget.OUTPUT) {
                       onStopAudio()
                     } else {
                       output?.translated?.takeIf { it.isNotBlank() }?.let { translatedText ->
@@ -620,16 +647,16 @@ fun MainScreen(
     )
   }
 
-  if (dictionaryWord != null && dictionaryLookupLanguage != null) {
+  if (dictionary is DictionaryState.Open) {
     DictionaryBottomSheet(
-      dictionaryWord = dictionaryWord,
-      dictionaryStack = dictionaryStack,
-      dictionaryLookupLanguage = dictionaryLookupLanguage,
+      dictionaryWord = dictionary.word,
+      dictionaryStack = dictionary.stack,
+      dictionaryLookupLanguage = dictionary.language,
       onDismiss = {
         onMessage(TranslatorMessage.ClearDictionaryStack)
       },
       onDictionaryLookup = { word ->
-        onMessage(TranslatorMessage.DictionaryLookup(word, dictionaryLookupLanguage))
+        onMessage(TranslatorMessage.DictionaryLookup(word, dictionary.language))
       },
       onBackPressed = {
         onMessage(TranslatorMessage.PopDictionary)
@@ -679,7 +706,6 @@ private fun previewLanguageState(vararg languages: Pair<Language, LangAvailabili
   LanguageAvailabilityState(
     hasLanguages = true,
     availableLanguages = languages.map { (language, availability) -> LanguageAvailabilityEntry(language, availability) },
-    isChecking = false,
   )
 
 @Preview(
@@ -702,8 +728,7 @@ fun PopupMode() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.ReadWriteModal {},
       onMessage = {},
       languageState =
@@ -713,11 +738,11 @@ fun PopupMode() {
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = null,
     )
   }
@@ -743,8 +768,7 @@ fun MainScreenPreview() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -754,11 +778,51 @@ fun MainScreenPreview() {
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
+      inputTransliteration = null,
+    )
+  }
+}
+
+@Preview(
+  showBackground = true,
+  widthDp = 240,
+  heightDp = 296,
+)
+@Composable
+fun MainScreenCompactPreview() {
+  TranslatorTheme {
+    MainScreen(
+      onSettings = { },
+      onLiveCamera = { },
+      input = "bonjour le monde comment ça va",
+      output = TranslatedText("hello world how are you", null),
+      from = previewLanguage("fr", "French"),
+      to = previewLanguage("en", "English"),
+      detectedLanguage = null,
+      displayImage = null,
+      originalImage = null,
+      imageWordSelection = null,
+      detectedRegions = null,
+      ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
+      isImageProcessing = false,
+      launchMode = LaunchMode.Normal,
+      onMessage = {},
+      languageState =
+        previewLanguageState(
+          previewLanguage("en", "English") to LangAvailability(true, true, true, true),
+          previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
+        ),
+      languageMetadata = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
+      settings = AppSettings(),
+      dictionary = DictionaryState.Closed,
       inputTransliteration = null,
     )
   }
@@ -788,8 +852,7 @@ fun PreviewTranslitText() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -798,12 +861,12 @@ fun PreviewTranslitText() {
           previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true),
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = "tōkyō",
     )
   }
@@ -834,8 +897,7 @@ fun PreviewVeryLongText() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -844,12 +906,12 @@ fun PreviewVeryLongText() {
           previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true),
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(showTransliterationOnInput = true),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = "translit",
     )
   }
@@ -884,8 +946,7 @@ fun PreviewVeryLongTextImage() {
       imageWordSelection = null,
       detectedRegions = null,
       ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT,
-      isTranslating = MutableStateFlow(false).asStateFlow(),
-      isOcrInProgress = MutableStateFlow(false).asStateFlow(),
+      isImageProcessing = false,
       launchMode = LaunchMode.Normal,
       onMessage = {},
       languageState =
@@ -894,12 +955,12 @@ fun PreviewVeryLongTextImage() {
           previewLanguage("es", "Spanish") to LangAvailability(true, true, true, true),
           previewLanguage("fr", "French") to LangAvailability(true, true, true, true),
         ),
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
+      onDownload = {},
+      onCancelDownload = {},
       settings = AppSettings(),
       languageMetadata = mapOf(previewLanguage("es", "Spanish") to LanguageMetadata(favorite = true)),
-      dictionaryWord = null,
-      dictionaryStack = emptyList(),
-      dictionaryLookupLanguage = null,
+      dictionary = DictionaryState.Closed,
       inputTransliteration = null,
     )
   }

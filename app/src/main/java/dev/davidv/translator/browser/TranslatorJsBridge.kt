@@ -24,14 +24,21 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import dev.davidv.translator.Language
+import dev.davidv.translator.OverlaySource
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationService
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.completeWith
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.resume
 
 class TranslatorJsBridge(
   private val scope: CoroutineScope,
@@ -39,14 +46,47 @@ class TranslatorJsBridge(
   private val translationService: TranslationService,
   private val translationCoordinator: TranslationCoordinator,
   private val bridgeToken: String,
-  @Volatile var sourceLanguage: Language,
+  private val detectPageLanguage: suspend (String) -> Language?,
+  @Volatile var source: BrowserSource,
   @Volatile var targetLanguage: Language,
 ) {
   companion object {
     private const val MAX_BATCH_ITEMS = 50
     private const val MAX_TOTAL_CHARS = 100_000
     private const val MAX_ITEM_CHARS = 20_000
+    private const val DETECTION_SAMPLE_CHARS = 4_000
   }
+
+  private val pageLanguage = AtomicReference<CompletableDeferred<Language?>?>(null)
+
+  fun onPageStarted() {
+    pageLanguage.set(null)
+  }
+
+  // Batches arrive in parallel as the page scrolls; the first one detects the page's language
+  // from its whole visible text, since a single batch can be just a menu, and the rest wait on it.
+  private suspend fun pageSource(): Language? =
+    when (val selected = source) {
+      is BrowserSource.Fixed -> selected.language
+      BrowserSource.Auto -> {
+        val fresh = CompletableDeferred<Language?>()
+        if (pageLanguage.compareAndSet(null, fresh)) {
+          fresh.completeWith(runCatching { detectPageLanguage(pageTextSample()) })
+        }
+        pageLanguage.get()?.await()
+      }
+    }
+
+  private suspend fun pageTextSample(): String =
+    withContext(Dispatchers.Main) {
+      suspendCancellableCoroutine { continuation ->
+        webView.evaluateJavascript(
+          "(function(){var b=document.body;return b?b.innerText.slice(0,$DETECTION_SAMPLE_CHARS):'';})()",
+        ) { result ->
+          continuation.resume(JSONTokener(result).nextValue() as? String ?: "")
+        }
+      }
+    }
 
   @JavascriptInterface
   fun translateHtmlFragments(
@@ -64,7 +104,8 @@ class TranslatorJsBridge(
       }
       val translated =
         try {
-          translationService.translateHtmlFragments(sourceLanguage, targetLanguage, fragments)
+          val from = pageSource()
+          if (from == null) fragments else translationService.translateHtmlFragments(from, targetLanguage, fragments)
         } catch (t: Throwable) {
           Log.w("TranslatorJsBridge", "translateHtmlFragments failed", t)
           fragments
@@ -89,14 +130,13 @@ class TranslatorJsBridge(
       }
       val translated =
         try {
-          val result =
-            translationService.translateMixedTexts(
-              texts,
-              sourceLanguage,
-              targetLanguage,
-              listOf(sourceLanguage, targetLanguage),
-            )
-          mapMixedTextsToInputOrder(texts, result)
+          val from = pageSource()
+          if (from == null) {
+            texts
+          } else {
+            val result = translationService.translateMixedTexts(texts, from, targetLanguage, listOf(from, targetLanguage))
+            mapMixedTextsToInputOrder(texts, result)
+          }
         } catch (t: Throwable) {
           Log.w("TranslatorJsBridge", "translateTexts failed", t)
           texts
@@ -141,15 +181,18 @@ class TranslatorJsBridge(
       withContext(Dispatchers.Default) {
         Base64.decode(dataUri.substring(comma + 1), Base64.DEFAULT)
       }
-    val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return ""
+    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return ""
     val result =
       translationCoordinator.translateImageWithOverlay(
-        from = sourceLanguage,
+        source =
+          when (val selected = source) {
+            BrowserSource.Auto -> OverlaySource.Auto(readingOrder = null)
+            is BrowserSource.Fixed -> OverlaySource.Fixed(selected.language)
+          },
         to = targetLanguage,
-        finalBitmap = source,
-        onMessage = {},
+        finalBitmap = bitmap,
       )
-    if (!source.isRecycled) source.recycle()
+    if (!bitmap.isRecycled) bitmap.recycle()
     if (result == null) return ""
     return withContext(Dispatchers.Default) { encodeBitmapAsDataUri(result.correctedBitmap) }
   }

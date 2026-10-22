@@ -8,35 +8,25 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AidlTranslationService : Service() {
   private val tag = this.javaClass.name.substringAfterLast('.')
 
   private lateinit var settingsManager: SettingsManager
+  private lateinit var catalogRepository: CatalogRepository
   private lateinit var translationCoordinator: TranslationCoordinator
-  private lateinit var langStateManager: LanguageStateManager
-  private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+  // Callbacks are binder calls into the client; keep them off the main thread.
+  private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
   override fun onCreate() {
     super.onCreate()
-    settingsManager = SettingsManager(this)
-    val filePathManager = FilePathManager(this, settingsManager.settings)
-    langStateManager = LanguageStateManager(serviceScope, filePathManager, null)
-    val languageDetector = LanguageDetector(langStateManager::languageByCode)
-    val imageProcessor = ImageProcessor(this, filePathManager)
-
-    serviceScope.launch {
-      langStateManager.catalog.collect { catalog ->
-        if (catalog == null) return@collect
-        val translationService = TranslationService(settingsManager, filePathManager)
-        val speechService = SpeechService(settingsManager, filePathManager)
-        translationCoordinator = TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
-        Log.d(tag, "TranslationCoordinator initialized")
-      }
-    }
+    val app = application as TranslatorApplication
+    app.ensureServicesInitialized()
+    settingsManager = app.settingsManager
+    catalogRepository = app.catalogRepository
+    translationCoordinator = app.translationCoordinator
     Log.d(tag, "onCreate")
   }
 
@@ -60,15 +50,12 @@ class AidlTranslationService : Service() {
           return
         }
 
-        val fromLanguage = fromLanguageStr?.takeIf { it.isNotEmpty() }?.let { langStateManager.languageByCode(it) }
-        val toLanguage = toLanguageStr?.takeIf { it.isNotEmpty() }?.let { langStateManager.languageByCode(it) }
+        val catalog = catalogRepository.catalog.value
+        val fromLanguage = fromLanguageStr?.takeIf { it.isNotEmpty() }?.let { catalog.languageByCode(it) }
+        val toLanguage = toLanguageStr?.takeIf { it.isNotEmpty() }?.let { catalog.languageByCode(it) }
 
-        CoroutineScope(Dispatchers.IO).launch {
-          langStateManager.languageState.first { !it.isChecking }
-          val langs = langStateManager.languageState.value.translatorLanguages()
-          while (translationCoordinator.isTranslating.value) {
-            delay(100)
-          }
+        serviceScope.launch {
+          val langs = LanguageAvailabilityState.of(catalog).sourceLanguages()
           val from = fromLanguage ?: translationCoordinator.detectLanguageRobust(textToTranslate, null, langs)
           Log.d(tag, "Detected lang $from")
           if (from == null) {
@@ -93,7 +80,7 @@ class AidlTranslationService : Service() {
             callback.onTranslationError(err)
             return@launch
           }
-          val to = toLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
+          val to = toLanguage ?: catalog.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
           if (to == null) {
             val err =
               TranslationError().apply {

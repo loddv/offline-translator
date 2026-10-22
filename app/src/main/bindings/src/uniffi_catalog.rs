@@ -238,6 +238,16 @@ fn map_dictionary_word(word: translator::tarkka::WordWithTaggedEntries) -> Dicti
 /// equivalent of the old Kotlin `minTextSize`, typically 8.0).
 #[cfg(feature = "image-render")]
 #[uniffi::export]
+fn plan_zip_extraction(
+    extract_to: String,
+    marker: Option<translator::InstallMarker>,
+    entry_names: Vec<String>,
+) -> Result<translator::ZipExtractionPlan, CatalogError> {
+    translator::plan_zip_extraction(&extract_to, marker.as_ref(), &entry_names)
+        .map_err(|reason| CatalogError::Other { reason })
+}
+
+#[uniffi::export]
 fn render_translated_overlay(
     prepared: translator::PreparedImageOverlay,
     language: String,
@@ -511,6 +521,29 @@ impl CatalogHandle {
         }))
     }
 
+    fn replace_catalog(
+        &self,
+        bundled_json: String,
+        disk_json: Option<String>,
+        base_dir: String,
+    ) -> Result<(), CatalogOpenError> {
+        self.session
+            .replace_catalog(&bundled_json, disk_json.as_deref(), base_dir)
+            .map_err(|_| CatalogOpenError::ParseFailed)
+    }
+
+    fn refresh(&self) {
+        self.session.refresh_snapshot();
+    }
+
+    fn apply_delete_plan(&self, plan: translator::DeletePlan) {
+        self.session.apply_delete_plan(&plan);
+    }
+
+    fn base_dir(&self) -> String {
+        self.snapshot().base_dir.clone()
+    }
+
     fn format_version(&self) -> i32 {
         self.snapshot().catalog.format_version
     }
@@ -653,10 +686,6 @@ impl CatalogHandle {
             .into_iter()
             .map(|language_code| language_code.code)
             .collect()
-    }
-
-    fn plan_delete_superseded_files(&self) -> translator::DeletePlan {
-        translator::plan_delete_superseded_files(&self.snapshot())
     }
 
     fn plan_repair(&self) -> translator::DownloadPlan {
@@ -907,6 +936,10 @@ impl CatalogHandle {
     ) -> Option<translator::DownloadPlan> {
         self.session
             .plan_download(&language_code, feature, selected_tts_pack_id.as_deref())
+    }
+
+    fn download_task_installed(&self, task: translator::DownloadTask) -> bool {
+        self.session.download_task_installed(&task)
     }
 
     fn plan_support_download_by_kind(

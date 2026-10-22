@@ -99,22 +99,15 @@ class TapToTranslateDismissReceiver : BroadcastReceiver() {
     intent: Intent,
   ) {
     val app = context.applicationContext as TranslatorApplication
-    val current = app.settingsManager.settings.value
-    if (current.tapToTranslateEnabled) {
-      app.settingsManager.updateSettings(current.copy(tapToTranslateEnabled = false))
-    }
+    app.settingsManager.update { it.copy(tapToTranslateEnabled = false) }
   }
 }
 
+// Delivering BOOT_COMPLETED starts the process, and the app's settings effects restore the
+// notification at startup, so the receiver only has to exist.
 class TapToTranslateBootReceiver : BroadcastReceiver() {
   override fun onReceive(
     context: Context,
     intent: Intent,
-  ) {
-    if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-    val app = context.applicationContext as TranslatorApplication
-    if (app.settingsManager.settings.value.tapToTranslateEnabled) {
-      TapToTranslateNotification.show(context)
-    }
-  }
+  ) = Unit
 }

@@ -25,7 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.davidv.translator.DownloadState
+import dev.davidv.translator.DownloadId
+import dev.davidv.translator.DownloadStatus
 import dev.davidv.translator.FromLangChange
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
@@ -42,12 +43,15 @@ fun DetectedLanguageSection(
   from: Language,
   languageState: LanguageAvailabilityState,
   onMessage: (TranslatorMessage) -> Unit,
-  downloadStates: Map<Language, DownloadState>,
+  downloads: Map<DownloadId, DownloadStatus>,
   onEvent: (LanguageEvent) -> Unit,
   isAutoSource: Boolean = false,
 ) {
   if (detectedLanguage == null) return
   val isInstalled = languageState.availabilityFor(detectedLanguage)?.translatorFiles == true
+  // Installed without a direction out (English before any en→X, or an X whose X→en model isn't
+  // installed) leaves nothing to switch to and nothing to download.
+  if (isInstalled && !languageState.canBeSource(detectedLanguage)) return
   if (isAutoSource && isInstalled) return
   if (!isAutoSource && detectedLanguage == from) return
   DetectedLanguageToast(
@@ -57,7 +61,7 @@ fun DetectedLanguageSection(
       onMessage(TranslatorMessage.FromLang(detectedLanguage, FromLangChange.MovePreviousToTarget))
     },
     modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-    downloadStates = downloadStates,
+    downloadStatus = downloads[DownloadId.Core(detectedLanguage)],
     onEvent = onEvent,
   )
 }
@@ -66,7 +70,6 @@ private fun previewLanguageState(entries: List<Pair<Language, LangAvailability>>
   LanguageAvailabilityState(
     hasLanguages = true,
     availableLanguages = entries.map { (language, availability) -> LanguageAvailabilityEntry(language, availability) },
-    isChecking = false,
   )
 
 private fun previewLanguage(
@@ -98,7 +101,7 @@ fun DetectedLanguageSectionPreview() {
           ),
         ),
       onMessage = {},
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
       onEvent = {},
     )
   }
@@ -120,7 +123,7 @@ fun DetectedLanguageSectionNoDetectionPreview() {
           ),
         ),
       onMessage = {},
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
       onEvent = {},
     )
   }
@@ -145,7 +148,7 @@ fun DetectedLanguageSectionDarkPreview() {
           ),
         ),
       onMessage = {},
-      downloadStates = emptyMap(),
+      downloads = emptyMap(),
       onEvent = {},
     )
   }

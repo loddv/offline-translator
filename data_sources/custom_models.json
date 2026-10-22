@@ -1,5 +1,11 @@
 {
   "_comment": "Home-made slimt/bergamot packs",
+  "overridesUpstream": [
+    "en-tl",
+    "tl-en",
+    "en-ug",
+    "ug-en"
+  ],
   "models": {
     "ug-en": [
       {
@@ -107,6 +113,43 @@
             "bleu": 36.93
           }
         }
+      },
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "en",
+        "targetLanguage": "tl",
+        "priority": 3,
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/lex.50.50.entl.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/model.entl.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "33b71965ab9c9c533c63444551c9483e811dd540e75e4cfe21d062a83a60b72f"
+          },
+          "vocab": {
+            "path": "models/en-tl/next26-nllb-bc09_DGa0cH2-QKOhfrPkVbnJFQ/exported/vocab.entl.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 36.1269,
+            "chrf": 62.4092,
+            "chrfpp": 60.6389,
+            "comet22": 0.8339,
+            "llm-ref": 4.416,
+            "metricx24-qe": 3.9716,
+            "metricx24": 4.2749,
+            "spbleu": 37.4373
+          }
+        }
       }
     ],
     "tl-en": [
@@ -115,6 +158,7 @@
         "releaseStatus": "Release",
         "sourceLanguage": "tl",
         "targetLanguage": "en",
+        "priority": 1,
         "files": {
           "lexicalShortlist": {
             "path": "models/tl-en/opusmt_distill_20260713/exported/lex.50.50.tlen.s2t.bin.gz"
@@ -132,6 +176,43 @@
           "flores200-plus": {
             "chrf": 60.7,
             "bleu": 36.41
+          }
+        }
+      },
+      {
+        "architecture": "base-memory",
+        "releaseStatus": "Release",
+        "sourceLanguage": "tl",
+        "targetLanguage": "en",
+        "priority": 2,
+        "files": {
+          "lexicalShortlist": {
+            "path": "models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/lex.50.50.tlen.s2t.bin.gz"
+          },
+          "model": {
+            "path": "models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/model.tlen.intgemm.alphas.bin.gz",
+            "uncompressedSize": 31561787,
+            "uncompressedHash": "be2e4b60b2be35d8f32e3f68f0a3a567e6a4a27c521d5a9fd6017d1e47599e37"
+          },
+          "vocab": {
+            "path": "models/tl-en/next26-nllb-bc09_d-OV7HWbQLiAMXe-r1_EoA/exported/vocab.tlen.spm.gz"
+          }
+        },
+        "modelStatistics": {
+          "parameters": 31248966,
+          "encoderParameters": 10646820,
+          "decoderParameters": 8314144
+        },
+        "metrics": {
+          "flores200-plus": {
+            "bleu": 43.1957,
+            "chrf": 66.7538,
+            "chrfpp": 65.3626,
+            "comet22": 0.8541,
+            "llm-ref": 4.352,
+            "metricx24-qe": 3.0804,
+            "metricx24": 3.082,
+            "spbleu": 46.5946
           }
         }
       }

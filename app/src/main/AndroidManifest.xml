@@ -23,6 +23,7 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -80,6 +81,13 @@
           <action android:name="dev.davidv.translator.OPEN_POPUP" />
           <category android:name="android.intent.category.DEFAULT" />
         </intent-filter>
+
+        <!-- via 'share' text; shared .txt files are forwarded to MainActivity -->
+        <intent-filter>
+          <action android:name="android.intent.action.SEND" />
+          <category android:name="android.intent.category.DEFAULT" />
+          <data android:mimeType="text/plain" />
+        </intent-filter>
       </activity>
 
       <activity
@@ -90,13 +98,9 @@
           <action android:name="android.intent.action.MAIN" />
           <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
-
-        <!-- via 'share' text -->
-        <intent-filter>
-          <action android:name="android.intent.action.SEND" />
-          <category android:name="android.intent.category.DEFAULT" />
-          <data android:mimeType="text/plain" />
-        </intent-filter>
+        <meta-data
+          android:name="android.app.shortcuts"
+          android:resource="@xml/shortcuts" />
 
         <!-- via 'share' image -->
         <intent-filter>
@@ -105,7 +109,7 @@
           <data android:mimeType="image/*" />
         </intent-filter>
 
-        <!-- via 'share' document: pdf/odt/epub (txt is covered by the text filter above) -->
+        <!-- via 'share' document: pdf/odt/epub (txt arrives via ProcessTextActivity's text filter) -->
         <intent-filter>
           <action android:name="android.intent.action.SEND" />
           <category android:name="android.intent.category.DEFAULT" />
@@ -187,7 +191,8 @@
         <service
             android:name=".DownloadService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <service
             android:name=".DocumentTranslationService"

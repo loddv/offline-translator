@@ -31,8 +31,8 @@ android {
     applicationId = "dev.davidv.translator"
     minSdk = 23
     targetSdk = 34
-    versionCode = 30
-    versionName = "0.8.5"
+    versionCode = 31
+    versionName = "0.8.6"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -93,6 +93,14 @@ android {
     // Translations are managed in Weblate and land incrementally, so partial
     // locales are expected; completeness is tracked there, not by the build.
     disable += "MissingTranslation"
+    // minSdk is 23 and nothing at runtime catches an API 24+ call there until a user on old
+    // Android hits it, so release builds refuse to ship one.
+    fatal += "NewApi"
+    // The pre-push hook gates on exactly what release builds refuse, without the other checks'
+    // run time or their advisory errors.
+    if (providers.gradleProperty("lintNewApiOnly").isPresent) {
+      checkOnly += "NewApi"
+    }
   }
 
   applicationVariants.all {
@@ -383,6 +391,7 @@ val generateUniffiBindings =
     workingDir = bindingsRootDir
     inputs.file(bindgenHostBinary)
     inputs.file(bindgenSourceLib)
+    inputs.file(bindingsRootDir.resolve("uniffi.toml"))
     outputs.dir(generatedBindingsDir)
     doFirst {
       val outDir = generatedBindingsDir.get().asFile

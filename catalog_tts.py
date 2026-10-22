@@ -135,6 +135,8 @@ BANNED_TTS_VOICES = {
     # Piper pinyin-frontend Mandarin voices are not supported by the runtime frontend.
     "zh_CN-chaowen-medium",
     "zh_CN-xiao_ya-medium",
+    # Output sounds broken, in the app as well.
+    "sv_SE-lisa-medium",
 }
 
 # Human-curated per-voice rank nudges. Applied as the highest-priority component
@@ -151,6 +153,8 @@ VOICE_RANK_PREFERENCES: dict[str, int] = {
     "en_US-sam-medium": 1,
     # sabela is HiTZ's flagship Galician voice; keep it over the alphabetical tie
     "gl_ES-sabela-cotovia_vits": -1,
+    # keep fasih as the Urdu default; aegis_female only sorts first alphabetically
+    "ur_PK-fasih-medium": -1,
 }
 
 # Voices kept per region (the rest are dropped from the served index). Galician
@@ -305,6 +309,60 @@ EXTRA_TTS_VOICES = {
                 "size_bytes": 337,
                 "url": f"{MMS_BASE_URL}/tgl/tokens.txt",
             },
+        },
+        "aliases": [],
+    },
+    # Upstream Piper voices added after data_sources/piper_voices.json was
+    # snapshotted; files resolve against PIPER_BASE_URL.
+    # https://huggingface.co/rhasspy/piper-voices/tree/main/mr/mr_IN/google/medium
+    "mr_IN-google-medium": {
+        "key": "mr_IN-google-medium",
+        "name": "google",
+        "language": {
+            "code": "mr_IN",
+            "family": "mr",
+            "region": "IN",
+            "name_native": "मराठी",
+            "name_english": "Marathi",
+            "country_english": "India",
+        },
+        "quality": "medium",
+        "num_speakers": 9,
+        "speaker_id_map": {
+            "mrt_01523": 0,
+            "mrt_02436": 1,
+            "mrt_02484": 2,
+            "mrt_02624": 3,
+            "mrt_03349": 4,
+            "mrt_03397": 5,
+            "mrt_03398": 6,
+            "mrt_04310": 7,
+            "mrt_09697": 8,
+        },
+        "files": {
+            "mr/mr_IN/google/medium/mr_IN-google-medium.onnx": {"size_bytes": 76768179},
+            "mr/mr_IN/google/medium/mr_IN-google-medium.onnx.json": {"size_bytes": 5467},
+        },
+        "aliases": [],
+    },
+    # https://huggingface.co/rhasspy/piper-voices/tree/main/ur/ur_PK/aegis_female/medium
+    "ur_PK-aegis_female-medium": {
+        "key": "ur_PK-aegis_female-medium",
+        "name": "aegis_female",
+        "language": {
+            "code": "ur_PK",
+            "family": "ur",
+            "region": "PK",
+            "name_native": "اردو",
+            "name_english": "Urdu",
+            "country_english": "Pakistan",
+        },
+        "quality": "medium",
+        "num_speakers": 1,
+        "speaker_id_map": {},
+        "files": {
+            "ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx": {"size_bytes": 63515589},
+            "ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx.json": {"size_bytes": 5236},
         },
         "aliases": [],
     },

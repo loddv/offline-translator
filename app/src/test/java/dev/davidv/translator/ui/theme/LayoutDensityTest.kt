@@ -14,11 +14,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+package dev.davidv.translator.ui.theme
 
-package dev.davidv.translator
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
-enum class InputType {
-  TEXT,
-  IMAGE,
-  FILE,
+class LayoutDensityTest {
+  @Test
+  fun flipPhoneIsCompact() {
+    assertEquals(LayoutDensity.Compact, layoutDensityFor(screenWidthDp = 240))
+  }
+
+  @Test
+  fun regularPhoneIsRegular() {
+    assertEquals(LayoutDensity.Regular, layoutDensityFor(screenWidthDp = 411))
+  }
+
+  @Test
+  fun landscapePhoneIsRegular() {
+    assertEquals(LayoutDensity.Regular, layoutDensityFor(screenWidthDp = 843))
+  }
+
+  @Test
+  fun thresholdIsExclusive() {
+    assertEquals(LayoutDensity.Regular, layoutDensityFor(screenWidthDp = 320))
+  }
 }

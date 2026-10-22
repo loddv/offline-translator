@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -16,12 +17,13 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import dev.davidv.translator.Language
 import dev.davidv.translator.MainActivity
-import dev.davidv.translator.ReadingOrder
-import dev.davidv.translator.SettingsManager
+import dev.davidv.translator.OverlayLanguageSelection
+import dev.davidv.translator.OverlayLanguageSide
 import dev.davidv.translator.assistantOverlay.BorderWaveView
 import dev.davidv.translator.overlayChrome.FloatingBubble
 import dev.davidv.translator.overlayChrome.OverlayChromeFactory
@@ -34,10 +36,10 @@ import dev.davidv.translator.ui.components.SelectionSurface
 import dev.davidv.translator.ui.components.SelectionSurfaceState
 import dev.davidv.translator.ui.components.WindowComposeHost
 
+@RequiresApi(Build.VERSION_CODES.R)
 class OverlayUI(
   private val service: TranslatorAccessibilityService,
   private val windowManager: WindowManager,
-  private val settingsManager: SettingsManager,
 ) {
   private val handler = Handler(Looper.getMainLooper())
   private var launcherBubble: FloatingBubble? = null
@@ -131,33 +133,23 @@ class OverlayUI(
     showFloatingButton()
   }
 
-  fun showToolbar(
-    forcedSourceLanguage: Language?,
-    forcedTargetLanguage: Language?,
-    readingOrder: ReadingOrder?,
-    isAutoSource: Boolean,
-  ) {
+  fun showToolbar(selection: OverlayLanguageSelection) {
     if (toolbarView != null) return
 
     val toolbarViews =
       OverlayChromeFactory.createLanguageToolbar(
         context = service,
         dpToPx = ::dpToPx,
-        forcedSourceLanguage = forcedSourceLanguage,
-        forcedTargetLanguage = forcedTargetLanguage,
-        defaultTargetLanguage = service.langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return,
+        selection = selection,
         onClose = { service.deactivate() },
         onSelectModeClick = { service.toggleSelectMode() },
-        onSourceClick = { service.showLanguagePicker(true) },
+        onSourceClick = { service.showLanguagePicker(OverlayLanguageSide.SOURCE) },
         onSwap = { service.swapLanguages() },
-        onTargetClick = { service.showLanguagePicker(false) },
-        showReadingOrderButton = forcedSourceLanguage?.code == "ja",
-        readingOrder = readingOrder,
+        onTargetClick = { service.showLanguagePicker(OverlayLanguageSide.TARGET) },
         onReadingOrderClick = { service.toggleJapaneseOcrMode() },
         onRefreshClick = { service.handleFullScreenOcr() },
         onFlipOriginal = { service.toggleFlipOriginal() },
         onMenuClick = { service.showDotsMenu() },
-        isAutoSource = isAutoSource,
       )
     val toolbar = toolbarViews.root
     sourceLabelView = toolbarViews.sourceLabel
@@ -214,21 +206,8 @@ class OverlayUI(
     flipIconView?.setColorFilter(if (active) OverlayChromeFactory.ACTIVE_ICON_TINT else Color.WHITE)
   }
 
-  fun updateToolbarState(
-    forcedSourceLanguage: Language?,
-    forcedTargetLanguage: Language?,
-    readingOrder: ReadingOrder?,
-    isAutoSource: Boolean,
-  ) {
-    sourceLabelView?.text = OverlayChromeFactory.formatSourceLabel(forcedSourceLanguage, isAutoSource)
-    val currentTarget = forcedTargetLanguage ?: service.langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
-    targetLabelView?.text = currentTarget?.shortDisplayName ?: "?"
-    OverlayChromeFactory.updateReadingOrderButtonState(
-      readingButton = readingOrderButtonView,
-      readingIcon = readingOrderIconView,
-      visible = forcedSourceLanguage?.code == "ja",
-      readingOrder = readingOrder,
-    )
+  fun updateToolbarState(selection: OverlayLanguageSelection) {
+    OverlayChromeFactory.showSelection(sourceLabelView, targetLabelView, readingOrderButtonView, readingOrderIconView, selection)
   }
 
   fun showDotsMenu() {
@@ -249,13 +228,12 @@ class OverlayUI(
   }
 
   fun showLanguagePicker(
-    isSource: Boolean,
+    side: OverlayLanguageSide,
+    selection: OverlayLanguageSelection,
     availableLangs: List<Language>,
-    onPick: (Language?) -> Unit,
+    onPick: (OverlayLanguageSelection) -> Unit,
   ) {
-    menuManager.showLanguagePicker(isSource, availableLangs) { lang ->
-      onPick(lang)
-    }
+    menuManager.showLanguagePicker(side, selection, availableLangs, onPick = onPick)
   }
 
   fun dismissMenu() {

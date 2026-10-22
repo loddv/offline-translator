@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.service.voice.VoiceInteractionSession
@@ -18,12 +19,13 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.view.WindowInsetsCompat
-import dev.davidv.translator.Language
-import dev.davidv.translator.LanguageStateManager
+import dev.davidv.translator.CatalogRepository
+import dev.davidv.translator.LanguageAvailabilityState
+import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.MainActivity
-import dev.davidv.translator.OverlayTextTranslationHelper
+import dev.davidv.translator.OverlayLanguageSelection
+import dev.davidv.translator.OverlayLanguageSide
 import dev.davidv.translator.R
-import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.overlayChrome.OverlayChromeFactory
@@ -31,6 +33,7 @@ import dev.davidv.translator.overlayChrome.OverlayInsets
 import dev.davidv.translator.overlayChrome.OverlayMenuHost
 import dev.davidv.translator.overlayChrome.OverlayMenuManager
 import dev.davidv.translator.overlayChrome.spanFullDisplay
+import dev.davidv.translator.overlayPickerLanguages
 import dev.davidv.translator.screenTranslate.ScreenCaptureRequestActivity
 import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.ImageWordSelection
@@ -52,8 +55,8 @@ class TranslatorVoiceInteractionSession(
   context: Context,
   private val settingsManager: SettingsManager,
   private val translationCoordinator: TranslationCoordinator,
-  private val overlayTextTranslationHelper: OverlayTextTranslationHelper,
-  private val langStateManager: LanguageStateManager,
+  private val catalogRepository: CatalogRepository,
+  private val languageMetadataManager: LanguageMetadataManager,
 ) : VoiceInteractionSession(context) {
   companion object {
     private const val ASSIST_SCREENSHOT_ENABLED_SETTING = "assist_screenshot_enabled"
@@ -84,10 +87,8 @@ class TranslatorVoiceInteractionSession(
   private var translationJob: Job? = null
   private var captureTimeoutJob: Job? = null
   private var statusHideJob: Job? = null
-  private var forcedSourceLanguage: Language? = null
-  private var isAutoSource: Boolean = true
-  private var forcedTargetLanguage: Language? = null
-  private var ocrReadingOrder: ReadingOrder? = null
+  private var selection =
+    OverlayLanguageSelection.initial(LanguageAvailabilityState.of(catalogRepository.catalog.value), settingsManager.settings.value)
 
   // The interactive image surface, hosted in a ComposeView over the screenshot backdrop: it shows
   // the screenshot with the scan animation while OCR runs, then the translated image with the
@@ -98,7 +99,6 @@ class TranslatorVoiceInteractionSession(
   override fun onCreate() {
     super.onCreate()
     configureSessionWindow()
-    langStateManager.refreshLanguageAvailability()
   }
 
   override fun onCreateContentView(): View {
@@ -371,20 +371,7 @@ class TranslatorVoiceInteractionSession(
     val screenshot = screenshotBitmap ?: return
     overlayContainer.removeAllViews()
     hideStatus()
-    val sourceLanguage = ocrSourceLanguage()
-    if (!isAutoSource && sourceLanguage == null) {
-      processing = false
-      showStatus(context.getString(R.string.assistant_set_source_ocr))
-      return
-    }
-
-    val targetLanguage = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
-    if (targetLanguage == null) {
-      processing = false
-      showStatus(context.getString(R.string.assistant_langs_not_ready))
-      return
-    }
-    val ocrSourceLanguage = sourceLanguage ?: targetLanguage
+    val requested = selection
     // `screenshot` is already the cropped software source; copy it so the A/B original survives
     // independently of `croppedBitmap` (which gets reassigned to the translated result).
     val workingBitmap = screenshot.copy(Bitmap.Config.ARGB_8888, false)
@@ -404,12 +391,9 @@ class TranslatorVoiceInteractionSession(
         val result =
           withContext(Dispatchers.IO) {
             translationCoordinator.translateImageWithOverlay(
-              ocrSourceLanguage,
-              targetLanguage,
+              requested.source,
+              requested.target,
               workingBitmap,
-              onMessage = {},
-              readingOrder = currentReadingOrderFor(sourceLanguage),
-              isAutoSource = isAutoSource,
               onOcrUnavailable = { ocrUnavailable = true },
               onDetectedRegions = { boxes, w, h ->
                 surfaceState.regions.value = DetectedRegions(w, h, boxes)
@@ -567,29 +551,19 @@ class TranslatorVoiceInteractionSession(
   private fun isAssistScreenshotEnabled(): Boolean =
     Settings.Secure.getInt(context.contentResolver, ASSIST_SCREENSHOT_ENABLED_SETTING, 1) != 0
 
-  private fun ocrSourceLanguage(): Language? =
-    forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguageCode?.let {
-      langStateManager.languageByCode(it)
-    }
-
   private fun buildTopBar(): View {
     val toolbarViews =
       OverlayChromeFactory.createLanguageToolbar(
         context = context,
         dpToPx = ::dpToPx,
-        forcedSourceLanguage = forcedSourceLanguage,
-        forcedTargetLanguage = forcedTargetLanguage,
-        defaultTargetLanguage = langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: langStateManager.languageByCode("en")!!,
+        selection = selection,
         onClose = { hide() },
-        onSourceClick = { showLanguagePicker(true) },
+        onSourceClick = { showLanguagePicker(OverlayLanguageSide.SOURCE) },
         onSwap = { swapLanguages() },
-        onTargetClick = { showLanguagePicker(false) },
+        onTargetClick = { showLanguagePicker(OverlayLanguageSide.TARGET) },
         onFlipOriginal = { toggleAssistantOriginal() },
-        showReadingOrderButton = forcedSourceLanguage?.code == "ja",
-        readingOrder = currentReadingOrderFor(forcedSourceLanguage),
-        onReadingOrderClick = { toggleJapaneseOcrMode() },
+        onReadingOrderClick = { applySelection(selection.withNextReadingOrder()) },
         onMenuClick = { showDotsMenu() },
-        isAutoSource = isAutoSource,
       )
     sourceLabelView = toolbarViews.sourceLabel
     targetLabelView = toolbarViews.targetLabel
@@ -623,13 +597,14 @@ class TranslatorVoiceInteractionSession(
   }
 
   private fun swapLanguages() {
-    val oldSource = forcedSourceLanguage
-    val oldTarget = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
-    isAutoSource = false
-    forcedSourceLanguage = oldTarget
-    forcedTargetLanguage = oldSource
-    syncReadingOrderForSource()
-    updateToolbarLabels()
+    val swapped = selection.swapped(catalogRepository.catalog.value::canSwapLanguages) ?: return
+    applySelection(swapped)
+  }
+
+  private fun applySelection(next: OverlayLanguageSelection) {
+    selection = next
+    settingsManager.update { it.copy(overlayLanguages = next.remembered()) }
+    OverlayChromeFactory.showSelection(sourceLabelView, targetLabelView, readingOrderButtonView, readingOrderIconView, selection)
     retranslate()
   }
 
@@ -645,66 +620,10 @@ class TranslatorVoiceInteractionSession(
     }
   }
 
-  private fun updateToolbarLabels() {
-    sourceLabelView?.text = OverlayChromeFactory.formatSourceLabel(forcedSourceLanguage, isAutoSource)
-    val currentTarget = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
-    targetLabelView?.text = currentTarget?.shortDisplayName ?: "?"
-    OverlayChromeFactory.updateReadingOrderButtonState(
-      readingButton = readingOrderButtonView,
-      readingIcon = readingOrderIconView,
-      visible = forcedSourceLanguage?.code == "ja",
-      readingOrder = currentReadingOrderFor(forcedSourceLanguage),
-    )
-  }
-
-  private fun showLanguagePicker(isSource: Boolean) {
-    sessionScope.launch {
-      langStateManager.refreshLanguageAvailability()
-      val availableLangs = overlayTextTranslationHelper.awaitAvailableLanguages(isSource)
-      menuManager?.showLanguagePicker(
-        isSource = isSource,
-        availableLangs = availableLangs,
-      ) { language ->
-        if (isSource) {
-          if (language == null) {
-            isAutoSource = true
-          } else {
-            isAutoSource = false
-            forcedSourceLanguage = language
-          }
-          syncReadingOrderForSource()
-        } else {
-          forcedTargetLanguage = language
-        }
-        updateToolbarLabels()
-        retranslate()
-      }
-    }
-  }
-
-  private fun toggleJapaneseOcrMode() {
-    if (forcedSourceLanguage?.code != "ja") return
-    ocrReadingOrder =
-      when (ocrReadingOrder) {
-        null -> ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT
-        ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> ReadingOrder.LEFT_TO_RIGHT
-        ReadingOrder.LEFT_TO_RIGHT -> null
-      }
-    updateToolbarLabels()
-    retranslate()
-  }
-
-  private fun currentReadingOrderFor(language: Language?): ReadingOrder? =
-    if (language?.code == "ja") {
-      ocrReadingOrder
-    } else {
-      null
-    }
-
-  private fun syncReadingOrderForSource() {
-    if (forcedSourceLanguage?.code != "ja") {
-      ocrReadingOrder = null
-    }
+  private fun showLanguagePicker(side: OverlayLanguageSide) {
+    val availability = LanguageAvailabilityState.of(catalogRepository.catalog.value)
+    val languages = overlayPickerLanguages(availability, languageMetadataManager.metadata.value, side)
+    menuManager?.showLanguagePicker(side, selection, languages) { applySelection(it) }
   }
 
   private fun showDotsMenu() {
@@ -717,7 +636,13 @@ class TranslatorVoiceInteractionSession(
   }
 
   private fun openMainApp() {
-    startAssistantActivity(Intent(context, MainActivity::class.java))
+    val intent = Intent(context, MainActivity::class.java)
+    // startAssistantActivity only exists from API 26; older sessions launch through their own context.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      startAssistantActivity(intent)
+    } else {
+      context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
     hide()
   }
 

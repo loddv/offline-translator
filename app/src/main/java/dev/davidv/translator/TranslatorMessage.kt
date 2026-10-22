@@ -25,31 +25,41 @@ enum class FromLangChange {
 }
 
 sealed class TranslatorMessage {
+  // Sent only from screens that exist while a language pair is selected; the pair they act on
+  // is the session's current one.
+  sealed interface PairMessage
+
   data class TextInput(
     val text: String,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data class FromLang(
     val language: Language,
     val change: FromLangChange = FromLangChange.KeepTarget,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data class ToLang(
     val language: Language,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data class AddTab(
     val language: Language,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data class RemoveTab(
     val language: Language,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data class SetImageUri(
     val uri: Uri,
     val deleteAfterLoad: Boolean = false,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data class SetDocumentPath(
     val path: String,
@@ -60,30 +70,16 @@ sealed class TranslatorMessage {
 
   data object ShareTranslatedImage : TranslatorMessage()
 
-  data object ToggleJapaneseOcrMode : TranslatorMessage()
+  data object ToggleJapaneseOcrMode : TranslatorMessage(), PairMessage
 
-  data object SwapLanguages : TranslatorMessage()
+  data object SwapLanguages : TranslatorMessage(), PairMessage
 
-  data object EnableAutoSource : TranslatorMessage()
+  data object EnableAutoSource : TranslatorMessage(), PairMessage
 
   data object ClearInput : TranslatorMessage()
 
-  data class InitializeLanguages(
-    val from: Language,
-    val to: Language,
-  ) : TranslatorMessage()
-
-  data class ImageTextDetected(
-    val extractedText: String,
-  ) : TranslatorMessage()
-
   data class DictionaryLookup(
     val str: String,
-    val language: Language,
-  ) : TranslatorMessage()
-
-  data class SpeakTranslatedText(
-    val text: String,
     val language: Language,
   ) : TranslatorMessage()
 
@@ -94,7 +90,8 @@ sealed class TranslatorMessage {
    */
   data class Steer(
     val forcedPrefix: String,
-  ) : TranslatorMessage()
+  ) : TranslatorMessage(),
+    PairMessage
 
   data object PopDictionary : TranslatorMessage()
 

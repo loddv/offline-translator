@@ -21,9 +21,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import uniffi.translator_core.OcrSourceSelection
 import uniffi.translator_core.PreparedImageOverlay
@@ -37,23 +34,10 @@ class TranslationCoordinator(
   private val imageProcessor: ImageProcessor,
   private val settingsManager: SettingsManager,
 ) {
-  private val _isTranslating = MutableStateFlow(false)
-  val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
-
-  private val _isOcrInProgress = MutableStateFlow(false)
-  val isOcrInProgress: StateFlow<Boolean> = _isOcrInProgress.asStateFlow()
-
-  var lastTranslatedInput: String = ""
-
   suspend fun preloadModel(
     from: Language,
     to: Language,
-  ) {
-    if (_isTranslating.value) {
-      return
-    }
-    translationService.preloadModel(from, to)
-  }
+  ) = translationService.preloadModel(from, to)
 
   suspend fun translateText(
     from: Language,
@@ -62,18 +46,12 @@ class TranslationCoordinator(
   ): TranslationResult {
     if (text.isBlank()) return TranslationResult.Success(TranslatedText("", ""))
 
-    _isTranslating.value = true
     val result: TranslationResult
-    try {
-      val elapsed =
-        measureTimeMillis {
-          result = translationService.translate(from, to, text)
-        }
-      Log.d("TranslationCoordinator", "Translating ${text.length} chars from ${from.displayName} to ${to.displayName} took ${elapsed}ms")
-    } finally {
-      lastTranslatedInput = text
-      _isTranslating.value = false
-    }
+    val elapsed =
+      measureTimeMillis {
+        result = translationService.translate(from, to, text)
+      }
+    Log.d("TranslationCoordinator", "Translating ${text.length} chars from ${from.displayName} to ${to.displayName} took ${elapsed}ms")
     return result
   }
 
@@ -82,17 +60,10 @@ class TranslationCoordinator(
     to: Language,
     source: String,
     forcedPrefix: String,
-  ): TranslationResult {
-    _isTranslating.value = true
-    return try {
-      translationService.steer(from, to, source, forcedPrefix)
-    } finally {
-      _isTranslating.value = false
-    }
-  }
+  ): TranslationResult = translationService.steer(from, to, source, forcedPrefix)
 
   /** Abort the in-flight document translation (fast, mid-batch). */
-  fun cancelOngoingWork() = translationService.cancelOngoingWork()
+  fun cancelDocumentTranslation() = translationService.cancelDocumentTranslation()
 
   suspend fun translateDocumentPath(
     inputPath: String,
@@ -104,27 +75,21 @@ class TranslationCoordinator(
     onProgress: (DocumentTranslationProgress) -> Unit = {},
     isCancelled: () -> Boolean = { false },
   ): Result<String> {
-    _isTranslating.value = true
-    try {
-      val result =
-        translationService.translateDocumentPath(
-          inputPath = inputPath,
-          outputPath = outputPath,
-          from = from,
-          to = to,
-          translatePdfImages = translatePdfImages,
-          txtLayout = txtLayout,
-          onProgress = onProgress,
-          isCancelled = isCancelled,
-        )
-      result.onSuccess { path ->
-        Log.d("TranslationCoordinator", "Translated document to $path")
-      }
-      return result
-    } finally {
-      lastTranslatedInput = inputPath
-      _isTranslating.value = false
+    val result =
+      translationService.translateDocumentPath(
+        inputPath = inputPath,
+        outputPath = outputPath,
+        from = from,
+        to = to,
+        translatePdfImages = translatePdfImages,
+        txtLayout = txtLayout,
+        onProgress = onProgress,
+        isCancelled = isCancelled,
+      )
+    result.onSuccess { path ->
+      Log.d("TranslationCoordinator", "Translated document to $path")
     }
+    return result
   }
 
   suspend fun detectLanguageRobust(
@@ -155,30 +120,24 @@ class TranslationCoordinator(
     }
 
   suspend fun translateImageWithOverlay(
-    from: Language,
+    source: OverlaySource,
     to: Language,
     finalBitmap: Bitmap,
-    onMessage: (TranslatorMessage.ImageTextDetected) -> Unit,
-    readingOrder: ReadingOrder? = null,
-    isAutoSource: Boolean = false,
     onMissingDetectedLanguage: (Language) -> Unit = {},
     onOcrUnavailable: () -> Unit = {},
     onDetectedRegions: (List<uniffi.translator_core.OrientedRect>, Int, Int) -> Unit = { _, _, _ -> },
   ): ProcessedImageResult? =
     withContext(Dispatchers.IO) {
-      _isTranslating.value = true
       val totalStart = System.currentTimeMillis()
       try {
-        _isOcrInProgress.value = true
-        val catalog = imageProcessor.loadCatalog() ?: return@withContext null
+        val catalog = imageProcessor.loadCatalog()
         val minConfidence = settingsManager.settings.value.minConfidence
         val backgroundMode = settingsManager.settings.value.backgroundMode
         val maxImageSize = settingsManager.settings.value.maxImageSize
         val sourceSelection =
-          if (isAutoSource) {
-            OcrSourceSelection.Auto
-          } else {
-            OcrSourceSelection.Specific(uniffi.translator_core.LanguageCode(from.code))
+          when (source) {
+            is OverlaySource.Auto -> OcrSourceSelection.Auto
+            is OverlaySource.Fixed -> OcrSourceSelection.Specific(uniffi.translator_core.LanguageCode(source.language.code))
           }
         // Own the source pixels rust-side (one in-process copy via lockPixels, no byte[]/marshal),
         // then run detect → ocr → renderInto as separate cheap calls; the multi-MB image never
@@ -217,14 +176,14 @@ class TranslationCoordinator(
               sourceSelection,
               to,
               minConfidence,
-              readingOrder,
+              source.readingOrder,
               backgroundMode,
               detection,
             )
           } catch (e: uniffi.bindings.CatalogException.MissingAsset) {
             Log.d("OCR", "ocr failed: ${e.message}")
             val missingDetected =
-              if (isAutoSource) {
+              if (source is OverlaySource.Auto) {
                 detectedLanguageCodeFromMissingAsset(e.message)?.let(catalog::languageByCode)
               } else {
                 null
@@ -243,7 +202,6 @@ class TranslationCoordinator(
             ocrImage.close()
             return@withContext null
           }
-        _isOcrInProgress.value = false
         Log.i(
           "TranslationCoordinator",
           "detect+ocr (lockpixels, no marshal): ${System.currentTimeMillis() - translateStart}ms",
@@ -251,7 +209,6 @@ class TranslationCoordinator(
         Log.d("OCR", "complete, blocks=${plan.blocks.size}")
 
         val extractedText = plan.extractedText
-        onMessage(TranslatorMessage.ImageTextDetected(extractedText))
 
         val output =
           Bitmap.createBitmap(finalBitmap.width, finalBitmap.height, Bitmap.Config.ARGB_8888)
@@ -285,9 +242,6 @@ class TranslationCoordinator(
       } catch (e: Exception) {
         Log.e("TranslationCoordinator", "Exception ${e.stackTrace}")
         null
-      } finally {
-        _isOcrInProgress.value = false
-        _isTranslating.value = false
       }
     }
 
@@ -295,13 +249,11 @@ class TranslationCoordinator(
     cachedPlan: PreparedImageOverlay,
     from: Language,
     to: Language,
-    onMessage: (TranslatorMessage.ImageTextDetected) -> Unit,
     ocrImage: uniffi.bindings.OcrImage? = null,
   ): ProcessedImageResult? =
     withContext(Dispatchers.IO) {
-      _isTranslating.value = true
       try {
-        val catalog = imageProcessor.loadCatalog() ?: return@withContext null
+        val catalog = imageProcessor.loadCatalog()
 
         // Fast path: the source pixels are still owned rust-side, so re-render the cached OCR
         // result into a fresh display bitmap without re-OCR or any image copy across the FFI.
@@ -335,7 +287,6 @@ class TranslationCoordinator(
               NativeBitmap.unlockPixels(output)
             }
           val extractedText = res.plan.extractedText
-          onMessage(TranslatorMessage.ImageTextDetected(extractedText))
           return@withContext ProcessedImageResult(
             correctedBitmap = output,
             extractedText = extractedText,
@@ -355,7 +306,6 @@ class TranslationCoordinator(
           }
 
         val extractedText = plan.extractedText
-        onMessage(TranslatorMessage.ImageTextDetected(extractedText))
         lateinit var overlayBitmap: Bitmap
         var translatedWords: List<uniffi.translator_core.PositionedWord> = emptyList()
         val translatePaint =
@@ -377,8 +327,6 @@ class TranslationCoordinator(
       } catch (e: Exception) {
         Log.e("TranslationCoordinator", "Exception ${e.stackTrace}")
         null
-      } finally {
-        _isTranslating.value = false
       }
     }
 

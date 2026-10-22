@@ -2,23 +2,29 @@ use std::sync::{Arc, Mutex};
 
 use thiserror::Error;
 use translator::TranslatorSession;
-use translator::http::{HttpServer, HttpServerConfig, SessionSource};
+use translator::http::{HttpServer, HttpServerConfig, ServeSettings, ServerHost};
 
 use crate::uniffi_catalog::CatalogHandle;
 
-/// Hands out the catalog to serve a request with. The app re-opens its
-/// catalog after downloads and migrations, so the server asks per request
-/// instead of holding the one it was started with.
+/// Hands out the catalog and settings to serve a request with. The app
+/// re-opens its catalog after downloads and migrations, and the user changes
+/// settings while the server runs, so the server asks per request instead of
+/// holding what it was started with.
 #[uniffi::export(with_foreign)]
-pub trait HttpSessionSource: Send + Sync {
+pub trait HttpServerHost: Send + Sync {
     fn catalog(&self) -> Option<Arc<CatalogHandle>>;
+    fn settings(&self) -> ServeSettings;
 }
 
-struct ForeignSessionSource(Arc<dyn HttpSessionSource>);
+struct ForeignServerHost(Arc<dyn HttpServerHost>);
 
-impl SessionSource for ForeignSessionSource {
+impl ServerHost for ForeignServerHost {
     fn session(&self) -> Option<Arc<TranslatorSession>> {
         self.0.catalog().map(|catalog| catalog.session.clone())
+    }
+
+    fn settings(&self) -> ServeSettings {
+        self.0.settings()
     }
 }
 
@@ -48,12 +54,12 @@ impl HttpServerHandle {
 #[uniffi::export]
 pub fn start_http_server(
     config: HttpServerConfig,
-    sessions: Arc<dyn HttpSessionSource>,
+    host: Arc<dyn HttpServerHost>,
 ) -> Result<Arc<HttpServerHandle>, HttpServerError> {
     crate::init_logging();
     let server = translator::http::start(
         config,
-        Arc::new(ForeignSessionSource(sessions)),
+        Arc::new(ForeignServerHost(host)),
         Arc::new(crate::android_font_provider::AndroidFontProvider),
     )
     .map_err(|error| HttpServerError::Start {

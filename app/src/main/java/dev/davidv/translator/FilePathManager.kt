@@ -3,7 +3,6 @@ package dev.davidv.translator
 import android.content.Context
 import android.os.Build
 import android.os.Environment
-import android.util.Log
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 import java.io.File
@@ -12,13 +11,6 @@ class FilePathManager(
   val context: Context,
   private val settingsFlow: StateFlow<AppSettings>,
 ) {
-  private val catalogLock = Any()
-
-  // Kotlin treats LanguageCatalog as an immutable snapshot.
-  // FilePathManager owns the current cached snapshot reference and swaps it on reload.
-  private var cachedCatalog: LanguageCatalog? = null
-  private var cachedCatalogBaseDir: String? = null
-
   private val baseDir: File
     get() =
       if (settingsFlow.value.useExternalStorage) {
@@ -85,103 +77,5 @@ class FilePathManager(
         .put("version", version)
         .toString(),
     )
-    invalidateCatalog()
-  }
-
-  fun applyDeletePlan(plan: DeletePlan) {
-    plan.directoryPaths.forEach { relativePath ->
-      val directory = resolveInstallPath(relativePath)
-      if (directory.exists() && directory.deleteRecursively()) {
-        Log.i("FilePathManager", "Deleted directory $relativePath")
-      }
-    }
-
-    plan.filePaths.forEach { relativePath ->
-      val file = resolveInstallPath(relativePath)
-      if (file.exists() && file.delete()) {
-        Log.i("FilePathManager", "Deleted file $relativePath")
-      }
-    }
-
-    invalidateCatalog()
-  }
-
-  fun loadCatalog(): LanguageCatalog? {
-    val baseDirPath = currentBaseDir().absolutePath
-    synchronized(catalogLock) {
-      cachedCatalog?.takeIf { cachedCatalogBaseDir == baseDirPath }?.let { return it }
-      val catalog = openCatalog(baseDirPath)
-      replaceCachedCatalogLocked(catalog, baseDirPath)
-      return catalog
-    }
-  }
-
-  fun reloadCatalog(): LanguageCatalog? =
-    synchronized(catalogLock) {
-      val baseDirPath = currentBaseDir().absolutePath
-      val catalog = openCatalog(baseDirPath)
-      replaceCachedCatalogLocked(catalog, baseDirPath)
-      catalog
-    }
-
-  fun invalidateCatalog() {
-    synchronized(catalogLock) {
-      replaceCachedCatalogLocked(null, null)
-    }
-  }
-
-  private fun openCatalog(baseDirPath: String): LanguageCatalog? {
-    // Older catalog formats served under earlier filenames stay served for old
-    // app versions, but their on-disk copies are stale once this build moves to
-    // a newer one. Delete every superseded index_v*.json, keeping only the one
-    // this build reads.
-    val currentCatalogName = getCatalogFile().name
-    baseDir
-      .listFiles { file -> file.name.matches(Regex("index_v\\d+\\.json")) && file.name != currentCatalogName }
-      ?.forEach { it.delete() }
-    // The kokoro ONNX engine is gone (dropped from v5, unloadable under MNN). Its
-    // 92 MB core blob is no longer in any pack, so reclaim it directly here.
-    File(baseDir, "bin/kokoro/kokoro-v1.0.int8.onnx").delete()
-    val bundledJson =
-      try {
-        context.assets.open("index_v6.json").bufferedReader().readText()
-      } catch (e: Exception) {
-        Log.e("FilePathManager", "Error reading bundled catalog index", e)
-        null
-      }
-
-    val diskJson =
-      try {
-        getCatalogFile().takeIf(File::exists)?.readText()
-      } catch (e: Exception) {
-        Log.w("FilePathManager", "Error reading cached catalog index", e)
-        null
-      }
-
-    val catalog =
-      try {
-        when {
-          bundledJson != null -> LanguageCatalog.open(bundledJson, diskJson, baseDirPath)
-          diskJson != null -> LanguageCatalog.open(diskJson, null, baseDirPath)
-          else -> null
-        }
-      } catch (e: Exception) {
-        Log.e("FilePathManager", "Error loading catalog index", e)
-        null
-      }
-
-    if (catalog == null) {
-      Log.e("FilePathManager", "No valid catalog found")
-    }
-    return catalog
-  }
-
-  private fun replaceCachedCatalogLocked(
-    newCatalog: LanguageCatalog?,
-    baseDirPath: String?,
-  ) {
-    if (cachedCatalog === newCatalog && cachedCatalogBaseDir == baseDirPath) return
-    cachedCatalog = newCatalog
-    cachedCatalogBaseDir = baseDirPath
   }
 }

@@ -107,8 +107,7 @@ private fun convertGroup(
  */
 @Composable
 fun MigrationGate(
-  filePathManager: FilePathManager,
-  onMigrated: () -> Unit,
+  catalogRepository: CatalogRepository,
   content: @Composable () -> Unit,
 ) {
   var state by remember { mutableStateOf<MigrationUiState>(MigrationUiState.Working) }
@@ -125,35 +124,30 @@ fun MigrationGate(
 
   // Phase 1: plan + convert the required doc-detect models silently (no per-file
   // bar — just the spinner). Then either pass (no TTS) or surface the mandatory
-  // TTS decision. `migrated` distinguishes "did real work" from "nothing to do"
-  // so we only refresh availability when something actually changed.
+  // TTS decision.
   LaunchedEffect(Unit) {
     Log.i(TAG, "phase1 LaunchedEffect ENTER")
-    val (outcome, migrated) =
+    state =
       withContext(Dispatchers.IO) {
-        val catalog =
-          filePathManager.loadCatalog() ?: return@withContext MigrationUiState.Passed to false
+        val catalog = catalogRepository.catalog.value
         val plan = catalog.planMigration()
         Log.i(TAG, "phase1 plan size=${plan.size}")
-        if (plan.isEmpty()) return@withContext MigrationUiState.Passed to false
+        if (plan.isEmpty()) return@withContext MigrationUiState.Passed
 
         val (docDetect, tts) = plan.partition { it.feature == FEATURE_DOC_DETECT }
         if (docDetect.isNotEmpty()) {
-          convertGroup(catalog.baseDir, docDetect, { _, _, _ -> }) { catalog.discardMigration(listOf(it)) }
+          convertGroup(catalog.baseDir, docDetect, { _, _, _ -> }) { catalogRepository.discardMigration(listOf(it)) }
         }
         ttsJobs = tts
         if (tts.isEmpty()) {
-          filePathManager.invalidateCatalog()
-          MigrationUiState.Passed to true
+          MigrationUiState.Passed
         } else {
           MigrationUiState.AwaitTtsDecision(
             ttsCount = tts.count { it.needsConvert },
             savedBytes = savedBytes(tts.filter { it.needsConvert }),
-          ) to false
+          )
         }
       }
-    state = outcome
-    if (migrated) onMigrated()
   }
 
   val finishTts: (convert: Boolean) -> Unit = { convert ->
@@ -162,18 +156,14 @@ fun MigrationGate(
       ttsHandled = true
       scope.launch {
         withContext(Dispatchers.IO) {
-          val catalog = filePathManager.loadCatalog()
-          if (catalog != null) {
-            if (convert) {
-              convertGroup(catalog.baseDir, ttsJobs, ttsProgress) { catalog.discardMigration(listOf(it)) }
-            } else {
-              // Drop the voices: delete every source .onnx without converting.
-              catalog.discardMigration(ttsJobs)
-            }
+          val catalog = catalogRepository.catalog.value
+          if (convert) {
+            convertGroup(catalog.baseDir, ttsJobs, ttsProgress) { catalogRepository.discardMigration(listOf(it)) }
+          } else {
+            // Drop the voices: delete every source .onnx without converting.
+            catalogRepository.discardMigration(ttsJobs)
           }
-          filePathManager.invalidateCatalog()
         }
-        onMigrated()
         state = MigrationUiState.Passed
       }
     }

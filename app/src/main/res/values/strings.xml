@@ -41,10 +41,13 @@
     <string name="settings_hide_input">Hide input</string>
     <string name="settings_popup_position">Popup position</string>
     <string name="settings_popup_size">Popup size: %1$d%%</string>
+    <string name="settings_popup_size_expanded">Popup size: Expanded</string>
     <string name="settings_screen_translation">Screen translation</string>
     <string name="settings_screen_translation_desc">Translate text directly on top of other apps.</string>
     <string name="settings_floating_button">Always-on button</string>
     <string name="settings_floating_button_desc">Requires accessibility role</string>
+    <string name="settings_offer_accessibility_service">Accessibility service</string>
+    <string name="settings_offer_accessibility_service_desc">Turn off to remove the app from Android\'s accessibility settings; the always-on button stops working</string>
     <string name="settings_shortcut">Translate screen on shortcut</string>
     <string name="settings_shortcut_desc">Long-press home or power to trigger</string>
     <string name="settings_on_shortcut">On shortcut invocation</string>
@@ -116,6 +119,7 @@
     <!-- camera / browser / screen translate -->
     <string name="camera_permission_rationale">Camera permission is needed for live translate.</string>
     <string name="camera_need_ocr_models">You need to download the text-recognition models for this language</string>
+    <string name="browser_page_language_missing">This page is in %1$s, which isn\'t installed</string>
     <string name="browser_no_source_language">No source language available. Install one from the main screen first, or set a default source language in settings.</string>
     <string name="browser_reader_unavailable">Reader mode unavailable for this page</string>
     <string name="browser_translate_image">Translate image</string>
@@ -155,6 +159,9 @@
     <string name="download_catalog_save_failed">Failed to save catalog</string>
     <string name="download_unknown_error">Unknown error</string>
     <string name="download_catalog_failed">Failed to download catalog: %1$s</string>
+    <string name="download_notif_channel_name">Downloads</string>
+    <string name="download_notif_channel_desc">Shows progress while language data downloads</string>
+    <string name="download_notif_title">Downloading language data</string>
 
     <!-- assistant overlay status -->
     <string name="assistant_invoke_prompt">Invoke this assistant on top of text to translate it</string>
@@ -281,9 +288,12 @@
     <string name="a11y_dictionary_mode_on">Exit dictionary mode</string>
     <string name="a11y_dictionary_mode_off">Dictionary mode: tap a word to look it up</string>
     <string name="a11y_source_document">Document</string>
+    <string name="a11y_input_sources">Input sources</string>
     <string name="a11y_source_photos">Photos</string>
     <string name="a11y_source_gallery">Gallery</string>
     <string name="a11y_source_camera">Camera</string>
+    <string name="shortcut_live_camera_short">Camera</string>
+    <string name="shortcut_live_camera_long">Translate with the camera</string>
     <string name="a11y_back">Back</string>
     <string name="a11y_reverse_translation_direction">Reverse translation direction</string>
     <string name="a11y_settings">Settings</string>

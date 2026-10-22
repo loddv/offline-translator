@@ -25,13 +25,8 @@ import uniffi.bindings.CatalogException
 class TranslationService(
   private val settingsManager: SettingsManager,
   private val filePathManager: FilePathManager,
+  private val catalogRepository: CatalogRepository,
 ) {
-  companion object {
-    fun cleanup() {
-      // cache now lives in the native catalog translation layer
-    }
-  }
-
   private val transliterateBinding = TransliterateBinding()
 
   // / Requires the translation pairs to be available
@@ -41,7 +36,7 @@ class TranslationService(
   ) = withContext(Dispatchers.IO) {
     if (from == to) return@withContext
 
-    val catalog = filePathManager.loadCatalog() ?: return@withContext
+    val catalog = catalogRepository.catalog.value
     catalog.warmTranslationModels(from, to)
   }
 
@@ -52,7 +47,7 @@ class TranslationService(
   ): List<String> =
     withContext(Dispatchers.IO) {
       if (fragments.isEmpty() || from == to) return@withContext fragments
-      val catalog = filePathManager.loadCatalog() ?: return@withContext fragments
+      val catalog = catalogRepository.catalog.value
       try {
         catalog.translateHtmlFragments(from, to, fragments)
       } catch (e: CatalogException) {
@@ -68,9 +63,7 @@ class TranslationService(
     availableLanguages: List<Language>,
   ): BatchTextTranslationOutput =
     withContext(Dispatchers.IO) {
-      val catalog =
-        filePathManager.loadCatalog()
-          ?: return@withContext BatchTextTranslationOutput.NothingToTranslate(NothingReason.NO_TRANSLATABLE_TEXT)
+      val catalog = catalogRepository.catalog.value
 
       val result =
         catalog.translateMixedTexts(inputs, forcedSourceLanguage, targetLanguage, availableLanguages)
@@ -93,9 +86,7 @@ class TranslationService(
     text: String,
   ): TranslationResult =
     withContext(Dispatchers.IO) {
-      val catalog =
-        filePathManager.loadCatalog()
-          ?: return@withContext TranslationResult.Error("Catalog unavailable")
+      val catalog = catalogRepository.catalog.value
       val withAlternatives =
         try {
           catalog.translateTextWithAlternatives(from, to, text)
@@ -130,9 +121,7 @@ class TranslationService(
     forcedPrefix: String,
   ): TranslationResult =
     withContext(Dispatchers.IO) {
-      val catalog =
-        filePathManager.loadCatalog()
-          ?: return@withContext TranslationResult.Error("Catalog unavailable")
+      val catalog = catalogRepository.catalog.value
       val steered =
         try {
           catalog.steer(from, to, source, forcedPrefix)
@@ -159,8 +148,8 @@ class TranslationService(
    * button can call it directly; the cached catalog is the same instance
    * running the translation, so slimt's workers stop within ~one batch.
    */
-  fun cancelOngoingWork() {
-    filePathManager.loadCatalog()?.cancelOngoingWork()
+  fun cancelDocumentTranslation() {
+    catalogRepository.catalog.value.cancelOngoingWork()
   }
 
   suspend fun translateDocumentPath(
@@ -174,9 +163,7 @@ class TranslationService(
     isCancelled: () -> Boolean = { false },
   ): Result<String> =
     withContext(Dispatchers.IO) {
-      val catalog =
-        filePathManager.loadCatalog()
-          ?: return@withContext Result.failure(IllegalStateException("Catalog unavailable"))
+      val catalog = catalogRepository.catalog.value
       try {
         Result.success(
           catalog.translateDocumentPath(inputPath, outputPath, from, to, translatePdfImages, txtLayout, onProgress, isCancelled),

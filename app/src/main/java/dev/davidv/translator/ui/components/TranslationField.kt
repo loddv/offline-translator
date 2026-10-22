@@ -21,7 +21,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.res.Configuration
-import android.widget.TextView
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -66,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatedText
+import dev.davidv.translator.ui.theme.AppLayout
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -108,7 +108,6 @@ fun TranslationField(
   val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
   val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f).toArgb()
   val fontSize = textStyle.fontSize.value
-  val smallerFontSize = fontSize * 0.7f
   val translationOutputDescription = stringResource(R.string.a11y_translation_output)
 
   TranslationCard(
@@ -240,19 +239,10 @@ fun TranslationField(
         )
 
         if (text?.transliterated != null) {
-          AndroidView(
-            factory = { context ->
-              TextView(context).apply {
-                this.text = text.transliterated
-                this.textSize = smallerFontSize
-                this.setTextColor(textColor)
-                this.setTextIsSelectable(true)
-              }
-            },
-            update = { textView ->
-              textView.text = text.transliterated
-              textView.textSize = smallerFontSize
-            },
+          TransliterationText(
+            text = text.transliterated,
+            mainStyle = textStyle,
+            interaction = TransliterationInteraction.Selectable,
             modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
           )
         }
@@ -284,10 +274,11 @@ fun SpeechPlaybackButton(
       MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+  val dimens = AppLayout.dimens
   Box(
     modifier =
       modifier
-        .size(40.dp),
+        .size(dimens.toolButtonSize),
   ) {
     Box(
       modifier =
@@ -317,7 +308,7 @@ fun SpeechPlaybackButton(
           painter = painterResource(id = if (isAudioPlaying) R.drawable.stop else R.drawable.volume_up),
           contentDescription = null,
           tint = tint,
-          modifier = Modifier.size(24.dp),
+          modifier = Modifier.size(dimens.toolIconSize),
         )
       }
     }

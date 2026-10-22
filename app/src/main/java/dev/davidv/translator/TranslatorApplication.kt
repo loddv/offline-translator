@@ -25,33 +25,37 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.UserManager
 import android.util.Log
+import androidx.annotation.RequiresApi
 import dev.davidv.translator.adblock.AdblockManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class TranslatorApplication : Application() {
   lateinit var settingsManager: SettingsManager
   lateinit var languageMetadataManager: LanguageMetadataManager
   lateinit var filePathManager: FilePathManager
+  lateinit var catalogRepository: CatalogRepository
+  lateinit var downloadManager: DownloadManager
   lateinit var imageProcessor: ImageProcessor
   lateinit var translationService: TranslationService
   lateinit var speechService: SpeechService
   lateinit var languageDetector: LanguageDetector
   lateinit var translationCoordinator: TranslationCoordinator
   lateinit var adblockManager: AdblockManager
-  val languagesFlow = kotlinx.coroutines.flow.MutableStateFlow<List<Language>>(emptyList())
-  var languageCatalog: LanguageCatalog? = null
-    private set
-
-  /** Re-open the app-level catalog after on-disk model files change (e.g. the
-   *  ONNX→MNN migration), so gates like doc-align see the new state. */
-  fun reloadLanguageCatalog() {
-    languageCatalog = filePathManager.reloadCatalog()
-    languagesFlow.value = languageCatalog?.languageList ?: emptyList()
-  }
+  private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
   private var servicesInitialized = false
 
   override fun onCreate() {
     super.onCreate()
+    installIsrgRootOnLegacyAndroid(this)
 
     // The assistant VoiceInteractionService is directBootAware, so the system starts
     // this process before the user unlocks. Service init below touches credential-encrypted
@@ -65,6 +69,7 @@ class TranslatorApplication : Application() {
     initializeServices()
   }
 
+  @RequiresApi(Build.VERSION_CODES.N)
   private fun isUserUnlocked(): Boolean = getSystemService(UserManager::class.java).isUserUnlocked
 
   private fun registerUnlockReceiver() {
@@ -75,11 +80,19 @@ class TranslatorApplication : Application() {
           intent: Intent,
         ) {
           Log.d("TranslatorApplication", "User unlocked; running deferred service init")
-          initializeServices()
+          ensureServicesInitialized()
           unregisterReceiver(this)
         }
       }
     registerReceiver(receiver, IntentFilter(Intent.ACTION_USER_UNLOCKED))
+  }
+
+  /** Services started in a process that came up during direct boot can be created after
+   *  unlock but before ACTION_USER_UNLOCKED reaches [registerUnlockReceiver], so they call
+   *  this before touching the shared instances instead of racing the broadcast. */
+  fun ensureServicesInitialized() {
+    check(Build.VERSION.SDK_INT < Build.VERSION_CODES.N || isUserUnlocked()) { "Application services require an unlocked user" }
+    initializeServices()
   }
 
   private fun initializeServices() {
@@ -91,44 +104,28 @@ class TranslatorApplication : Application() {
 
     settingsManager = SettingsManager(this)
     filePathManager = FilePathManager(this, settingsManager.settings)
+    catalogRepository = CatalogRepository.open(this, filePathManager)
+    launchAppEffects(appScope, this, settingsManager, catalogRepository)
 
-    if (isTtsEngineProcess()) {
-      Log.d("TranslatorApplication", "Initialized lightweight TTS engine process")
-      return
-    }
-
-    languageCatalog = filePathManager.loadCatalog()
-    languagesFlow.value = languageCatalog?.languageList ?: emptyList()
+    val languagesFlow =
+      catalogRepository.catalog
+        .map { it.languageList }
+        .stateIn(appScope, SharingStarted.Eagerly, catalogRepository.catalog.value.languageList)
     languageMetadataManager = LanguageMetadataManager(this, languagesFlow)
-    imageProcessor = ImageProcessor(this, filePathManager)
-    translationService = TranslationService(settingsManager, filePathManager)
-    speechService = SpeechService(settingsManager, filePathManager)
-    languageDetector = LanguageDetector { code -> languageCatalog?.languageByCode(code) }
+    imageProcessor = ImageProcessor(this, catalogRepository)
+    translationService = TranslationService(settingsManager, filePathManager, catalogRepository)
+    speechService = SpeechService(settingsManager, catalogRepository)
+    languageDetector = LanguageDetector { code -> catalogRepository.catalog.value.languageByCode(code) }
     translationCoordinator =
       TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
     adblockManager = AdblockManager(filePathManager)
-
-    if (settingsManager.settings.value.tapToTranslateEnabled) {
-      TapToTranslateNotification.show(this)
+    downloadManager = DownloadManager(this, appScope, catalogRepository, filePathManager, settingsManager, adblockManager)
+    appScope.launch {
+      downloadManager.state
+        .map { foregroundDownloads(it) != null }
+        .distinctUntilChanged()
+        .filter { it }
+        .collect { DownloadService.start(this@TranslatorApplication) }
     }
-
-    if (settingsManager.settings.value.httpServerEnabled) {
-      settingsManager.applyHttpServerState(settingsManager.settings.value)
-    }
-
-    settingsManager.applyBrowserAliasState(settingsManager.settings.value.registerAsBrowser)
   }
-
-  private fun isTtsEngineProcess(): Boolean = currentProcessName().endsWith(":tts")
-
-  private fun currentProcessName(): String =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-      getProcessName()
-    } else {
-      try {
-        java.io.File("/proc/self/cmdline").readText().trimEnd('\u0000')
-      } catch (_: Exception) {
-        packageName
-      }
-    }
 }

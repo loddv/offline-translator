@@ -80,7 +80,8 @@ fun DocumentConfigureSheet(
   extension: String,
   initialFrom: Language,
   initialTo: Language,
-  availableLanguages: List<Language>,
+  sourceLanguages: List<Language>,
+  targetLanguages: List<Language>,
   languageMetadata: Map<Language, LanguageMetadata>,
   defaultTranslatePdfImages: Boolean,
   onDismiss: () -> Unit,
@@ -113,7 +114,7 @@ fun DocumentConfigureSheet(
       ) {
         LanguageSelector(
           selectedLanguage = selectedFrom,
-          availableLanguages = availableLanguages,
+          availableLanguages = sourceLanguages,
           languageMetadata = languageMetadata,
           onLanguageSelected = { selectedFrom = it },
           modifier = Modifier.weight(1f),
@@ -124,10 +125,11 @@ fun DocumentConfigureSheet(
             selectedFrom = selectedTo
             selectedTo = previousFrom
           },
+          enabled = selectedTo in sourceLanguages && selectedFrom in targetLanguages,
         )
         LanguageSelector(
           selectedLanguage = selectedTo,
-          availableLanguages = availableLanguages,
+          availableLanguages = targetLanguages,
           languageMetadata = languageMetadata,
           onLanguageSelected = { selectedTo = it },
           modifier = Modifier.weight(1f),

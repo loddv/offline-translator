@@ -9,7 +9,7 @@ import org.json.JSONObject
 import java.io.File
 
 class FilePathManager(
-  private val context: Context,
+  val context: Context,
   private val settingsFlow: StateFlow<AppSettings>,
 ) {
   private val catalogLock = Any()
@@ -39,6 +39,13 @@ class FilePathManager(
 
   fun currentBaseDir(): File = baseDir
 
+  fun getTranslatedDocumentsDir(): File =
+    File(context.cacheDir, "translated_documents").also { dir ->
+      if (!dir.exists()) {
+        dir.mkdirs()
+      }
+    }
+
   fun getDataDir(): File = File(baseDir, "bin")
 
   fun getTesseractDataDir(): File = File(baseDir, "tesseract/tessdata")
@@ -47,11 +54,13 @@ class FilePathManager(
 
   fun getDictionariesDir(): File = File(baseDir, "dictionaries")
 
+  fun getAdblockDir(): File = File(baseDir, "adblock")
+
   fun resolveInstallPath(relativePath: String): File = File(baseDir, relativePath)
 
   fun getDictionaryFile(language: Language): File = File(getDictionariesDir(), "${language.dictionaryCode}.dict")
 
-  fun getCatalogFile(): File = File(baseDir, "index.json")
+  fun getCatalogFile(): File = File(baseDir, "index_v3.json")
 
   fun getMucabFile(): File = File(getDataDir(), "mucab.bin")
 
@@ -128,7 +137,7 @@ class FilePathManager(
   private fun openCatalog(baseDirPath: String): LanguageCatalog? {
     val bundledJson =
       try {
-        context.assets.open("index.json").bufferedReader().readText()
+        context.assets.open("index_v3.json").bufferedReader().readText()
       } catch (e: Exception) {
         Log.e("FilePathManager", "Error reading bundled catalog index", e)
         null

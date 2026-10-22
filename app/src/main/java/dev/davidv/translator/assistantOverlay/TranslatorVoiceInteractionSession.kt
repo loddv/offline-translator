@@ -83,6 +83,8 @@ class TranslatorVoiceInteractionSession(
   private var readingOrderIconView: ImageView? = null
   private var ocrButtonView: View? = null
   private var ocrIconView: ImageView? = null
+  private var wandButtonView: View? = null
+  private var wandIconView: ImageView? = null
   private var menuManager: OverlayMenuManager? = null
   private var borderView: BorderWaveView? = null
   private var manualOcrSelectionView: ManualOcrSelectionView? = null
@@ -105,10 +107,14 @@ class TranslatorVoiceInteractionSession(
   private var processing = false
   private var translationJob: Job? = null
   private var forcedSourceLanguage: Language? = null
+  private var isAutoSource: Boolean = true
   private var forcedTargetLanguage: Language? = null
   private var ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT
   private var lastOcrBitmap: Bitmap? = null
   private var lastOcrRegion: Rect? = null
+  private var lastOriginalText: String = ""
+  private var lastTranslatedText: String = ""
+  private var initialOcrTriggered = false
   private var assistFallbackMessageShown = false
   private var assistFallbackStatusPendingHide = false
   private var assistCollectionTimedOut = false
@@ -363,6 +369,7 @@ class TranslatorVoiceInteractionSession(
     Log.d(tag, "AssistStructure received index=${state.index}/${state.count} windows=${structure.windowNodeCount}")
     logger.log(structure)
     capturedFragments += parser.parse(structure)
+    updateWandEnabledState()
     maybeProcessCapture()
   }
 
@@ -382,7 +389,10 @@ class TranslatorVoiceInteractionSession(
   }
 
   private fun maybeProcessCapture() {
-    if (processing) return
+    if (processing || initialOcrTriggered) {
+      updateWandEnabledState()
+      return
+    }
 
     val expectedCount = expectedAssistCount
     val haveAllAssistStates = expectedCount != null && receivedAssistIndexes.size >= expectedCount
@@ -390,23 +400,30 @@ class TranslatorVoiceInteractionSession(
     val screenshotReady = screenshotBitmap != null
     val noCaptureCallbacksArrived = !hasReceivedAssistCallback && !hasReceivedScreenshotCallback
     val screenshotExpected = isAssistScreenshotEnabled()
+    val canOcr = isAutoSource || ocrSourceLanguage() != null
     Log.d(
       tag,
-      "maybeProcessCapture blocks=${capturedFragments.size} expectedAssistCount=$expectedCount receivedAssist=${receivedAssistIndexes.size} assistReady=$assistReady screenshotReady=$screenshotReady screenshotExpected=$screenshotExpected timedOut=$assistCollectionTimedOut",
+      "maybeProcessCapture blocks=${capturedFragments.size} expectedAssistCount=$expectedCount receivedAssist=${receivedAssistIndexes.size} assistReady=$assistReady screenshotReady=$screenshotReady screenshotExpected=$screenshotExpected timedOut=$assistCollectionTimedOut canOcr=$canOcr",
     )
 
-    if (capturedFragments.isNotEmpty() && screenshotExpected && !screenshotReady && !assistCollectionTimedOut) {
-      Log.d(tag, "Waiting for screenshot callback before rendering structured overlays")
-      return
-    }
+    updateWandEnabledState()
 
-    if (capturedFragments.isEmpty() && assistReady && screenshotExpected && !hasReceivedScreenshotCallback && !assistCollectionTimedOut) {
-      Log.d(tag, "Waiting for screenshot callback before failing empty assist capture")
-      return
+    if (canOcr && screenshotExpected) {
+      if (screenshotReady) {
+        cancelAssistCollectionTimeout()
+        initialOcrTriggered = true
+        processing = true
+        runFullScreenOcr(screenshotBitmap!!)
+        return
+      }
+      if (!hasReceivedScreenshotCallback && !assistCollectionTimedOut) {
+        return
+      }
     }
 
     if (capturedFragments.isNotEmpty() && (screenshotReady || assistReady)) {
       cancelAssistCollectionTimeout()
+      initialOcrTriggered = true
       processing = true
       translateStructuredFragments(capturedFragments.toList(), screenshotBitmap)
       return
@@ -427,7 +444,8 @@ class TranslatorVoiceInteractionSession(
       processing = false
       showLoading(false)
       stopBorderPulse()
-      showStatus("No usable screen data received. Enable screenshots or try OCR.")
+      val msg = if (!canOcr) "Set a default source language for OCR, or enable 'Use text from screen'." else "No usable screen data received. Enable screenshots or try OCR."
+      showStatus(msg)
       return
     }
 
@@ -440,6 +458,15 @@ class TranslatorVoiceInteractionSession(
       stopBorderPulse()
     }
   }
+
+  private fun updateWandEnabledState() {
+    OverlayChromeFactory.setWandButtonEnabled(wandButtonView, wandIconView, capturedFragments.isNotEmpty())
+  }
+
+  private fun ocrSourceLanguage(): Language? =
+    forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguageCode?.let {
+      langStateManager.languageByCode(it)
+    }
 
   private fun scheduleAssistCollectionTimeout() {
     cancelAssistCollectionTimeout()
@@ -475,6 +502,21 @@ class TranslatorVoiceInteractionSession(
     translationJob =
       sessionScope.launch {
         val targetLanguage = overlayTextTranslationHelper.awaitTargetLanguage(forcedTargetLanguage)
+        if (isAutoSource) {
+          val combinedText = fragments.joinToString(" ") { it.text }
+          val translatorLanguages = langStateManager.languageState.value.translatorLanguages()
+          val detected =
+            translationCoordinator.detectLanguageRobust(
+              text = combinedText,
+              hint = forcedSourceLanguage,
+              availableLanguages = translatorLanguages,
+            )
+          if (detected != null && detected != forcedSourceLanguage) {
+            forcedSourceLanguage = detected
+            syncReadingOrderForSource()
+            updateToolbarLabels()
+          }
+        }
         when (
           val result =
             translationCoordinator.translateStructuredFragments(
@@ -487,6 +529,8 @@ class TranslatorVoiceInteractionSession(
         ) {
           is StructuredFragmentTranslationOutput.Success -> {
             ensureActive()
+            lastOriginalText = fragments.joinToString("\n") { it.text }
+            lastTranslatedText = result.blocks.joinToString("\n") { it.text }
             overlayRenderer.renderStyledBlocks(overlayContainer, result.blocks, systemBarTop)
             processing = false
             showLoading(false)
@@ -515,38 +559,48 @@ class TranslatorVoiceInteractionSession(
       }
   }
 
-  private fun runOcrFallback(screenshot: Bitmap) {
+  private fun runFullScreenOcr(screenshot: Bitmap) {
+    lastOcrBitmap = null
+    lastOcrRegion = null
+    overlayContainer.removeAllViews()
     setOcrButtonVisible(false)
-    val sourceLanguage =
-      forcedSourceLanguage
-        ?: settingsManager.settings.value.defaultSourceLanguageCode?.let { langStateManager.languageByCode(it) }
-    if (sourceLanguage == null) {
+    showLoading(true)
+    val sourceLanguage = ocrSourceLanguage()
+    if (!isAutoSource && sourceLanguage == null) {
       processing = false
       showLoading(false)
-      showStatus("No AssistStructure text. Set a default source language for OCR fallback.")
+      showStatus("Set a default source language for OCR.")
       return
     }
 
     val targetLanguage = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
-    val maxImageSize = settingsManager.settings.value.maxImageSize
+    val ocrSourceLanguage = sourceLanguage ?: targetLanguage
     val cropped = cropSystemBars(screenshot)
-    val copy = cropped.copy(Bitmap.Config.ARGB_8888, false)
+    val workingBitmap = cropped.copy(Bitmap.Config.ARGB_8888, false)
     if (cropped !== screenshot) cropped.recycle()
-    val workingBitmap = imageProcessor.downscaleImage(copy, maxImageSize)
-    if (workingBitmap !== copy) copy.recycle()
     translationJob =
       sessionScope.launch {
         val result =
           withContext(Dispatchers.IO) {
-            translationCoordinator.translateImageWithOverlay(sourceLanguage, targetLanguage, workingBitmap, onMessage = {})
+            translationCoordinator.translateImageWithOverlay(
+              ocrSourceLanguage,
+              targetLanguage,
+              workingBitmap,
+              onMessage = {},
+              readingOrder = currentReadingOrderFor(sourceLanguage),
+              isAutoSource = isAutoSource,
+            )
           }
         ensureActive()
         processing = false
         showLoading(false)
         if (result == null) {
-          showStatus("OCR fallback failed")
+          setOcrButtonVisible(true)
+          showStatus("OCR failed")
           return@launch
         }
+        lastOriginalText = result.extractedText
+        lastTranslatedText = result.translatedText
         val oldCropped = croppedBitmap
         if (oldCropped != null) {
           if (oldCropped === screenshotBitmap) screenshotBitmap = null
@@ -555,6 +609,7 @@ class TranslatorVoiceInteractionSession(
         croppedBitmap = result.correctedBitmap
         screenshotView.setImageBitmap(croppedBitmap)
         updateBackdrop()
+        setOcrButtonVisible(true)
         if (assistFallbackStatusPendingHide) {
           assistFallbackStatusPendingHide = false
           showStatus("App does not provide data, falling back to OCR", autoHideAfterMs = 3000)
@@ -562,6 +617,36 @@ class TranslatorVoiceInteractionSession(
           hideStatus()
         }
       }
+  }
+
+  private fun runStructuredFromCapture() {
+    if (capturedFragments.isEmpty()) {
+      showStatus("No structured text available from this app.", autoHideAfterMs = 2000)
+      return
+    }
+    lastOcrBitmap = null
+    lastOcrRegion = null
+    translationJob?.cancel()
+    translationJob = null
+    overlayContainer.removeAllViews()
+    restoreOriginalScreenshotView()
+    showLoading(true)
+    hideStatus()
+    setOcrButtonVisible(false)
+    processing = true
+    translateStructuredFragments(capturedFragments.toList(), screenshotBitmap)
+  }
+
+  private fun restoreOriginalScreenshotView() {
+    val original = screenshotBitmap ?: return
+    val freshCrop = cropSystemBars(original)
+    val oldCropped = croppedBitmap
+    if (oldCropped != null && oldCropped !== original && oldCropped !== freshCrop) {
+      oldCropped.recycle()
+    }
+    croppedBitmap = freshCrop
+    screenshotView.setImageBitmap(freshCrop)
+    updateBackdrop()
   }
 
   private fun startBorderPulse() {
@@ -609,6 +694,7 @@ class TranslatorVoiceInteractionSession(
     dismissMenu()
     hideStatus()
     overlayContainer.removeAllViews()
+    restoreOriginalScreenshotView()
     setOcrButtonActive(true)
 
     val selectionView = ManualOcrSelectionView(context)
@@ -716,11 +802,12 @@ class TranslatorVoiceInteractionSession(
       forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguageCode?.let {
         langStateManager.languageByCode(it)
       }
-    if (sourceLanguage == null) {
+    if (!isAutoSource && sourceLanguage == null) {
       showStatus("Set source language first for OCR")
       return
     }
     val targetLanguage = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
+    val ocrSourceLanguage = sourceLanguage ?: targetLanguage
 
     overlayContainer.removeAllViews()
     processing = true
@@ -734,11 +821,12 @@ class TranslatorVoiceInteractionSession(
         val result =
           withContext(Dispatchers.IO) {
             translationCoordinator.translateImageWithOverlay(
-              sourceLanguage,
+              ocrSourceLanguage,
               targetLanguage,
               bitmap,
               onMessage = {},
               readingOrder = currentReadingOrderFor(sourceLanguage),
+              isAutoSource = isAutoSource,
             )
           }
         ensureActive()
@@ -749,6 +837,8 @@ class TranslatorVoiceInteractionSession(
           showStatus("OCR failed")
           return@launch
         }
+        lastOriginalText = result.extractedText
+        lastTranslatedText = result.translatedText
         setOcrButtonVisible(true)
         setOcrButtonActive(false)
         showBitmapOverlay(result.correctedBitmap, region)
@@ -855,6 +945,10 @@ class TranslatorVoiceInteractionSession(
     receivedAssistIndexes.clear()
     expectedAssistCount = null
     processing = false
+    initialOcrTriggered = false
+    lastOriginalText = ""
+    lastTranslatedText = ""
+    OverlayChromeFactory.setWandButtonEnabled(wandButtonView, wandIconView, false)
     assistFallbackMessageShown = false
     assistFallbackStatusPendingHide = false
     assistCollectionTimedOut = false
@@ -896,7 +990,11 @@ class TranslatorVoiceInteractionSession(
         onReadingOrderClick = { toggleJapaneseOcrMode() },
         showOcrButton = true,
         onOcrClick = { startManualOcrSelection() },
+        onOcrLongClick = { triggerFullScreenOcr() },
+        showWandButton = true,
+        onWandClick = { runStructuredFromCapture() },
         onMenuClick = { showDotsMenu() },
+        isAutoSource = isAutoSource,
       )
     sourceLabelView = toolbarViews.sourceLabel
     targetLabelView = toolbarViews.targetLabel
@@ -904,7 +1002,27 @@ class TranslatorVoiceInteractionSession(
     readingOrderIconView = toolbarViews.readingOrderIcon
     ocrButtonView = toolbarViews.ocrButton
     ocrIconView = toolbarViews.ocrIcon
+    wandButtonView = toolbarViews.wandButton
+    wandIconView = toolbarViews.wandIcon
+    OverlayChromeFactory.setWandButtonEnabled(wandButtonView, wandIconView, false)
     return toolbarViews.root
+  }
+
+  private fun triggerFullScreenOcr() {
+    val screenshot = screenshotBitmap
+    if (screenshot == null) {
+      showStatus("No screenshot available for OCR")
+      return
+    }
+    translationJob?.cancel()
+    translationJob = null
+    overlayContainer.removeAllViews()
+    showLoading(true)
+    hideStatus()
+    setOcrButtonVisible(false)
+    setOcrButtonActive(false)
+    processing = true
+    runFullScreenOcr(screenshot)
   }
 
   private fun setOcrButtonVisible(visible: Boolean) {
@@ -946,6 +1064,7 @@ class TranslatorVoiceInteractionSession(
   private fun swapLanguages() {
     val oldSource = forcedSourceLanguage
     val oldTarget = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
+    isAutoSource = false
     forcedSourceLanguage = oldTarget
     forcedTargetLanguage = oldSource
     syncReadingOrderForSource()
@@ -966,12 +1085,13 @@ class TranslatorVoiceInteractionSession(
       setOcrButtonVisible(false)
       showLoading(true)
       hideStatus()
+      initialOcrTriggered = false
       maybeProcessCapture()
     }
   }
 
   private fun updateToolbarLabels() {
-    sourceLabelView?.text = forcedSourceLanguage?.shortDisplayName ?: "Auto"
+    sourceLabelView?.text = OverlayChromeFactory.formatSourceLabel(forcedSourceLanguage, isAutoSource)
     val currentTarget = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
     targetLabelView?.text = currentTarget?.shortDisplayName ?: "?"
     OverlayChromeFactory.updateReadingOrderButtonState(
@@ -991,7 +1111,12 @@ class TranslatorVoiceInteractionSession(
         availableLangs = availableLangs,
       ) { language ->
         if (isSource) {
-          forcedSourceLanguage = language
+          if (language == null) {
+            isAutoSource = true
+          } else {
+            isAutoSource = false
+            forcedSourceLanguage = language
+          }
           syncReadingOrderForSource()
         } else {
           forcedTargetLanguage = language
@@ -1029,9 +1154,24 @@ class TranslatorVoiceInteractionSession(
   private fun showDotsMenu() {
     menuManager?.showDotsMenu(
       listOf(
+        "Copy original text" to { copyToClipboard("Original text", lastOriginalText) },
+        "Copy translated text" to { copyToClipboard("Translated text", lastTranslatedText) },
         "Open App" to { openMainApp() },
       ),
     )
+  }
+
+  private fun copyToClipboard(
+    label: String,
+    text: String,
+  ) {
+    if (text.isBlank()) {
+      showStatus("Nothing to copy yet", autoHideAfterMs = 2000)
+      return
+    }
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+    showStatus("Copied $label", autoHideAfterMs = 2000)
   }
 
   private fun openMainApp() {

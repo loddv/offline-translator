@@ -64,7 +64,7 @@ def mirror_path_for_file(pack_or_feature, file_info: dict) -> str:
         return f"dictionaries/{ensure_version_prefix(name)}"
 
     if feature == "support":
-        if kind in {"tts-espeak-core", "tts-espeak-dict", "tts-kokoro-core"} and install_path:
+        if kind in {"tts-espeak-core", "tts-espeak-dict", "tts-kokoro-core", "tts-kokoro-mnn-core", "tts-kokoro-voices"} and install_path:
             return f"tts/{tail_after_bin(install_path)}"
         if kind == "mucab" and source_path:
             return f"dictionaries/{source_path.strip('/')}"
@@ -90,6 +90,8 @@ def mirror_path_for_file(pack_or_feature, file_info: dict) -> str:
 
 def apply_mirror_paths(catalog: dict) -> dict:
     for pack in catalog.get("packs", {}).values():
+        if pack.get("kind") == "adblock":
+            continue
         for file_info in pack.get("files", []):
             file_info["mirrorPath"] = mirror_path_for_file(pack, file_info)
     return catalog

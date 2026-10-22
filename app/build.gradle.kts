@@ -13,7 +13,7 @@ val defaultDevAbis = listOf("arm64-v8a", "x86_64")
 android {
   namespace = "dev.davidv.translator"
   compileSdk = 34
-  ndkVersion = "28.0.12674087"
+  ndkVersion = "28.0.13004108"
   buildToolsVersion = "34.0.0"
 
   sourceSets {
@@ -31,8 +31,8 @@ android {
     applicationId = "dev.davidv.translator"
     minSdk = 21
     targetSdk = 34
-    versionCode = 13
-    versionName = "0.3.2"
+    versionCode = 19
+    versionName = "0.6.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -82,6 +82,7 @@ android {
   buildFeatures {
     aidl = true
     compose = true
+    buildConfig = true
   }
 
   applicationVariants.all {
@@ -102,7 +103,7 @@ val androidSdkRoot =
   System.getenv("ANDROID_SDK_ROOT")
     ?: System.getenv("ANDROID_HOME")
     ?: throw GradleException("ANDROID_SDK_ROOT or ANDROID_HOME must be set")
-val ndk = "$androidSdkRoot/ndk/28.0.12674087"
+val ndk = "$androidSdkRoot/ndk/28.0.13004108"
 val bindingsAndroidApi = 28
 val onnxRuntimeRootDir = file("../third_party/onnxruntime")
 val onnxRuntimeSourceFingerprint =
@@ -163,6 +164,12 @@ fun cargoEncodedRustflags(abi: String? = null): String {
   return (
     base +
       listOf(
+        "-C",
+        "link-arg=-Wl,--threads=1",
+        "-C",
+        "link-arg=-Wl,--sort-section=name",
+        "-C",
+        "link-arg=-Wl,--sort-common",
         "-C",
         "link-arg=$rtLib",
       )
@@ -240,7 +247,6 @@ val abiToOnnxRuntimeTask =
           "--disable_ml_ops",
           "--disable_generation_ops",
           "--no_kleidiai",
-          "--use_xnnpack",
           "--no_sve",
           "--cmake_extra_defines",
           "CMAKE_CXX_STANDARD=20",
@@ -273,6 +279,26 @@ val abiToBindingsTask =
       inputs.file(bindingsRootDir.resolve("Cargo.lock"))
       inputs.file(bindingsRootDir.resolve(".cargo/config.toml"))
       inputs.dir(bindingsRootDir.resolve("src"))
+
+      // Local-dev convenience: auto-discover any `path = "..."`
+      // dependency in Cargo.toml and watch its `src/` so editing the
+      // path-deped crate (typically translator-rs in a sibling
+      // checkout) invalidates this task without a manual cache-bust.
+      // CI uses git deps — the parsed paths don't exist there, so the
+      // inputs.dir calls are skipped and behaviour is unchanged.
+      val cargoTomlText = bindingsRootDir.resolve("Cargo.toml").readText()
+      val pathDepRegex = Regex("""(?m)^\s*path\s*=\s*"([^"]+)"""")
+      pathDepRegex.findAll(cargoTomlText).forEach { match ->
+        val raw = match.groupValues[1]
+        val resolved =
+          if (File(raw).isAbsolute) File(raw) else bindingsRootDir.resolve(raw).normalize()
+        val srcDir = resolved.resolve("src")
+        if (srcDir.exists()) {
+          inputs.dir(srcDir)
+          val depCargo = resolved.resolve("Cargo.toml")
+          if (depCargo.exists()) inputs.file(depCargo)
+        }
+      }
       inputs.file(onnxRuntimeSharedLibrary(abi))
       inputs.property("cargoTarget", cargoTarget)
       inputs.property("androidApi", bindingsAndroidApi)
@@ -289,6 +315,15 @@ val abiToBindingsTask =
           environment("ORT_LIB_LOCATION", onnxRuntimeConfigDir(abi).absolutePath)
           environment("ORT_PREFER_DYNAMIC_LINK", "1")
           environment("CARGO_ENCODED_RUSTFLAGS", cargoEncodedRustflags(abi))
+          // CMake cross-compile contract for slimt-sys: parent build owns
+          // toolchain selection, the -sys crate just forwards these.
+          environment(
+            "CMAKE_TOOLCHAIN_FILE",
+            File(ndk, "build/cmake/android.toolchain.cmake").absolutePath,
+          )
+          environment("ANDROID_ABI", abi)
+          environment("ANDROID_PLATFORM", "android-$bindingsAndroidApi")
+          environment("CMAKE_GENERATOR", "Ninja")
           commandLine(
             "cargo",
             "ndk",
@@ -409,8 +444,12 @@ dependencies {
   implementation(libs.androidx.datastore.preferences)
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.kotlinx.serialization.json.v162)
-  implementation("com.vanniktech:android-image-cropper:4.6.0")
+  implementation("com.github.yalantis:ucrop:2.2.11")
   implementation("net.java.dev.jna:jna:5.14.0@aar")
+  implementation(libs.androidx.camera.core)
+  implementation(libs.androidx.camera.camera2)
+  implementation(libs.androidx.camera.lifecycle)
+  implementation(libs.androidx.camera.view)
 }
 
 ktlint {

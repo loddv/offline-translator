@@ -47,16 +47,27 @@ class SpeechService(
         )
       }
 
-      val speechSpeed = settingsManager.settings.value.ttsPlaybackSpeed.coerceIn(0.5f, 2.0f)
-      val selectedVoiceName = settingsManager.settings.value.ttsVoiceOverrides[language.code]
+      val settings = settingsManager.settings.value
+      val parsed = parseVoiceOverride(settings.ttsVoiceOverrides[language.code])
+      val selectedVoiceName = parsed?.voiceName
+      val selectedPackId = parsed?.packId
+      val speechSpeedVoiceName =
+        selectedVoiceName
+          ?: catalog.availableTtsVoices(language.code).firstOrNull()?.name
+      val speechSpeed =
+        speechSpeedVoiceName
+          ?.let { voiceName -> settings.ttsPlaybackSpeedOverrides["${language.code}:$voiceName"] }
+          ?: settings.ttsPlaybackSpeed
+      val boundedSpeechSpeed = speechSpeed.coerceIn(0.5f, 2.0f)
       Log.d(
         "SpeechService",
-        "Using TTS voiceName=$selectedVoiceName speechSpeed=$speechSpeed language=${language.code}",
+        "Using TTS pack=$selectedPackId voice=$selectedVoiceName speed=$boundedSpeechSpeed lang=${language.code}",
       )
       val chunkRequests =
         catalog.planSpeechChunks(
           languageCode = language.code,
           text = text,
+          packId = selectedPackId,
         )
       if (chunkRequests.isEmpty()) {
         return@withContext SpeechSynthesisResult.Error(
@@ -77,9 +88,10 @@ class SpeechService(
                 catalog.synthesizeSpeechPcm(
                   languageCode = language.code,
                   text = chunkRequest.content,
-                  speechSpeed = speechSpeed,
+                  speechSpeed = boundedSpeechSpeed,
                   voiceName = selectedVoiceName,
                   isPhonemes = chunkRequest.isPhonemes,
+                  packId = selectedPackId,
                 )
               } catch (e: uniffi.bindings.CatalogException) {
                 throw IllegalStateException(
@@ -112,6 +124,37 @@ class SpeechService(
       val catalog = filePathManager.loadCatalog() ?: return@withContext emptyList()
       catalog.availableTtsVoices(language.code)
     }
+
+  suspend fun installedTtsVoices(language: Language): List<uniffi.translator.InstalledTtsPack> =
+    withContext(Dispatchers.IO) {
+      val catalog = filePathManager.loadCatalog() ?: return@withContext emptyList()
+      catalog.installedTtsVoices(language.code)
+    }
+}
+
+data class VoiceOverride(
+  val packId: String?,
+  val voiceName: String,
+)
+
+private const val OVERRIDE_SEPARATOR = "|"
+
+fun encodeVoiceOverride(
+  packId: String,
+  voiceName: String,
+): String = "$packId$OVERRIDE_SEPARATOR$voiceName"
+
+fun parseVoiceOverride(raw: String?): VoiceOverride? {
+  if (raw.isNullOrBlank()) return null
+  val sepIndex = raw.indexOf(OVERRIDE_SEPARATOR)
+  return if (sepIndex < 0) {
+    VoiceOverride(packId = null, voiceName = raw)
+  } else {
+    VoiceOverride(
+      packId = raw.substring(0, sepIndex).takeIf(String::isNotBlank),
+      voiceName = raw.substring(sepIndex + 1),
+    )
+  }
 }
 
 sealed class SpeechSynthesisResult {

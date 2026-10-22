@@ -1,0 +1,10 @@
+New:
+- 'Auto' language source
+
+Fix:
+- Translated PDFs to non-latin were missing fonts and rendering as '?'
+
+Improve:
+- Translation speed
+- Translation of websites and documents
+- Translated PDFs have better layout matching

@@ -1,10 +1,10 @@
 {
-  "formatVersion": 2,
-  "generatedAt": 1776550317,
+  "formatVersion": 3,
+  "generatedAt": 1779352498,
   "dictionaryVersion": 1,
   "sources": {
     "languageIndexVersion": 1,
-    "languageIndexUpdatedAt": 1776550317,
+    "languageIndexUpdatedAt": 1779352498,
     "dictionaryIndexVersion": 1,
     "dictionaryIndexUpdatedAt": 1774864382,
     "gcsModelsUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json",
@@ -25,9 +25,11 @@
           "translate-en-ar"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ar"
+          "tesseract": "ocr-tesseract-ar",
+          "ppocr": "ocr-ppocr-arabic"
         },
-        "dictionary": "dict-ar"
+        "dictionary": "dict-ar",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "JO",
@@ -39,7 +41,8 @@
               "tts-piper-ar-jo-kareem-low"
             ]
           }
-        }
+        },
+        "sampleText": "قوس قزح ظاهرة جوية تنتج عن انعكاس الضوء وانكساره وتشتته في قطرات الماء، مما يؤدي إلى ظهور طيف من الألوان في السماء."
       }
     },
     "az": {
@@ -55,9 +58,11 @@
           "translate-en-az"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-az"
+          "tesseract": "ocr-tesseract-az",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-az"
+        "dictionary": "dict-az",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "AZ",
@@ -68,7 +73,8 @@
               "tts-mms-az-az-north-latin-mms"
             ]
           }
-        }
+        },
+        "sampleText": "Göy qurşağı işığın su damcılarında əks olunması, sınması və səpilməsi nəticəsində yaranan meteoroloji hadisədir və bunun nəticəsində səmada işıq spektri görünür."
       }
     },
     "be": {
@@ -83,9 +89,11 @@
           "translate-be-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-be"
+          "tesseract": "ocr-tesseract-be",
+          "ppocr": "ocr-ppocr-eslav"
         },
-        "dictionary": "dict-be"
+        "dictionary": "dict-be",
+        "preferredOcrEngine": "tesseract"
       }
     },
     "bg": {
@@ -101,9 +109,11 @@
           "translate-en-bg"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-bg"
+          "tesseract": "ocr-tesseract-bg",
+          "ppocr": "ocr-ppocr-cyrillic"
         },
-        "dictionary": "dict-bg"
+        "dictionary": "dict-bg",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "BG",
@@ -114,7 +124,8 @@
               "tts-piper-bg-bg-dimitar-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Дъгата е метеорологично явление, причинено от отражението, пречупването и разсейването на светлината във водните капки, в резултат на което в небето се появява светлинен спектър."
       }
     },
     "bn": {
@@ -132,7 +143,8 @@
         "ocr": {
           "tesseract": "ocr-tesseract-bn"
         },
-        "dictionary": "dict-bn"
+        "dictionary": "dict-bn",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -143,7 +155,8 @@
               "tts-mms-bn-in-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "রামধনু একটি আবহাওয়াগত ঘটনা, যা পানির ফোঁটার মধ্যে আলোর প্রতিফলন, প্রতিসরণ এবং বিচ্ছুরণের ফলে সৃষ্টি হয়, যার কারণে আকাশে আলোর বর্ণালী দেখা যায়।"
       }
     },
     "bs": {
@@ -159,9 +172,11 @@
           "translate-en-bs"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-bs"
+          "tesseract": "ocr-tesseract-bs",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-hr"
+        "dictionary": "dict-hr",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "BA",
@@ -172,7 +187,8 @@
               "tts-coqui_vits-bs-ba-cv-coqui-vits"
             ]
           }
-        }
+        },
+        "sampleText": "Duga je meteorološka pojava nastala refleksijom, refrakcijom i disperzijom svjetlosti u kapljicama vode, zbog čega se na nebu pojavljuje spektar svjetlosti."
       }
     },
     "ca": {
@@ -188,9 +204,11 @@
           "translate-en-ca"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ca"
+          "tesseract": "ocr-tesseract-ca",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-ca"
+        "dictionary": "dict-ca",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "ES",
@@ -203,7 +221,8 @@
               "tts-piper-ca-es-upc-pau-x-low"
             ]
           }
-        }
+        },
+        "sampleText": "L'arc de Sant Martí és un fenomen meteorològic causat per la reflexió, la refracció i la dispersió de la llum en les gotes d'aigua, fet que dona lloc a un espectre de llum al cel."
       }
     },
     "cs": {
@@ -219,9 +238,11 @@
           "translate-en-cs"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-cs"
+          "tesseract": "ocr-tesseract-cs",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-cs"
+        "dictionary": "dict-cs",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "CZ",
@@ -233,7 +254,8 @@
               "tts-piper-cs-cz-jirka-low"
             ]
           }
-        }
+        },
+        "sampleText": "Duha je meteorologický jev způsobený odrazem, lomem a rozptylem světla ve vodních kapkách, v důsledku čehož se na obloze objeví spektrum světla."
       }
     },
     "da": {
@@ -249,9 +271,11 @@
           "translate-en-da"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-da"
+          "tesseract": "ocr-tesseract-da",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-da"
+        "dictionary": "dict-da",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "DK",
@@ -262,7 +286,8 @@
               "tts-piper-da-dk-talesyntese-medium"
             ]
           }
-        }
+        },
+        "sampleText": "En regnbue er et meteorologisk fænomen, der skyldes refleksion, brydning og spredning af lys i vanddråber, hvilket får et lysspektrum til at vise sig på himlen."
       }
     },
     "de": {
@@ -278,9 +303,11 @@
           "translate-en-de"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-de"
+          "tesseract": "ocr-tesseract-de",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-de"
+        "dictionary": "dict-de",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "DE",
@@ -294,7 +321,8 @@
               "tts-piper-de-de-kerstin-low"
             ]
           }
-        }
+        },
+        "sampleText": "Ein Regenbogen ist ein meteorologisches Phänomen, das durch Reflexion, Brechung und Streuung von Licht in Wassertropfen entsteht, wodurch ein Lichtspektrum am Himmel erscheint."
       }
     },
     "el": {
@@ -310,9 +338,11 @@
           "translate-en-el"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-el"
+          "tesseract": "ocr-tesseract-el",
+          "ppocr": "ocr-ppocr-el"
         },
-        "dictionary": "dict-el"
+        "dictionary": "dict-el",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "GR",
@@ -324,7 +354,8 @@
               "tts-piper-el-gr-rapunzelina-low"
             ]
           }
-        }
+        },
+        "sampleText": "Το ουράνιο τόξο είναι ένα μετεωρολογικό φαινόμενο που προκαλείται από την ανάκλαση, τη διάθλαση και τη διασπορά του φωτός στις σταγόνες νερού, με αποτέλεσμα να εμφανίζεται ένα φάσμα φωτός στον ουρανό."
       }
     },
     "en": {
@@ -440,9 +471,11 @@
           "translate-zh_hant-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-en"
+          "tesseract": "ocr-tesseract-en",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-en"
+        "dictionary": "dict-en",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "US",
@@ -465,7 +498,8 @@
               "tts-piper-en-us-joe-medium"
             ]
           }
-        }
+        },
+        "sampleText": "A rainbow is a meteorological phenomenon that is caused by reflection, refraction and dispersion of light in water droplets resulting in a spectrum of light appearing in the sky."
       }
     },
     "es": {
@@ -481,9 +515,11 @@
           "translate-es-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-es"
+          "tesseract": "ocr-tesseract-es",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-es"
+        "dictionary": "dict-es",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "ES",
@@ -509,7 +545,8 @@
               "tts-piper-es-mx-claude-high"
             ]
           }
-        }
+        },
+        "sampleText": "El arcoíris es un fenómeno meteorológico causado por la reflexión, la refracción y la dispersión de la luz en las gotas de agua, lo que da lugar a un espectro de luz que aparece en el cielo."
       }
     },
     "et": {
@@ -525,9 +562,11 @@
           "translate-et-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-et"
+          "tesseract": "ocr-tesseract-et",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-et"
+        "dictionary": "dict-et",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "EE",
@@ -538,7 +577,8 @@
               "tts-coqui_vits-et-ee-cv-coqui-vits"
             ]
           }
-        }
+        },
+        "sampleText": "Vikerkaar on meteoroloogiline nähtus, mis tekib valguse peegeldumise, murdumise ja hajumise tõttu veepiiskades, mille tulemusena ilmub taevasse valgusspekter."
       }
     },
     "fa": {
@@ -554,9 +594,11 @@
           "translate-fa-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-fa"
+          "tesseract": "ocr-tesseract-fa",
+          "ppocr": "ocr-ppocr-arabic"
         },
-        "dictionary": "dict-fa"
+        "dictionary": "dict-fa",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IR",
@@ -570,7 +612,8 @@
               "tts-piper-fa-ir-ganji-adabi-medium"
             ]
           }
-        }
+        },
+        "sampleText": "رنگین‌کمان یک پدیدهٔ هواشناسی است که بر اثر بازتاب، شکست و پراکندگی نور در قطره‌های آب ایجاد می‌شود و در نتیجه طیفی از نور در آسمان دیده می‌شود."
       }
     },
     "fi": {
@@ -586,9 +629,11 @@
           "translate-fi-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-fi"
+          "tesseract": "ocr-tesseract-fi",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-fi"
+        "dictionary": "dict-fi",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "FI",
@@ -600,7 +645,8 @@
               "tts-piper-fi-fi-harri-low"
             ]
           }
-        }
+        },
+        "sampleText": "Sateenkaari on meteorologinen ilmiö, joka syntyy valon heijastumisesta, taittumisesta ja hajoamisesta vesipisaroissa, minkä seurauksena taivaalle ilmestyy valon spektri."
       }
     },
     "fr": {
@@ -616,9 +662,11 @@
           "translate-fr-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-fr"
+          "tesseract": "ocr-tesseract-fr",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-fr"
+        "dictionary": "dict-fr",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "FR",
@@ -632,7 +680,8 @@
               "tts-piper-fr-fr-mls-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Un arc-en-ciel est un phénomène météorologique causé par la réflexion, la réfraction et la dispersion de la lumière dans les gouttelettes d'eau, ce qui fait apparaître un spectre lumineux dans le ciel."
       }
     },
     "gu": {
@@ -650,7 +699,8 @@
         "ocr": {
           "tesseract": "ocr-tesseract-gu"
         },
-        "dictionary": "dict-gu"
+        "dictionary": "dict-gu",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -661,7 +711,8 @@
               "tts-mms-gu-in-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "ઇન્દ્રધનુષ એક હવામાન સંબંધિત ઘટના છે, જે પાણીના ટીપાંમાં પ્રકાશના પ્રતિબિંબ, અપવર્તન અને વિખેરાણથી બને છે, જેના પરિણામે આકાશમાં પ્રકાશનું વર્ણપટ દેખાય છે."
       }
     },
     "he": {
@@ -679,7 +730,8 @@
         "ocr": {
           "tesseract": "ocr-tesseract-he"
         },
-        "dictionary": "dict-he"
+        "dictionary": "dict-he",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IL",
@@ -690,7 +742,8 @@
               "tts-mms-he-il-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "קשת בענן היא תופעה מטאורולוגית שנגרמת מהחזרה, שבירה ופיזור של אור בטיפות מים, וכתוצאה מכך מופיע בשמיים ספקטרום של אור."
       }
     },
     "hi": {
@@ -706,9 +759,11 @@
           "translate-hi-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-hi"
+          "tesseract": "ocr-tesseract-hi",
+          "ppocr": "ocr-ppocr-devanagari"
         },
-        "dictionary": "dict-hi"
+        "dictionary": "dict-hi",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -721,7 +776,8 @@
               "tts-piper-hi-in-priyamvada-medium"
             ]
           }
-        }
+        },
+        "sampleText": "इंद्रधनुष एक मौसम संबंधी घटना है, जो पानी की बूंदों में प्रकाश के परावर्तन, अपवर्तन और प्रकीर्णन से बनती है, जिसके परिणामस्वरूप आकाश में प्रकाश का एक वर्णक्रम दिखाई देता है।"
       }
     },
     "hr": {
@@ -737,9 +793,11 @@
           "translate-hr-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-hr"
+          "tesseract": "ocr-tesseract-hr",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-hr"
+        "dictionary": "dict-hr",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "HR",
@@ -750,7 +808,8 @@
               "tts-coqui_vits-hr-hr-cv-coqui-vits"
             ]
           }
-        }
+        },
+        "sampleText": "Duga je meteorološka pojava uzrokovana refleksijom, lomom i raspršenjem svjetlosti u kapljicama vode, zbog čega se na nebu pojavljuje spektar svjetlosti."
       }
     },
     "hu": {
@@ -766,9 +825,11 @@
           "translate-hu-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-hu"
+          "tesseract": "ocr-tesseract-hu",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-hu"
+        "dictionary": "dict-hu",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "HU",
@@ -781,7 +842,8 @@
               "tts-piper-hu-hu-imre-medium"
             ]
           }
-        }
+        },
+        "sampleText": "A szivárvány egy meteorológiai jelenség, amelyet a fény visszaverődése, törése és szóródása okoz a vízcseppekben, aminek eredményeként fényspektrum jelenik meg az égen."
       }
     },
     "id": {
@@ -797,9 +859,11 @@
           "translate-id-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-id"
+          "tesseract": "ocr-tesseract-id",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-id"
+        "dictionary": "dict-id",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "ID",
@@ -810,7 +874,8 @@
               "tts-piper-id-id-news-tts-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Pelangi adalah fenomena meteorologis yang disebabkan oleh pemantulan, pembiasan, dan dispersi cahaya di dalam tetesan air, sehingga spektrum cahaya tampak di langit."
       }
     },
     "is": {
@@ -826,9 +891,11 @@
           "translate-is-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-is"
+          "tesseract": "ocr-tesseract-is",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-is"
+        "dictionary": "dict-is",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IS",
@@ -842,7 +909,8 @@
               "tts-piper-is-is-ugla-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Regnbogi er veðurfræðilegt fyrirbæri sem verður til við endurkast, ljósbrot og dreifingu ljóss í vatnsdropum, sem leiðir til þess að litróf birtist á himninum."
       }
     },
     "it": {
@@ -858,9 +926,11 @@
           "translate-it-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-it"
+          "tesseract": "ocr-tesseract-it",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-it"
+        "dictionary": "dict-it",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IT",
@@ -872,7 +942,8 @@
               "tts-piper-it-it-riccardo-x-low"
             ]
           }
-        }
+        },
+        "sampleText": "L'arcobaleno è un fenomeno meteorologico causato dalla riflessione, dalla rifrazione e dalla dispersione della luce nelle gocce d'acqua, con il risultato che nel cielo appare uno spettro di luce."
       }
     },
     "ja": {
@@ -888,12 +959,14 @@
           "translate-ja-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ja"
+          "tesseract": "ocr-tesseract-ja",
+          "ppocr": "ocr-ppocr-cj"
         },
         "support": [
           "support-ja-mucab"
         ],
-        "dictionary": "dict-ja"
+        "dictionary": "dict-ja",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "JP",
@@ -901,10 +974,12 @@
           "JP": {
             "displayName": "Japan",
             "voices": [
+              "tts-kokoro_mnn-ja-jp-jf-alpha-kokoro-mnn-v1.0",
               "tts-kokoro-ja-jp-jf-alpha-kokoro-v1.0"
             ]
           }
-        }
+        },
+        "sampleText": "虹は、水滴の中で光が反射、屈折、分散することによって生じ、空に光のスペクトルが現れる気象現象です。"
       }
     },
     "kn": {
@@ -922,7 +997,8 @@
         "ocr": {
           "tesseract": "ocr-tesseract-kn"
         },
-        "dictionary": "dict-kn"
+        "dictionary": "dict-kn",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -933,7 +1009,8 @@
               "tts-mms-kn-in-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "ಇಂದ್ರಧನುಷ್ ಒಂದು ಹವಾಮಾನ ಸಂಬಂಧಿತ ಪ್ರಕೃತಿ ಘಟನೆ; ಇದು ನೀರಿನ ಹನಿಗಳಲ್ಲಿನ ಬೆಳಕಿನ ಪ್ರತಿಫಲನ, ಅಪವर्तन ಮತ್ತು ಚದುರಿಕೆಯಿಂದ ಉಂಟಾಗಿ ಆಕಾಶದಲ್ಲಿ ಬೆಳಕಿನ ವರ್ಣಪಟ ಕಾಣಿಸುತ್ತದೆ。"
       }
     },
     "ko": {
@@ -949,9 +1026,11 @@
           "translate-ko-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ko"
+          "tesseract": "ocr-tesseract-ko",
+          "ppocr": "ocr-ppocr-korean"
         },
-        "dictionary": "dict-ko"
+        "dictionary": "dict-ko",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "KR",
@@ -960,10 +1039,12 @@
             "displayName": "South Korea",
             "voices": [
               "tts-mimic3-ko-ko-kss-low",
+              "tts-kokoro_mnn-ko-kr-jf-alpha-kokoro-mnn-v1.0",
               "tts-kokoro-ko-kr-jf-alpha-kokoro-v1.0"
             ]
           }
-        }
+        },
+        "sampleText": "무지개는 물방울 속에서 빛이 반사되고 굴절되며 분산되어 하늘에 빛의 스펙트럼이 나타나는 기상 현상입니다."
       }
     },
     "lt": {
@@ -979,9 +1060,11 @@
           "translate-lt-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-lt"
+          "tesseract": "ocr-tesseract-lt",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-lt"
+        "dictionary": "dict-lt",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "LT",
@@ -992,7 +1075,8 @@
               "tts-coqui_vits-lt-lt-cv-coqui-vits"
             ]
           }
-        }
+        },
+        "sampleText": "Vaivorykštė yra meteorologinis reiškinys, kurį sukelia šviesos atspindys, lūžis ir sklaida vandens lašeliuose, todėl danguje pasirodo šviesos spektras."
       }
     },
     "lv": {
@@ -1008,9 +1092,11 @@
           "translate-lv-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-lv"
+          "tesseract": "ocr-tesseract-lv",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-lv"
+        "dictionary": "dict-lv",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "LV",
@@ -1021,7 +1107,8 @@
               "tts-piper-lv-lv-aivars-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Varavīksne ir meteoroloģiska parādība, ko izraisa gaismas atstarošanās, laušana un izkliede ūdens pilienos, kā rezultātā debesīs parādās gaismas spektrs."
       }
     },
     "ml": {
@@ -1039,7 +1126,8 @@
         "ocr": {
           "tesseract": "ocr-tesseract-ml"
         },
-        "dictionary": "dict-ml"
+        "dictionary": "dict-ml",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -1051,7 +1139,8 @@
               "tts-piper-ml-in-meera-medium"
             ]
           }
-        }
+        },
+        "sampleText": "മഴവില്ല് ഒരു കാലാവസ്ഥാ പ്രതിഭാസമാണ്; ജലത്തുള്ളികളിലെ പ്രകാശത്തിന്റെ പ്രതിഫലനം, പ്രതിസരണം, ചിതറൽ എന്നിവ മൂലം ആകാശത്തിൽ പ്രകാശത്തിന്റെ വർണ്ണപടലം പ്രത്യക്ഷപ്പെടുന്നു."
       }
     },
     "ms": {
@@ -1067,9 +1156,11 @@
           "translate-ms-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ms"
+          "tesseract": "ocr-tesseract-ms",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-ms"
+        "dictionary": "dict-ms",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "MY",
@@ -1080,7 +1171,8 @@
               "tts-mms-ms-my-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "Pelangi ialah fenomena meteorologi yang disebabkan oleh pantulan, pembiasan dan penyebaran cahaya dalam titisan air, lalu menghasilkan spektrum cahaya yang kelihatan di langit."
       }
     },
     "nb": {
@@ -1096,9 +1188,11 @@
           "translate-nb-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-nb"
+          "tesseract": "ocr-tesseract-nb",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-nb"
+        "dictionary": "dict-nb",
+        "preferredOcrEngine": "tesseract"
       }
     },
     "nl": {
@@ -1114,9 +1208,11 @@
           "translate-nl-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-nl"
+          "tesseract": "ocr-tesseract-nl",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-nl"
+        "dictionary": "dict-nl",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "NL",
@@ -1138,7 +1234,8 @@
               "tts-piper-nl-nl-alex-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Een regenboog is een meteorologisch verschijnsel dat wordt veroorzaakt door reflectie, breking en verstrooiing van licht in waterdruppels, waardoor een lichtspectrum aan de hemel verschijnt."
       }
     },
     "nn": {
@@ -1153,9 +1250,11 @@
           "translate-nn-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-nn"
+          "tesseract": "ocr-tesseract-nb",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-nn"
+        "dictionary": "dict-nn",
+        "preferredOcrEngine": "tesseract"
       }
     },
     "no": {
@@ -1171,9 +1270,11 @@
           "translate-no-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-no"
+          "tesseract": "ocr-tesseract-nb",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-no"
+        "dictionary": "dict-no",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "NO",
@@ -1184,7 +1285,8 @@
               "tts-piper-no-no-talesyntese-medium"
             ]
           }
-        }
+        },
+        "sampleText": "En regnbue er et meteorologisk fenomen som skyldes refleksjon, brytning og spredning av lys i vanndråper, noe som fører til at et lysspekter blir synlig på himmelen."
       }
     },
     "pl": {
@@ -1200,9 +1302,11 @@
           "translate-pl-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-pl"
+          "tesseract": "ocr-tesseract-pl",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-pl"
+        "dictionary": "dict-pl",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "PL",
@@ -1216,7 +1320,8 @@
               "tts-piper-pl-pl-jarvis-wg-glos-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Tęcza to zjawisko meteorologiczne spowodowane odbiciem, załamaniem i rozszczepieniem światła w kroplach wody, w wyniku czego na niebie pojawia się widmo światła."
       }
     },
     "pt": {
@@ -1232,9 +1337,11 @@
           "translate-pt-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-pt"
+          "tesseract": "ocr-tesseract-pt",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-pt"
+        "dictionary": "dict-pt",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "BR",
@@ -1254,7 +1361,8 @@
               "tts-piper-pt-pt-tugão-medium"
             ]
           }
-        }
+        },
+        "sampleText": "O arco-íris é um fenómeno meteorológico causado pela reflexão, refração e dispersão da luz nas gotas de água, resultando num espectro de luz visível no céu."
       }
     },
     "ro": {
@@ -1270,9 +1378,11 @@
           "translate-ro-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ro"
+          "tesseract": "ocr-tesseract-ro",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-ro"
+        "dictionary": "dict-ro",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "RO",
@@ -1283,7 +1393,8 @@
               "tts-piper-ro-ro-mihai-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Curcubeul este un fenomen meteorologic cauzat de reflexia, refracția și dispersia luminii în picăturile de apă, ceea ce face ca un spectru de lumină să apară pe cer."
       }
     },
     "ru": {
@@ -1299,9 +1410,11 @@
           "translate-ru-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ru"
+          "tesseract": "ocr-tesseract-ru",
+          "ppocr": "ocr-ppocr-eslav"
         },
-        "dictionary": "dict-ru"
+        "dictionary": "dict-ru",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "RU",
@@ -1315,7 +1428,8 @@
               "tts-piper-ru-ru-ruslan-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Радуга — это метеорологическое явление, вызванное отражением, преломлением и рассеянием света в каплях воды, в результате чего в небе появляется спектр света."
       }
     },
     "sk": {
@@ -1331,9 +1445,11 @@
           "translate-sk-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-sk"
+          "tesseract": "ocr-tesseract-sk",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-sk"
+        "dictionary": "dict-sk",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "SK",
@@ -1344,7 +1460,8 @@
               "tts-piper-sk-sk-lili-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Dúha je meteorologický jav spôsobený odrazom, lomom a rozptylom svetla vo vodných kvapkách, v dôsledku čoho sa na oblohe objaví spektrum svetla."
       }
     },
     "sl": {
@@ -1360,9 +1477,11 @@
           "translate-sl-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-sl"
+          "tesseract": "ocr-tesseract-sl",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-sl"
+        "dictionary": "dict-sl",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "SI",
@@ -1373,7 +1492,8 @@
               "tts-piper-sl-si-artur-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Mavrica je meteorološki pojav, ki nastane zaradi odboja, loma in razpršitve svetlobe v vodnih kapljicah, zato se na nebu pojavi svetlobni spekter."
       }
     },
     "sq": {
@@ -1389,9 +1509,11 @@
           "translate-sq-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-sq"
+          "tesseract": "ocr-tesseract-sq",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-sq"
+        "dictionary": "dict-sq",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "AL",
@@ -1402,7 +1524,8 @@
               "tts-piper-sq-al-edon-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Ylberi është një fenomen meteorologjik i shkaktuar nga pasqyrimi, përthyerja dhe shpërndarja e dritës në pikat e ujit, duke bërë që në qiell të shfaqet një spektër drite."
       }
     },
     "sr": {
@@ -1418,9 +1541,11 @@
           "translate-sr-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-sr"
+          "tesseract": "ocr-tesseract-sr",
+          "ppocr": "ocr-ppocr-cyrillic"
         },
-        "dictionary": "dict-hr"
+        "dictionary": "dict-hr",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "RS",
@@ -1431,7 +1556,8 @@
               "tts-piper-sr-rs-serbski-institut-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Дуга је метеоролошка појава настала одбијањем, преламањем и расипањем светлости у капљицама воде, због чега се на небу појављује спектар светлости."
       }
     },
     "sv": {
@@ -1447,9 +1573,11 @@
           "translate-sv-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-sv"
+          "tesseract": "ocr-tesseract-sv",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-sv"
+        "dictionary": "dict-sv",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "SE",
@@ -1462,7 +1590,8 @@
               "tts-piper-sv-se-lisa-medium"
             ]
           }
-        }
+        },
+        "sampleText": "En regnbåge är ett meteorologiskt fenomen som orsakas av ljusets reflektion, brytning och spridning i vattendroppar, vilket gör att ett spektrum av ljus syns på himlen."
       }
     },
     "ta": {
@@ -1478,9 +1607,11 @@
           "translate-ta-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-ta"
+          "tesseract": "ocr-tesseract-ta",
+          "ppocr": "ocr-ppocr-ta"
         },
-        "dictionary": "dict-ta"
+        "dictionary": "dict-ta",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -1491,7 +1622,8 @@
               "tts-mms-ta-in-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "வானவில் என்பது நீர்த்துளிகளில் ஒளியின் பிரதிபலிப்பு, ஒளிவிலக்கம் மற்றும் சிதறல் காரணமாக உருவாகும் ஒரு வானிலை நிகழ்வு; இதன் விளைவாக வானில் ஒளியின் நிறவரிசை தோன்றுகிறது."
       }
     },
     "te": {
@@ -1507,9 +1639,11 @@
           "translate-te-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-te"
+          "tesseract": "ocr-tesseract-te",
+          "ppocr": "ocr-ppocr-te"
         },
-        "dictionary": "dict-te"
+        "dictionary": "dict-te",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "IN",
@@ -1522,7 +1656,8 @@
               "tts-piper-te-in-venkatesh-medium"
             ]
           }
-        }
+        },
+        "sampleText": "ఇంద్రధనుస్సు ఒక వాతావరణ సంబంధిత సంఘటన; ఇది నీటి బిందువులలో కాంతి ప్రతిబింబం, అపవర్తనం మరియు విక్షేపణం వల్ల ఏర్పడి ఆకాశంలో కాంతి వర్ణక్రమం కనిపిస్తుంది."
       }
     },
     "th": {
@@ -1538,9 +1673,11 @@
           "translate-th-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-th"
+          "tesseract": "ocr-tesseract-th",
+          "ppocr": "ocr-ppocr-th"
         },
-        "dictionary": "dict-th"
+        "dictionary": "dict-th",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "TH",
@@ -1551,7 +1688,8 @@
               "tts-mms-th-th-standard-mms"
             ]
           }
-        }
+        },
+        "sampleText": "รุ้งกินน้ำเป็นปรากฏการณ์ทางอุตุนิยมวิทยาที่เกิดจากการสะท้อน การหักเห และการกระจายตัวของแสงในหยดน้ำ ทำให้เกิดสเปกตรัมของแสงปรากฏบนท้องฟ้า"
       }
     },
     "tr": {
@@ -1567,9 +1705,11 @@
           "translate-tr-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-tr"
+          "tesseract": "ocr-tesseract-tr",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-tr"
+        "dictionary": "dict-tr",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "TR",
@@ -1580,7 +1720,8 @@
               "tts-piper-tr-tr-dfki-medium"
             ]
           }
-        }
+        },
+        "sampleText": "Gökkuşağı, ışığın su damlacıklarında yansıması, kırılması ve dağılması sonucu oluşan meteorolojik bir olaydır ve bunun sonucunda gökyüzünde bir ışık tayfı görünür."
       }
     },
     "uk": {
@@ -1596,9 +1737,11 @@
           "translate-uk-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-uk"
+          "tesseract": "ocr-tesseract-uk",
+          "ppocr": "ocr-ppocr-eslav"
         },
-        "dictionary": "dict-uk"
+        "dictionary": "dict-uk",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "UA",
@@ -1610,7 +1753,8 @@
               "tts-piper-uk-ua-lada-x-low"
             ]
           }
-        }
+        },
+        "sampleText": "Веселка — це метеорологічне явище, спричинене відбиттям, заломленням і розсіюванням світла у краплях води, внаслідок чого в небі з'являється спектр світла."
       }
     },
     "vi": {
@@ -1626,9 +1770,11 @@
           "translate-vi-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-vi"
+          "tesseract": "ocr-tesseract-vi",
+          "ppocr": "ocr-ppocr-latin"
         },
-        "dictionary": "dict-vi"
+        "dictionary": "dict-vi",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "VN",
@@ -1641,7 +1787,8 @@
               "tts-piper-vi-vn-vivos-x-low"
             ]
           }
-        }
+        },
+        "sampleText": "Cầu vồng là một hiện tượng khí tượng do sự phản xạ, khúc xạ và tán sắc của ánh sáng trong các giọt nước, tạo ra một quang phổ ánh sáng xuất hiện trên bầu trời."
       }
     },
     "zh": {
@@ -1657,9 +1804,11 @@
           "translate-zh-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-zh"
+          "tesseract": "ocr-tesseract-zh",
+          "ppocr": "ocr-ppocr-cj"
         },
-        "dictionary": "dict-zh"
+        "dictionary": "dict-zh",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "CN",
@@ -1671,7 +1820,8 @@
               "tts-piper-zh-cn-huayan-x-low"
             ]
           }
-        }
+        },
+        "sampleText": "彩虹是一种气象现象，由光线在水滴中发生反射、折射和色散而形成，因此天空中会出现一道光谱。"
       }
     },
     "zh_hant": {
@@ -1687,9 +1837,11 @@
           "translate-zh_hant-en"
         ],
         "ocr": {
-          "tesseract": "ocr-tesseract-zh_hant"
+          "tesseract": "ocr-tesseract-zh_hant",
+          "ppocr": "ocr-ppocr-cj"
         },
-        "dictionary": "dict-zh"
+        "dictionary": "dict-zh",
+        "preferredOcrEngine": "tesseract"
       },
       "tts": {
         "defaultRegion": "TW",
@@ -1706,7 +1858,8 @@
               "tts-piper-zh-tw-mandarin-traditional-medium"
             ]
           }
-        }
+        },
+        "sampleText": "彩虹是一種氣象現象，由光線在水滴中發生反射、折射與色散所形成，因此天空中會出現一道光譜。"
       }
     }
   },
@@ -3306,38 +3459,6 @@
           "sizeBytes": 6050296,
           "installPath": "tesseract/tessdata/nld.traineddata",
           "url": "https://offline-translator.davidv.dev/ocr/1/tesseract/tessdata/nld.traineddata"
-        }
-      ],
-      "dependsOn": [
-        "ocr-tesseract-en"
-      ]
-    },
-    "ocr-tesseract-nn": {
-      "feature": "ocr",
-      "engine": "tesseract",
-      "language": "nn",
-      "files": [
-        {
-          "name": "nor.traineddata",
-          "sizeBytes": 3610079,
-          "installPath": "tesseract/tessdata/nor.traineddata",
-          "url": "https://offline-translator.davidv.dev/ocr/1/tesseract/tessdata/nor.traineddata"
-        }
-      ],
-      "dependsOn": [
-        "ocr-tesseract-en"
-      ]
-    },
-    "ocr-tesseract-no": {
-      "feature": "ocr",
-      "engine": "tesseract",
-      "language": "no",
-      "files": [
-        {
-          "name": "nor.traineddata",
-          "sizeBytes": 3610079,
-          "installPath": "tesseract/tessdata/nor.traineddata",
-          "url": "https://offline-translator.davidv.dev/ocr/1/tesseract/tessdata/nor.traineddata"
         }
       ],
       "dependsOn": [
@@ -6885,6 +7006,19 @@
         "tts-espeak-core-v1"
       ]
     },
+    "tts-kokoro-voices-v1.0": {
+      "feature": "support",
+      "kind": "tts-kokoro-voices",
+      "files": [
+        {
+          "name": "voices-v1.0.bin",
+          "sizeBytes": 28214398,
+          "installPath": "bin/kokoro/voices-v1.0.bin",
+          "url": "https://offline-translator.davidv.dev/tts/1/kokoro/voices-v1.0.bin"
+        }
+      ],
+      "dependsOn": []
+    },
     "tts-kokoro-v1.0-core": {
       "feature": "support",
       "kind": "tts-kokoro-core",
@@ -6894,15 +7028,32 @@
           "sizeBytes": 92361271,
           "installPath": "bin/kokoro/kokoro-v1.0.int8.onnx",
           "url": "https://offline-translator.davidv.dev/tts/1/kokoro/kokoro-v1.0.int8.onnx"
-        },
-        {
-          "name": "voices-v1.0.bin",
-          "sizeBytes": 28214398,
-          "installPath": "bin/kokoro/voices-v1.0.bin",
-          "url": "https://offline-translator.davidv.dev/tts/1/kokoro/voices-v1.0.bin"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [
+        "tts-kokoro-voices-v1.0"
+      ]
+    },
+    "tts-kokoro-mnn-v1.0-core": {
+      "feature": "support",
+      "kind": "tts-kokoro-mnn-core",
+      "files": [
+        {
+          "name": "kokoro.mnn",
+          "sizeBytes": 1028464,
+          "installPath": "bin/kokoro_mnn/kokoro.mnn",
+          "url": "https://offline-translator.davidv.dev/tts/1/kokoro_mnn/kokoro.mnn"
+        },
+        {
+          "name": "kokoro.mnn.weight",
+          "sizeBytes": 86949555,
+          "installPath": "bin/kokoro_mnn/kokoro.mnn.weight",
+          "url": "https://offline-translator.davidv.dev/tts/1/kokoro_mnn/kokoro.mnn.weight"
+        }
+      ],
+      "dependsOn": [
+        "tts-kokoro-voices-v1.0"
+      ]
     },
     "tts-piper-ar-jo-kareem-medium": {
       "feature": "tts",
@@ -6930,7 +7081,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ar"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ar/kareem_medium.opus"
     },
     "tts-piper-ar-jo-kareem-low": {
       "feature": "tts",
@@ -6958,7 +7110,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ar"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ar/kareem_low.opus"
     },
     "tts-mms-az-az-north-latin-mms": {
       "feature": "tts",
@@ -6984,7 +7137,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/az/az_AZ/north_latin/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/az/north_latin_medium.opus"
     },
     "tts-piper-bg-bg-dimitar-medium": {
       "feature": "tts",
@@ -7012,7 +7166,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-bg"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/bg/dimitar_medium.opus"
     },
     "tts-mms-bn-in-standard-mms": {
       "feature": "tts",
@@ -7038,7 +7193,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/bn/bn_IN/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/bn/standard_medium.opus"
     },
     "tts-coqui_vits-bs-ba-cv-coqui-vits": {
       "feature": "tts",
@@ -7082,7 +7238,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/bs/bs_BA/cv/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/bs/cv_medium.opus"
     },
     "tts-piper-ca-es-upc-ona-medium": {
       "feature": "tts",
@@ -7110,7 +7267,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ca"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ca/upc_ona_medium.opus"
     },
     "tts-piper-ca-es-upc-ona-x-low": {
       "feature": "tts",
@@ -7140,7 +7298,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ca"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ca/upc_ona_x_low.opus"
     },
     "tts-piper-ca-es-upc-pau-x-low": {
       "feature": "tts",
@@ -7170,7 +7329,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ca"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ca/upc_pau_x_low.opus"
     },
     "tts-piper-cs-cz-jirka-medium": {
       "feature": "tts",
@@ -7198,7 +7358,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-cs"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/cs/jirka_medium.opus"
     },
     "tts-piper-cs-cz-jirka-low": {
       "feature": "tts",
@@ -7226,7 +7387,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-cs"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/cs/jirka_low.opus"
     },
     "tts-piper-da-dk-talesyntese-medium": {
       "feature": "tts",
@@ -7256,7 +7418,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-da"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/da/talesyntese_medium.opus"
     },
     "tts-piper-de-de-thorsten-medium": {
       "feature": "tts",
@@ -7284,7 +7447,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-de"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/de/thorsten_medium.opus"
     },
     "tts-piper-de-de-thorsten-emotional-medium": {
       "feature": "tts",
@@ -7313,7 +7477,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-de"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/de/thorsten_emotional_medium.opus"
     },
     "tts-piper-de-de-karlsson-low": {
       "feature": "tts",
@@ -7343,7 +7508,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-de"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/de/karlsson_low.opus"
     },
     "tts-piper-de-de-kerstin-low": {
       "feature": "tts",
@@ -7373,7 +7539,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-de"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/de/kerstin_low.opus"
     },
     "tts-piper-el-gr-rapunzelina-medium": {
       "feature": "tts",
@@ -7401,7 +7568,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-el"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/el/rapunzelina_medium.opus"
     },
     "tts-piper-el-gr-rapunzelina-low": {
       "feature": "tts",
@@ -7429,7 +7597,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-el"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/el/rapunzelina_low.opus"
     },
     "tts-piper-en-gb-alan-medium": {
       "feature": "tts",
@@ -7457,7 +7626,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/alan_medium.opus"
     },
     "tts-piper-en-gb-alba-medium": {
       "feature": "tts",
@@ -7485,7 +7655,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/alba_medium.opus"
     },
     "tts-piper-en-gb-jenny-dioco-medium": {
       "feature": "tts",
@@ -7513,7 +7684,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/jenny_dioco_medium.opus"
     },
     "tts-piper-en-gb-northern-english-male-medium": {
       "feature": "tts",
@@ -7541,7 +7713,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/northern_english_male_medium.opus"
     },
     "tts-piper-en-us-amy-medium": {
       "feature": "tts",
@@ -7569,7 +7742,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/amy_medium.opus"
     },
     "tts-piper-en-us-hfc-female-medium": {
       "feature": "tts",
@@ -7597,7 +7771,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/hfc_female_medium.opus"
     },
     "tts-piper-en-us-hfc-male-medium": {
       "feature": "tts",
@@ -7625,7 +7800,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/hfc_male_medium.opus"
     },
     "tts-piper-en-us-joe-medium": {
       "feature": "tts",
@@ -7653,7 +7829,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-en"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/en/joe_medium.opus"
     },
     "tts-piper-es-ar-daniela-high": {
       "feature": "tts",
@@ -7681,7 +7858,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-es"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/es/daniela_high.opus"
     },
     "tts-piper-es-es-davefx-medium": {
       "feature": "tts",
@@ -7709,7 +7887,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-es"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/es/davefx_medium.opus"
     },
     "tts-piper-es-es-sharvard-medium": {
       "feature": "tts",
@@ -7738,7 +7917,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-es"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/es/sharvard_medium.opus"
     },
     "tts-piper-es-es-carlfm-x-low": {
       "feature": "tts",
@@ -7768,7 +7948,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-es"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/es/carlfm_x_low.opus"
     },
     "tts-piper-es-mx-ald-medium": {
       "feature": "tts",
@@ -7796,7 +7977,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-es"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/es/ald_medium.opus"
     },
     "tts-piper-es-mx-claude-high": {
       "feature": "tts",
@@ -7824,7 +8006,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-es"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/es/claude_high.opus"
     },
     "tts-coqui_vits-et-ee-cv-coqui-vits": {
       "feature": "tts",
@@ -7868,7 +8051,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/et/et_EE/cv/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/et/cv_medium.opus"
     },
     "tts-piper-fa-ir-gyro-medium": {
       "feature": "tts",
@@ -7896,7 +8080,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fa"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fa/gyro_medium.opus"
     },
     "tts-piper-fa-ir-reza-ibrahim-medium": {
       "feature": "tts",
@@ -7924,7 +8109,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fa"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fa/reza_ibrahim_medium.opus"
     },
     "tts-piper-fa-ir-ganji-medium": {
       "feature": "tts",
@@ -7952,7 +8138,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fa"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fa/ganji_medium.opus"
     },
     "tts-piper-fa-ir-ganji-adabi-medium": {
       "feature": "tts",
@@ -7980,7 +8167,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fa"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fa/ganji_adabi_medium.opus"
     },
     "tts-piper-fi-fi-harri-medium": {
       "feature": "tts",
@@ -8008,7 +8196,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fi/harri_medium.opus"
     },
     "tts-piper-fi-fi-harri-low": {
       "feature": "tts",
@@ -8038,7 +8227,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fi/harri_low.opus"
     },
     "tts-piper-fr-fr-siwis-medium": {
       "feature": "tts",
@@ -8068,7 +8258,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fr"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fr/siwis_medium.opus"
     },
     "tts-piper-fr-fr-tom-medium": {
       "feature": "tts",
@@ -8096,7 +8287,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fr"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fr/tom_medium.opus"
     },
     "tts-piper-fr-fr-upmc-medium": {
       "feature": "tts",
@@ -8125,7 +8317,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fr"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fr/upmc_medium.opus"
     },
     "tts-piper-fr-fr-mls-medium": {
       "feature": "tts",
@@ -8154,7 +8347,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-fr"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/fr/mls_medium.opus"
     },
     "tts-mms-gu-in-standard-mms": {
       "feature": "tts",
@@ -8180,7 +8374,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/gu/gu_IN/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/gu/standard_medium.opus"
     },
     "tts-mms-he-il-standard-mms": {
       "feature": "tts",
@@ -8206,7 +8401,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/he/he_IL/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/he/standard_medium.opus"
     },
     "tts-piper-hi-in-rohan-medium": {
       "feature": "tts",
@@ -8234,7 +8430,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-hi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hi/rohan_medium.opus"
     },
     "tts-piper-hi-in-pratham-medium": {
       "feature": "tts",
@@ -8262,7 +8459,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-hi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hi/pratham_medium.opus"
     },
     "tts-piper-hi-in-priyamvada-medium": {
       "feature": "tts",
@@ -8290,7 +8488,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-hi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hi/priyamvada_medium.opus"
     },
     "tts-coqui_vits-hr-hr-cv-coqui-vits": {
       "feature": "tts",
@@ -8334,7 +8533,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/hr/hr_HR/cv/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hr/cv_medium.opus"
     },
     "tts-piper-hu-hu-anna-medium": {
       "feature": "tts",
@@ -8362,7 +8562,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-hu"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hu/anna_medium.opus"
     },
     "tts-piper-hu-hu-berta-medium": {
       "feature": "tts",
@@ -8390,7 +8591,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-hu"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hu/berta_medium.opus"
     },
     "tts-piper-hu-hu-imre-medium": {
       "feature": "tts",
@@ -8418,7 +8620,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-hu"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/hu/imre_medium.opus"
     },
     "tts-piper-id-id-news-tts-medium": {
       "feature": "tts",
@@ -8446,7 +8649,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-id"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/id/news_tts_medium.opus"
     },
     "tts-piper-is-is-bui-medium": {
       "feature": "tts",
@@ -8476,7 +8680,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-is"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/is/bui_medium.opus"
     },
     "tts-piper-is-is-salka-medium": {
       "feature": "tts",
@@ -8506,7 +8711,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-is"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/is/salka_medium.opus"
     },
     "tts-piper-is-is-steinn-medium": {
       "feature": "tts",
@@ -8536,7 +8742,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-is"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/is/steinn_medium.opus"
     },
     "tts-piper-is-is-ugla-medium": {
       "feature": "tts",
@@ -8566,7 +8773,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-is"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/is/ugla_medium.opus"
     },
     "tts-piper-it-it-paola-medium": {
       "feature": "tts",
@@ -8594,7 +8802,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-it"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/it/paola_medium.opus"
     },
     "tts-piper-it-it-riccardo-x-low": {
       "feature": "tts",
@@ -8624,7 +8833,25 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-it"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/it/riccardo_x_low.opus"
+    },
+    "tts-kokoro_mnn-ja-jp-jf-alpha-kokoro-mnn-v1.0": {
+      "feature": "tts",
+      "engine": "kokoro_mnn",
+      "language": "ja",
+      "locale": "ja_JP",
+      "region": "JP",
+      "voice": "jf_alpha",
+      "quality": "high",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [],
+      "dependsOn": [
+        "tts-espeak-dict-ja",
+        "tts-kokoro-mnn-v1.0-core"
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ja/jf_alpha_high.opus"
     },
     "tts-kokoro-ja-jp-jf-alpha-kokoro-v1.0": {
       "feature": "tts",
@@ -8632,7 +8859,7 @@
       "language": "ja",
       "locale": "ja_JP",
       "region": "JP",
-      "voice": "jf_alpha",
+      "voice": "jf_alpha (deprecated)",
       "quality": "high",
       "numSpeakers": 1,
       "aliases": [],
@@ -8666,7 +8893,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/kn/kn_IN/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/kn/standard_medium.opus"
     },
     "tts-mimic3-ko-ko-kss-low": {
       "feature": "tts",
@@ -8700,7 +8928,25 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ko"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ko/kss_low.opus"
+    },
+    "tts-kokoro_mnn-ko-kr-jf-alpha-kokoro-mnn-v1.0": {
+      "feature": "tts",
+      "engine": "kokoro_mnn",
+      "language": "ko",
+      "locale": "ko_KR",
+      "region": "KR",
+      "voice": "jf_alpha",
+      "quality": "high",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [],
+      "dependsOn": [
+        "tts-espeak-dict-ko",
+        "tts-kokoro-mnn-v1.0-core"
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ko/jf_alpha_high.opus"
     },
     "tts-kokoro-ko-kr-jf-alpha-kokoro-v1.0": {
       "feature": "tts",
@@ -8708,7 +8954,7 @@
       "language": "ko",
       "locale": "ko_KR",
       "region": "KR",
-      "voice": "jf_alpha",
+      "voice": "jf_alpha (deprecated)",
       "quality": "high",
       "numSpeakers": 1,
       "aliases": [],
@@ -8760,7 +9006,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/lt/lt_LT/cv/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/lt/cv_medium.opus"
     },
     "tts-piper-lv-lv-aivars-medium": {
       "feature": "tts",
@@ -8788,7 +9035,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-lv"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/lv/aivars_medium.opus"
     },
     "tts-piper-ml-in-arjun-medium": {
       "feature": "tts",
@@ -8816,7 +9064,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ml"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ml/arjun_medium.opus"
     },
     "tts-piper-ml-in-meera-medium": {
       "feature": "tts",
@@ -8844,7 +9093,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ml"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ml/meera_medium.opus"
     },
     "tts-mms-ms-my-standard-mms": {
       "feature": "tts",
@@ -8870,7 +9120,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/ms/ms_MY/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ms/standard_medium.opus"
     },
     "tts-piper-nl-be-rdh-medium": {
       "feature": "tts",
@@ -8900,7 +9151,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/rdh_medium.opus"
     },
     "tts-piper-nl-be-nathalie-medium": {
       "feature": "tts",
@@ -8928,7 +9180,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/nathalie_medium.opus"
     },
     "tts-piper-nl-be-nathalie-x-low": {
       "feature": "tts",
@@ -8958,7 +9211,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/nathalie_x_low.opus"
     },
     "tts-piper-nl-be-rdh-x-low": {
       "feature": "tts",
@@ -8988,7 +9242,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/rdh_x_low.opus"
     },
     "tts-piper-nl-nl-ronnie-medium": {
       "feature": "tts",
@@ -9016,7 +9271,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/ronnie_medium.opus"
     },
     "tts-piper-nl-nl-pim-medium": {
       "feature": "tts",
@@ -9044,7 +9300,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/pim_medium.opus"
     },
     "tts-piper-nl-nl-alex-medium": {
       "feature": "tts",
@@ -9072,7 +9329,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-nl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/nl/alex_medium.opus"
     },
     "tts-piper-no-no-talesyntese-medium": {
       "feature": "tts",
@@ -9102,7 +9360,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-no"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/no/talesyntese_medium.opus"
     },
     "tts-piper-pl-pl-darkman-medium": {
       "feature": "tts",
@@ -9130,7 +9389,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pl/darkman_medium.opus"
     },
     "tts-piper-pl-pl-gosia-medium": {
       "feature": "tts",
@@ -9158,7 +9418,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pl/gosia_medium.opus"
     },
     "tts-piper-pl-pl-mc-speech-medium": {
       "feature": "tts",
@@ -9186,7 +9447,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pl/mc_speech_medium.opus"
     },
     "tts-piper-pl-pl-jarvis-wg-glos-medium": {
       "feature": "tts",
@@ -9214,7 +9476,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pl/jarvis_wg_glos_medium.opus"
     },
     "tts-piper-pt-br-cadu-medium": {
       "feature": "tts",
@@ -9242,7 +9505,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pt"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pt/cadu_medium.opus"
     },
     "tts-piper-pt-br-jeff-medium": {
       "feature": "tts",
@@ -9270,7 +9534,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pt"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pt/jeff_medium.opus"
     },
     "tts-piper-pt-br-faber-medium": {
       "feature": "tts",
@@ -9298,7 +9563,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pt"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pt/faber_medium.opus"
     },
     "tts-piper-pt-br-edresson-low": {
       "feature": "tts",
@@ -9328,7 +9594,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pt"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pt/edresson_low.opus"
     },
     "tts-piper-pt-pt-tugão-medium": {
       "feature": "tts",
@@ -9356,7 +9623,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-pt"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/pt/tugão_medium.opus"
     },
     "tts-piper-ro-ro-mihai-medium": {
       "feature": "tts",
@@ -9384,7 +9652,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ro"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ro/mihai_medium.opus"
     },
     "tts-piper-ru-ru-denis-medium": {
       "feature": "tts",
@@ -9412,7 +9681,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ru"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ru/denis_medium.opus"
     },
     "tts-piper-ru-ru-dmitri-medium": {
       "feature": "tts",
@@ -9440,7 +9710,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ru"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ru/dmitri_medium.opus"
     },
     "tts-piper-ru-ru-irina-medium": {
       "feature": "tts",
@@ -9470,7 +9741,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ru"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ru/irina_medium.opus"
     },
     "tts-piper-ru-ru-ruslan-medium": {
       "feature": "tts",
@@ -9498,7 +9770,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-ru"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ru/ruslan_medium.opus"
     },
     "tts-piper-sk-sk-lili-medium": {
       "feature": "tts",
@@ -9526,7 +9799,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sk"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sk/lili_medium.opus"
     },
     "tts-piper-sl-si-artur-medium": {
       "feature": "tts",
@@ -9554,7 +9828,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sl"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sl/artur_medium.opus"
     },
     "tts-piper-sq-al-edon-medium": {
       "feature": "tts",
@@ -9582,7 +9857,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sq"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sq/edon_medium.opus"
     },
     "tts-piper-sr-rs-serbski-institut-medium": {
       "feature": "tts",
@@ -9611,7 +9887,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sr"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sr/serbski_institut_medium.opus"
     },
     "tts-piper-sv-se-nst-medium": {
       "feature": "tts",
@@ -9639,7 +9916,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sv"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sv/nst_medium.opus"
     },
     "tts-piper-sv-se-alma-medium": {
       "feature": "tts",
@@ -9667,7 +9945,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sv"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sv/alma_medium.opus"
     },
     "tts-piper-sv-se-lisa-medium": {
       "feature": "tts",
@@ -9695,7 +9974,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-sv"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/sv/lisa_medium.opus"
     },
     "tts-mms-ta-in-standard-mms": {
       "feature": "tts",
@@ -9721,7 +10001,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/ta/ta_IN/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/ta/standard_medium.opus"
     },
     "tts-piper-te-in-maya-medium": {
       "feature": "tts",
@@ -9749,7 +10030,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-te"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/te/maya_medium.opus"
     },
     "tts-piper-te-in-padmavathi-medium": {
       "feature": "tts",
@@ -9777,7 +10059,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-te"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/te/padmavathi_medium.opus"
     },
     "tts-piper-te-in-venkatesh-medium": {
       "feature": "tts",
@@ -9805,7 +10088,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-te"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/te/venkatesh_medium.opus"
     },
     "tts-mms-th-th-standard-mms": {
       "feature": "tts",
@@ -9831,7 +10115,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/th/th_TH/standard/medium/tokens.txt"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/th/standard_medium.opus"
     },
     "tts-piper-tr-tr-dfki-medium": {
       "feature": "tts",
@@ -9859,7 +10144,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-tr"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/tr/dfki_medium.opus"
     },
     "tts-piper-uk-ua-ukrainian-tts-medium": {
       "feature": "tts",
@@ -9888,7 +10174,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-uk"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/uk/ukrainian_tts_medium.opus"
     },
     "tts-piper-uk-ua-lada-x-low": {
       "feature": "tts",
@@ -9918,7 +10205,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-uk"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/uk/lada_x_low.opus"
     },
     "tts-piper-vi-vn-vais1000-medium": {
       "feature": "tts",
@@ -9946,7 +10234,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-vi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/vi/vais1000_medium.opus"
     },
     "tts-piper-vi-vn-25hours-single-low": {
       "feature": "tts",
@@ -9976,7 +10265,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-vi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/vi/25hours_single_low.opus"
     },
     "tts-piper-vi-vn-vivos-x-low": {
       "feature": "tts",
@@ -10007,7 +10297,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-vi"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/vi/vivos_x_low.opus"
     },
     "tts-piper-zh-cn-huayan-medium": {
       "feature": "tts",
@@ -10035,7 +10326,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-cmn"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/zh/huayan_medium.opus"
     },
     "tts-piper-zh-cn-huayan-x-low": {
       "feature": "tts",
@@ -10065,7 +10357,8 @@
       ],
       "dependsOn": [
         "tts-espeak-dict-cmn"
-      ]
+      ],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/zh/huayan_x_low.opus"
     },
     "tts-sherpa_vits-zh-hk-cantonese-medium": {
       "feature": "tts",
@@ -10109,7 +10402,8 @@
           "url": "https://offline-translator.davidv.dev/tts/1/zh_hant/zh_HK/cantonese/medium/rule.fst"
         }
       ],
-      "dependsOn": []
+      "dependsOn": [],
+      "sampleUrl": "https://offline-translator.davidv.dev/samples_ogg/zh_hant/Cantonese_medium.opus"
     },
     "tts-piper-zh-tw-mandarin-traditional-medium": {
       "feature": "tts",
@@ -10138,6 +10432,361 @@
       "dependsOn": [
         "tts-espeak-dict-cmn"
       ]
+    },
+    "support-doc_detect-v1": {
+      "feature": "support",
+      "kind": "doc_detect",
+      "files": [
+        {
+          "name": "docaligner_lcnet050.onnx",
+          "sizeBytes": 4911217,
+          "installPath": "ocr/docrec/docaligner_lcnet050.onnx",
+          "url": "https://offline-translator.davidv.dev/support/1/docaligner_lcnet050.onnx"
+        }
+      ],
+      "dependsOn": []
+    },
+    "ocr-ppocr-detector": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "detector",
+      "files": [
+        {
+          "name": "PP-OCRv5_mobile_det_int8.mnn",
+          "sizeBytes": 1324660,
+          "installPath": "ppocr/PP-OCRv5/PP-OCRv5_mobile_det_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/PP-OCRv5_mobile_det_int8.mnn"
+        },
+        {
+          "name": "PULC_int8.mnn",
+          "sizeBytes": 1799836,
+          "installPath": "ppocr/PP-OCRv5/PULC_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/PULC_int8.mnn"
+        },
+        {
+          "name": "textline_ori_x0_25_wq8.mnn",
+          "sizeBytes": 309284,
+          "installPath": "ppocr/PP-OCRv5/textline_ori_x0_25_wq8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/textline_ori_x0_25_wq8.mnn"
+        }
+      ],
+      "dependsOn": []
+    },
+    "ocr-ppocr-arabic": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "arabic",
+      "files": [
+        {
+          "name": "arabic_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2178136,
+          "installPath": "ppocr/PP-OCRv5/arabic_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/arabic_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "arabic_PP-OCRv5_keys.txt",
+          "sizeBytes": 2369,
+          "installPath": "ppocr/PP-OCRv5/arabic_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/arabic_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-cyrillic": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "cyrillic",
+      "files": [
+        {
+          "name": "cyrillic_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2191732,
+          "installPath": "ppocr/PP-OCRv5/cyrillic_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/cyrillic_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "cyrillic_PP-OCRv5_keys.txt",
+          "sizeBytes": 2781,
+          "installPath": "ppocr/PP-OCRv5/cyrillic_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/cyrillic_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-devanagari": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "devanagari",
+      "files": [
+        {
+          "name": "devanagari_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2154508,
+          "installPath": "ppocr/PP-OCRv5/devanagari_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/devanagari_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "devanagari_PP-OCRv5_keys.txt",
+          "sizeBytes": 1943,
+          "installPath": "ppocr/PP-OCRv5/devanagari_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/devanagari_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-el": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "el",
+      "files": [
+        {
+          "name": "el_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2126260,
+          "installPath": "ppocr/PP-OCRv5/el_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/el_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "el_PP-OCRv5_keys.txt",
+          "sizeBytes": 1103,
+          "installPath": "ppocr/PP-OCRv5/el_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/el_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-eslav": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "eslav",
+      "files": [
+        {
+          "name": "eslav_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2147776,
+          "installPath": "ppocr/PP-OCRv5/eslav_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/eslav_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "eslav_PP-OCRv5_keys.txt",
+          "sizeBytes": 1663,
+          "installPath": "ppocr/PP-OCRv5/eslav_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/eslav_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-korean": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "korean",
+      "files": [
+        {
+          "name": "korean_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 3656272,
+          "installPath": "ppocr/PP-OCRv5/korean_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/korean_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "korean_PP-OCRv5_keys.txt",
+          "sizeBytes": 47451,
+          "installPath": "ppocr/PP-OCRv5/korean_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/korean_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-latin": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "latin",
+      "files": [
+        {
+          "name": "latin_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2189884,
+          "installPath": "ppocr/PP-OCRv5/latin_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/latin_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "latin_PP-OCRv5_keys.txt",
+          "sizeBytes": 2616,
+          "installPath": "ppocr/PP-OCRv5/latin_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/latin_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector"
+      ]
+    },
+    "ocr-ppocr-ta": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "ta",
+      "files": [
+        {
+          "name": "ta_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2147248,
+          "installPath": "ppocr/PP-OCRv5/ta_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/ta_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "ta_PP-OCRv5_keys.txt",
+          "sizeBytes": 1723,
+          "installPath": "ppocr/PP-OCRv5/ta_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/ta_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-te": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "te",
+      "files": [
+        {
+          "name": "te_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2150812,
+          "installPath": "ppocr/PP-OCRv5/te_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/te_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "te_PP-OCRv5_keys.txt",
+          "sizeBytes": 1831,
+          "installPath": "ppocr/PP-OCRv5/te_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/te_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-th": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "th",
+      "files": [
+        {
+          "name": "th_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "sizeBytes": 2148700,
+          "installPath": "ppocr/PP-OCRv5/th_PP-OCRv5_mobile_rec_infer_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/th_PP-OCRv5_mobile_rec_infer_int8.mnn"
+        },
+        {
+          "name": "th_PP-OCRv5_keys.txt",
+          "sizeBytes": 1767,
+          "installPath": "ppocr/PP-OCRv5/th_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/th_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "ocr-ppocr-cj": {
+      "feature": "ocr",
+      "engine": "ppocr",
+      "role": "recognizer",
+      "script": "cj",
+      "files": [
+        {
+          "name": "PP-OCRv5_mobile_rec_int8.mnn",
+          "sizeBytes": 4506088,
+          "installPath": "ppocr/PP-OCRv5/PP-OCRv5_mobile_rec_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/PP-OCRv5_mobile_rec_int8.mnn"
+        },
+        {
+          "name": "cj_PP-OCRv5_keys.txt",
+          "sizeBytes": 74012,
+          "installPath": "ppocr/PP-OCRv5/cj_PP-OCRv5_keys.txt",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/cj_PP-OCRv5_keys.txt"
+        }
+      ],
+      "dependsOn": [
+        "ocr-ppocr-detector",
+        "ocr-ppocr-latin"
+      ]
+    },
+    "support-adblock-lists-v1": {
+      "feature": "support",
+      "kind": "adblock",
+      "files": [
+        {
+          "name": "adblock-lists-v1.zip",
+          "sizeBytes": 2124783,
+          "installPath": "adblock/adblock-lists-v1.zip",
+          "url": "https://offline-translator.davidv.dev/support/1/adblock/adblock-lists-v1.zip",
+          "archiveFormat": "zip",
+          "extractTo": ".",
+          "deleteAfterExtract": true,
+          "installMarkerPath": "adblock/.install-info.json",
+          "installMarkerVersion": 1
+        }
+      ],
+      "dependsOn": [],
+      "metadata": {
+        "version": 1,
+        "lists": [
+          {
+            "packId": "support-adblock-adguard-mobile",
+            "listId": "adguard-mobile",
+            "description": "AdGuard Mobile Ads — mobile-specific ad slots and tracker patterns."
+          },
+          {
+            "packId": "support-adblock-easylist",
+            "listId": "easylist",
+            "description": "EasyList — primary advertising filter list."
+          },
+          {
+            "packId": "support-adblock-easyprivacy",
+            "listId": "easyprivacy",
+            "description": "EasyPrivacy — tracking and analytics filter list."
+          },
+          {
+            "packId": "support-adblock-fanboy-annoyance",
+            "listId": "fanboy-annoyance",
+            "description": "Fanboy's Annoyances — cookie banners, social widgets, sticky video."
+          },
+          {
+            "packId": "support-adblock-ublock-filters",
+            "listId": "ublock-filters",
+            "description": "uBlock Origin filters — cosmetic supplement to EasyList."
+          },
+          {
+            "packId": "support-adblock-ublock-unbreak",
+            "listId": "ublock-unbreak",
+            "description": "uBlock Origin unbreak — exceptions to fix sites broken by other lists."
+          }
+        ]
+      }
     }
   }
 }

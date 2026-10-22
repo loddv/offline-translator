@@ -3,30 +3,60 @@ name = "bindings"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-default = ["dictionary", "mucab", "tesseract", "tts"]
-dictionary = ["translator/dictionary"]
-mucab = ["translator/mucab"]
-tesseract = ["translator/tesseract"]
-tts = ["translator/tts"]
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 name = "bindings"
 path = "src/lib.rs"
 
+[features]
+default = ["dictionary", "mucab", "tesseract", "tts", "pdf", "odt", "transliterate", "image-render", "pdf-image-translate", "doc-align", "ppocr", "planar-tracker"]
+dictionary = ["translator/dictionary"]
+mucab = ["translator/mucab"]
+tesseract = ["translator/tesseract"]
+tts = ["translator/tts"]
+pdf = ["translator/pdf"]
+odt = ["translator/odt"]
+transliterate = ["translator/transliterate"]
+image-render = ["translator/image-render"]
+pdf-image-translate = ["translator/pdf-image-translate"]
+doc-align = ["translator/doc-align"]
+ppocr = ["translator/ppocr"]
+planar-tracker = ["translator/planar-tracker"]
+
 [dependencies]
-translator = { git = "https://github.com/DavidVentura/translator-rs.git", default-features = false, features = ["uniffi", "transliterate"] }
-# translator = { path = "/home/david/git/translator-rs", default-features = false, features = ["uniffi", "transliterate"] }
-uniffi = "0.29"
+adblock = { version = "0.12.2", default-features = false, features = ["full-regex-handling", "embedded-domain-resolver"] }
+serde_json = "1"
+uniffi = { version = "0.29", default-features = false }
 thiserror = "2"
 log = "0.4"
+xml5ever = "0.38"
+markup5ever = "0.38"
+# Used for the live-OCR DirectByteBuffer fast-path: a hand-rolled JNI shim
+# that copies bytes from a camera DirectByteBuffer straight into a FrameHandle's
+# Rust-owned Vec<u8>, skipping the JVM ByteArray round-trip uniffi would
+# otherwise force on us.
+jni = { version = "0.21", default-features = false }
+
+[dependencies.translator]
+default-features = false
+git = "https://github.com/DavidVentura/translator-rs.git"
+# path = "/home/david/git/translator-rs"
+features = ["uniffi", "html"]
 
 [target.'cfg(target_os = "android")'.dependencies]
-android_logger = "0.14"
+android_logger = { version = "0.14", default-features = false }
+
+# [patch."https://github.com/DavidVentura/slimt-sys"]
+# slimt-sys = { path = "/home/david/git/slimt-sys" }
+
+# [patch."https://github.com/DavidVentura/piper-rs"]
+# piper-rs = { path = "/home/david/git/piper-rs" }
+#
+# [patch."https://github.com/DavidVentura/mnn-sys"]
+# mnn-sys = { path = "/home/david/git/mnn-sys" }
 
 [profile.release]
-lto = "fat"
-codegen-units = 1
+lto = "thin"
+codegen-units = 2
 debug = false
 strip = "debuginfo"

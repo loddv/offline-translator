@@ -111,6 +111,7 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
     languages_v2 = {}
     packs = {}
     dictionary_consumers = defaultdict(list)
+    ocr_pack_ids_by_files = {}
 
     for lang in sorted(language_index["languages"], key=lambda item: item["code"]):
         code = lang["code"]
@@ -158,7 +159,6 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
             add_language_asset_ref(languages_v2[from_code], "translate", pack_id)
             add_language_asset_ref(languages_v2[to_code], "translate", pack_id)
 
-        ocr_pack_id = make_ocr_pack_id("tesseract", code)
         primary_traineddata = OCR_PRIMARY_TRAINEDDATA_OVERRIDES.get(code)
         primary_name = primary_traineddata["name"] if primary_traineddata else f"{lang['tessName']}.traineddata"
         primary_size = int(primary_traineddata["sizeBytes"]) if primary_traineddata else int(lang["tessdataSizeBytes"])
@@ -183,13 +183,18 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
                     source_path=None if extra_traineddata.get("url") else name,
                 )
             )
-        packs[ocr_pack_id] = {
-            "feature": "ocr",
-            "engine": "tesseract",
-            "language": code,
-            "files": ocr_files,
-            "dependsOn": [] if code == "en" else [make_ocr_pack_id("tesseract", "en")],
-        }
+        ocr_file_key = tuple(file_info["installPath"] for file_info in ocr_files)
+        ocr_pack_id = ocr_pack_ids_by_files.get(ocr_file_key)
+        if ocr_pack_id is None:
+            ocr_pack_id = make_ocr_pack_id("tesseract", code)
+            ocr_pack_ids_by_files[ocr_file_key] = ocr_pack_id
+            packs[ocr_pack_id] = {
+                "feature": "ocr",
+                "engine": "tesseract",
+                "language": code,
+                "files": ocr_files,
+                "dependsOn": [] if code == "en" else [make_ocr_pack_id("tesseract", "en")],
+            }
         add_language_asset_ref(language_entry, "ocr", {"tesseract": ocr_pack_id})
 
         for extra_file in lang.get("extraFiles", []):
@@ -244,7 +249,7 @@ def convert_v1_to_v2(language_index: dict, dictionary_index: dict) -> dict:
     validate_manifest(languages_v2, packs)
 
     return {
-        "formatVersion": 2,
+        "formatVersion": 3,
         "generatedAt": int(time.time()),
         "translationModelsBaseUrl": translation_base_url,
         "tesseractModelsBaseUrl": tesseract_base_url,
@@ -268,6 +273,13 @@ def normalize_language_assets(languages_v2: dict) -> None:
             assets["translate"] = sorted(set(assets["translate"]))
         if "support" in assets:
             assets["support"] = sorted(set(assets["support"]))
+        ocr_assets = assets.get("ocr")
+        if isinstance(ocr_assets, dict) and ocr_assets:
+            assets["preferredOcrEngine"] = (
+                "tesseract" if "tesseract" in ocr_assets else sorted(ocr_assets.keys())[0]
+            )
+        else:
+            assets["preferredOcrEngine"] = ""
 
 
 def validate_manifest(languages: dict, packs: dict) -> None:
@@ -300,7 +312,11 @@ def validate_manifest(languages: dict, packs: dict) -> None:
             if pack["from"] not in language_codes or pack["to"] not in language_codes:
                 raise ValueError(f"{pack_id}: unknown translation endpoints")
         if "language" in pack and pack["language"] not in language_codes:
-            raise ValueError(f"{pack_id}: unknown language {pack['language']}")
+            # PPOCR OCR packs use the `language` slot to carry a script slug
+            # (or "_detector"), not a real language code — by design, one rec
+            # model covers many languages of the same script.
+            if not (pack.get("feature") == "ocr" and pack.get("engine") == "ppocr"):
+                raise ValueError(f"{pack_id}: unknown language {pack['language']}")
         if "languages" in pack:
             unknown = sorted(set(pack["languages"]) - language_codes)
             if unknown:

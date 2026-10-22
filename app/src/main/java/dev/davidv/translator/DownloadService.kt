@@ -35,7 +35,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -109,12 +112,24 @@ class DownloadService : Service() {
   private val _ttsDownloadStates = MutableStateFlow<Map<Language, DownloadState>>(emptyMap())
   val ttsDownloadStates: StateFlow<Map<Language, DownloadState>> = _ttsDownloadStates
 
+  private val _activeTtsPackIds = MutableStateFlow<Map<Language, String>>(emptyMap())
+  val activeTtsPackIds: StateFlow<Map<Language, String>> = _activeTtsPackIds
+
+  private val _queuedTtsPackIds = MutableStateFlow<Map<Language, List<String>>>(emptyMap())
+  val queuedTtsPackIds: StateFlow<Map<Language, List<String>>> = _queuedTtsPackIds
+
+  private val _adblockDownloadState = MutableStateFlow(DownloadState())
+  val adblockDownloadState: StateFlow<DownloadState> = _adblockDownloadState
+
   private val _downloadEvents = MutableSharedFlow<DownloadEvent>()
   val downloadEvents: SharedFlow<DownloadEvent> = _downloadEvents.asSharedFlow()
 
   private val downloadJobs = mutableMapOf<Language, Job>()
   private val dictionaryDownloadJobs = mutableMapOf<Language, Job>()
   private val ttsDownloadJobs = mutableMapOf<Language, Job>()
+  private var adblockDownloadJob: Job? = null
+  private val fileDownloadLocksGuard = Any()
+  private val fileDownloadLocks = mutableMapOf<String, Mutex>()
   private val baseDirPath: String
     get() = filePathManager.currentBaseDir().absolutePath
 
@@ -139,6 +154,35 @@ class DownloadService : Service() {
         Intent(context, DownloadService::class.java).apply {
           action = "CANCEL_DOWNLOAD"
           putExtra("language_code", language.code)
+        }
+      context.startService(intent)
+    }
+
+    fun startOcrEngineDownload(
+      context: Context,
+      language: Language,
+      engine: String,
+    ) {
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "START_OCR_ENGINE_DOWNLOAD"
+          putExtra("language_code", language.code)
+          putExtra("engine", engine)
+        }
+      context.startService(intent)
+    }
+
+    fun startOcrEngineDownloads(
+      context: Context,
+      languages: List<Language>,
+      engine: String,
+    ) {
+      val languageCodes = ArrayList(languages.map { it.code })
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "START_OCR_ENGINE_DOWNLOADS"
+          putStringArrayListExtra("language_codes", languageCodes)
+          putExtra("engine", engine)
         }
       context.startService(intent)
     }
@@ -196,6 +240,22 @@ class DownloadService : Service() {
       context.startService(intent)
     }
 
+    fun startAdblockDownload(context: Context) {
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "START_ADBLOCK_DOWNLOAD"
+        }
+      context.startService(intent)
+    }
+
+    fun cancelAdblockDownload(context: Context) {
+      val intent =
+        Intent(context, DownloadService::class.java).apply {
+          action = "CANCEL_ADBLOCK_DOWNLOAD"
+        }
+      context.startService(intent)
+    }
+
     fun fetchCatalog(context: Context) {
       val intent =
         Intent(context, DownloadService::class.java).apply {
@@ -223,6 +283,22 @@ class DownloadService : Service() {
         val catalog = getCatalog() ?: return START_NOT_STICKY
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         cancelLanguageDownload(language)
+      }
+
+      "START_OCR_ENGINE_DOWNLOAD" -> {
+        val languageCode = intent.getStringExtra("language_code") ?: return START_NOT_STICKY
+        val engine = intent.getStringExtra("engine") ?: return START_NOT_STICKY
+        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
+        startOcrEngineDownload(language, engine)
+      }
+
+      "START_OCR_ENGINE_DOWNLOADS" -> {
+        val languageCodes = intent.getStringArrayListExtra("language_codes").orEmpty()
+        val engine = intent.getStringExtra("engine") ?: return START_NOT_STICKY
+        val catalog = getCatalog() ?: return START_NOT_STICKY
+        val languages = languageCodes.mapNotNull(catalog::languageByCode)
+        startOcrEngineDownloads(languages, engine)
       }
 
       "START_DICT_DOWNLOAD" -> {
@@ -254,6 +330,14 @@ class DownloadService : Service() {
         val catalog = getCatalog() ?: return START_NOT_STICKY
         val language = catalog.languageByCode(languageCode) ?: return START_NOT_STICKY
         cancelTtsDownload(language)
+      }
+
+      "START_ADBLOCK_DOWNLOAD" -> {
+        startAdblockDownload()
+      }
+
+      "CANCEL_ADBLOCK_DOWNLOAD" -> {
+        cancelAdblockDownload()
       }
 
       "FETCH_CATALOG" -> {
@@ -337,9 +421,122 @@ class DownloadService : Service() {
       actionLabel = "download",
       failureLabel = "download",
       planProvider = { catalog ->
-        catalog.planDownload(language.code, Feature.CORE) ?: DownloadPlan(0UL, emptyList())
+        val corePlan = catalog.planDownload(language.code, Feature.CORE) ?: DownloadPlan(0UL, emptyList())
+        val docDetectPlan =
+          if (catalog.supportInstalledByKind(DOC_DETECT_KIND)) {
+            null
+          } else {
+            catalog.planSupportDownloadByKind(DOC_DETECT_KIND)
+          }
+        if (docDetectPlan == null) {
+          corePlan
+        } else {
+          DownloadPlan(
+            corePlan.totalSize + docDetectPlan.totalSize,
+            corePlan.tasks + docDetectPlan.tasks,
+          )
+        }
       },
     )
+  }
+
+  private fun startOcrEngineDownload(
+    language: Language,
+    engine: String,
+  ) {
+    startPrimaryDownload(
+      language = language,
+      actionLabel = "OCR engine download",
+      failureLabel = "OCR download",
+      planProvider = { catalog ->
+        catalog.planOcrEngineDownload(language.code, engine) ?: DownloadPlan(0UL, emptyList())
+      },
+    )
+  }
+
+  private fun startOcrEngineDownloads(
+    languages: List<Language>,
+    engine: String,
+  ) {
+    val activeLanguages = languages.distinctBy { it.code }.filter { _downloadStates.value[it]?.isDownloading != true }
+    if (activeLanguages.isEmpty()) return
+
+    activeLanguages.forEach { language ->
+      updateDownloadState(language) {
+        DownloadState(
+          isDownloading = true,
+          isCompleted = false,
+          downloaded = 1,
+        )
+      }
+    }
+
+    val job =
+      serviceScope.launch {
+        try {
+          val catalog = getCatalog() ?: return@launch
+          val downloadPlan = catalog.planOcrEngineDownloads(activeLanguages.map { it.code }, engine)
+          var success = true
+          if (downloadPlan.tasks.isNotEmpty()) {
+            activeLanguages.forEach { language ->
+              updateDownloadState(language) {
+                it.copy(
+                  isDownloading = true,
+                  downloaded = 1,
+                  totalSize = downloadPlan.totalSize.toLong(),
+                )
+              }
+            }
+            Log.i(
+              "DownloadService",
+              "Starting OCR engine batch download for ${activeLanguages.size} languages",
+            )
+            val activeJobs =
+              downloadPlan.tasks.map { task ->
+                async {
+                  downloadPackFile(task) { incrementalProgress ->
+                    activeLanguages.forEach { language ->
+                      incrementDownloadBytes(language, incrementalProgress)
+                    }
+                  }
+                }
+              }
+            success = activeJobs.awaitAll().all { it }
+          }
+
+          activeLanguages.forEach { language ->
+            updateDownloadState(language) {
+              DownloadState(
+                isDownloading = false,
+                isCompleted = success,
+              )
+            }
+          }
+          if (success) {
+            filePathManager.reloadCatalog()
+            Log.i("DownloadService", "OCR engine batch download complete")
+            activeLanguages.forEach { language ->
+              _downloadEvents.emit(DownloadEvent.NewTranslationAvailable(language))
+            }
+          } else {
+            _downloadEvents.emit(DownloadEvent.DownloadError("OCR batch download failed"))
+          }
+        } catch (e: Exception) {
+          Log.e("DownloadService", "OCR engine batch download failed", e)
+          activeLanguages.forEach { language ->
+            updateDownloadState(language) {
+              it.copy(isDownloading = false, error = e.message)
+            }
+          }
+          _downloadEvents.emit(DownloadEvent.DownloadError("OCR batch download failed"))
+        } finally {
+          activeLanguages.forEach(downloadJobs::remove)
+        }
+      }
+
+    activeLanguages.forEach { language ->
+      downloadJobs[language] = job
+    }
   }
 
   private fun startDictionaryDownload(
@@ -421,7 +618,15 @@ class DownloadService : Service() {
     language: Language,
     requestedPackId: String? = null,
   ) {
-    if (_ttsDownloadStates.value[language]?.isDownloading == true) return
+    if (_ttsDownloadStates.value[language]?.isDownloading == true) {
+      val resolvedPackId = requestedPackId ?: getCatalog()?.defaultTtsPackIdForLanguage(language.code) ?: return
+      if (_activeTtsPackIds.value[language] == resolvedPackId) return
+      _queuedTtsPackIds.update { current ->
+        val existing = current[language].orEmpty()
+        if (resolvedPackId in existing) current else current + (language to existing + resolvedPackId)
+      }
+      return
+    }
     updateTtsDownloadState(language) {
       DownloadState(
         isDownloading = true,
@@ -434,6 +639,7 @@ class DownloadService : Service() {
         try {
           val catalog = getCatalog() ?: return@launch
           val ttsPackId = requestedPackId ?: catalog.defaultTtsPackIdForLanguage(language.code) ?: return@launch
+          _activeTtsPackIds.update { it + (language to ttsPackId) }
           val downloadPlan =
             catalog.planDownload(language.code, Feature.TTS, ttsPackId) ?: run {
               Log.w("DownloadService", "Ignoring invalid TTS pack $ttsPackId for ${language.code}")
@@ -469,12 +675,8 @@ class DownloadService : Service() {
           }
 
           if (success) {
-            val refreshedCatalog = filePathManager.reloadCatalog() ?: catalog
-            removeSupersededTtsVoices(
-              catalog = refreshedCatalog,
-              language = language,
-              selectedPackId = ttsPackId,
-            )
+            filePathManager.reloadCatalog()
+            TranslatorTtsEngine.notifyVoiceDataChanged(this@DownloadService)
             Log.i("DownloadService", "TTS download complete: ${language.displayName}")
             _downloadEvents.emit(DownloadEvent.NewTtsAvailable(language))
           } else {
@@ -491,32 +693,122 @@ class DownloadService : Service() {
           _downloadEvents.emit(DownloadEvent.DownloadError("${language.displayName} TTS download failed"))
         } finally {
           ttsDownloadJobs.remove(language)
+          _activeTtsPackIds.update { it - language }
+          val nextPackId =
+            _queuedTtsPackIds.value[language]?.firstOrNull()?.also {
+              _queuedTtsPackIds.update { current ->
+                val rest = current[language].orEmpty().drop(1)
+                if (rest.isEmpty()) current - language else current + (language to rest)
+              }
+            }
+          if (nextPackId != null) {
+            startTtsDownload(language, nextPackId)
+          }
         }
       }
 
     ttsDownloadJobs[language] = job
   }
 
-  private fun removeSupersededTtsVoices(
-    catalog: LanguageCatalog,
-    language: Language,
-    selectedPackId: String,
-  ) {
-    val deletePlan = catalog.prepareDeleteSupersededTts(language.code, selectedPackId)
-    if (deletePlan.filePaths.isNotEmpty() || deletePlan.directoryPaths.isNotEmpty()) {
-      filePathManager.applyDeletePlan(deletePlan)
-    }
-  }
-
   private fun cancelTtsDownload(language: Language) {
     ttsDownloadJobs[language]?.cancel()
     ttsDownloadJobs.remove(language)
+    _activeTtsPackIds.update { it - language }
+    _queuedTtsPackIds.update { it - language }
 
     updateTtsDownloadState(language) {
       it.copy(isDownloading = false, isCancelled = true, error = null)
     }
 
     Log.i("DownloadService", "Cancelled TTS download for ${language.displayName}")
+  }
+
+  private fun startAdblockDownload() {
+    if (_adblockDownloadState.value.isDownloading) return
+    updateAdblockDownloadState {
+      DownloadState(
+        isDownloading = true,
+        isCompleted = false,
+        downloaded = 1,
+      )
+    }
+    val job =
+      serviceScope.launch {
+        try {
+          val catalog =
+            getCatalog() ?: run {
+              updateAdblockDownloadState {
+                it.copy(isDownloading = false, error = "Catalog unavailable")
+              }
+              _downloadEvents.emit(DownloadEvent.DownloadError("Catalog unavailable"))
+              return@launch
+            }
+          val downloadPlan =
+            catalog.planSupportDownloadByKind(ADBLOCK_KIND) ?: run {
+              Log.w("DownloadService", "No adblock support pack in catalog")
+              updateAdblockDownloadState {
+                it.copy(isDownloading = false, error = "No adblock support pack in catalog")
+              }
+              return@launch
+            }
+          var success = true
+          if (downloadPlan.tasks.isNotEmpty()) {
+            updateAdblockDownloadState {
+              it.copy(
+                isDownloading = true,
+                downloaded = 1,
+                totalSize = downloadPlan.totalSize.toLong(),
+              )
+            }
+            Log.i("DownloadService", "Starting adblock download")
+            for (task in downloadPlan.tasks) {
+              if (!downloadPackFile(task, ::incrementAdblockDownloadBytes)) {
+                success = false
+              }
+            }
+          }
+
+          updateAdblockDownloadState {
+            DownloadState(
+              isDownloading = false,
+              isCompleted = success,
+            )
+          }
+
+          if (success) {
+            filePathManager.reloadCatalog()
+            (application as? TranslatorApplication)?.adblockManager?.reload()
+            Log.i("DownloadService", "Adblock download complete")
+            _downloadEvents.emit(DownloadEvent.NewSupportAvailable(ADBLOCK_KIND))
+          } else {
+            updateAdblockDownloadState {
+              it.copy(isDownloading = false, error = "Adblock download failed")
+            }
+            _downloadEvents.emit(DownloadEvent.DownloadError("Adblock download failed"))
+          }
+        } catch (e: Exception) {
+          Log.e("DownloadService", "Adblock download failed", e)
+          updateAdblockDownloadState {
+            it.copy(isDownloading = false, error = e.message)
+          }
+          _downloadEvents.emit(DownloadEvent.DownloadError("Adblock download failed"))
+        } finally {
+          adblockDownloadJob = null
+        }
+      }
+
+    adblockDownloadJob = job
+  }
+
+  private fun cancelAdblockDownload() {
+    adblockDownloadJob?.cancel()
+    adblockDownloadJob = null
+
+    updateAdblockDownloadState {
+      it.copy(isDownloading = false, isCancelled = true, error = null)
+    }
+
+    Log.i("DownloadService", "Cancelled adblock download")
   }
 
   private fun cancelLanguageDownload(language: Language) {
@@ -623,13 +915,61 @@ class DownloadService : Service() {
     }
   }
 
+  private fun updateAdblockDownloadState(update: (DownloadState) -> DownloadState) {
+    synchronized(this) {
+      _adblockDownloadState.value = update(_adblockDownloadState.value)
+    }
+  }
+
+  private fun incrementAdblockDownloadBytes(incrementalBytes: Long) {
+    updateAdblockDownloadState {
+      it.copy(downloaded = it.downloaded + incrementalBytes)
+    }
+  }
+
   private suspend fun downloadPackFile(
     task: DownloadTask,
     targetLanguage: Language,
     incrementDictionary: Boolean = false,
     incrementTts: Boolean = false,
+  ): Boolean =
+    downloadPackFile(task) { incrementalProgress ->
+      if (incrementDictionary) {
+        incrementDictionaryDownloadBytes(targetLanguage, incrementalProgress)
+      } else if (incrementTts) {
+        incrementTtsDownloadBytes(targetLanguage, incrementalProgress)
+      } else {
+        incrementDownloadBytes(targetLanguage, incrementalProgress)
+      }
+    }
+
+  private suspend fun downloadPackFile(
+    task: DownloadTask,
+    onProgress: (Long) -> Unit,
   ): Boolean {
     val outputFile = filePathManager.resolveInstallPath(task.installPath)
+    val lock = fileDownloadLock(outputFile)
+    return lock.withLock {
+      if (task.archiveFormat != "zip" && outputFile.exists() && outputFile.length() > 0L) {
+        onProgress(task.sizeBytes.toLong())
+        Log.i("DownloadService", "Reusing downloaded ${task.packId}:${task.installPath}")
+        true
+      } else {
+        downloadPackFileLocked(task, outputFile, onProgress)
+      }
+    }
+  }
+
+  private fun fileDownloadLock(outputFile: File): Mutex =
+    synchronized(fileDownloadLocksGuard) {
+      fileDownloadLocks.getOrPut(outputFile.absolutePath) { Mutex() }
+    }
+
+  private suspend fun downloadPackFileLocked(
+    task: DownloadTask,
+    outputFile: File,
+    onProgress: (Long) -> Unit,
+  ): Boolean {
     val url = task.url
     val extractTo = task.extractTo
     val installMarkerPath = task.installMarkerPath
@@ -643,15 +983,8 @@ class DownloadService : Service() {
             extractTo = filePathManager.resolveInstallPath(extractTo),
             deleteAfterExtract = task.deleteAfterExtract,
             installMarkerPath = installMarkerPath,
-          ) { incrementalProgress ->
-            if (incrementDictionary) {
-              incrementDictionaryDownloadBytes(targetLanguage, incrementalProgress)
-            } else if (incrementTts) {
-              incrementTtsDownloadBytes(targetLanguage, incrementalProgress)
-            } else {
-              incrementDownloadBytes(targetLanguage, incrementalProgress)
-            }
-          }.also { extracted ->
+            onProgress = onProgress,
+          ).also { extracted ->
             if (extracted && installMarkerPath != null && installMarkerVersion != null) {
               filePathManager.writeInstallMarker(installMarkerPath, installMarkerVersion)
             }
@@ -661,15 +994,8 @@ class DownloadService : Service() {
             url,
             outputFile,
             decompress = task.decompress,
-          ) { incrementalProgress ->
-            if (incrementDictionary) {
-              incrementDictionaryDownloadBytes(targetLanguage, incrementalProgress)
-            } else if (incrementTts) {
-              incrementTtsDownloadBytes(targetLanguage, incrementalProgress)
-            } else {
-              incrementDownloadBytes(targetLanguage, incrementalProgress)
-            }
-          }
+            onProgress = onProgress,
+          )
         }
       Log.i("DownloadService", "Downloaded ${task.packId}:${task.installPath} from $url = $success")
       success
@@ -905,3 +1231,6 @@ data class DownloadState(
   val totalSize: Long = 1,
   val error: String? = null,
 )
+
+private const val ADBLOCK_KIND = "adblock"
+private const val DOC_DETECT_KIND = "doc_detect"

@@ -17,8 +17,10 @@
 
 package dev.davidv.translator
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,7 @@ import org.json.JSONObject
 class SettingsManager(
   context: Context,
 ) {
+  private val appContext: Context = context.applicationContext
   private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
   private val modifiedSettings = mutableSetOf<String>()
@@ -70,15 +73,25 @@ class SettingsManager(
         defaults.backgroundMode
       }
 
+    val preferredOcrEngineName = prefs.getString("preferred_ocr_engine", null)
+    val preferredOcrEngine =
+      if (preferredOcrEngineName != null) {
+        try {
+          PreferredOcrEngine.valueOf(preferredOcrEngineName)
+        } catch (_: IllegalArgumentException) {
+          defaults.preferredOcrEngine
+        }
+      } else {
+        defaults.preferredOcrEngine
+      }
+
     val minConfidence = prefs.getInt("min_confidence", defaults.minConfidence)
-    val maxImageSize = prefs.getInt("max_image_size", defaults.maxImageSize)
-    val disableOcr = prefs.getBoolean("disable_ocr", defaults.disableOcr)
+    val maxImageSize = prefs.getInt("max_image_size", defaults.maxImageSize).coerceIn(600, 2000)
     val disableCLD = prefs.getBoolean("disable_cld", defaults.disableCLD)
     val enableOutputTransliteration = prefs.getBoolean("enable_output_transliteration", defaults.enableOutputTransliteration)
     val useExternalStorage = prefs.getBoolean("use_external_storage", defaults.useExternalStorage)
     val fontFactor = prefs.getFloat("font_factor", defaults.fontFactor)
     val showOCRDetection = prefs.getBoolean("show_ocr_detection", defaults.showOCRDetection)
-    val showFilePickerInImagePicker = prefs.getBoolean("show_file_picker_in_image_picker", defaults.showFilePickerInImagePicker)
     val showTransliterationOnInput = prefs.getBoolean("show_transliteration_on_input", defaults.showTransliterationOnInput)
     val onlyShowOutputOnReadonlyModal =
       prefs.getBoolean(
@@ -96,38 +109,66 @@ class SettingsManager(
       } else {
         defaults.readonlyModalOutputAlignment
       }
+    val readonlyModalCompactHeightFactor =
+      prefs.getFloat(
+        "readonly_modal_compact_height_factor",
+        defaults.readonlyModalCompactHeightFactor,
+      )
     val addSpacesForJapaneseTransliteration =
       prefs.getBoolean(
         "add_spaces_for_japanese_transliteration",
         defaults.addSpacesForJapaneseTransliteration,
       )
     val ttsPlaybackSpeed = prefs.getFloat("tts_playback_speed", defaults.ttsPlaybackSpeed)
+    val ttsPlaybackSpeedOverrides =
+      prefs
+        .getString("tts_playback_speed_overrides", null)
+        ?.let(::parsePlaybackSpeedOverrides)
+        ?: defaults.ttsPlaybackSpeedOverrides
+    val tapToTranslateEnabled = prefs.getBoolean("tap_to_translate_enabled", defaults.tapToTranslateEnabled)
     val ttsVoiceOverrides =
       prefs
         .getString("tts_voice_overrides", null)
         ?.let(::parseVoiceOverrides)
         ?: defaults.ttsVoiceOverrides
+    val clearWebTranslatorDataOnClose =
+      prefs.getBoolean(
+        "clear_web_translator_data_on_close",
+        defaults.clearWebTranslatorDataOnClose,
+      )
+    val translatePdfImages =
+      prefs.getBoolean("translate_pdf_images", defaults.translatePdfImages)
+    val liveCameraOverlayEnabled =
+      prefs.getBoolean("live_camera_overlay_enabled", defaults.liveCameraOverlayEnabled)
+    val registerAsBrowser =
+      prefs.getBoolean("register_as_browser", defaults.registerAsBrowser)
 
     return AppSettings(
       defaultTargetLanguageCode = defaultTargetLanguageCode,
       defaultSourceLanguageCode = defaultSourceLanguageCode,
       catalogIndexUrl = catalogIndexUrl,
       backgroundMode = backgroundMode,
+      preferredOcrEngine = preferredOcrEngine,
       minConfidence = minConfidence,
       maxImageSize = maxImageSize,
-      disableOcr = disableOcr,
       disableCLD = disableCLD,
       enableOutputTransliteration = enableOutputTransliteration,
       useExternalStorage = useExternalStorage,
       fontFactor = fontFactor,
       showOCRDetection = showOCRDetection,
-      showFilePickerInImagePicker = showFilePickerInImagePicker,
       showTransliterationOnInput = showTransliterationOnInput,
       onlyShowOutputOnReadonlyModal = onlyShowOutputOnReadonlyModal,
       readonlyModalOutputAlignment = readonlyModalOutputAlignment,
+      readonlyModalCompactHeightFactor = readonlyModalCompactHeightFactor,
       addSpacesForJapaneseTransliteration = addSpacesForJapaneseTransliteration,
       ttsPlaybackSpeed = ttsPlaybackSpeed,
+      ttsPlaybackSpeedOverrides = ttsPlaybackSpeedOverrides,
       ttsVoiceOverrides = ttsVoiceOverrides,
+      tapToTranslateEnabled = tapToTranslateEnabled,
+      clearWebTranslatorDataOnClose = clearWebTranslatorDataOnClose,
+      translatePdfImages = translatePdfImages,
+      liveCameraOverlayEnabled = liveCameraOverlayEnabled,
+      registerAsBrowser = registerAsBrowser,
     )
   }
 
@@ -155,6 +196,10 @@ class SettingsManager(
         putString("background_mode", newSettings.backgroundMode.name)
         modifiedSettings.add("background_mode")
       }
+      if (newSettings.preferredOcrEngine != currentSettings.preferredOcrEngine) {
+        putString("preferred_ocr_engine", newSettings.preferredOcrEngine.name)
+        modifiedSettings.add("preferred_ocr_engine")
+      }
       if (newSettings.minConfidence != currentSettings.minConfidence) {
         putInt("min_confidence", newSettings.minConfidence)
         modifiedSettings.add("min_confidence")
@@ -162,10 +207,6 @@ class SettingsManager(
       if (newSettings.maxImageSize != currentSettings.maxImageSize) {
         putInt("max_image_size", newSettings.maxImageSize)
         modifiedSettings.add("max_image_size")
-      }
-      if (newSettings.disableOcr != currentSettings.disableOcr) {
-        putBoolean("disable_ocr", newSettings.disableOcr)
-        modifiedSettings.add("disable_ocr")
       }
       if (newSettings.disableCLD != currentSettings.disableCLD) {
         putBoolean("disable_cld", newSettings.disableCLD)
@@ -187,10 +228,6 @@ class SettingsManager(
         putFloat("font_factor", newSettings.fontFactor)
         modifiedSettings.add("font_factor")
       }
-      if (newSettings.showFilePickerInImagePicker != currentSettings.showFilePickerInImagePicker) {
-        putBoolean("show_file_picker_in_image_picker", newSettings.showFilePickerInImagePicker)
-        modifiedSettings.add("show_file_picker_in_image_picker")
-      }
       if (newSettings.showTransliterationOnInput != currentSettings.showTransliterationOnInput) {
         putBoolean("show_transliteration_on_input", newSettings.showTransliterationOnInput)
         modifiedSettings.add("show_transliteration_on_input")
@@ -203,6 +240,10 @@ class SettingsManager(
         putString("readonly_modal_output_alignment", newSettings.readonlyModalOutputAlignment.name)
         modifiedSettings.add("readonly_modal_output_alignment")
       }
+      if (newSettings.readonlyModalCompactHeightFactor != currentSettings.readonlyModalCompactHeightFactor) {
+        putFloat("readonly_modal_compact_height_factor", newSettings.readonlyModalCompactHeightFactor)
+        modifiedSettings.add("readonly_modal_compact_height_factor")
+      }
       if (newSettings.addSpacesForJapaneseTransliteration != currentSettings.addSpacesForJapaneseTransliteration) {
         putBoolean("add_spaces_for_japanese_transliteration", newSettings.addSpacesForJapaneseTransliteration)
         modifiedSettings.add("add_spaces_for_japanese_transliteration")
@@ -211,9 +252,35 @@ class SettingsManager(
         putFloat("tts_playback_speed", newSettings.ttsPlaybackSpeed)
         modifiedSettings.add("tts_playback_speed")
       }
+      if (newSettings.ttsPlaybackSpeedOverrides != currentSettings.ttsPlaybackSpeedOverrides) {
+        putString("tts_playback_speed_overrides", serializePlaybackSpeedOverrides(newSettings.ttsPlaybackSpeedOverrides))
+        modifiedSettings.add("tts_playback_speed_overrides")
+      }
       if (newSettings.ttsVoiceOverrides != currentSettings.ttsVoiceOverrides) {
         putString("tts_voice_overrides", serializeVoiceOverrides(newSettings.ttsVoiceOverrides))
         modifiedSettings.add("tts_voice_overrides")
+        TranslatorTtsEngine.notifyVoiceDataChanged(appContext)
+      }
+      if (newSettings.tapToTranslateEnabled != currentSettings.tapToTranslateEnabled) {
+        putBoolean("tap_to_translate_enabled", newSettings.tapToTranslateEnabled)
+        modifiedSettings.add("tap_to_translate_enabled")
+      }
+      if (newSettings.clearWebTranslatorDataOnClose != currentSettings.clearWebTranslatorDataOnClose) {
+        putBoolean("clear_web_translator_data_on_close", newSettings.clearWebTranslatorDataOnClose)
+        modifiedSettings.add("clear_web_translator_data_on_close")
+      }
+      if (newSettings.translatePdfImages != currentSettings.translatePdfImages) {
+        putBoolean("translate_pdf_images", newSettings.translatePdfImages)
+        modifiedSettings.add("translate_pdf_images")
+      }
+      if (newSettings.liveCameraOverlayEnabled != currentSettings.liveCameraOverlayEnabled) {
+        putBoolean("live_camera_overlay_enabled", newSettings.liveCameraOverlayEnabled)
+        modifiedSettings.add("live_camera_overlay_enabled")
+      }
+      if (newSettings.registerAsBrowser != currentSettings.registerAsBrowser) {
+        putBoolean("register_as_browser", newSettings.registerAsBrowser)
+        modifiedSettings.add("register_as_browser")
+        applyBrowserAliasState(newSettings.registerAsBrowser)
       }
       remove("translation_models_base_url_v3")
       remove("tesseract_models_base_url")
@@ -221,6 +288,21 @@ class SettingsManager(
       apply()
     }
     _settings.value = newSettings
+  }
+
+  fun applyBrowserAliasState(enabled: Boolean) {
+    val component = ComponentName(appContext, "dev.davidv.translator.MainActivityBrowser")
+    val desired =
+      if (enabled) {
+        PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+      } else {
+        PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+      }
+    appContext.packageManager.setComponentEnabledSetting(
+      component,
+      desired,
+      PackageManager.DONT_KILL_APP,
+    )
   }
 
   private fun parseVoiceOverrides(json: String): Map<String, String> =
@@ -235,6 +317,27 @@ class SettingsManager(
     val root = JSONObject()
     overrides.toSortedMap().forEach { (languageCode, voiceName) ->
       root.put(languageCode, voiceName)
+    }
+    return root.toString()
+  }
+
+  private fun parsePlaybackSpeedOverrides(json: String): Map<String, Float> =
+    runCatching {
+      val root = JSONObject(json)
+      root.keys().asSequence().mapNotNull { voiceName ->
+        val speed = root.optDouble(voiceName, Double.NaN)
+        if (speed.isNaN()) {
+          null
+        } else {
+          voiceName to speed.toFloat().coerceIn(0.5f, 2.0f)
+        }
+      }.toMap()
+    }.getOrDefault(emptyMap())
+
+  private fun serializePlaybackSpeedOverrides(overrides: Map<String, Float>): String {
+    val root = JSONObject()
+    overrides.toSortedMap().forEach { (voiceName, speed) ->
+      root.put(voiceName, speed.coerceIn(0.5f, 2.0f))
     }
     return root.toString()
   }

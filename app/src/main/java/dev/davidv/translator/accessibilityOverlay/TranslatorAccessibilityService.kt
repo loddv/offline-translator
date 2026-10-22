@@ -39,6 +39,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
   private var active = false
   var forcedSourceLanguage: Language? = null
   var forcedTargetLanguage: Language? = null
+  var isAutoSource: Boolean = true
   private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
   private lateinit var settingsManager: SettingsManager
@@ -47,6 +48,10 @@ class TranslatorAccessibilityService : AccessibilityService() {
   private var ocrReadingOrder = ReadingOrder.LEFT_TO_RIGHT
   private var lastOcrBitmap: Bitmap? = null
   private var lastOcrRegion: Rect? = null
+  var lastOriginalText: String = ""
+    private set
+  var lastTranslatedText: String = ""
+    private set
   private lateinit var overlayTextTranslationHelper: OverlayTextTranslationHelper
   lateinit var langStateManager: LanguageStateManager
     private set
@@ -116,6 +121,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
     if (event == null || !ui.hasTranslationOverlays()) return
+    if (event.packageName == packageName) return
     when (event.eventType) {
       AccessibilityEvent.TYPE_VIEW_SCROLLED,
       AccessibilityEvent.TYPE_VIEW_CLICKED,
@@ -151,11 +157,13 @@ class TranslatorAccessibilityService : AccessibilityService() {
     ui.removeFloatingButton()
     ui.removeTranslationOverlays()
     input.showInteractionOverlay()
-    ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage))
     ui.showBorderWave()
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+      ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
+    }
     android.os.Handler(android.os.Looper.getMainLooper()).post {
       if (active) {
-        handleTranslateVisible()
+        handleFullScreenOcr()
       }
     }
   }
@@ -176,10 +184,11 @@ class TranslatorAccessibilityService : AccessibilityService() {
     val oldSource = forcedSourceLanguage ?: return
     val oldTarget = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
     if (!langStateManager.canSwapLanguages(oldSource, oldTarget)) return
+    isAutoSource = false
     forcedSourceLanguage = oldTarget
     forcedTargetLanguage = oldSource
     syncReadingOrderForSource()
-    ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage))
+    ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
     if (active) {
       retranslate()
     }
@@ -191,12 +200,17 @@ class TranslatorAccessibilityService : AccessibilityService() {
       val availableLangs = overlayTextTranslationHelper.awaitAvailableLanguages(isSource)
       ui.showLanguagePicker(isSource, availableLangs) { lang ->
         if (isSource) {
-          forcedSourceLanguage = lang
+          if (lang == null) {
+            isAutoSource = true
+          } else {
+            isAutoSource = false
+            forcedSourceLanguage = lang
+          }
           syncReadingOrderForSource()
         } else {
           forcedTargetLanguage = lang
         }
-        ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage))
+        ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
         if (active) {
           retranslate()
         }
@@ -211,7 +225,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
         ReadingOrder.LEFT_TO_RIGHT -> ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT
         ReadingOrder.TOP_TO_BOTTOM_LEFT_TO_RIGHT -> ReadingOrder.LEFT_TO_RIGHT
       }
-    ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, ocrReadingOrder)
+    ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, ocrReadingOrder, isAutoSource)
     if (active) {
       retranslate()
     }
@@ -223,7 +237,7 @@ class TranslatorAccessibilityService : AccessibilityService() {
     if (bitmap != null && region != null) {
       serviceScope.launch { translateRegionBitmap(bitmap, region) }
     } else {
-      handleTranslateVisible()
+      handleFullScreenOcr()
     }
   }
 
@@ -262,88 +276,125 @@ class TranslatorAccessibilityService : AccessibilityService() {
     withOptionalScreenshot { screenshot -> translateAndShowBlocks(fragments, screenshot) }
   }
 
-  fun handleRegionCapture(region: Rect) {
+  fun handleFullScreenOcr() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+      handleTranslateVisible()
+      return
+    }
+    lastOcrBitmap = null
+    lastOcrRegion = null
+    ui.removeTranslationOverlays()
+    val dm = resources.displayMetrics
+    val region =
+      Rect(
+        0,
+        ui.getStatusBarHeight() + ui.dpToPx(48),
+        dm.widthPixels,
+        dm.heightPixels - ui.getNavBarHeight(),
+      )
+    handleRegionCapture(region, isFullScreen = true)
+  }
+
+  fun handleRegionCapture(
+    region: Rect,
+    isFullScreen: Boolean = false,
+  ) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
     ui.setOcrButtonActive(false)
+    ui.removeTranslationOverlays()
 
-    val sourceLang = forcedSourceLanguage
-    if (sourceLang == null) {
+    val sourceLang = ocrSourceLanguage()
+    if (!isAutoSource && sourceLang == null) {
       ui.setOcrButtonVisible(true)
       ui.showOverlayMessage("Set source language first")
       return
     }
 
+    val needsRenderFlush = ui.hasToolbar()
     input.removeTouchInterceptOverlay()
     ui.removeToolbar()
+    ui.dismissMenu()
 
-    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-      takeScreenshot(
-        Display.DEFAULT_DISPLAY,
-        mainExecutor,
-        object : TakeScreenshotCallback {
-          override fun onSuccess(screenshot: ScreenshotResult) {
-            input.showInteractionOverlay()
-            ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage))
+    val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    val captureRunnable =
+      Runnable {
+        takeScreenshot(
+          Display.DEFAULT_DISPLAY,
+          mainExecutor,
+          object : TakeScreenshotCallback {
+            override fun onSuccess(screenshot: ScreenshotResult) {
+              input.showInteractionOverlay()
+              ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
 
-            val hwBitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
-            screenshot.hardwareBuffer.close()
-            if (hwBitmap == null) return
-            val fullBitmap = hwBitmap.copy(Bitmap.Config.ARGB_8888, false)
-            hwBitmap.recycle()
+              val hwBitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+              screenshot.hardwareBuffer.close()
+              if (hwBitmap == null) return
+              val fullBitmap = hwBitmap.copy(Bitmap.Config.ARGB_8888, false)
+              hwBitmap.recycle()
 
-            val cropLeft = region.left.coerceIn(0, fullBitmap.width - 1)
-            val cropTop = region.top.coerceIn(0, fullBitmap.height - 1)
-            val cropWidth = region.width().coerceAtMost(fullBitmap.width - cropLeft)
-            val cropHeight = region.height().coerceAtMost(fullBitmap.height - cropTop)
-            if (cropWidth <= 0 || cropHeight <= 0) {
+              val cropLeft = region.left.coerceIn(0, fullBitmap.width - 1)
+              val cropTop = region.top.coerceIn(0, fullBitmap.height - 1)
+              val cropWidth = region.width().coerceAtMost(fullBitmap.width - cropLeft)
+              val cropHeight = region.height().coerceAtMost(fullBitmap.height - cropTop)
+              if (cropWidth <= 0 || cropHeight <= 0) {
+                fullBitmap.recycle()
+                return
+              }
+
+              val croppedBitmap = Bitmap.createBitmap(fullBitmap, cropLeft, cropTop, cropWidth, cropHeight)
               fullBitmap.recycle()
-              return
+
+              if (!isFullScreen) {
+                lastOcrBitmap = croppedBitmap
+                lastOcrRegion = region
+              }
+
+              ui.showCenteredLoading()
+
+              serviceScope.launch {
+                translateRegionBitmap(croppedBitmap, region)
+              }
             }
 
-            val croppedBitmap = Bitmap.createBitmap(fullBitmap, cropLeft, cropTop, cropWidth, cropHeight)
-            val colors = input.sampleColorsFromScreenshot(fullBitmap, region)
-            fullBitmap.recycle()
-
-            lastOcrBitmap = croppedBitmap
-            lastOcrRegion = region
-
-            ui.showLoadingOverlay(region, colors)
-
-            serviceScope.launch {
-              translateRegionBitmap(croppedBitmap, region)
+            override fun onFailure(errorCode: Int) {
+              Log.w(tag, "Screenshot failed: $errorCode")
+              input.showInteractionOverlay()
+              ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
+              ui.setOcrButtonVisible(true)
             }
-          }
-
-          override fun onFailure(errorCode: Int) {
-            Log.w(tag, "Screenshot failed: $errorCode")
-            input.showInteractionOverlay()
-            ui.showToolbar(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage))
-            ui.setOcrButtonVisible(true)
-          }
-        },
-      )
-    }, 100)
+          },
+        )
+      }
+    if (needsRenderFlush) {
+      handler.postDelayed(captureRunnable, 100)
+    } else {
+      handler.post(captureRunnable)
+    }
   }
 
   private suspend fun translateRegionBitmap(
     bitmap: Bitmap,
     region: Rect,
   ) {
-    val sourceLang = forcedSourceLanguage ?: return
+    val sourceLang = ocrSourceLanguage()
     val targetLang = forcedTargetLanguage ?: langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode) ?: return
+    val ocrSourceLang = sourceLang ?: targetLang
 
     val result =
       withContext(Dispatchers.IO) {
         translationCoordinator.translateImageWithOverlay(
-          sourceLang,
+          ocrSourceLang,
           targetLang,
           bitmap,
           onMessage = {},
           readingOrder = currentReadingOrderFor(sourceLang),
+          isAutoSource = isAutoSource,
         )
       }
 
     if (result != null) {
+      lastOriginalText = result.extractedText
+      lastTranslatedText = result.translatedText
       ui.removeTranslationOverlays()
       ui.setOcrButtonVisible(true)
       ui.showBitmapOverlay(result.correctedBitmap, region)
@@ -352,6 +403,11 @@ class TranslatorAccessibilityService : AccessibilityService() {
       ui.setOcrButtonVisible(true)
     }
   }
+
+  private fun ocrSourceLanguage(): Language? =
+    forcedSourceLanguage ?: settingsManager.settings.value.defaultSourceLanguageCode?.let {
+      langStateManager.languageByCode(it)
+    }
 
   private fun currentReadingOrderFor(language: Language?): ReadingOrder =
     if (language?.code == "ja") {
@@ -406,6 +462,22 @@ class TranslatorAccessibilityService : AccessibilityService() {
       val targetLanguage = overlayTextTranslationHelper.awaitTargetLanguage(forcedTargetLanguage)
       val availableLanguages = overlayTextTranslationHelper.awaitAvailableLanguages(isSource = false)
 
+      if (isAutoSource) {
+        val combinedText = fragments.joinToString(" ") { it.text }
+        val translatorLanguages = langStateManager.languageState.value.translatorLanguages()
+        val detected =
+          translationCoordinator.detectLanguageRobust(
+            text = combinedText,
+            hint = forcedSourceLanguage,
+            availableLanguages = translatorLanguages,
+          )
+        if (detected != null && detected != forcedSourceLanguage) {
+          forcedSourceLanguage = detected
+          syncReadingOrderForSource()
+          ui.updateToolbarState(forcedSourceLanguage, forcedTargetLanguage, currentReadingOrderFor(forcedSourceLanguage), isAutoSource)
+        }
+      }
+
       when (
         val result =
           translationCoordinator.translateStructuredFragments(
@@ -417,6 +489,8 @@ class TranslatorAccessibilityService : AccessibilityService() {
           )
       ) {
         is StructuredFragmentTranslationOutput.Success -> {
+          lastOriginalText = fragments.joinToString("\n") { it.text }
+          lastTranslatedText = result.blocks.joinToString("\n") { it.text }
           ui.removeTranslationOverlays()
           ui.setOcrButtonVisible(true)
           ui.setOcrButtonActive(false)

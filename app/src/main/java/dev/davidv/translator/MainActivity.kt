@@ -26,10 +26,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
+import dev.davidv.translator.browser.BrowserActivity
 import dev.davidv.translator.ui.TranslatorViewModel
 import dev.davidv.translator.ui.TranslatorViewModelFactory
 import dev.davidv.translator.ui.screens.TranslatorApp
@@ -39,9 +41,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
+  companion object {
+    const val EXTRA_OPEN_LANGUAGE_MANAGER = "dev.davidv.translator.OPEN_LANGUAGE_MANAGER"
+  }
+
   private var textToTranslate: String = ""
   private var launchMode: LaunchMode = LaunchMode.Normal
   private var sharedImageUri: Uri? = null
+  private var openLanguageManager: Boolean = false
   private lateinit var viewModel: TranslatorViewModel
   private var downloadService: DownloadService? = null
   private lateinit var serviceConnection: ServiceConnection
@@ -52,6 +59,7 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     handleIntent(intent)
+    if (isFinishing) return
 
     val app = application as TranslatorApplication
 
@@ -59,6 +67,7 @@ class MainActivity : ComponentActivity() {
       ViewModelProvider(
         this,
         TranslatorViewModelFactory(
+          appContext = applicationContext,
           translationCoordinator = app.translationCoordinator,
           settingsManager = app.settingsManager,
           filePathManager = app.filePathManager,
@@ -76,6 +85,7 @@ class MainActivity : ComponentActivity() {
         TranslatorApp(
           viewModel = viewModel,
           downloadServiceState = downloadServiceState,
+          openLanguageManager = openLanguageManager,
         )
       }
     }
@@ -117,6 +127,7 @@ class MainActivity : ComponentActivity() {
 
   private fun handleIntent(intent: Intent?) {
     Log.d("MainActivity", "Got intent $intent")
+    openLanguageManager = intent?.getBooleanExtra(EXTRA_OPEN_LANGUAGE_MANAGER, false) == true
     when (intent?.action) {
       Intent.ACTION_SEND -> {
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)
@@ -129,12 +140,71 @@ class MainActivity : ComponentActivity() {
           }
 
         if (text != null) {
-          textToTranslate = text
+          val trimmed = text.trim()
+          if (isWebUrl(trimmed)) {
+            if (isSupportedDocumentUrl(trimmed)) {
+              Toast.makeText(this, SUPPORTED_DOCUMENT_URL_TOAST, Toast.LENGTH_LONG).show()
+            } else {
+              openUrl(trimmed)
+              return
+            }
+          } else {
+            textToTranslate = text
+          }
         } else if (imageUri != null) {
           sharedImageUri = imageUri
           textToTranslate = ""
         }
       }
+      Intent.ACTION_VIEW -> {
+        val url = intent.data?.toString()
+        if (!url.isNullOrBlank() && isWebUrl(url)) {
+          if (isSupportedDocumentUrl(url)) {
+            Toast.makeText(this, SUPPORTED_DOCUMENT_URL_TOAST, Toast.LENGTH_LONG).show()
+          } else {
+            openUrl(url)
+            return
+          }
+        }
+      }
     }
   }
+
+  private fun openUrl(url: String) {
+    val browserIntent =
+      Intent(this, BrowserActivity::class.java).apply {
+        putExtra(BrowserActivity.EXTRA_URL, url)
+      }
+    startActivity(browserIntent)
+    finish()
+  }
+}
+
+internal fun isWebUrl(text: String): Boolean {
+  val trimmed = text.trim()
+  if (trimmed.contains(Regex("\\s"))) return false
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://")
+}
+
+internal const val SUPPORTED_DOCUMENT_URL_TOAST = "Download the document and open it with the app instead"
+
+private val SUPPORTED_DOCUMENT_URL_EXTENSIONS =
+  setOf(
+    "pdf", "odt",
+    "png", "jpg", "jpeg", "webp", "gif", "bmp", "heic", "heif", "tiff", "tif", "avif",
+  )
+
+internal fun isSupportedDocumentUrl(url: String): Boolean {
+  val path =
+    try {
+      java.net.URI(url).path ?: return false
+    } catch (_: Exception) {
+      return false
+    }
+  val lastSlash = path.lastIndexOf('/')
+  val lastSegment = if (lastSlash >= 0) path.substring(lastSlash + 1) else path
+  val lastDot = lastSegment.lastIndexOf('.')
+  if (lastDot <= 0) return false
+  val ext = lastSegment.substring(lastDot + 1).lowercase()
+  return ext in SUPPORTED_DOCUMENT_URL_EXTENSIONS
 }

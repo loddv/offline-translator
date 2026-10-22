@@ -18,7 +18,7 @@
 package dev.davidv.translator
 
 object Constants {
-  const val DEFAULT_CATALOG_INDEX_URL = "https://offline-translator.davidv.dev/index.json"
+  const val DEFAULT_CATALOG_INDEX_URL = "https://offline-translator.davidv.dev/index_v3.json"
 }
 
 data class AppSettings(
@@ -26,19 +26,25 @@ data class AppSettings(
   val defaultSourceLanguageCode: String? = null,
   val catalogIndexUrl: String = Constants.DEFAULT_CATALOG_INDEX_URL,
   val backgroundMode: BackgroundMode = BackgroundMode.AUTO_DETECT,
+  val preferredOcrEngine: PreferredOcrEngine = PreferredOcrEngine.PADDLE,
   val minConfidence: Int = 75,
-  val maxImageSize: Int = 1500,
-  val disableOcr: Boolean = false,
+  val maxImageSize: Int = 1400,
   val disableCLD: Boolean = false,
   val enableOutputTransliteration: Boolean = true,
   val useExternalStorage: Boolean = false,
   val fontFactor: Float = 1.0f,
   val showOCRDetection: Boolean = false,
-  val showFilePickerInImagePicker: Boolean = false,
   val showTransliterationOnInput: Boolean = false,
   val onlyShowOutputOnReadonlyModal: Boolean = false,
   val readonlyModalOutputAlignment: ReadonlyModalOutputAlignment = ReadonlyModalOutputAlignment.MIDDLE,
+  val readonlyModalCompactHeightFactor: Float = 0.35f,
   val addSpacesForJapaneseTransliteration: Boolean = true,
   val ttsPlaybackSpeed: Float = 1.0f,
+  val ttsPlaybackSpeedOverrides: Map<String, Float> = emptyMap(),
   val ttsVoiceOverrides: Map<String, String> = emptyMap(),
+  val tapToTranslateEnabled: Boolean = false,
+  val clearWebTranslatorDataOnClose: Boolean = true,
+  val translatePdfImages: Boolean = true,
+  val liveCameraOverlayEnabled: Boolean = true,
+  val registerAsBrowser: Boolean = true,
 )

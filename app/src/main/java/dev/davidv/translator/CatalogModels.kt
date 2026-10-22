@@ -3,10 +3,48 @@ package dev.davidv.translator
 import android.graphics.Bitmap
 import uniffi.bindings.CatalogException
 import uniffi.bindings.CatalogHandle
+import uniffi.bindings.DocumentProgressEvent
+import uniffi.bindings.DocumentProgressSink
 import uniffi.bindings.sampleOverlayColorsRgba
 import java.nio.ByteBuffer
 
 typealias CatalogError = CatalogException
+
+sealed class DocumentTranslationProgress {
+  data object Preparing : DocumentTranslationProgress()
+
+  data class PdfPlan(
+    val textPages: Int,
+    val imageXobjects: Int,
+    val rasterPages: Int,
+  ) : DocumentTranslationProgress()
+
+  data class Translating(
+    val current: Int,
+    val total: Int,
+    val unit: String,
+  ) : DocumentTranslationProgress()
+
+  data object Writing : DocumentTranslationProgress()
+}
+
+private fun DocumentProgressEvent.toDocumentTranslationProgress(): DocumentTranslationProgress =
+  when (this) {
+    DocumentProgressEvent.Preparing -> DocumentTranslationProgress.Preparing
+    is DocumentProgressEvent.PdfPlan ->
+      DocumentTranslationProgress.PdfPlan(
+        textPages = textPages.toInt(),
+        imageXobjects = imageXobjects.toInt(),
+        rasterPages = rasterPages.toInt(),
+      )
+    is DocumentProgressEvent.Translating ->
+      DocumentTranslationProgress.Translating(
+        current = current.toInt(),
+        total = total.toInt(),
+        unit = unit,
+      )
+    DocumentProgressEvent.Writing -> DocumentTranslationProgress.Writing
+  }
 
 private fun rgbaBytes(bitmap: Bitmap): ByteArray =
   ByteArray(bitmap.byteCount).also { bytes ->
@@ -105,6 +143,15 @@ private fun shiftStructuredTranslationResult(
         uniffi.translator.TranslatedStyledBlock(
           text = block.text,
           boundingBox = bounds,
+          sourceRects =
+            block.sourceRects.map { rect ->
+              Rect(
+                rect.left.toInt() + dx,
+                rect.top.toInt() + dy,
+                rect.right.toInt() + dx,
+                rect.bottom.toInt() + dy,
+              ).toUniffiRect()
+            },
           styleSpans = block.styleSpans,
           backgroundArgb = block.backgroundArgb,
           foregroundArgb = block.foregroundArgb,
@@ -122,6 +169,13 @@ data class LanguageTtsRegionV2(
 data class LanguageAvailabilityEntry(
   val language: Language,
   val availability: LangAvailability,
+)
+
+data class CatalogFileEntry(
+  val name: String,
+  val sizeBytes: Long,
+  val installPath: String,
+  val url: String,
 )
 
 class LanguageCatalog private constructor(
@@ -195,6 +249,16 @@ class LanguageCatalog private constructor(
       DictionaryInfo(date = it.date, filename = it.filename, size = it.size.toLong(), type = it.typeName, wordCount = it.wordCount.toLong())
     }
 
+  fun supportFilesByKind(kind: String): List<CatalogFileEntry> =
+    handle.supportFilesByKind(kind).map { file ->
+      CatalogFileEntry(
+        name = file.name,
+        sizeBytes = file.sizeBytes.toLong(),
+        installPath = file.installPath,
+        url = file.url,
+      )
+    }
+
   @Throws(CatalogException::class)
   fun lookupDictionary(
     language: Language,
@@ -205,7 +269,25 @@ class LanguageCatalog private constructor(
 
   fun hasTtsVoices(languageCode: String): Boolean = handle.hasTtsVoices(languageCode)
 
+  fun installedOcrEngines(languageCode: String): List<String> = handle.installedOcrEngines(languageCode)
+
+  fun availableOcrEngines(languageCode: String): List<String> = handle.availableOcrEngines(languageCode)
+
+  fun planOcrEngineDownload(
+    languageCode: String,
+    engine: String,
+  ): DownloadPlan? = handle.planOcrEngineDownload(languageCode, engine)
+
+  fun planOcrEngineDownloads(
+    languageCodes: List<String>,
+    engine: String,
+  ): DownloadPlan = handle.planOcrEngineDownloads(languageCodes, engine)
+
   fun ttsVoicePickerRegions(languageCode: String): List<TtsVoicePickerRegion> = handle.ttsVoicePickerRegions(languageCode)
+
+  fun installedTtsVoicePickerRegions(languageCode: String): List<TtsVoicePickerRegion> = handle.installedTtsVoicePickerRegions(languageCode)
+
+  fun ttsSampleText(languageCode: String): String? = handle.ttsSampleText(languageCode)
 
   fun canSwapLanguages(
     from: Language,
@@ -241,6 +323,13 @@ class LanguageCatalog private constructor(
       targetLanguage.code,
       availableLanguages.map { it.code },
     )
+
+  @Throws(CatalogException::class)
+  fun translateHtmlFragments(
+    from: Language,
+    to: Language,
+    fragments: List<String>,
+  ): List<String> = handle.translateHtmlFragments(from.code, to.code, fragments)
 
   fun translateStructuredFragments(
     fragments: List<StyledFragment>,
@@ -279,21 +368,98 @@ class LanguageCatalog private constructor(
   @Throws(CatalogException::class)
   fun translateImagePlan(
     bitmap: Bitmap,
-    from: Language,
+    maxImageSize: Int,
+    sourceSelection: uniffi.translator.OcrSourceSelection,
     to: Language,
     minConfidence: Int,
     readingOrder: ReadingOrder,
     backgroundMode: BackgroundMode,
+    preferredOcrEngine: PreferredOcrEngine,
   ): uniffi.translator.PreparedImageOverlay =
     handle.translateImagePlan(
       rgbaBytes(bitmap),
       bitmap.width.toUInt(),
       bitmap.height.toUInt(),
-      from.code,
+      maxImageSize.toUInt(),
+      sourceSelection,
       to.code,
       minConfidence.toUInt(),
       readingOrder,
       backgroundMode,
+      preferredOcrEngine,
+    )
+
+  @Throws(CatalogException::class)
+  fun retranslateImagePlan(
+    prepared: uniffi.translator.PreparedImageOverlay,
+    from: Language,
+    to: Language,
+  ): uniffi.translator.PreparedImageOverlay = handle.retranslateImagePlan(prepared, from.code, to.code)
+
+  /** Allocate an empty Rust-side frame buffer with reserved `capacity` bytes,
+   *  to be filled later via JNI memcpy or `resetViaUniffi`. */
+  fun makeFrameBuffer(capacity: Int): uniffi.bindings.FrameHandle = handle.makeFrameBuffer(capacity.toUInt())
+
+  /** Internal accessor for the raw uniffi `CatalogHandle`. The live-
+   *  overlay pipeline constructor takes this so it can hold an Arc to
+   *  the underlying TranslatorSession for its async acquire/refresh
+   *  worker. */
+  internal fun planarHandle(): CatalogHandle = handle
+
+  @Throws(CatalogException::class)
+  fun renderTranslatedOverlay(
+    plan: uniffi.translator.PreparedImageOverlay,
+    targetLanguage: Language,
+    minFontSizePx: Float,
+  ): ByteArray = uniffi.bindings.renderTranslatedOverlay(plan, targetLanguage.code, minFontSizePx)
+
+  @Throws(CatalogException::class)
+  fun detectDocumentQuad(bitmap: Bitmap): uniffi.translator.DocumentDetection? =
+    handle.detectDocumentQuad(rgbaBytes(bitmap), bitmap.width.toUInt(), bitmap.height.toUInt())
+
+  @Throws(CatalogException::class)
+  fun warpDocumentRgba(
+    bitmap: Bitmap,
+    quad: uniffi.translator.DocumentQuad,
+    outWidth: Int? = null,
+    outHeight: Int? = null,
+    postprocess: Boolean = true,
+  ): uniffi.translator.WarpedImageRgba =
+    handle.warpDocumentRgba(
+      rgbaBytes(bitmap),
+      bitmap.width.toUInt(),
+      bitmap.height.toUInt(),
+      quad,
+      outWidth?.toUInt(),
+      outHeight?.toUInt(),
+      postprocess,
+    )
+
+  @Throws(CatalogException::class)
+  fun translateDocumentPath(
+    inputPath: String,
+    outputPath: String,
+    from: Language,
+    to: Language,
+    availableLanguages: List<Language>,
+    translatePdfImages: Boolean,
+    onProgress: (DocumentTranslationProgress) -> Unit = {},
+    isCancelled: () -> Boolean = { false },
+  ): String =
+    handle.translateDocumentPathWithProgress(
+      inputPath,
+      outputPath,
+      from.code,
+      to.code,
+      availableLanguages.map { it.code },
+      translatePdfImages,
+      object : DocumentProgressSink {
+        override fun onProgress(event: DocumentProgressEvent) {
+          onProgress(event.toDocumentTranslationProgress())
+        }
+
+        override fun isCancelled(): Boolean = isCancelled()
+      },
     )
 
   fun planDownload(
@@ -302,15 +468,21 @@ class LanguageCatalog private constructor(
     selectedTtsPackId: String? = null,
   ): DownloadPlan? = handle.planDownload(languageCode, feature, selectedTtsPackId)
 
+  fun planSupportDownloadByKind(kind: String): DownloadPlan? = handle.planSupportDownloadByKind(kind)
+
   fun prepareDelete(
     languageCode: String,
     feature: Feature,
   ): DeletePlan = handle.prepareDelete(languageCode, feature)
 
+  fun prepareDeleteSupportByKind(kind: String): DeletePlan = handle.prepareDeleteSupportByKind(kind)
+
   fun prepareDeleteSupersededTts(
     languageCode: String,
     selectedPackId: String,
   ): DeletePlan = handle.prepareDeleteSupersededTts(languageCode, selectedPackId)
+
+  fun prepareDeleteTtsPack(packId: String): DeletePlan = handle.prepareDeleteTtsPack(packId)
 
   fun defaultTtsPackIdForLanguage(languageCode: String): String? = handle.defaultTtsPackId(languageCode)
 
@@ -318,6 +490,14 @@ class LanguageCatalog private constructor(
     languageCode: String,
     feature: Feature,
   ): Long = handle.sizeBytes(languageCode, feature).toLong()
+
+  fun supportSizeBytesByKind(kind: String): Long = handle.supportSizeBytesByKind(kind).toLong()
+
+  fun supportInstalledByKind(kind: String): Boolean {
+    val sizeBytes = supportSizeBytesByKind(kind)
+    val plan = planSupportDownloadByKind(kind) ?: return false
+    return sizeBytes > 0 && plan.tasks.isEmpty()
+  }
 
   fun availableTtsVoices(languageCode: String): List<TtsVoiceOption> =
     handle.availableTtsVoices(languageCode).map { voice ->
@@ -328,11 +508,14 @@ class LanguageCatalog private constructor(
       )
     }
 
+  fun installedTtsVoices(languageCode: String): List<uniffi.translator.InstalledTtsPack> = handle.installedTtsVoices(languageCode)
+
   fun planSpeechChunks(
     languageCode: String,
     text: String,
+    packId: String? = null,
   ): List<SpeechChunkPlan> =
-    handle.planSpeechChunks(languageCode, text).map { chunk ->
+    handle.planSpeechChunks(languageCode, text, packId).map { chunk ->
       SpeechChunkPlan(
         content = chunk.content,
         isPhonemes = chunk.isPhonemes,
@@ -347,8 +530,10 @@ class LanguageCatalog private constructor(
     speechSpeed: Float,
     voiceName: String?,
     isPhonemes: Boolean,
+    packId: String? = null,
   ): PcmAudio {
-    val audio = handle.synthesizeSpeechPcm(languageCode, text, speechSpeed, voiceName, isPhonemes)
+    val audio =
+      handle.synthesizeSpeechPcm(languageCode, text, speechSpeed, voiceName, isPhonemes, packId)
     return PcmAudio(sampleRate = audio.sampleRate, pcmSamples = audio.pcmSamples.toShortArray())
   }
 }

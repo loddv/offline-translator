@@ -1,0 +1,1001 @@
+/*
+ * Copyright (C) 2024 David V
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package dev.davidv.translator.ui.screens
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.CaptureResult
+import android.hardware.camera2.TotalCaptureResult
+import android.net.Uri
+import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.CaptureRequestOptions
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import dev.davidv.translator.Language
+import dev.davidv.translator.LanguageAvailabilityState
+import dev.davidv.translator.LanguageMetadata
+import dev.davidv.translator.LiveFrameJni
+import dev.davidv.translator.LivePlanarOcrEngine
+import dev.davidv.translator.R
+import dev.davidv.translator.TranslatorMessage
+import dev.davidv.translator.ui.components.LanguageSelector
+import dev.davidv.translator.ui.components.LiveTranslatorSurfaceView
+import java.io.File
+import java.util.concurrent.Executor
+import android.util.Size as AndroidSize
+
+private const val TAG = "LiveCameraScreen"
+private val TARGET_RESOLUTION = AndroidSize(1080, 1920)
+private val ANALYZER_RESOLUTION = AndroidSize(1080, 1920)
+
+/** Show a small overlay pill in the corner reporting tracker state
+ *  (Idle/Acquiring/Locked/Lost + inliers + last acquire's det/rec
+ *  counts). Useful while tuning, off in production. Gated on
+ *  `BuildConfig.DEBUG` so release builds never show it. */
+private val DEBUG_SHOW_TRACKER_STATUS: Boolean = dev.davidv.translator.BuildConfig.DEBUG
+
+@Composable
+fun LiveCameraScreen(
+  from: Language,
+  to: Language,
+  isAutoSource: Boolean,
+  canSwap: Boolean,
+  languageState: LanguageAvailabilityState,
+  languageMetadata: Map<Language, LanguageMetadata>,
+  onMessage: (TranslatorMessage) -> Unit,
+  liveOverlayDefaultEnabled: Boolean,
+  catalog: dev.davidv.translator.LanguageCatalog?,
+  onClose: () -> Unit,
+  onImageCaptured: (Uri) -> Unit,
+) {
+  val context = LocalContext.current
+  var permissionGranted by remember {
+    mutableStateOf(
+      ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+        PackageManager.PERMISSION_GRANTED,
+    )
+  }
+  var hasAsked by remember { mutableStateOf(permissionGranted) }
+  val requestPermission =
+    rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+      permissionGranted = granted
+      hasAsked = true
+    }
+
+  LaunchedEffect(Unit) {
+    if (!permissionGranted && !hasAsked) {
+      requestPermission.launch(Manifest.permission.CAMERA)
+    }
+  }
+
+  BackHandler { onClose() }
+
+  Box(
+    modifier =
+      Modifier
+        .fillMaxSize()
+        .background(Color.Black),
+  ) {
+    when {
+      permissionGranted ->
+        CameraSurface(
+          from = from,
+          to = to,
+          isAutoSource = isAutoSource,
+          canSwap = canSwap,
+          languageState = languageState,
+          languageMetadata = languageMetadata,
+          onMessage = onMessage,
+          liveOverlayDefaultEnabled = liveOverlayDefaultEnabled,
+          catalog = catalog,
+          onClose = onClose,
+          onImageCaptured = onImageCaptured,
+        )
+      hasAsked ->
+        PermissionPrompt(
+          onRequest = { requestPermission.launch(Manifest.permission.CAMERA) },
+          onCancel = onClose,
+        )
+    }
+  }
+}
+
+@Composable
+private fun PermissionPrompt(
+  onRequest: () -> Unit,
+  onCancel: () -> Unit,
+) {
+  Column(
+    modifier =
+      Modifier
+        .fillMaxSize()
+        .padding(24.dp),
+    verticalArrangement = Arrangement.Center,
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+      text = "Camera permission is needed for live translate.",
+      color = Color.White,
+    )
+    Spacer(modifier = Modifier.size(16.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+      Text(
+        text = "Grant",
+        color = Color.White,
+        modifier =
+          Modifier
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.2f))
+            .clickable { onRequest() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+      )
+      Text(
+        text = "Cancel",
+        color = Color.White,
+        modifier =
+          Modifier
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.1f))
+            .clickable { onCancel() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+      )
+    }
+  }
+}
+
+@SuppressLint("ClickableViewAccessibility")
+@Composable
+private fun CameraSurface(
+  from: Language,
+  to: Language,
+  isAutoSource: Boolean,
+  canSwap: Boolean,
+  languageState: LanguageAvailabilityState,
+  languageMetadata: Map<Language, LanguageMetadata>,
+  onMessage: (TranslatorMessage) -> Unit,
+  liveOverlayDefaultEnabled: Boolean,
+  catalog: dev.davidv.translator.LanguageCatalog?,
+  onClose: () -> Unit,
+  onImageCaptured: (Uri) -> Unit,
+) {
+  val context = LocalContext.current
+  val lifecycleOwner = LocalLifecycleOwner.current
+  val mainExecutor: Executor = remember { ContextCompat.getMainExecutor(context) }
+
+  var torchOn by remember { mutableStateOf(false) }
+  val hasPaddleOcrModels =
+    remember(catalog, languageState, from.code, isAutoSource) {
+      if (isAutoSource) {
+        catalog != null &&
+          languageState.allLanguages().any { language ->
+            catalog.installedOcrEngines(language.code).contains("ppocr")
+          }
+      } else {
+        catalog?.installedOcrEngines(from.code)?.contains("ppocr") == true
+      }
+    }
+  var liveOverlayOn by remember { mutableStateOf(liveOverlayDefaultEnabled && hasPaddleOcrModels) }
+  var camera by remember { mutableStateOf<Camera?>(null) }
+  val cameraControl = camera?.cameraControl
+  var hasFlashUnit by remember { mutableStateOf(false) }
+  var isCapturing by remember { mutableStateOf(false) }
+  var focusPoint by remember { mutableStateOf<Offset?>(null) }
+  val focusScale = remember { Animatable(1.5f) }
+  val focusAlpha = remember { Animatable(0f) }
+  // Persistent crop centre for the live OCR engine. Defaults to dead centre; a tap
+  // moves it so we crop around the user's focus area instead of the middle of the frame.
+  var cropFocusNormalized by remember { mutableStateOf(Offset(0.5f, 0.5f)) }
+
+  LaunchedEffect(focusPoint) {
+    val point = focusPoint ?: return@LaunchedEffect
+    focusScale.snapTo(1.5f)
+    focusAlpha.snapTo(1f)
+    focusScale.animateTo(1f, tween(durationMillis = 280))
+    focusAlpha.animateTo(0f, tween(durationMillis = 420))
+    if (focusPoint == point) focusPoint = null
+  }
+
+  val imageCapture =
+    remember {
+      val resolutionSelector =
+        ResolutionSelector.Builder()
+          .setResolutionStrategy(
+            ResolutionStrategy(
+              TARGET_RESOLUTION,
+              ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+            ),
+          )
+          .build()
+      ImageCapture.Builder()
+        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+        .setResolutionSelector(resolutionSelector)
+        .build()
+    }
+
+  // AF state from the Camera2 session capture callback. True while the
+  // sensor reports CONTROL_AF_STATE_*_SCAN. The planar engine treats
+  // this as a hard "don't try to lock" signal — features from blurred
+  // frames during the scan would lock against geometry that's about to
+  // shift when focus settles.
+  val afScanning = remember { kotlinx.coroutines.flow.MutableStateFlow(false) }
+
+  // LENS_FOCUS_DISTANCE (diopters, 1/m) latched from the most recent
+  // capture result whose CONTROL_AF_STATE reports a converged focus
+  // (FOCUSED_LOCKED or PASSIVE_FOCUSED). Used to pin focus when the
+  // planar tracker reaches Locked — AF excursions blur frames, BRIEF
+  // descriptors die, the tracker drops. Pin the focus we have, accept
+  // progressive blur as the user approaches the subject.
+  val latestFocusedDistance =
+    remember { kotlinx.coroutines.flow.MutableStateFlow<Float?>(null) }
+
+  // Tracks whether the tracker-driven focus lock (LENS_FOCUS_DISTANCE +
+  // AF_MODE=OFF, installed via Camera2 interop) is currently active.
+  // Hoisted out of the LaunchedEffect so tap-to-focus can clear it —
+  // otherwise the sticky interop bundle keeps AF_MODE=OFF on every
+  // capture request and startFocusAndMetering silently no-ops.
+  val focusLockedRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+
+  val imageAnalysis =
+    remember {
+      // Cap analyzer source at ~1.5 MP regardless of device. The bigger the source,
+      // the slower the per-frame bitmap conversion (RGBA copy + rotation) — and
+      // detection downscales to a fixed 400k target anyway, so the larger source
+      // mostly burns memory bandwidth.
+      val maxPixels = 2_500_000L
+      val resolutionSelector =
+        ResolutionSelector.Builder()
+          .setResolutionStrategy(
+            ResolutionStrategy(
+              ANALYZER_RESOLUTION,
+              ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+            ),
+          )
+          .setResolutionFilter { sizes, _ ->
+            sizes.filter { it.width.toLong() * it.height <= maxPixels }
+          }
+          .build()
+      val builder =
+        ImageAnalysis.Builder()
+          .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+          .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+          .setResolutionSelector(resolutionSelector)
+      Camera2Interop.Extender(builder).setSessionCaptureCallback(
+        object : CameraCaptureSession.CaptureCallback() {
+          override fun onCaptureCompleted(
+            session: CameraCaptureSession,
+            request: CaptureRequest,
+            result: TotalCaptureResult,
+          ) {
+            val afState = result.get(CaptureResult.CONTROL_AF_STATE) ?: return
+            val scanning =
+              afState == CaptureResult.CONTROL_AF_STATE_ACTIVE_SCAN ||
+                afState == CaptureResult.CONTROL_AF_STATE_PASSIVE_SCAN
+            if (afScanning.value != scanning) afScanning.value = scanning
+            // Latch the focus distance once AF has converged; the
+            // tracker-state observer below uses it to pin focus when
+            // we reach Locked. Skip "inactive" results (no AF activity
+            // yet) and "scanning" results (in-flight, value transient).
+            if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
+              afState == CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED
+            ) {
+              val d = result.get(CaptureResult.LENS_FOCUS_DISTANCE)
+              if (d != null) latestFocusedDistance.value = d
+            }
+          }
+        },
+      )
+      builder.build()
+    }
+  val analyzerExecutor =
+    remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
+
+  val workerScope = androidx.compose.runtime.rememberCoroutineScope()
+  val liveOcrEngine: LivePlanarOcrEngine? =
+    remember(catalog) { catalog?.let { LivePlanarOcrEngine(it, workerScope) } }
+  var previewSizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+
+  DisposableEffect(Unit) {
+    onDispose { analyzerExecutor.shutdown() }
+  }
+
+  val analyzerSession = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+  LaunchedEffect(from.code, isAutoSource, hasPaddleOcrModels, liveOverlayDefaultEnabled) {
+    liveOverlayOn = liveOverlayDefaultEnabled && hasPaddleOcrModels
+    if (!liveOverlayOn) liveOcrEngine?.clear()
+  }
+
+  LaunchedEffect(liveOcrEngine, liveOverlayOn) {
+    liveOcrEngine?.setOverlayEnabled(liveOverlayOn)
+  }
+
+  LaunchedEffect(liveOcrEngine) {
+    val engine = liveOcrEngine ?: return@LaunchedEffect
+    afScanning.collect { scanning ->
+      if (scanning) engine.onAfScanStart() else engine.onAfScanEnd()
+    }
+  }
+
+  // Lock focus to the AF-converged distance once the tracker reaches
+  // LOCKED, release on any other state. Avoids AF excursions blurring
+  // frames mid-track (which kills BRIEF descriptors → tracker drops).
+  // The trade-off is accepted by design: progressive blur as the user
+  // physically moves the camera, OCR still works on slightly blurry
+  // frames, tracking stays glued. AF re-fires implicitly on the next
+  // re-acquire / tap-to-focus.
+  LaunchedEffect(camera, liveOcrEngine) {
+    val engine = liveOcrEngine ?: return@LaunchedEffect
+    val cam = camera ?: return@LaunchedEffect
+    engine.trackerStatus.collect { status ->
+      val shouldLock = status.state == uniffi.bindings.PlanarTrackerState.LOCKED
+      if (shouldLock && !focusLockedRef.get()) {
+        val d = latestFocusedDistance.value ?: return@collect
+        try {
+          val ctrl = Camera2CameraControl.from(cam.cameraControl)
+          // Explicitly hold AE = ON in the same bundle. Empirically
+          // some Camera2 implementations couple AF and AE state; if
+          // `setCaptureRequestOptions` replaces the bundle and AE
+          // wasn't named, AE can transiently destabilise. Tiny
+          // exposure shifts kill BRIEF descriptor matches (256
+          // sign-bit comparisons; pixels near a comparison's zero
+          // crossing flip on sub-1/3-EV shifts), which manifested as
+          // sudden inlier collapses on frames where nothing actually
+          // moved.
+          val opts =
+            CaptureRequestOptions.Builder()
+              .setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE,
+                CameraMetadata.CONTROL_AF_MODE_OFF,
+              )
+              .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, d)
+              .setCaptureRequestOption(
+                CaptureRequest.CONTROL_AE_MODE,
+                CameraMetadata.CONTROL_AE_MODE_ON,
+              )
+              .build()
+          ctrl.captureRequestOptions = opts
+          focusLockedRef.set(true)
+          Log.i(TAG, "AF locked at distance=$d (tracker LOCKED)")
+        } catch (e: Throwable) {
+          Log.w(TAG, "AF lock failed", e)
+        }
+      } else if (!shouldLock && focusLockedRef.get()) {
+        try {
+          val ctrl = Camera2CameraControl.from(cam.cameraControl)
+          val opts =
+            CaptureRequestOptions.Builder()
+              .setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE,
+                CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_PICTURE,
+              )
+              .build()
+          ctrl.captureRequestOptions = opts
+          focusLockedRef.set(false)
+          Log.i(TAG, "AF released (tracker state=${status.state})")
+        } catch (e: Throwable) {
+          Log.w(TAG, "AF release failed", e)
+        }
+      }
+    }
+  }
+
+  // The analyzer is the only source of pixels for the SurfaceView, so
+  // keep it attached whenever an engine exists — even when the OCR
+  // overlay is off or unavailable (missing models). In that case the
+  // engine runs the tracker in SUPPRESSED mode and composites
+  // camera-only frames; we just keep showing the camera without
+  // overlays. Gating this on `liveOverlayOn` would leave the surface
+  // black on startup whenever OCR models for the current language
+  // aren't installed.
+  DisposableEffect(liveOcrEngine, from.code, to.code, isAutoSource) {
+    val engine = liveOcrEngine
+    val mySession = analyzerSession.incrementAndGet()
+    if (engine != null) {
+      imageAnalysis.setAnalyzer(analyzerExecutor) { proxy ->
+        val handle = engine.acquireFrameHandle()
+        if (handle == null) {
+          proxy.close()
+          return@setAnalyzer
+        }
+        val plane = proxy.planes[0]
+        val rowStride = plane.rowStride
+        val pixelStride = plane.pixelStride
+        val width = proxy.width
+        val height = proxy.height
+        val rotation = proxy.imageInfo.rotationDegrees
+        val captureTs = proxy.imageInfo.timestamp
+        val length = width * pixelStride * height
+        // Zero-copy fast path: contiguous RGBA_8888 DirectByteBuffer →
+        // record the camera buffer's native address inside the
+        // FrameHandle without memcpying. The ImageProxy stays open for
+        // the duration of `processFrame` below; the pipeline either
+        // materializes an owned copy (acquire/refresh) or drops the
+        // borrow (pure tracking frame) before returning, after which
+        // we close the proxy.
+        //
+        // Stride-padded fallback (rare): repack row-by-row through
+        // uniffi (eager copy); proxy can close immediately.
+        val ok: Boolean
+        if (rowStride == width * pixelStride) {
+          plane.buffer.rewind()
+          ok =
+            LiveFrameJni.setExternalBuffer(
+              handle.rawAddressForJni().toLong(),
+              plane.buffer,
+              length,
+              width,
+              height,
+              rotation,
+            )
+        } else {
+          val src = ByteArray(plane.buffer.remaining())
+          plane.buffer.rewind()
+          plane.buffer.get(src)
+          val packed = ByteArray(length)
+          val rowBytes = width * pixelStride
+          for (row in 0 until height) {
+            System.arraycopy(src, row * rowStride, packed, row * rowBytes, rowBytes)
+          }
+          handle.resetViaUniffi(packed, width.toUInt(), height.toUInt(), rotation)
+          ok = true
+          proxy.close()
+        }
+        if (!ok || analyzerSession.get() != mySession) {
+          if (ok) proxy.close()
+          engine.releaseFrameHandle(handle)
+          return@setAnalyzer
+        }
+        try {
+          engine.processFrame(
+            handle,
+            width,
+            height,
+            rotation,
+            cropFocusNormalized.x,
+            cropFocusNormalized.y,
+            from,
+            to,
+            isAutoSource,
+            captureTs,
+          )
+        } finally {
+          // Always close the ImageProxy (the borrow we set above is
+          // gone by this point — pipeline materialized or cleared it)
+          // and return the FrameHandle to the pool.
+          if (rowStride == width * pixelStride) {
+            proxy.close()
+          }
+          engine.releaseFrameHandle(handle)
+        }
+      }
+    } else {
+      imageAnalysis.clearAnalyzer()
+    }
+    onDispose {
+      analyzerSession.incrementAndGet()
+      imageAnalysis.clearAnalyzer()
+      engine?.clear()
+    }
+  }
+
+  val liveSurfaceView =
+    remember { LiveTranslatorSurfaceView(context) }
+
+  // Publish SurfaceView dims to the engine so its `display_crop`
+  // matches the FILL_CENTER visible region. Surface dims arrive
+  // asynchronously via `surfaceChanged`; until then `setViewSize(0,0)`
+  // is the no-op default and the engine falls back to full-display
+  // crop on the first few frames.
+  DisposableEffect(liveSurfaceView, liveOcrEngine) {
+    val engine = liveOcrEngine
+    if (engine != null) {
+      liveSurfaceView.onSizeChanged = { w, h -> engine.setViewSize(w, h) }
+      // Push the current dims in case the surface was already sized
+      // before the engine attached.
+      if (liveSurfaceView.width > 0 && liveSurfaceView.height > 0) {
+        engine.setViewSize(liveSurfaceView.width, liveSurfaceView.height)
+      }
+    }
+    onDispose {
+      liveSurfaceView.onSizeChanged = null
+    }
+  }
+
+  DisposableEffect(liveSurfaceView) {
+    val scaleDetector =
+      ScaleGestureDetector(
+        context,
+        object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+          override fun onScale(detector: ScaleGestureDetector): Boolean {
+            val cam = camera ?: return true
+            val zoomState = cam.cameraInfo.zoomState.value ?: return true
+            val target =
+              (zoomState.zoomRatio * detector.scaleFactor)
+                .coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+            cam.cameraControl.setZoomRatio(target)
+            return true
+          }
+        },
+      )
+    val tapDetector =
+      GestureDetector(
+        context,
+        object : GestureDetector.SimpleOnGestureListener() {
+          override fun onSingleTapUp(e: MotionEvent): Boolean {
+            focusPoint = Offset(e.x, e.y)
+            val viewW = liveSurfaceView.width.toFloat().coerceAtLeast(1f)
+            val viewH = liveSurfaceView.height.toFloat().coerceAtLeast(1f)
+            cropFocusNormalized =
+              Offset(
+                (e.x / viewW).coerceIn(0f, 1f),
+                (e.y / viewH).coerceIn(0f, 1f),
+              )
+            val cam = camera ?: return true
+            // If the tracker-driven lock is currently pinning focus via
+            // Camera2 interop (AF_MODE=OFF + fixed LENS_FOCUS_DISTANCE),
+            // startFocusAndMetering would be silently overridden on the
+            // next capture request. Clear the interop bundle first, drop
+            // the latched distance so the lock effect waits for AF to
+            // re-converge at the tapped point before re-pinning, and
+            // reset the lock flag so the next LOCKED emission can fire
+            // the lock path again.
+            if (focusLockedRef.getAndSet(false)) {
+              runCatching {
+                Camera2CameraControl.from(cam.cameraControl).captureRequestOptions =
+                  CaptureRequestOptions.Builder().build()
+              }.onFailure { Log.w(TAG, "clear interop options failed", it) }
+              latestFocusedDistance.value = null
+            }
+            // Without a PreviewView there's no built-in
+            // MeteringPointFactory, so we hand-build one against the
+            // surface dimensions. Normalised coords are in [0, 1] over
+            // (viewW × viewH); the factory maps that to the camera's
+            // active sensor region under the hood.
+            val factory = SurfaceOrientedMeteringPointFactory(viewW, viewH)
+            val point = factory.createPoint(e.x, e.y)
+            val action =
+              FocusMeteringAction
+                .Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+                .build()
+            runCatching { cam.cameraControl.startFocusAndMetering(action) }
+              .onFailure { Log.w(TAG, "focus action failed", it) }
+            return true
+          }
+        },
+      )
+    liveSurfaceView.setOnTouchListener { _, event ->
+      scaleDetector.onTouchEvent(event)
+      tapDetector.onTouchEvent(event)
+      true
+    }
+    onDispose { liveSurfaceView.setOnTouchListener(null) }
+  }
+
+  DisposableEffect(lifecycleOwner) {
+    val providerFuture = ProcessCameraProvider.getInstance(context)
+    providerFuture.addListener({
+      val provider = providerFuture.get()
+      try {
+        provider.unbindAll()
+        // No `Preview` UseCase — the analyzer stream is our single
+        // source of pixels. `LiveTranslatorSurfaceView` draws the
+        // composited result (camera + overlay) produced by the engine
+        // per analyzer frame. This eliminates the preview-vs-overlay
+        // timing mismatch that the old two-surface architecture had.
+        val boundCamera =
+          provider.bindToLifecycle(
+            lifecycleOwner,
+            CameraSelector.DEFAULT_BACK_CAMERA,
+            imageCapture,
+            imageAnalysis,
+          )
+        camera = boundCamera
+        hasFlashUnit = boundCamera.cameraInfo.hasFlashUnit()
+        // Bias auto-exposure toward shorter exposure / lower ISO. The
+        // camera's AE algorithm sees this as "user wants ~2/3 stop
+        // darker" and tends to shorten shutter (less motion blur on
+        // handheld pans) without us going full manual. -2 here is in
+        // device step units, usually 1/3 EV per step. If a device's
+        // range doesn't include -2 the API clamps silently.
+        try {
+          boundCamera.cameraControl.setExposureCompensationIndex(-4)
+        } catch (e: Exception) {
+          Log.w(TAG, "exposure compensation not supported", e)
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to bind camera", e)
+      }
+    }, mainExecutor)
+
+    onDispose {
+      runCatching { providerFuture.get().unbindAll() }
+    }
+  }
+
+  LaunchedEffect(torchOn, cameraControl) {
+    cameraControl?.enableTorch(torchOn && hasFlashUnit)
+  }
+
+  Box(
+    modifier =
+      Modifier
+        .fillMaxSize()
+        .onSizeChanged { previewSizePx = it },
+  ) {
+    // Single surface for both camera pixels and overlay. The engine
+    // composites them in Rust per analyzer frame and we blit the
+    // result; no two-surface drift possible. When the live overlay is
+    // off (toggled by the user or unavailable because OCR models for
+    // this language aren't installed), the engine still receives
+    // frames and composites camera-only — the tracker is held in
+    // SUPPRESSED so no acquire/refresh worker runs.
+    val composited by
+      (liveOcrEngine?.compositedFrame ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) })
+        .collectAsState()
+    AndroidView(
+      factory = { liveSurfaceView },
+      modifier = Modifier.fillMaxSize(),
+      update = { view -> view.update(composited) },
+    )
+
+    if (DEBUG_SHOW_TRACKER_STATUS && liveOcrEngine != null) {
+      val status by liveOcrEngine.trackerStatus.collectAsState()
+      TrackerStatusPill(status)
+    }
+
+    val indicatorSizeDp = 72.dp
+    val indicatorRadiusPx =
+      with(androidx.compose.ui.platform.LocalDensity.current) {
+        (indicatorSizeDp / 2).toPx()
+      }
+    focusPoint?.let { pt ->
+      Box(
+        modifier =
+          Modifier
+            .offset {
+              IntOffset(
+                (pt.x - indicatorRadiusPx).toInt(),
+                (pt.y - indicatorRadiusPx).toInt(),
+              )
+            }
+            .size(indicatorSizeDp)
+            .scale(focusScale.value)
+            .alpha(focusAlpha.value)
+            .border(2.dp, Color.White, CircleShape),
+      )
+    }
+
+    TopLanguagePills(
+      from = from,
+      to = to,
+      isAutoSource = isAutoSource,
+      canSwap = canSwap,
+      languageState = languageState,
+      languageMetadata = languageMetadata,
+      onMessage = onMessage,
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .statusBarsPadding()
+          .padding(horizontal = 8.dp, vertical = 4.dp),
+    )
+
+    BottomControls(
+      torchOn = torchOn,
+      hasFlashUnit = hasFlashUnit,
+      onTorchToggle = { torchOn = !torchOn },
+      liveOverlayOn = liveOverlayOn,
+      liveOverlayAvailable = hasPaddleOcrModels,
+      onLiveOverlayToggle = {
+        if (!hasPaddleOcrModels) {
+          Toast
+            .makeText(
+              context,
+              "You need to download the OCR models for this language",
+              Toast.LENGTH_SHORT,
+            )
+            .show()
+          return@BottomControls
+        }
+        liveOverlayOn = !liveOverlayOn
+        if (!liveOverlayOn) liveOcrEngine?.clear()
+      },
+      isCapturing = isCapturing,
+      onCapture = {
+        if (isCapturing) return@BottomControls
+        isCapturing = true
+        val outputFile = File.createTempFile("camera_capture_", ".jpg", context.cacheDir)
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(outputFile).build()
+        imageCapture.takePicture(
+          outputOptions,
+          mainExecutor,
+          object : ImageCapture.OnImageSavedCallback {
+            override fun onImageSaved(results: ImageCapture.OutputFileResults) {
+              val uri =
+                FileProvider.getUriForFile(
+                  context,
+                  "${context.packageName}.fileprovider",
+                  outputFile,
+                )
+              isCapturing = false
+              onImageCaptured(uri)
+              onClose()
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+              Log.e(TAG, "Image capture failed", exception)
+              outputFile.delete()
+              isCapturing = false
+            }
+          },
+        )
+      },
+      modifier =
+        Modifier
+          .align(Alignment.BottomCenter)
+          .fillMaxWidth(),
+    )
+  }
+}
+
+@Composable
+private fun TopLanguagePills(
+  from: Language,
+  to: Language,
+  isAutoSource: Boolean,
+  canSwap: Boolean,
+  languageState: LanguageAvailabilityState,
+  languageMetadata: Map<Language, LanguageMetadata>,
+  onMessage: (TranslatorMessage) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val fromLanguages =
+    languageState.allLanguages().filter { x ->
+      (isAutoSource || x != from) && (languageState.availabilityFor(x)?.hasToEnglish == true || x.isEnglish)
+    }
+  val toLanguages =
+    languageState.allLanguages().filter { x ->
+      x != from && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
+    }
+  val pillShape = RoundedCornerShape(50)
+  val pillBackground = Color.Black.copy(alpha = 0.5f)
+
+  val pillWidth = 110.dp
+  Row(
+    modifier = modifier,
+    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Box(
+      modifier =
+        Modifier
+          .width(pillWidth)
+          .clip(pillShape)
+          .background(pillBackground),
+    ) {
+      LanguageSelector(
+        selectedLanguage = from,
+        availableLanguages = fromLanguages,
+        languageMetadata = languageMetadata,
+        onLanguageSelected = { onMessage(TranslatorMessage.FromLang(it)) },
+        isAutoSource = isAutoSource,
+        showAutoOption = true,
+        onAutoSelected = { onMessage(TranslatorMessage.EnableAutoSource) },
+        textColor = Color.White,
+        marquee = false,
+      )
+    }
+    CompositionLocalProvider(LocalContentColor provides Color.White) {
+      IconButton(
+        onClick = { onMessage(TranslatorMessage.SwapLanguages) },
+        enabled = canSwap,
+        modifier = Modifier.size(32.dp),
+      ) {
+        Icon(
+          painter = painterResource(id = R.drawable.compare),
+          contentDescription = "Reverse translation direction",
+        )
+      }
+    }
+    Box(
+      modifier =
+        Modifier
+          .width(pillWidth)
+          .clip(pillShape)
+          .background(pillBackground),
+    ) {
+      LanguageSelector(
+        selectedLanguage = to,
+        availableLanguages = toLanguages,
+        languageMetadata = languageMetadata,
+        onLanguageSelected = { onMessage(TranslatorMessage.ToLang(it)) },
+        textColor = Color.White,
+        marquee = false,
+      )
+    }
+  }
+}
+
+@Composable
+private fun BottomControls(
+  torchOn: Boolean,
+  hasFlashUnit: Boolean,
+  onTorchToggle: () -> Unit,
+  liveOverlayOn: Boolean,
+  liveOverlayAvailable: Boolean,
+  onLiveOverlayToggle: () -> Unit,
+  isCapturing: Boolean,
+  onCapture: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Row(
+    modifier =
+      modifier
+        .padding(horizontal = 24.dp, vertical = 24.dp),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    IconButton(
+      onClick = onTorchToggle,
+      enabled = hasFlashUnit,
+    ) {
+      Icon(
+        painter = painterResource(if (torchOn) R.drawable.flash_on else R.drawable.flash_off),
+        contentDescription = if (torchOn) "Torch on" else "Torch off",
+        tint = if (hasFlashUnit) Color.White else Color.White.copy(alpha = 0.3f),
+      )
+    }
+
+    Box(
+      modifier =
+        Modifier
+          .size(72.dp)
+          .clip(CircleShape)
+          .border(4.dp, Color.White, CircleShape)
+          .padding(6.dp)
+          .clip(CircleShape)
+          .background(if (isCapturing) Color.White.copy(alpha = 0.5f) else Color.White)
+          .clickable(enabled = !isCapturing, onClick = onCapture),
+    )
+
+    IconButton(onClick = onLiveOverlayToggle) {
+      Icon(
+        painter = painterResource(R.drawable.auto_awesome),
+        contentDescription = if (liveOverlayOn) "Live overlay on" else "Live overlay off",
+        tint =
+          when {
+            !liveOverlayAvailable -> Color.White.copy(alpha = 0.25f)
+            liveOverlayOn -> Color.White
+            else -> Color.White.copy(alpha = 0.4f)
+          },
+      )
+    }
+  }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.TrackerStatusPill(status: dev.davidv.translator.TrackerStatus) {
+  val (color, label) =
+    when (status.state) {
+      uniffi.bindings.PlanarTrackerState.IDLE ->
+        androidx.compose.ui.graphics.Color(0xCC444444) to "IDLE"
+      uniffi.bindings.PlanarTrackerState.ACQUIRING ->
+        androidx.compose.ui.graphics.Color(0xCCB58900) to "ACQUIRING"
+      uniffi.bindings.PlanarTrackerState.LOCKED ->
+        androidx.compose.ui.graphics.Color(0xCC2AA198) to "LOCKED"
+      uniffi.bindings.PlanarTrackerState.LOST ->
+        androidx.compose.ui.graphics.Color(0xCCDC322F) to "LOST"
+    }
+  // Format: STATE | anchor#N inliers | det=D rec_ok=K rec_empty=M pending=P
+  val detPart =
+    if (status.lastAcquireDet < 0) {
+      ""
+    } else {
+      " | det=${status.lastAcquireDet} rec_ok=${status.lastAcquireRecOk} rec_empty=${status.lastAcquireRecEmpty} pending=${status.lastAcquirePending}"
+    }
+  val anchorPart =
+    if (status.anchorId == 0L) {
+      ""
+    } else {
+      " | a#${status.anchorId} inl=${status.inliers}"
+    }
+  val text = "$label$anchorPart$detPart"
+  androidx.compose.foundation.layout.Box(
+    modifier =
+      androidx.compose.ui.Modifier
+        .align(androidx.compose.ui.Alignment.TopStart)
+        .padding(top = 56.dp, start = 8.dp)
+        .background(color, shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+        .padding(horizontal = 8.dp, vertical = 4.dp),
+  ) {
+    androidx.compose.material3.Text(
+      text = text,
+      color = androidx.compose.ui.graphics.Color.White,
+      style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+    )
+  }
+}

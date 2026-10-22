@@ -51,6 +51,8 @@ class OverlayUI(
   private var readingOrderIconView: ImageView? = null
   private var ocrButtonView: View? = null
   private var ocrIconView: ImageView? = null
+  private var wandButtonView: View? = null
+  private var wandIconView: ImageView? = null
   private val translationOverlays = mutableListOf<View>()
   private var borderView: BorderWaveView? = null
 
@@ -68,6 +70,7 @@ class OverlayUI(
               WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
               PixelFormat.TRANSLUCENT,
             )
+          params.windowAnimations = 0
           windowManager.addView(view, params)
         }
 
@@ -83,6 +86,7 @@ class OverlayUI(
           params.gravity = Gravity.TOP or Gravity.END
           params.x = dpToPx(8)
           params.y = dpToPx(48)
+          params.windowAnimations = 0
           windowManager.addView(view, params)
         }
 
@@ -96,6 +100,7 @@ class OverlayUI(
               PixelFormat.TRANSLUCENT,
             )
           params.gravity = Gravity.CENTER
+          params.windowAnimations = 0
           windowManager.addView(view, params)
         }
 
@@ -198,6 +203,7 @@ class OverlayUI(
     forcedSourceLanguage: Language?,
     forcedTargetLanguage: Language?,
     readingOrder: ReadingOrder,
+    isAutoSource: Boolean,
   ) {
     if (toolbarView != null) return
 
@@ -217,7 +223,11 @@ class OverlayUI(
         onReadingOrderClick = { service.toggleJapaneseOcrMode() },
         showOcrButton = true,
         onOcrClick = { service.startManualOcrSelection() },
+        onOcrLongClick = { service.handleFullScreenOcr() },
+        showWandButton = true,
+        onWandClick = { service.handleTranslateVisible() },
         onMenuClick = { service.showDotsMenu() },
+        isAutoSource = isAutoSource,
       )
     val toolbar = toolbarViews.root
     sourceLabelView = toolbarViews.sourceLabel
@@ -226,6 +236,8 @@ class OverlayUI(
     readingOrderIconView = toolbarViews.readingOrderIcon
     ocrButtonView = toolbarViews.ocrButton
     ocrIconView = toolbarViews.ocrIcon
+    wandButtonView = toolbarViews.wandButton
+    wandIconView = toolbarViews.wandIcon
 
     val params =
       WindowManager.LayoutParams(
@@ -238,6 +250,7 @@ class OverlayUI(
     params.gravity = Gravity.TOP or Gravity.START
     params.x = 0
     params.y = getStatusBarHeight()
+    params.windowAnimations = 0
 
     windowManager.addView(toolbar, params)
     toolbarView = toolbar
@@ -253,6 +266,8 @@ class OverlayUI(
       readingOrderIconView = null
       ocrButtonView = null
       ocrIconView = null
+      wandButtonView = null
+      wandIconView = null
     }
   }
 
@@ -260,8 +275,9 @@ class OverlayUI(
     forcedSourceLanguage: Language?,
     forcedTargetLanguage: Language?,
     readingOrder: ReadingOrder,
+    isAutoSource: Boolean,
   ) {
-    sourceLabelView?.text = forcedSourceLanguage?.shortDisplayName ?: "Auto"
+    sourceLabelView?.text = OverlayChromeFactory.formatSourceLabel(forcedSourceLanguage, isAutoSource)
     val currentTarget = forcedTargetLanguage ?: service.langStateManager.languageByCode(settingsManager.settings.value.defaultTargetLanguageCode)
     targetLabelView?.text = currentTarget?.shortDisplayName ?: "?"
     OverlayChromeFactory.updateReadingOrderButtonState(
@@ -286,6 +302,12 @@ class OverlayUI(
   fun showDotsMenu() {
     menuManager.showDotsMenu(
       listOf(
+        "Copy original text" to {
+          copyToClipboard("Original text", service.lastOriginalText)
+        },
+        "Copy translated text" to {
+          copyToClipboard("Translated text", service.lastTranslatedText)
+        },
         "Open App" to {
           service.deactivate()
           val intent = Intent(service, MainActivity::class.java)
@@ -300,6 +322,19 @@ class OverlayUI(
     )
   }
 
+  private fun copyToClipboard(
+    label: String,
+    text: String,
+  ) {
+    if (text.isBlank()) {
+      showOverlayMessage("Nothing to copy yet")
+      return
+    }
+    val clipboard = service.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+    showOverlayMessage("Copied $label")
+  }
+
   fun showLanguagePicker(
     isSource: Boolean,
     availableLangs: List<Language>,
@@ -312,39 +347,6 @@ class OverlayUI(
 
   fun dismissMenu() {
     menuManager.dismiss()
-  }
-
-  fun showLoadingOverlay(
-    bounds: Rect,
-    colors: OverlayColors?,
-  ) {
-    val bgColor = colors?.background ?: Color.parseColor("#E0FFFFFF")
-
-    val container = FrameLayout(service)
-    val overlayBg = GradientDrawable()
-    overlayBg.setColor(bgColor)
-    overlayBg.cornerRadius = dpToPx(8).toFloat()
-    container.background = overlayBg
-
-    val progress = ProgressBar(service)
-    val lp = FrameLayout.LayoutParams(dpToPx(24), dpToPx(24))
-    lp.gravity = Gravity.CENTER
-    container.addView(progress, lp)
-
-    val params =
-      WindowManager.LayoutParams(
-        maxOf(bounds.width(), dpToPx(48)),
-        maxOf(bounds.height(), dpToPx(32)),
-        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-        PixelFormat.TRANSLUCENT,
-      )
-    params.gravity = Gravity.TOP or Gravity.START
-    params.x = bounds.left
-    params.y = bounds.top
-
-    windowManager.addView(container, params)
-    translationOverlays.add(container)
   }
 
   fun showTranslationOverlay(
@@ -651,6 +653,8 @@ class OverlayUI(
   }
 
   fun hasTranslationOverlays(): Boolean = translationOverlays.isNotEmpty()
+
+  fun hasToolbar(): Boolean = toolbarView != null
 
   fun removeTranslationOverlays() {
     for (view in translationOverlays) {

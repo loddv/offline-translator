@@ -20,7 +20,9 @@ package dev.davidv.translator.ui.components
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -48,6 +50,9 @@ fun LanguageSelectionRow(
   onMessage: (TranslatorMessage) -> Unit,
   onSettings: (() -> Unit)?,
   drawable: Pair<String, Int>,
+  isAutoSource: Boolean = false,
+  detectedInstalled: Language? = null,
+  showAutoOption: Boolean = false,
 ) {
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -56,7 +61,7 @@ fun LanguageSelectionRow(
   ) {
     val fromLanguages =
       languageState.allLanguages().filter { x ->
-        x != to && x != from && (languageState.availabilityFor(x)?.hasToEnglish == true || x.isEnglish)
+        (isAutoSource || x != from) && (languageState.availabilityFor(x)?.hasToEnglish == true || x.isEnglish)
       }
     val toLanguages =
       languageState.allLanguages().filter { x ->
@@ -71,10 +76,14 @@ fun LanguageSelectionRow(
         onMessage(TranslatorMessage.FromLang(language))
       },
       modifier = Modifier.weight(1f),
+      isAutoSource = isAutoSource,
+      detectedInstalled = detectedInstalled,
+      showAutoOption = showAutoOption,
+      onAutoSelected = { onMessage(TranslatorMessage.EnableAutoSource) },
     )
     IconButton(
       onClick = { onMessage(TranslatorMessage.SwapLanguages) },
-      enabled = canSwap,
+      enabled = canSwap && !(isAutoSource && detectedInstalled == null),
     ) {
       Icon(
         painterResource(id = R.drawable.compare),
@@ -99,6 +108,8 @@ fun LanguageSelectionRow(
           contentDescription = drawable.first,
         )
       }
+    } else {
+      Spacer(modifier = Modifier.size(48.dp))
     }
   }
 }

@@ -20,27 +20,34 @@ package dev.davidv.translator.ui.screens
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -63,15 +70,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.AppSettings
 import dev.davidv.translator.BackgroundMode
+import dev.davidv.translator.DownloadService
+import dev.davidv.translator.DownloadState
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageCatalog
 import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.PermissionHelper
+import dev.davidv.translator.PreferredOcrEngine
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadonlyModalOutputAlignment
+import dev.davidv.translator.TapToTranslateNotification
 import dev.davidv.translator.displayName
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +95,10 @@ private fun LanguageDropdown(
   onLanguageSelected: (Language) -> Unit,
 ) {
   var expanded by remember { mutableStateOf(false) }
+  val languagesByDisplayName =
+    remember(availableLanguages) {
+      availableLanguages.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayName })
+    }
 
   Text(
     text = label,
@@ -110,7 +126,7 @@ private fun LanguageDropdown(
       expanded = expanded,
       onDismissRequest = { expanded = false },
     ) {
-      availableLanguages.forEach { language ->
+      languagesByDisplayName.forEach { language ->
         DropdownMenuItem(
           text = { Text(language.displayName) },
           onClick = {
@@ -130,8 +146,12 @@ fun SettingsScreen(
   languageMetadataManager: dev.davidv.translator.LanguageMetadataManager,
   availableLanguages: List<Language>,
   catalog: LanguageCatalog?,
+  adblockDownloadState: DownloadState,
+  adblockInstalled: Boolean,
   onSettingsChange: (AppSettings) -> Unit,
   onManageLanguages: () -> Unit,
+  onDeleteAdblockSupport: () -> Unit,
+  onHowToUse: () -> Unit,
 ) {
   val context = LocalContext.current
   var showPermissionDialog by remember { mutableStateOf(false) }
@@ -162,6 +182,16 @@ fun SettingsScreen(
       contract = ActivityResultContracts.StartActivityForResult(),
     ) { _ ->
       assistantRoleHeld = isAssistantRoleHeld(context)
+    }
+
+  val notificationPermissionLauncher =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+      if (granted) {
+        onSettingsChange(settings.copy(tapToTranslateEnabled = true))
+        TapToTranslateNotification.show(context)
+      }
     }
   Scaffold(
     topBar = {
@@ -207,6 +237,7 @@ fun SettingsScreen(
               text = "Language Packs",
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurface,
+              modifier = Modifier.weight(1f).padding(end = 8.dp),
             )
 
             TextButton(
@@ -303,7 +334,128 @@ fun SettingsScreen(
           ) {
             Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = "Hide input when acting as a popup",
+                text = "Tap to Translate notification",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = "Persistent notification that opens the popup.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+
+            Switch(
+              checked = settings.tapToTranslateEnabled,
+              onCheckedChange = { checked ->
+                if (checked) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(
+                      context,
+                      android.Manifest.permission.POST_NOTIFICATIONS,
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                  ) {
+                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                  } else {
+                    onSettingsChange(settings.copy(tapToTranslateEnabled = true))
+                    TapToTranslateNotification.show(context)
+                  }
+                } else {
+                  onSettingsChange(settings.copy(tapToTranslateEnabled = false))
+                  TapToTranslateNotification.hide(context)
+                }
+              },
+            )
+          }
+        }
+      }
+
+      // Web Translator Section
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Text(
+            text = "Web Translator",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+
+          WebTranslatorAssetRow(
+            label = "Adblock support",
+            secondaryLabel = catalog?.supportSizeBytesByKind("adblock")?.let(::formatSize),
+            installed = adblockInstalled,
+            downloadState = adblockDownloadState,
+            onDownload = { DownloadService.startAdblockDownload(context) },
+            onDelete = onDeleteAdblockSupport,
+            onCancel = { DownloadService.cancelAdblockDownload(context) },
+          )
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Clear browsing data on close",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = "Deletes cookies, cache and local storage.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+            Switch(
+              checked = settings.clearWebTranslatorDataOnClose,
+              onCheckedChange = { enabled ->
+                onSettingsChange(settings.copy(clearWebTranslatorDataOnClose = enabled))
+              },
+            )
+          }
+        }
+      }
+
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Text(
+            text = "Popup settings",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+
+          Text(
+            text = "Popup shows up when selecting 'Translate' from the long-press menu",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Hide input",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
               )
@@ -317,49 +469,65 @@ fun SettingsScreen(
             )
           }
 
-          if (settings.onlyShowOutputOnReadonlyModal) {
-            var readonlyModalAlignmentExpanded by remember { mutableStateOf(false) }
+          var readonlyModalAlignmentExpanded by remember { mutableStateOf(false) }
 
-            Text(
-              text = "Readonly popup vertical position",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
+          Text(
+            text = "Popup position",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          ExposedDropdownMenuBox(
+            expanded = readonlyModalAlignmentExpanded,
+            onExpandedChange = { readonlyModalAlignmentExpanded = it },
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            OutlinedTextField(
+              value = settings.readonlyModalOutputAlignment.displayName,
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = readonlyModalAlignmentExpanded)
+              },
+              modifier =
+                Modifier
+                  .menuAnchor()
+                  .fillMaxWidth(),
+              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )
-
-            ExposedDropdownMenuBox(
+            ExposedDropdownMenu(
               expanded = readonlyModalAlignmentExpanded,
-              onExpandedChange = { readonlyModalAlignmentExpanded = it },
-              modifier = Modifier.fillMaxWidth(),
+              onDismissRequest = { readonlyModalAlignmentExpanded = false },
             ) {
-              OutlinedTextField(
-                value = settings.readonlyModalOutputAlignment.displayName,
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = {
-                  ExposedDropdownMenuDefaults.TrailingIcon(expanded = readonlyModalAlignmentExpanded)
-                },
-                modifier =
-                  Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(),
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-              )
-              ExposedDropdownMenu(
-                expanded = readonlyModalAlignmentExpanded,
-                onDismissRequest = { readonlyModalAlignmentExpanded = false },
-              ) {
-                ReadonlyModalOutputAlignment.entries.forEach { alignment ->
-                  DropdownMenuItem(
-                    text = { Text(alignment.displayName) },
-                    onClick = {
-                      onSettingsChange(settings.copy(readonlyModalOutputAlignment = alignment))
-                      readonlyModalAlignmentExpanded = false
-                    },
-                  )
-                }
+              ReadonlyModalOutputAlignment.entries.forEach { alignment ->
+                DropdownMenuItem(
+                  text = { Text(alignment.displayName) },
+                  onClick = {
+                    onSettingsChange(settings.copy(readonlyModalOutputAlignment = alignment))
+                    readonlyModalAlignmentExpanded = false
+                  },
+                )
               }
             }
           }
+
+          Text(
+            text = "Popup size: ${(settings.readonlyModalCompactHeightFactor * 100).toInt()}%",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          Slider(
+            value = settings.readonlyModalCompactHeightFactor,
+            onValueChange = { value ->
+              onSettingsChange(
+                settings.copy(readonlyModalCompactHeightFactor = (value * 20f).roundToInt() / 20f),
+              )
+            },
+            valueRange = 0.2f..0.8f,
+            steps = 11,
+            modifier = Modifier.fillMaxWidth(),
+          )
         }
       }
 
@@ -455,100 +623,138 @@ fun SettingsScreen(
         }
       }
 
-      // OCR Settings Section - Only show if OCR is not disabled
-      if (!settings.disableOcr) {
-        Card(
-          modifier = Modifier.fillMaxWidth(),
-          colors =
-            CardDefaults.cardColors(
-              containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-            ),
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+          ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+          Text(
+            text = "OCR",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+
+          // Preferred OCR Engine
+          var preferredEngineExpanded by remember { mutableStateOf(false) }
+
+          Text(
+            text = "Preferred Engine",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          ExposedDropdownMenuBox(
+            expanded = preferredEngineExpanded,
+            onExpandedChange = { preferredEngineExpanded = it },
+            modifier = Modifier.fillMaxWidth(),
           ) {
-            Text(
-              text = "OCR",
-              style = MaterialTheme.typography.headlineSmall,
-              color = MaterialTheme.colorScheme.primary,
+            OutlinedTextField(
+              value = settings.preferredOcrEngine.displayName,
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = preferredEngineExpanded) },
+              modifier =
+                Modifier
+                  .menuAnchor()
+                  .fillMaxWidth(),
+              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )
-
-            // Background Mode
-            var backgroundModeExpanded by remember { mutableStateOf(false) }
-
-            Text(
-              text = "Background Mode",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            ExposedDropdownMenuBox(
-              expanded = backgroundModeExpanded,
-              onExpandedChange = { backgroundModeExpanded = it },
-              modifier = Modifier.fillMaxWidth(),
+            ExposedDropdownMenu(
+              expanded = preferredEngineExpanded,
+              onDismissRequest = { preferredEngineExpanded = false },
             ) {
-              OutlinedTextField(
-                value = settings.backgroundMode.displayName,
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = backgroundModeExpanded) },
-                modifier =
-                  Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(),
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-              )
-              ExposedDropdownMenu(
-                expanded = backgroundModeExpanded,
-                onDismissRequest = { backgroundModeExpanded = false },
-              ) {
-                BackgroundMode.entries.forEach { mode ->
-                  DropdownMenuItem(
-                    text = { Text(mode.displayName) },
-                    onClick = {
-                      onSettingsChange(settings.copy(backgroundMode = mode))
-                      backgroundModeExpanded = false
-                    },
-                  )
-                }
+              PreferredOcrEngine.entries.forEach { engine ->
+                DropdownMenuItem(
+                  text = { Text(engine.displayName) },
+                  onClick = {
+                    onSettingsChange(settings.copy(preferredOcrEngine = engine))
+                    preferredEngineExpanded = false
+                  },
+                )
               }
             }
-
-            // Min Confidence Slider
-            Text(
-              text = "Min Confidence: ${settings.minConfidence}%",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Slider(
-              value = settings.minConfidence.toFloat(),
-              onValueChange = { value ->
-                onSettingsChange(settings.copy(minConfidence = value.toInt()))
-              },
-              valueRange = 50f..100f,
-              steps = 9,
-              modifier = Modifier.fillMaxWidth(),
-            )
-
-            // Max Image Size Slider
-            Text(
-              text = "Max Image Size: ${settings.maxImageSize}px",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Slider(
-              value = settings.maxImageSize.toFloat(),
-              onValueChange = { value ->
-                onSettingsChange(settings.copy(maxImageSize = value.toInt()))
-              },
-              valueRange = 1500f..4000f,
-              steps = 24,
-              modifier = Modifier.fillMaxWidth(),
-            )
           }
+
+          // Background Mode
+          var backgroundModeExpanded by remember { mutableStateOf(false) }
+
+          Text(
+            text = "Background Mode",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          ExposedDropdownMenuBox(
+            expanded = backgroundModeExpanded,
+            onExpandedChange = { backgroundModeExpanded = it },
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            OutlinedTextField(
+              value = settings.backgroundMode.displayName,
+              onValueChange = {},
+              readOnly = true,
+              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = backgroundModeExpanded) },
+              modifier =
+                Modifier
+                  .menuAnchor()
+                  .fillMaxWidth(),
+              colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            )
+            ExposedDropdownMenu(
+              expanded = backgroundModeExpanded,
+              onDismissRequest = { backgroundModeExpanded = false },
+            ) {
+              BackgroundMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                  text = { Text(mode.displayName) },
+                  onClick = {
+                    onSettingsChange(settings.copy(backgroundMode = mode))
+                    backgroundModeExpanded = false
+                  },
+                )
+              }
+            }
+          }
+
+          // Min Confidence Slider
+          Text(
+            text = "Min Confidence: ${settings.minConfidence}%",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          Slider(
+            value = settings.minConfidence.toFloat(),
+            onValueChange = { value ->
+              onSettingsChange(settings.copy(minConfidence = value.toInt()))
+            },
+            valueRange = 70f..100f,
+            steps = 5,
+            modifier = Modifier.fillMaxWidth(),
+          )
+
+          // Max Image Size Slider
+          Text(
+            text = "Max Image Size: ${settings.maxImageSize}px",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
+
+          Slider(
+            value = settings.maxImageSize.toFloat(),
+            onValueChange = { value ->
+              onSettingsChange(settings.copy(maxImageSize = value.toInt()))
+            },
+            valueRange = 1300f..2000f,
+            steps = 6,
+            modifier = Modifier.fillMaxWidth(),
+          )
         }
       }
 
@@ -618,6 +824,7 @@ fun SettingsScreen(
                 text = "Use external storage",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
               )
 
               Switch(
@@ -645,66 +852,25 @@ fun SettingsScreen(
               )
             }
 
-            // Disable OCR Toggle
+            // Show OCR Detection Toggle
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically,
             ) {
               Text(
-                text = "Disable OCR",
+                text = "Show OCR detection",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
               )
 
               Switch(
-                checked = settings.disableOcr,
+                checked = settings.showOCRDetection,
                 onCheckedChange = { checked ->
-                  onSettingsChange(settings.copy(disableOcr = checked))
+                  onSettingsChange(settings.copy(showOCRDetection = checked))
                 },
               )
-            }
-
-            // Show OCR Detection Toggle
-            if (!settings.disableOcr) {
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-              ) {
-                Text(
-                  text = "Show OCR detection",
-                  style = MaterialTheme.typography.bodyMedium,
-                  color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Switch(
-                  checked = settings.showOCRDetection,
-                  onCheckedChange = { checked ->
-                    onSettingsChange(settings.copy(showOCRDetection = checked))
-                  },
-                )
-              }
-
-              // Show Gallery in Image Picker Toggle
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-              ) {
-                Text(
-                  text = "Show file picker for OCR",
-                  style = MaterialTheme.typography.bodyMedium,
-                  color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Switch(
-                  checked = settings.showFilePickerInImagePicker,
-                  onCheckedChange = { checked ->
-                    onSettingsChange(settings.copy(showFilePickerInImagePicker = checked))
-                  },
-                )
-              }
             }
 
             // Disable CLD Toggle
@@ -717,6 +883,7 @@ fun SettingsScreen(
                 text = "Disable automatic language detection",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
               )
 
               Switch(
@@ -737,6 +904,7 @@ fun SettingsScreen(
                 text = "Show transliteration for output",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
               )
 
               Switch(
@@ -757,6 +925,7 @@ fun SettingsScreen(
                 text = "Show transliteration for input",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
               )
 
               Switch(
@@ -777,6 +946,7 @@ fun SettingsScreen(
                 text = "Add spaces for Japanese transliteration",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
               )
 
               Switch(
@@ -786,9 +956,93 @@ fun SettingsScreen(
                 },
               )
             }
+
+            // Translate images embedded in PDFs
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Translate images in PDFs",
+                  style = MaterialTheme.typography.bodyMedium,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                  text = "OCR and translate raster images embedded in PDF pages.",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
+              Switch(
+                checked = settings.translatePdfImages,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(translatePdfImages = checked))
+                },
+              )
+            }
+
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Translate camera live by default",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+              )
+              Switch(
+                checked = settings.liveCameraOverlayEnabled,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(liveCameraOverlayEnabled = checked))
+                },
+              )
+            }
+
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                  text = "Register as browser",
+                  style = MaterialTheme.typography.bodyMedium,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                  text = "Offer to translate links from other apps.",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
+              Switch(
+                checked = settings.registerAsBrowser,
+                onCheckedChange = { checked ->
+                  onSettingsChange(settings.copy(registerAsBrowser = checked))
+                },
+              )
+            }
           }
         }
       }
+
+      AboutCard(
+        onHowToUse = onHowToUse,
+        onGetHelp = {
+          context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DavidVentura/offline-translator/issues")),
+          )
+        },
+        onSupport = {
+          context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://liberapay.com/DavidV/")),
+          )
+        },
+      )
     }
   }
 
@@ -827,6 +1081,202 @@ fun SettingsScreen(
         }
       },
     )
+  }
+}
+
+@Composable
+private fun AboutCard(
+  onHowToUse: () -> Unit,
+  onGetHelp: () -> Unit,
+  onSupport: () -> Unit,
+) {
+  val context = LocalContext.current
+  val versionName =
+    remember {
+      runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+      }.getOrNull() ?: "unknown"
+    }
+
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    colors =
+      CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+      ),
+  ) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+      Text(
+        text = "About",
+        style = MaterialTheme.typography.headlineSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+      )
+
+      AboutNavRow(label = "How to use", iconRes = R.drawable.question, onClick = onHowToUse)
+      AboutNavRow(label = "Get help / report issue", iconRes = R.drawable.info, onClick = onGetHelp)
+      AboutNavRow(label = "Support development", iconRes = R.drawable.heart, onClick = onSupport)
+
+      Text(
+        text = "Version $versionName",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+      )
+    }
+  }
+}
+
+@Composable
+private fun AboutNavRow(
+  label: String,
+  iconRes: Int,
+  onClick: () -> Unit,
+) {
+  Row(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .clickable(onClick = onClick)
+        .padding(horizontal = 16.dp, vertical = 12.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Icon(
+      painter = painterResource(id = iconRes),
+      contentDescription = null,
+      tint = MaterialTheme.colorScheme.onSurface,
+      modifier = Modifier.size(24.dp),
+    )
+    Text(
+      text = label,
+      style = MaterialTheme.typography.bodyMedium,
+      color = MaterialTheme.colorScheme.onSurface,
+      modifier = Modifier.padding(start = 16.dp),
+    )
+  }
+}
+
+@Composable
+private fun WebTranslatorAssetRow(
+  label: String,
+  secondaryLabel: String?,
+  installed: Boolean,
+  downloadState: DownloadState,
+  onDownload: () -> Unit,
+  onDelete: () -> Unit,
+  onCancel: () -> Unit,
+) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Column(
+      modifier = Modifier.weight(1f),
+      verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+      Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+      )
+      secondaryLabel?.let { size ->
+        Text(
+          text = size,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+
+    SupportActionButton(
+      downloadState = downloadState,
+      installed = installed,
+      onDownload = onDownload,
+      onDelete = onDelete,
+      onCancel = onCancel,
+    )
+  }
+}
+
+@Composable
+private fun SupportActionButton(
+  downloadState: DownloadState,
+  installed: Boolean,
+  onDownload: () -> Unit,
+  onDelete: () -> Unit,
+  onCancel: () -> Unit,
+) {
+  if (downloadState.isDownloading) {
+    Box(
+      contentAlignment = Alignment.Center,
+      modifier = Modifier.size(40.dp),
+    ) {
+      val targetProgress =
+        if (downloadState.totalSize > 0) {
+          downloadState.downloaded.toFloat() / downloadState.totalSize.toFloat()
+        } else {
+          0f
+        }
+      val animatedProgress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = tween(durationMillis = 300),
+        label = "adblock-progress",
+      )
+      CircularProgressIndicator(
+        progress = { animatedProgress },
+        modifier = Modifier.size(32.dp),
+      )
+      IconButton(
+        onClick = onCancel,
+        modifier = Modifier.size(32.dp),
+      ) {
+        Icon(
+          painter = painterResource(id = R.drawable.cancel),
+          contentDescription = "Cancel Download",
+        )
+      }
+    }
+    return
+  }
+
+  IconButton(
+    onClick = if (installed) onDelete else onDownload,
+    modifier = Modifier.size(40.dp),
+  ) {
+    Icon(
+      painter =
+        painterResource(
+          id =
+            when {
+              installed -> R.drawable.delete
+              downloadState.isCancelled || downloadState.error != null -> R.drawable.refresh
+              else -> R.drawable.add
+            },
+        ),
+      contentDescription =
+        when {
+          installed -> "Delete"
+          downloadState.isCancelled || downloadState.error != null -> "Retry Download"
+          else -> "Download"
+        },
+    )
+  }
+}
+
+private fun formatSize(sizeBytes: Long): String {
+  val units = listOf("B", "KB", "MB", "GB")
+  var size = sizeBytes.toDouble()
+  var unitIndex = 0
+  while (size >= 1024 && unitIndex < units.lastIndex) {
+    size /= 1024
+    unitIndex++
+  }
+  return if (unitIndex == 0) {
+    "${size.toLong()} ${units[unitIndex]}"
+  } else {
+    "%.1f %s".format(size, units[unitIndex])
   }
 }
 
@@ -897,8 +1347,12 @@ fun SettingsScreenPreview() {
       languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
       availableLanguages = previewLangs,
       catalog = null,
+      adblockDownloadState = DownloadState(),
+      adblockInstalled = false,
       onSettingsChange = {},
       onManageLanguages = {},
+      onDeleteAdblockSupport = {},
+      onHowToUse = {},
     )
   }
 }
@@ -922,8 +1376,12 @@ fun SettingsScreenDarkPreview() {
       languageMetadataManager = LanguageMetadataManager(context, kotlinx.coroutines.flow.MutableStateFlow(emptyList())),
       availableLanguages = previewLangs,
       catalog = null,
+      adblockDownloadState = DownloadState(),
+      adblockInstalled = true,
       onSettingsChange = {},
       onManageLanguages = {},
+      onDeleteAdblockSupport = {},
+      onHowToUse = {},
     )
   }
 }

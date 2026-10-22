@@ -18,7 +18,9 @@
 package dev.davidv.translator
 
 import android.app.Application
+import android.os.Build
 import android.util.Log
+import dev.davidv.translator.adblock.AdblockManager
 
 class TranslatorApplication : Application() {
   lateinit var settingsManager: SettingsManager
@@ -29,6 +31,7 @@ class TranslatorApplication : Application() {
   lateinit var speechService: SpeechService
   lateinit var languageDetector: LanguageDetector
   lateinit var translationCoordinator: TranslationCoordinator
+  lateinit var adblockManager: AdblockManager
   val languagesFlow = kotlinx.coroutines.flow.MutableStateFlow<List<Language>>(emptyList())
   var languageCatalog: LanguageCatalog? = null
     private set
@@ -39,6 +42,12 @@ class TranslatorApplication : Application() {
 
     settingsManager = SettingsManager(this)
     filePathManager = FilePathManager(this, settingsManager.settings)
+
+    if (isTtsEngineProcess()) {
+      Log.d("TranslatorApplication", "Initialized lightweight TTS engine process")
+      return
+    }
+
     languageCatalog = filePathManager.loadCatalog()
     languagesFlow.value = languageCatalog?.languageList ?: emptyList()
     languageMetadataManager = LanguageMetadataManager(this, languagesFlow)
@@ -48,5 +57,25 @@ class TranslatorApplication : Application() {
     languageDetector = LanguageDetector { code -> languageCatalog?.languageByCode(code) }
     translationCoordinator =
       TranslationCoordinator(translationService, speechService, languageDetector, imageProcessor, settingsManager)
+    adblockManager = AdblockManager(filePathManager)
+
+    if (settingsManager.settings.value.tapToTranslateEnabled) {
+      TapToTranslateNotification.show(this)
+    }
+
+    settingsManager.applyBrowserAliasState(settingsManager.settings.value.registerAsBrowser)
   }
+
+  private fun isTtsEngineProcess(): Boolean = currentProcessName().endsWith(":tts")
+
+  private fun currentProcessName(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      getProcessName()
+    } else {
+      try {
+        java.io.File("/proc/self/cmdline").readText().trimEnd('\u0000')
+      } catch (_: Exception) {
+        packageName
+      }
+    }
 }

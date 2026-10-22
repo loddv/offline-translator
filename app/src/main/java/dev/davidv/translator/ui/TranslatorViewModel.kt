@@ -17,12 +17,15 @@
 
 package dev.davidv.translator.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import dev.davidv.translator.DocumentTranslationService
+import dev.davidv.translator.DocumentTranslationServiceState
 import dev.davidv.translator.DownloadService
 import dev.davidv.translator.FileEvent
 import dev.davidv.translator.FilePathManager
@@ -32,6 +35,9 @@ import dev.davidv.translator.LanguageMetadataManager
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.PcmAudio
+import dev.davidv.translator.PdfPhaseProgress
+import dev.davidv.translator.PreferredOcrEngine
+import dev.davidv.translator.PreparedImageOverlay
 import dev.davidv.translator.ReadingOrder
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.SpeechSynthesisResult
@@ -39,8 +45,8 @@ import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslationCoordinator
 import dev.davidv.translator.TranslationResult
 import dev.davidv.translator.TranslatorMessage
-import dev.davidv.translator.TtsVoiceOption
 import dev.davidv.translator.WordWithTaggedEntries
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,8 +58,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 class TranslatorViewModel(
+  private val appContext: Context,
   val translationCoordinator: TranslationCoordinator,
   val settingsManager: SettingsManager,
   val filePathManager: FilePathManager,
@@ -86,7 +94,19 @@ class TranslatorViewModel(
   private val _displayImage = MutableStateFlow<Bitmap?>(null)
   val displayImage: StateFlow<Bitmap?> = _displayImage.asStateFlow()
 
-  private val originalImage = MutableStateFlow<Bitmap?>(null)
+  private val _originalImage = MutableStateFlow<Bitmap?>(null)
+  val originalImage: StateFlow<Bitmap?> = _originalImage.asStateFlow()
+
+  private data class OcrCacheEntry(
+    val plan: PreparedImageOverlay,
+    val imageRef: Bitmap,
+    val sourceCode: String,
+    val sourceScript: String,
+    val readingOrder: ReadingOrder,
+    val engine: PreferredOcrEngine,
+  )
+
+  private var ocrCache: OcrCacheEntry? = null
 
   private val _ocrReadingOrder = MutableStateFlow(ReadingOrder.LEFT_TO_RIGHT)
   val ocrReadingOrder: StateFlow<ReadingOrder> = _ocrReadingOrder.asStateFlow()
@@ -96,6 +116,9 @@ class TranslatorViewModel(
 
   private val _currentDetectedLanguage = MutableStateFlow<Language?>(null)
   val currentDetectedLanguage: StateFlow<Language?> = _currentDetectedLanguage.asStateFlow()
+
+  private val _isAutoSource = MutableStateFlow(false)
+  val isAutoSource: StateFlow<Boolean> = _isAutoSource.asStateFlow()
 
   private val _currentLaunchMode = MutableStateFlow(initialLaunchMode)
   val currentLaunchMode: StateFlow<LaunchMode> = _currentLaunchMode.asStateFlow()
@@ -112,12 +135,19 @@ class TranslatorViewModel(
   private val _dictionaryLookupLanguage = MutableStateFlow<Language?>(null)
   val dictionaryLookupLanguage: StateFlow<Language?> = _dictionaryLookupLanguage.asStateFlow()
 
-  private val _ttsVoices = MutableStateFlow<Map<String, List<TtsVoiceOption>>>(emptyMap())
-  val ttsVoices: StateFlow<Map<String, List<TtsVoiceOption>>> = _ttsVoices.asStateFlow()
+  private val _ttsVoices = MutableStateFlow<Map<String, List<uniffi.translator.InstalledTtsPack>>>(emptyMap())
+  val ttsVoices: StateFlow<Map<String, List<uniffi.translator.InstalledTtsPack>>> = _ttsVoices.asStateFlow()
+
+  private val _documentTranslation = MutableStateFlow<DocumentTranslationUiState?>(null)
+  val documentTranslation: StateFlow<DocumentTranslationUiState?> = _documentTranslation.asStateFlow()
+  private var dismissedInProgressDocumentTaskId: Long? = null
 
   // One-shot UI events (Toast, errors, etc.)
   private val _uiEvents = MutableSharedFlow<UiEvent>()
   val uiEvents: SharedFlow<UiEvent> = _uiEvents.asSharedFlow()
+
+  private val _pendingSharedImage = MutableSharedFlow<Uri>(replay = 1, extraBufferCapacity = 1)
+  val pendingSharedImage: SharedFlow<Uri> = _pendingSharedImage.asSharedFlow()
 
   val navigationState: StateFlow<NavigationState> =
     combine(languageStateManager.languageState, _from, _to) { langState, fromLang, toLang ->
@@ -137,6 +167,24 @@ class TranslatorViewModel(
     viewModelScope.launch {
       languageStateManager.fileEvents.collect { event ->
         handleFileEvent(event)
+      }
+    }
+
+    viewModelScope.launch {
+      DocumentTranslationService.documentTranslationState.collect { state ->
+        if (state == null) {
+          dismissedInProgressDocumentTaskId = null
+          _documentTranslation.value = null
+          return@collect
+        }
+        if (state.isTranslating && dismissedInProgressDocumentTaskId == state.taskId) {
+          _documentTranslation.value = null
+          return@collect
+        }
+        if (!state.isTranslating && dismissedInProgressDocumentTaskId == state.taskId) {
+          dismissedInProgressDocumentTaskId = null
+        }
+        _documentTranslation.value = state.toUiState()
       }
     }
 
@@ -212,6 +260,18 @@ class TranslatorViewModel(
       }
     }
 
+    // Run pending image OCR once both languages become available
+    viewModelScope.launch {
+      combine(_from, _to) { f, t -> f to t }.collect { (f, t) ->
+        if (f == null || t == null) return@collect
+        if (_inputType.value != InputType.IMAGE) return@collect
+        if (originalImage.value == null) return@collect
+        if (_output.value != null) return@collect
+        if (translationCoordinator.isTranslating.value) return@collect
+        triggerTranslation()
+      }
+    }
+
     // Preload model when languages change
     viewModelScope.launch {
       var prevFrom: Language? = null
@@ -248,7 +308,19 @@ class TranslatorViewModel(
 
     when (message) {
       is TranslatorMessage.TextInput -> {
+        if (_inputType.value == InputType.TEXT && _input.value == message.text) {
+          return
+        }
+        if (_inputType.value != InputType.TEXT) {
+          _displayImage.value = null
+          _originalImage.value = null
+          ocrCache = null
+          _inputType.value = InputType.TEXT
+        }
         _input.value = message.text
+        if (message.text.isBlank()) {
+          _currentDetectedLanguage.value = null
+        }
         val settings = settingsManager.settings.value
         val fromLang = _from.value
         if (settings.showTransliterationOnInput && fromLang != null) {
@@ -258,7 +330,21 @@ class TranslatorViewModel(
       }
 
       is TranslatorMessage.FromLang -> {
-        _from.value = message.language
+        _isAutoSource.value = false
+        val newFrom = message.language
+        if (newFrom == _to.value) {
+          val newTarget = pickAlternateTarget(newFrom)
+          if (newTarget != null) {
+            _to.value = newTarget
+          }
+        }
+        _from.value = newFrom
+        _output.value = null
+        triggerTranslation()
+      }
+
+      TranslatorMessage.EnableAutoSource -> {
+        _isAutoSource.value = true
         _output.value = null
         triggerTranslation()
       }
@@ -270,38 +356,38 @@ class TranslatorViewModel(
       }
 
       is TranslatorMessage.SetImageUri -> {
-        viewModelScope.launch {
-          val bm = translationCoordinator.correctBitmap(message.uri, message.deleteAfterLoad)
-          originalImage.value = bm
-          _displayImage.value = bm
-          _inputType.value = InputType.IMAGE
-          _currentDetectedLanguage.value = null
-          _output.value = null
-          val fromLang = _from.value
-          val toLang = _to.value
-          if (fromLang != null && toLang != null) {
-            val result =
-              translationCoordinator.translateImageWithOverlay(
-                fromLang,
-                toLang,
-                bm,
-                onMessage = { imageTextDetected ->
-                  _input.value = imageTextDetected.extractedText
-                },
-                readingOrder = currentReadingOrderFor(fromLang),
-              )
-            result?.let {
-              _displayImage.value = it.correctedBitmap
-              _output.value = TranslatedText(it.translatedText, null)
+        translationJob?.cancel()
+        translationJob =
+          viewModelScope.launch {
+            val bm = translationCoordinator.correctBitmap(message.uri, message.deleteAfterLoad)
+            ocrCache = null
+            _originalImage.value = bm
+            _displayImage.value = bm
+            _inputType.value = InputType.IMAGE
+            _currentDetectedLanguage.value = null
+            _output.value = null
+            val fromLang = _from.value
+            val toLang = _to.value
+            if (fromLang != null && toLang != null) {
+              runImageTranslation(bm, fromLang, toLang)
             }
           }
-        }
+      }
+
+      is TranslatorMessage.SetDocumentPath -> {
+        handleDocumentPath(
+          path = message.path,
+          displayName = message.displayName,
+          sizeBytes = message.sizeBytes,
+          deleteAfterLoad = message.deleteAfterLoad,
+        )
       }
 
       TranslatorMessage.SwapLanguages -> {
         val oldFrom = _from.value ?: return
         val oldTo = _to.value ?: return
         if (!languageStateManager.canSwapLanguages(oldFrom, oldTo)) return
+        _isAutoSource.value = false
         _from.value = oldTo
         _to.value = oldFrom
         _output.value = null
@@ -313,7 +399,8 @@ class TranslatorViewModel(
         _output.value = null
         _input.value = ""
         _inputType.value = InputType.TEXT
-        originalImage.value = null
+        _originalImage.value = null
+        ocrCache = null
         _currentDetectedLanguage.value = null
       }
 
@@ -392,7 +479,7 @@ class TranslatorViewModel(
   }
 
   fun setSharedImageUri(uri: Uri) {
-    handleMessage(TranslatorMessage.SetImageUri(uri))
+    _pendingSharedImage.tryEmit(uri)
   }
 
   fun setModalVisible(visible: Boolean) {
@@ -401,7 +488,7 @@ class TranslatorViewModel(
 
   fun refreshTtsVoices(language: Language) {
     viewModelScope.launch {
-      _ttsVoices.value = _ttsVoices.value + (language.code to translationCoordinator.availableTtsVoices(language))
+      _ttsVoices.value = _ttsVoices.value + (language.code to translationCoordinator.installedTtsVoices(language))
     }
   }
 
@@ -409,19 +496,51 @@ class TranslatorViewModel(
     _ttsVoices.value = _ttsVoices.value - languageCode
   }
 
+  fun dismissDocumentTranslation() {
+    val current = _documentTranslation.value
+    if (current?.isTranslating == true) {
+      dismissedInProgressDocumentTaskId = current.taskId
+    }
+    _documentTranslation.value = null
+  }
+
+  fun cancelDocumentTranslation() {
+    DocumentTranslationService.cancel(appContext)
+    dismissedInProgressDocumentTaskId = null
+    _documentTranslation.value = null
+    _inputType.value = InputType.TEXT
+  }
+
+  private var translationJob: Job? = null
+
   private fun triggerTranslation() {
-    val fromLang = _from.value ?: return
     val toLang = _to.value ?: return
 
-    if (translationCoordinator.isTranslating.value) return
-
-    viewModelScope.launch {
-      val settings = settingsManager.settings.value
-      if (!settings.disableCLD) {
-        _currentDetectedLanguage.value = translationCoordinator.detectLanguage(_input.value, fromLang)
+    translationJob?.cancel()
+    translationJob =
+      viewModelScope.launch {
+        val settings = settingsManager.settings.value
+        if (!settings.disableCLD) {
+          if (_input.value.isBlank()) {
+            _currentDetectedLanguage.value = null
+          } else {
+            val detected = translationCoordinator.detectLanguage(_input.value, _from.value)
+            if (detected != null) {
+              _currentDetectedLanguage.value = detected
+            }
+          }
+          if (_isAutoSource.value) {
+            val detected = _currentDetectedLanguage.value
+            if (detected != null && languageStateManager.languageState.value.availabilityFor(detected)?.translatorFiles == true) {
+              if (detected != _to.value) {
+                _from.value = detected
+              }
+            }
+          }
+        }
+        val fromLang = _from.value ?: return@launch
+        translateWithLanguages(fromLang, toLang)
       }
-      translateWithLanguages(fromLang, toLang)
-    }
   }
 
   fun retranslateIfNeeded() {
@@ -429,16 +548,75 @@ class TranslatorViewModel(
     val fromLang = _from.value ?: return
     val toLang = _to.value ?: return
     if (translationCoordinator.isTranslating.value) return
-    if (translationCoordinator.lastTranslatedInput == _input.value) return
+    val current = _input.value.trim()
+    if (translationCoordinator.lastTranslatedInput == current) return
 
     viewModelScope.launch {
-      translationCoordinator.translateText(fromLang, toLang, _input.value).let {
+      translationCoordinator.translateText(fromLang, toLang, current).let {
         _output.value =
           when (it) {
             is TranslationResult.Success -> it.result
             is TranslationResult.Error -> null
           }
       }
+    }
+  }
+
+  private suspend fun runImageTranslation(
+    bitmap: Bitmap,
+    fromLang: Language,
+    toLang: Language,
+  ) {
+    val readingOrder = currentReadingOrderFor(fromLang)
+    val engine = settingsManager.settings.value.preferredOcrEngine
+    val cached =
+      ocrCache?.takeIf { entry ->
+        !_isAutoSource.value &&
+          entry.imageRef === bitmap &&
+          entry.readingOrder == readingOrder &&
+          entry.engine == engine &&
+          when (engine) {
+            PreferredOcrEngine.PADDLE -> entry.sourceScript == fromLang.script
+            PreferredOcrEngine.TESSERACT -> entry.sourceCode == fromLang.code
+          }
+      }
+    val onMessage: (TranslatorMessage.ImageTextDetected) -> Unit = { msg ->
+      _input.value = msg.extractedText
+    }
+    val result =
+      if (cached != null) {
+        Log.d("OCR", "reusing OCR result for source=${fromLang.code} (script=${fromLang.script})")
+        translationCoordinator.retranslateImageWithOverlay(
+          cached.plan,
+          fromLang,
+          toLang,
+          onMessage = onMessage,
+        )
+      } else {
+        translationCoordinator.translateImageWithOverlay(
+          fromLang,
+          toLang,
+          bitmap,
+          onMessage = onMessage,
+          readingOrder = readingOrder,
+          isAutoSource = _isAutoSource.value,
+          onMissingDetectedLanguage = { detected ->
+            _currentDetectedLanguage.value = detected
+          },
+        )
+      }
+    result?.let {
+      _displayImage.value = it.correctedBitmap
+      _output.value = TranslatedText(it.translatedText, null)
+      ocrCache =
+        OcrCacheEntry(
+          plan = it.metadata,
+          imageRef = bitmap,
+          sourceCode = fromLang.code,
+          sourceScript = fromLang.script,
+          readingOrder = readingOrder,
+          engine = engine,
+        )
     }
   }
 
@@ -460,23 +638,77 @@ class TranslatorViewModel(
 
       InputType.IMAGE -> {
         originalImage.value?.let { bm ->
-          val result =
-            translationCoordinator.translateImageWithOverlay(
-              fromLang,
-              toLang,
-              bm,
-              onMessage = { imageTextDetected ->
-                _input.value = imageTextDetected.extractedText
-              },
-              readingOrder = currentReadingOrderFor(fromLang),
-            )
-          result?.let {
-            _displayImage.value = it.correctedBitmap
-            _output.value = TranslatedText(it.translatedText, null)
-          }
+          runImageTranslation(bm, fromLang, toLang)
         }
       }
+
+      InputType.FILE -> {
+        _output.value = null
+      }
     }
+  }
+
+  private fun translatedDocumentOutputFile(
+    inputName: String,
+    from: Language,
+    to: Language,
+  ): File {
+    val inputFile = File(inputName)
+    val extension = inputFile.extension.ifBlank { "txt" }
+    val baseName = inputFile.nameWithoutExtension.ifBlank { "document" }
+    val safeBaseName = baseName.replace(Regex("[^A-Za-z0-9._-]+"), "_").trim('_').ifBlank { "document" }
+    return File(filePathManager.getTranslatedDocumentsDir(), "$safeBaseName.${from.code}-${to.code}.$extension")
+  }
+
+  private fun handleDocumentPath(
+    path: String,
+    displayName: String,
+    sizeBytes: Long,
+    deleteAfterLoad: Boolean,
+  ) {
+    if (_isAutoSource.value) {
+      viewModelScope.launch {
+        _uiEvents.emit(UiEvent.ShowToast("Please select source language first"))
+      }
+      return
+    }
+    _displayImage.value = null
+    _originalImage.value = null
+    ocrCache = null
+    _output.value = null
+    _input.value = ""
+    _inputTransliterated.value = null
+    _inputType.value = InputType.FILE
+    _currentDetectedLanguage.value = null
+    Log.d("SetDocumentPath", "Selected document for translation: $displayName ($path)")
+
+    val fromLang = _from.value
+    val toLang = _to.value
+    if (fromLang == null || toLang == null) {
+      _documentTranslation.value =
+        DocumentTranslationUiState(
+          taskId = System.currentTimeMillis(),
+          fileName = displayName,
+          fileSizeBytes = sizeBytes,
+          errorMessage = "Languages are not ready yet",
+        )
+      viewModelScope.launch {
+        _uiEvents.emit(UiEvent.ShowToast("Languages are not ready yet"))
+      }
+      return
+    }
+
+    val outputFile = translatedDocumentOutputFile(displayName, fromLang, toLang)
+    DocumentTranslationService.startTranslation(
+      context = appContext,
+      inputPath = path,
+      outputPath = outputFile.absolutePath,
+      displayName = displayName,
+      sizeBytes = sizeBytes,
+      from = fromLang,
+      to = toLang,
+      deleteAfterLoad = deleteAfterLoad,
+    )
   }
 
   private fun currentReadingOrderFor(fromLang: Language): ReadingOrder =
@@ -602,6 +834,22 @@ class TranslatorViewModel(
     originalImage.value?.let { if (!it.isRecycled) it.recycle() }
   }
 
+  private fun pickAlternateTarget(newFrom: Language): Language? {
+    val state = languageStateManager.languageState.value
+    val catalog = languageStateManager.catalog.value
+    val settings = settingsManager.settings.value
+    val candidates =
+      state.allLanguages().filter { it != newFrom && languageStateManager.canTranslate(newFrom, it) }
+    val defaultTarget = catalog?.languageByCode(settings.defaultTargetLanguageCode)
+    if (defaultTarget != null && defaultTarget in candidates) {
+      return defaultTarget
+    }
+    val metadata = languageMetadataManager.metadata.value
+    val starred = candidates.firstOrNull { metadata[it]?.favorite == true }
+    if (starred != null) return starred
+    return candidates.minByOrNull { it.displayName }
+  }
+
   private fun firstAvailableSourceLanguage(
     target: Language,
     availableLanguages: List<Language>,
@@ -637,7 +885,58 @@ sealed class UiEvent {
   data class PlayAudio(val audioChunks: Flow<PcmAudio>) : UiEvent()
 }
 
+data class DocumentTranslationUiState(
+  val taskId: Long,
+  val fileName: String,
+  val fileSizeBytes: Long,
+  val outputPath: String? = null,
+  val outputFileName: String? = null,
+  val outputMimeType: String? = null,
+  val errorMessage: String? = null,
+  val progressLabel: String = "Preparing file",
+  val pdfPhases: PdfPhaseProgress? = null,
+  val progressCurrent: Int? = null,
+  val progressTotal: Int? = null,
+  val progressUnit: String? = null,
+) {
+  val isTranslating: Boolean
+    get() = outputPath == null && errorMessage == null
+
+  val progressFraction: Float?
+    get() {
+      val current = progressCurrent ?: return null
+      val total = progressTotal ?: return null
+      if (total <= 0) return null
+      return (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+    }
+}
+
+private fun DocumentTranslationServiceState.toUiState(): DocumentTranslationUiState =
+  DocumentTranslationUiState(
+    taskId = taskId,
+    fileName = fileName,
+    fileSizeBytes = fileSizeBytes,
+    outputPath = outputPath,
+    outputFileName = outputPath?.let { File(it).name },
+    outputMimeType = outputPath?.let { mimeTypeForDocumentPath(it) },
+    errorMessage = errorMessage,
+    progressLabel = progressLabel,
+    pdfPhases = pdfPhases,
+    progressCurrent = progressCurrent,
+    progressTotal = progressTotal,
+    progressUnit = progressUnit,
+  )
+
+private fun mimeTypeForDocumentPath(path: String): String =
+  when (File(path).extension.lowercase()) {
+    "pdf" -> "application/pdf"
+    "odt" -> "application/vnd.oasis.opendocument.text"
+    "txt" -> "text/plain"
+    else -> "application/octet-stream"
+  }
+
 class TranslatorViewModelFactory(
+  private val appContext: Context,
   private val translationCoordinator: TranslationCoordinator,
   private val settingsManager: SettingsManager,
   private val filePathManager: FilePathManager,
@@ -648,6 +947,7 @@ class TranslatorViewModelFactory(
   @Suppress("UNCHECKED_CAST")
   override fun <T : ViewModel> create(modelClass: Class<T>): T =
     TranslatorViewModel(
+      appContext = appContext,
       translationCoordinator = translationCoordinator,
       settingsManager = settingsManager,
       filePathManager = filePathManager,

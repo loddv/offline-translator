@@ -45,6 +45,22 @@ class TranslationService(
     catalog.warmTranslationModels(from, to)
   }
 
+  suspend fun translateHtmlFragments(
+    from: Language,
+    to: Language,
+    fragments: List<String>,
+  ): List<String> =
+    withContext(Dispatchers.IO) {
+      if (fragments.isEmpty() || from == to) return@withContext fragments
+      val catalog = filePathManager.loadCatalog() ?: return@withContext fragments
+      try {
+        catalog.translateHtmlFragments(from, to, fragments)
+      } catch (e: CatalogException) {
+        Log.w("TranslationService", "translateHtmlFragments failed", e)
+        fragments
+      }
+    }
+
   suspend fun translateMixedTexts(
     inputs: List<String>,
     forcedSourceLanguage: Language?,
@@ -128,6 +144,35 @@ class TranslationService(
           null
         }
       TranslationResult.Success(TranslatedText(result, transliterated))
+    }
+
+  suspend fun translateDocumentPath(
+    inputPath: String,
+    outputPath: String,
+    from: Language,
+    to: Language,
+    availableLanguages: List<Language>,
+    translatePdfImages: Boolean,
+    onProgress: (DocumentTranslationProgress) -> Unit = {},
+    isCancelled: () -> Boolean = { false },
+  ): Result<String> =
+    withContext(Dispatchers.IO) {
+      val catalog =
+        filePathManager.loadCatalog()
+          ?: return@withContext Result.failure(IllegalStateException("Catalog unavailable"))
+      try {
+        Result.success(
+          catalog.translateDocumentPath(inputPath, outputPath, from, to, availableLanguages, translatePdfImages, onProgress, isCancelled),
+        )
+      } catch (e: CatalogException.MissingAsset) {
+        Result.failure(IllegalStateException("Language pair ${from.code} -> ${to.code} not installed", e))
+      } catch (e: CatalogException.Cancelled) {
+        // User-initiated cancel — not an error, no stack trace logged.
+        Result.failure(kotlinx.coroutines.CancellationException("translation cancelled"))
+      } catch (e: CatalogException.Other) {
+        Log.e("TranslationService", "Document translation failed", e)
+        Result.failure(IllegalStateException("Document translation failed: ${e.message}", e))
+      }
     }
 
   fun transliterate(

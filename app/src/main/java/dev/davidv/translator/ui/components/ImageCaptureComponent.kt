@@ -17,13 +17,13 @@
 
 package dev.davidv.translator.ui.components
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -44,21 +44,34 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import com.canhub.cropper.CropImageContract
-import com.canhub.cropper.CropImageContractOptions
-import com.canhub.cropper.CropImageOptions
+import com.yalantis.ucrop.UCrop
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorMessage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+
+private val filePickerMimeTypes =
+  arrayOf(
+    "image/*",
+    "application/pdf",
+    "text/plain",
+    "application/vnd.oasis.opendocument.text",
+  )
 
 private data class PendingImageImport(
   val sourceUri: Uri?,
@@ -98,71 +111,217 @@ private fun deleteTemporaryImageUri(
     false
   }
 
+private fun displayNameForUri(
+  context: Context,
+  uri: Uri,
+): String? =
+  context.contentResolver
+    .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+    ?.use { cursor ->
+      if (cursor.moveToFirst()) {
+        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (index >= 0) cursor.getString(index) else null
+      } else {
+        null
+      }
+    }
+
+private fun sizeBytesForUri(
+  context: Context,
+  uri: Uri,
+): Long? =
+  context.contentResolver
+    .query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+    ?.use { cursor ->
+      if (cursor.moveToFirst()) {
+        val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+        if (index >= 0 && !cursor.isNull(index)) cursor.getLong(index) else null
+      } else {
+        null
+      }
+    }
+
+private fun documentFileExtension(
+  context: Context,
+  uri: Uri,
+): String {
+  val displayName = displayNameForUri(context, uri)
+  val displayExtension =
+    displayName
+      ?.substringAfterLast('.', missingDelimiterValue = "")
+      ?.takeIf { it.isNotBlank() && it.length <= 8 }
+  if (displayExtension != null) return ".$displayExtension"
+
+  return when (context.contentResolver.getType(uri)) {
+    "application/pdf" -> ".pdf"
+    "text/plain" -> ".txt"
+    "application/vnd.oasis.opendocument.text" -> ".odt"
+    else -> ".bin"
+  }
+}
+
+private fun copyDocumentUriToCache(
+  context: Context,
+  uri: Uri,
+): File {
+  val outputFile = File.createTempFile("input_document_", documentFileExtension(context, uri), context.cacheDir)
+  context.contentResolver.openInputStream(uri).use { input ->
+    requireNotNull(input) { "Unable to open selected document" }
+    outputFile.outputStream().use { output ->
+      input.copyTo(output)
+    }
+  }
+  return outputFile
+}
+
+private fun isImageUri(
+  context: Context,
+  uri: Uri,
+): Boolean = context.contentResolver.getType(uri)?.startsWith("image/") == true
+
+private fun isRemoteUri(uri: Uri): Boolean = uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals("https", ignoreCase = true)
+
+private fun shouldStartInDocAlign(
+  context: Context,
+  uri: Uri,
+): Boolean {
+  val mime = context.contentResolver.getType(uri)?.lowercase() ?: return false
+  val isPhotoMime = mime == "image/jpeg" || mime == "image/jpg" || mime == "image/heic" || mime == "image/heif"
+  if (!isPhotoMime) return false
+  val catalog =
+    (context.applicationContext as? dev.davidv.translator.TranslatorApplication)?.languageCatalog
+  return catalog?.supportInstalledByKind("doc_detect") == true
+}
+
 @Composable
 fun ImageCaptureHandler(
   onMessage: (TranslatorMessage) -> Unit,
   showImageSourceSheet: Boolean,
   onDismissImageSourceSheet: () -> Unit,
-  showFilePickerInImagePicker: Boolean = true,
+  onCameraClick: () -> Unit,
+  pendingSharedImage: SharedFlow<Uri>? = null,
 ) {
   val context = LocalContext.current
+  val scope = rememberCoroutineScope()
   val pendingImport = remember { mutableStateOf<PendingImageImport?>(null) }
 
+  val colorScheme = MaterialTheme.colorScheme
+  val toolbarColor = colorScheme.surface.toArgb()
+  val toolbarWidgetColor = colorScheme.onSurface.toArgb()
+  val activeWidgetColor = colorScheme.primary.toArgb()
+  val rootBackgroundColor = colorScheme.background.toArgb()
+
+  val activeSourceUri = remember { mutableStateOf<Uri?>(null) }
+  val cropLauncherState = remember { mutableStateOf<((Intent) -> Unit)?>(null) }
+
+  fun buildRectIntent(
+    sourceUri: Uri,
+    destUri: Uri,
+  ): Intent {
+    val options =
+      UCrop.Options().apply {
+        setCompressionFormat(Bitmap.CompressFormat.JPEG)
+        setCompressionQuality(95)
+        setFreeStyleCropEnabled(true)
+        setHideBottomControls(false)
+        setToolbarColor(toolbarColor)
+        setToolbarWidgetColor(toolbarWidgetColor)
+        setActiveControlsWidgetColor(activeWidgetColor)
+        setRootViewBackgroundColor(rootBackgroundColor)
+      }
+    return UCrop
+      .of(sourceUri, destUri)
+      .withOptions(options)
+      .getIntent(context)
+      .setClass(context, AppCropActivity::class.java)
+  }
+
+  fun buildDocAlignIntent(
+    sourceUri: Uri,
+    destUri: Uri,
+  ): Intent =
+    Intent(context, DocAlignActivity::class.java).apply {
+      putExtra(DocAlignActivity.EXTRA_INPUT_URI, sourceUri)
+      putExtra(DocAlignActivity.EXTRA_OUTPUT_URI, destUri)
+    }
+
   val cropImage =
-    rememberLauncherForActivityResult(CropImageContract()) { result ->
+    rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
       val activeImport = pendingImport.value
-      if (result.isSuccessful) {
-        val croppedUri = result.uriContent ?: activeImport?.cropOutputUri
-        if (croppedUri != null) {
+      val resultIntent = result.data
+      val sourceUri = activeSourceUri.value
+      val ucropOutput = resultIntent?.let { UCrop.getOutput(it) }
+      val ucropError = resultIntent?.let { UCrop.getError(it) }
+      val docAlignOutput = resultIntent?.data
+      val launch = cropLauncherState.value
+      when {
+        result.resultCode == android.app.Activity.RESULT_OK && ucropOutput != null -> {
+          activeSourceUri.value = null
           activeImport?.sourceUri?.let { deleteTemporaryImageUri(context, it) }
           pendingImport.value = null
-          Log.d("ImageCrop", "Image cropped: $croppedUri")
-          onMessage(TranslatorMessage.SetImageUri(croppedUri, deleteAfterLoad = true))
-        } else {
+          Log.d("ImageCrop", "Image cropped (rect): $ucropOutput")
+          onMessage(TranslatorMessage.SetImageUri(ucropOutput, deleteAfterLoad = true))
+        }
+        result.resultCode == android.app.Activity.RESULT_OK && docAlignOutput != null -> {
+          activeSourceUri.value = null
+          activeImport?.sourceUri?.let { deleteTemporaryImageUri(context, it) }
+          pendingImport.value = null
+          Log.d("ImageCrop", "Image cropped (doc-align): $docAlignOutput")
+          onMessage(TranslatorMessage.SetImageUri(docAlignOutput, deleteAfterLoad = true))
+        }
+        result.resultCode == AppCropActivity.RESULT_SWITCH_TO_DOC_ALIGN &&
+          activeImport != null && sourceUri != null && launch != null -> {
+          Log.d("ImageCrop", "Switching to doc-align mode")
+          launch(buildDocAlignIntent(sourceUri, activeImport.cropOutputUri))
+        }
+        result.resultCode == DocAlignActivity.RESULT_SWITCH_TO_RECT &&
+          activeImport != null && sourceUri != null && launch != null -> {
+          Log.d("ImageCrop", "Switching to rectangular crop")
+          launch(buildRectIntent(sourceUri, activeImport.cropOutputUri))
+        }
+        else -> {
+          activeSourceUri.value = null
           activeImport?.sourceUri?.let { deleteTemporaryImageUri(context, it) }
           activeImport?.cropOutputUri?.let { deleteTemporaryImageUri(context, it) }
           pendingImport.value = null
-          Log.d("ImageCrop", "Crop successful but no URI returned")
+          Log.d("ImageCrop", "Crop cancelled or failed: ${ucropError?.message}")
         }
-      } else {
-        val exception = result.error
-        activeImport?.sourceUri?.let { deleteTemporaryImageUri(context, it) }
-        activeImport?.cropOutputUri?.let { deleteTemporaryImageUri(context, it) }
-        pendingImport.value = null
-        Log.d("ImageCrop", "Crop cancelled or failed: ${exception?.message}")
       }
+    }
+  cropLauncherState.value = { intent -> cropImage.launch(intent) }
+
+  fun launchCrop(
+    sourceUri: Uri,
+    destUri: Uri,
+  ) {
+    if (isRemoteUri(sourceUri)) {
+      deleteTemporaryImageUri(context, destUri)
+      pendingImport.value = null
+      Log.w("ImageCrop", "Remote image crop is unsupported: $sourceUri")
+      Toast.makeText(context, "Remote images cannot be cropped directly", Toast.LENGTH_SHORT).show()
+      return
     }
 
-  val takePictureIntent =
-    rememberLauncherForActivityResult(
-      ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-      if (result.resultCode == android.app.Activity.RESULT_OK) {
-        val activeImport = pendingImport.value
-        val cameraImageUri = activeImport?.sourceUri
-        if (cameraImageUri == null) {
-          Log.d("Camera", "Photo capture completed without an active import session")
-          return@rememberLauncherForActivityResult
-        }
-        Log.d("Camera", "Photo captured: $cameraImageUri")
-        cropImage.launch(
-          CropImageContractOptions(
-            uri = cameraImageUri,
-            cropImageOptions =
-              CropImageOptions(
-                customOutputUri = activeImport.cropOutputUri,
-                outputCompressFormat = Bitmap.CompressFormat.JPEG,
-                outputCompressQuality = 95,
-              ),
-          ),
-        )
+    activeSourceUri.value = sourceUri
+    val intent =
+      if (shouldStartInDocAlign(context, sourceUri)) {
+        buildDocAlignIntent(sourceUri, destUri)
       } else {
-        pendingImport.value?.sourceUri?.let { deleteTemporaryImageUri(context, it) }
-        pendingImport.value?.cropOutputUri?.let { deleteTemporaryImageUri(context, it) }
-        pendingImport.value = null
-        Log.d("Camera", "Photo capture cancelled or failed")
+        buildRectIntent(sourceUri, destUri)
+      }
+    cropImage.launch(intent)
+  }
+
+  if (pendingSharedImage != null) {
+    LaunchedEffect(pendingSharedImage) {
+      pendingSharedImage.collect { uri ->
+        val cropOutputUri = createTemporaryImageUri(context, "cropped_image")
+        pendingImport.value = PendingImageImport(sourceUri = null, cropOutputUri = cropOutputUri)
+        Log.d("SharedImage", "Launching crop for shared URI: $uri")
+        launchCrop(uri, cropOutputUri)
       }
     }
+  }
 
   val pickMedia =
     rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
@@ -170,17 +329,7 @@ fun ImageCaptureHandler(
         val cropOutputUri = createTemporaryImageUri(context, "cropped_image")
         pendingImport.value = PendingImageImport(sourceUri = null, cropOutputUri = cropOutputUri)
         Log.d("PhotoPicker", "Selected URI: $uri")
-        cropImage.launch(
-          CropImageContractOptions(
-            uri = uri,
-            cropImageOptions =
-              CropImageOptions(
-                customOutputUri = cropOutputUri,
-                outputCompressFormat = Bitmap.CompressFormat.JPEG,
-                outputCompressQuality = 95,
-              ),
-          ),
-        )
+        launchCrop(uri, cropOutputUri)
       } else {
         Log.d("PhotoPicker", "No media selected")
       }
@@ -194,17 +343,7 @@ fun ImageCaptureHandler(
           val cropOutputUri = createTemporaryImageUri(context, "cropped_image")
           pendingImport.value = PendingImageImport(sourceUri = null, cropOutputUri = cropOutputUri)
           Log.d("Gallery", "Selected URI: $imageUri")
-          cropImage.launch(
-            CropImageContractOptions(
-              uri = imageUri,
-              cropImageOptions =
-                CropImageOptions(
-                  customOutputUri = cropOutputUri,
-                  outputCompressFormat = Bitmap.CompressFormat.JPEG,
-                  outputCompressQuality = 95,
-                ),
-            ),
-          )
+          launchCrop(imageUri, cropOutputUri)
         } else {
           Log.d("Gallery", "No image selected")
         }
@@ -214,20 +353,30 @@ fun ImageCaptureHandler(
   val pickFromFiles =
     rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
       if (uri != null) {
-        val cropOutputUri = createTemporaryImageUri(context, "cropped_image")
-        pendingImport.value = PendingImageImport(sourceUri = null, cropOutputUri = cropOutputUri)
         Log.d("FilePicker", "Selected URI: $uri")
-        cropImage.launch(
-          CropImageContractOptions(
-            uri = uri,
-            cropImageOptions =
-              CropImageOptions(
-                customOutputUri = cropOutputUri,
-                outputCompressFormat = Bitmap.CompressFormat.JPEG,
-                outputCompressQuality = 95,
-              ),
-          ),
-        )
+        if (isImageUri(context, uri)) {
+          val cropOutputUri = createTemporaryImageUri(context, "cropped_image")
+          pendingImport.value = PendingImageImport(sourceUri = null, cropOutputUri = cropOutputUri)
+          launchCrop(uri, cropOutputUri)
+        } else {
+          scope.launch {
+            try {
+              val documentFile = withContext(Dispatchers.IO) { copyDocumentUriToCache(context, uri) }
+              Log.d("FilePicker", "Copied document to: ${documentFile.absolutePath}")
+              onMessage(
+                TranslatorMessage.SetDocumentPath(
+                  path = documentFile.absolutePath,
+                  displayName = displayNameForUri(context, uri) ?: documentFile.name,
+                  sizeBytes = sizeBytesForUri(context, uri) ?: documentFile.length(),
+                  deleteAfterLoad = true,
+                ),
+              )
+            } catch (e: Exception) {
+              Log.e("FilePicker", "Failed to import document: $uri", e)
+              Toast.makeText(context, "Failed to open file", Toast.LENGTH_SHORT).show()
+            }
+          }
+        }
       } else {
         Log.d("FilePicker", "No file selected")
       }
@@ -237,22 +386,9 @@ fun ImageCaptureHandler(
   if (showImageSourceSheet) {
     ImageSourceBottomSheet(
       onDismiss = onDismissImageSourceSheet,
-      showFilePickerOption = showFilePickerInImagePicker,
       onCameraClick = {
         onDismissImageSourceSheet()
-        val cameraImageUri = createTemporaryImageUri(context, "camera_image")
-        val cropOutputUri = createTemporaryImageUri(context, "cropped_image")
-        pendingImport.value = PendingImageImport(sourceUri = cameraImageUri, cropOutputUri = cropOutputUri)
-        val cameraIntent =
-          Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-            putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri)
-          }
-        try {
-          takePictureIntent.launch(cameraIntent)
-        } catch (e: ActivityNotFoundException) {
-          Log.e("Camera", "No camera app found to handle IMAGE_CAPTURE intent", e)
-          Toast.makeText(context, "No camera app found", Toast.LENGTH_SHORT).show()
-        }
+        onCameraClick()
       },
       onMediaPickerClick = {
         onDismissImageSourceSheet()
@@ -265,7 +401,7 @@ fun ImageCaptureHandler(
       },
       onFilePickerClick = {
         onDismissImageSourceSheet()
-        pickFromFiles.launch(arrayOf("image/*"))
+        pickFromFiles.launch(filePickerMimeTypes)
       },
     )
   }
@@ -275,7 +411,6 @@ fun ImageCaptureHandler(
 @Composable
 fun ImageSourceBottomSheet(
   onDismiss: () -> Unit,
-  showFilePickerOption: Boolean,
   onCameraClick: () -> Unit,
   onMediaPickerClick: () -> Unit,
   onGalleryClick: () -> Unit,
@@ -300,14 +435,14 @@ fun ImageSourceBottomSheet(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
       ) {
-        // Camera (always present)
+        // File picker
         Column(
           horizontalAlignment = Alignment.CenterHorizontally,
-          modifier = Modifier.clickable { onCameraClick() },
+          modifier = Modifier.clickable { onFilePickerClick() },
         ) {
           Icon(
-            painter = painterResource(id = R.drawable.camera),
-            contentDescription = "Camera",
+            painter = painterResource(id = R.drawable.draft),
+            contentDescription = "Document",
             modifier =
               Modifier
                 .size(48.dp)
@@ -315,7 +450,7 @@ fun ImageSourceBottomSheet(
             tint = MaterialTheme.colorScheme.onSurface,
           )
           Text(
-            text = "Camera",
+            text = "Document",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
           )
@@ -367,27 +502,25 @@ fun ImageSourceBottomSheet(
           }
         }
 
-        if (showFilePickerOption) {
-          // File picker
-          Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable { onFilePickerClick() },
-          ) {
-            Icon(
-              painter = painterResource(id = R.drawable.folder),
-              contentDescription = "Files",
-              modifier =
-                Modifier
-                  .size(48.dp)
-                  .padding(bottom = 8.dp),
-              tint = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-              text = "Files",
-              style = MaterialTheme.typography.bodyMedium,
-              textAlign = TextAlign.Center,
-            )
-          }
+        // Camera (rightmost — live camera surface)
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.clickable { onCameraClick() },
+        ) {
+          Icon(
+            painter = painterResource(id = R.drawable.camera),
+            contentDescription = "Camera",
+            modifier =
+              Modifier
+                .size(48.dp)
+                .padding(bottom = 8.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
+          )
+          Text(
+            text = "Camera",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+          )
         }
       }
     }

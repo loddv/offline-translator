@@ -20,6 +20,10 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
 
     <application
         android:name=".TranslatorApplication"
@@ -66,6 +70,11 @@
           <category android:name="android.intent.category.DEFAULT" />
           <action android:name="android.intent.action.TRANSLATE" />
         </intent-filter>
+
+        <intent-filter>
+          <action android:name="dev.davidv.translator.OPEN_POPUP" />
+          <category android:name="android.intent.category.DEFAULT" />
+        </intent-filter>
       </activity>
 
       <activity
@@ -90,11 +99,62 @@
           <category android:name="android.intent.category.DEFAULT" />
           <data android:mimeType="image/*" />
         </intent-filter>
+
       </activity>
 
+      <activity-alias
+        android:name=".MainActivityBrowser"
+        android:targetActivity=".MainActivity"
+        android:exported="true"
+        android:enabled="true"
+        android:label="@string/translate_link">
+        <!-- via 'open link' from browsers, URLCheck, and other URL handlers -->
+        <intent-filter android:label="@string/translate_link">
+          <action android:name="android.intent.action.VIEW" />
+          <category android:name="android.intent.category.DEFAULT" />
+          <category android:name="android.intent.category.BROWSABLE" />
+          <data android:scheme="http" />
+          <data android:scheme="https" />
+        </intent-filter>
+      </activity-alias>
+
       <activity
-        android:name="com.canhub.cropper.CropImageActivity"
+        android:name=".browser.BrowserActivity"
+        android:exported="false"
+        android:label="@string/app_name" />
+
+      <activity
+        android:name=".ui.components.AppCropActivity"
+        android:screenOrientation="portrait"
         android:theme="@style/Theme.Translator.CropImage" />
+
+      <activity
+        android:name=".ui.components.DocAlignActivity"
+        android:screenOrientation="portrait"
+        android:theme="@style/Theme.Translator.CropImage" />
+
+        <activity
+            android:name=".TranslatorTtsDataActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.speech.tts.engine.CHECK_TTS_DATA" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.speech.tts.engine.GET_SAMPLE_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.speech.tts.engine.INSTALL_TTS_DATA" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".TranslatorTtsSettingsRelayActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay" />
 
         <service
             android:name=".DownloadService"
@@ -102,11 +162,58 @@
             android:exported="false" />
 
         <service
+            android:name=".DocumentTranslationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="document_translation" />
+        </service>
+
+        <receiver
+            android:name=".TapToTranslateDismissReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".TapToTranslateBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".QuickTranslateTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_translate_button"
+            android:label="@string/quick_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".AidlTranslationService"
             android:exported="true">
             <intent-filter>
                 <action android:name="dev.davidv.translator.ITranslationService" />
             </intent-filter>
+        </service>
+
+        <service
+            android:name=".TranslatorTtsService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.TTS_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech.tts"
+                android:resource="@xml/tts_engine" />
         </service>
 
         <service

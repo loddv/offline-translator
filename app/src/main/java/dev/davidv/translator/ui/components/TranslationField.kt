@@ -41,7 +41,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,9 +51,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
@@ -71,9 +72,23 @@ import dev.davidv.translator.ui.theme.TranslatorTheme
 @Composable
 fun TranslationField(
   text: TranslatedText?,
+  modifier: Modifier = Modifier,
+  label: String = "",
+  header: (@Composable () -> Unit)? = null,
   textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
   onDictionaryLookup: (String) -> Unit = {},
-  canSpeak: Boolean = false,
+  onAlternatives: ((Int, Int) -> Unit)? = null,
+  hasAlternatives: ((Int, Int) -> Boolean)? = null,
+  underlineRanges: List<IntRange> = emptyList(),
+  highlightRange: IntRange? = null,
+  tapMode: OutputTapMode = OutputTapMode.None,
+  onToggleAlternativesMode: (() -> Unit)? = null,
+  onToggleDictionaryMode: (() -> Unit)? = null,
+  dictionaryAvailable: Boolean = false,
+  onDictionaryUnavailable: () -> Unit = {},
+  speakerAvailable: Boolean = false,
+  onSpeakerUnavailable: () -> Unit = {},
+  onWordTap: ((Int) -> Unit)? = null,
   isAudioPlaying: Boolean = false,
   isAudioLoading: Boolean = false,
   speechPlaybackSpeed: Float = 1.0f,
@@ -86,56 +101,140 @@ fun TranslationField(
   val context = LocalContext.current
 
   val actionModeCallback =
-    remember(onDictionaryLookup) {
-      DictionaryActionModeCallback(context, onDictionaryLookup)
+    remember(onDictionaryLookup, onAlternatives, hasAlternatives) {
+      DictionaryActionModeCallback(context, onDictionaryLookup, onAlternatives, hasAlternatives)
     }
 
   val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+  val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f).toArgb()
   val fontSize = textStyle.fontSize.value
   val smallerFontSize = fontSize * 0.7f
+  val translationOutputDescription = stringResource(R.string.a11y_translation_output)
 
-  Box(
+  TranslationCard(
+    label = label,
+    labelContent = header,
     modifier =
-      Modifier
-        .fillMaxSize()
+      modifier
         .semantics {
-          contentDescription = "Translation output"
+          contentDescription = translationOutputDescription
           this.text = AnnotatedString(text?.translated ?: "")
         },
-  ) {
-    Box(
-      modifier =
-        Modifier
-          .fillMaxSize()
-          // Leave space for trailing action buttons.
-          .padding(end = 32.dp),
-      contentAlignment = Alignment.TopStart,
-    ) {
+    tools = {
+      if (text?.translated?.isNotEmpty() == true) {
+        if (speakerAvailable) {
+          SpeechPlaybackButton(
+            isAudioPlaying = isAudioPlaying,
+            isAudioLoading = isAudioLoading,
+            speechPlaybackSpeed = speechPlaybackSpeed,
+            selectedVoiceName = selectedVoiceName,
+            availableVoices = availableVoices,
+            onSpeak = onSpeak,
+            onSpeechPlaybackSpeedChange = onSpeechPlaybackSpeedChange,
+            onVoiceSelected = onVoiceSelected,
+            contentDescription =
+              if (isAudioPlaying) {
+                stringResource(R.string.a11y_stop_audio)
+              } else {
+                stringResource(R.string.a11y_speak_translation)
+              },
+          )
+        } else {
+          ToolIconButton(
+            iconRes = R.drawable.volume_up,
+            contentDescription = stringResource(R.string.a11y_speak_translation),
+            available = false,
+            onClick = onSpeakerUnavailable,
+          )
+        }
+
+        ToolIconButton(
+          iconRes = R.drawable.alt_route,
+          contentDescription =
+            stringResource(
+              if (tapMode == OutputTapMode.Alternatives) {
+                R.string.a11y_alternatives_mode_on
+              } else {
+                R.string.a11y_alternatives_mode_off
+              },
+            ),
+          active = tapMode == OutputTapMode.Alternatives,
+          onClick = onToggleAlternativesMode ?: {},
+        )
+
+        if (dictionaryAvailable) {
+          ToolIconButton(
+            iconRes = R.drawable.dictionary_book,
+            contentDescription =
+              stringResource(
+                if (tapMode == OutputTapMode.Dictionary) {
+                  R.string.a11y_dictionary_mode_on
+                } else {
+                  R.string.a11y_dictionary_mode_off
+                },
+              ),
+            active = tapMode == OutputTapMode.Dictionary,
+            onClick = onToggleDictionaryMode ?: {},
+          )
+        } else {
+          ToolIconButton(
+            iconRes = R.drawable.dictionary_book,
+            contentDescription = stringResource(R.string.a11y_dictionary_mode_off),
+            available = false,
+            onClick = onDictionaryUnavailable,
+          )
+        }
+
+        ToolIconButton(
+          iconRes = R.drawable.copy,
+          contentDescription = stringResource(R.string.a11y_copy_translation),
+          onClick = {
+            val clipboard =
+              context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Translation", text.translated)
+            clipboard.setPrimaryClip(clip)
+          },
+        )
+      }
+    },
+    body = {
       Column(
         modifier =
           Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .verticalScroll(rememberScrollState()),
       ) {
         AndroidView(
           modifier = Modifier.fillMaxWidth(),
           factory = { context ->
-            TextView(context).apply {
+            DottedUnderlineTextView(context).apply {
               this.tag = "output_textview_tag"
-              this.contentDescription = "Output textview"
+              this.contentDescription = context.getString(R.string.a11y_output_textview)
               this.text = text?.translated ?: ""
               this.textSize = fontSize
               this.setTextColor(textColor)
               this.setTextIsSelectable(true)
               this.customSelectionActionModeCallback = actionModeCallback
               this.customInsertionActionModeCallback = actionModeCallback
+              this.underlineRanges = underlineRanges
+              this.wordHighlightColor = highlightColor
+              this.highlightRange = highlightRange
+              this.wordTapListener = onWordTap
+              this.wordTapMode = tapMode != OutputTapMode.None
               actionModeCallback.setTextView(this)
             }
           },
           update = { textView ->
             textView.text = text?.translated ?: ""
             textView.textSize = fontSize
+            textView.wordTapListener = onWordTap
+            // Toggle selection off/on before re-applying the selection callback,
+            // since leaving the mode re-enables selection.
+            textView.wordTapMode = tapMode != OutputTapMode.None
             textView.customSelectionActionModeCallback = actionModeCallback
+            textView.underlineRanges = underlineRanges
+            textView.wordHighlightColor = highlightColor
+            textView.highlightRange = highlightRange
             actionModeCallback.setTextView(textView)
           },
         )
@@ -158,47 +257,8 @@ fun TranslationField(
           )
         }
       }
-    }
-
-    if (text?.translated?.isNotEmpty() == true) {
-      Column(
-        modifier =
-          Modifier
-            .align(Alignment.TopEnd),
-      ) {
-        IconButton(
-          onClick = {
-            val clipboard =
-              context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("Translation", text.translated)
-            clipboard.setPrimaryClip(clip)
-          },
-          modifier = Modifier.size(24.dp),
-        ) {
-          Icon(
-            painterResource(id = R.drawable.copy),
-            contentDescription = "Copy translation",
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-          )
-        }
-
-        if (canSpeak || isAudioLoading || isAudioPlaying) {
-          SpeechPlaybackButton(
-            isAudioPlaying = isAudioPlaying,
-            isAudioLoading = isAudioLoading,
-            speechPlaybackSpeed = speechPlaybackSpeed,
-            selectedVoiceName = selectedVoiceName,
-            availableVoices = availableVoices,
-            onSpeak = onSpeak,
-            onSpeechPlaybackSpeedChange = onSpeechPlaybackSpeedChange,
-            onVoiceSelected = onVoiceSelected,
-            contentDescription = if (isAudioPlaying) "Stop audio" else "Speak translation",
-            modifier = Modifier.padding(top = 6.dp),
-          )
-        }
-      }
-    }
-  }
+    },
+  )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -216,18 +276,27 @@ fun SpeechPlaybackButton(
   modifier: Modifier = Modifier,
 ) {
   var showSpeechOptions by remember { mutableStateOf(false) }
+  val active = isAudioPlaying || isAudioLoading
+  val tint =
+    if (active) {
+      MaterialTheme.colorScheme.primary
+    } else {
+      MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
   Box(
     modifier =
       modifier
-        .size(24.dp),
+        .size(40.dp),
   ) {
     Box(
       modifier =
         Modifier
           .matchParentSize()
-          .clip(RoundedCornerShape(8.dp))
-          .combinedClickable(
+          .clip(RoundedCornerShape(12.dp))
+          .background(
+            if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent,
+          ).combinedClickable(
             onClick = onSpeak,
             onLongClick = {
               showSpeechOptions = true
@@ -239,15 +308,16 @@ fun SpeechPlaybackButton(
     ) {
       if (isAudioLoading && !isAudioPlaying) {
         CircularProgressIndicator(
-          modifier = Modifier.size(18.dp),
+          modifier = Modifier.size(20.dp),
           strokeWidth = 2.dp,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+          color = tint,
         )
       } else {
         Icon(
           painter = painterResource(id = if (isAudioPlaying) R.drawable.stop else R.drawable.volume_up),
           contentDescription = null,
-          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+          tint = tint,
+          modifier = Modifier.size(24.dp),
         )
       }
     }
@@ -263,7 +333,7 @@ fun SpeechPlaybackButton(
             .padding(horizontal = 12.dp, vertical = 8.dp),
       ) {
         Text(
-          text = "Playback speed",
+          text = stringResource(R.string.voice_playback_speed),
           style = MaterialTheme.typography.labelLarge,
         )
         SpeechSpeedControl(
@@ -277,7 +347,7 @@ fun SpeechPlaybackButton(
         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
         Text(
-          text = "Voice",
+          text = stringResource(R.string.voice_label),
           style = MaterialTheme.typography.labelLarge,
         )
         Column(
@@ -289,7 +359,7 @@ fun SpeechPlaybackButton(
         ) {
           if (availableVoices.isEmpty()) {
             Text(
-              text = "Default voice",
+              text = stringResource(R.string.voice_default),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

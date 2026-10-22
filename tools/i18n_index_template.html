@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI screens — i18n viewer</title>
+<link rel="stylesheet" href="i18n.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; padding: 24px; }
+  .card { text-decoration: none; color: inherit; background: #262626; border: 1px solid #333; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .12s, transform .12s; }
+  .card:hover { border-color: #6a7cff; transform: translateY(-2px); }
+  .thumb { height: 280px; overflow: hidden; background: #111; display: flex; justify-content: center; }
+  .thumb img { width: 100%; height: auto; display: block; object-fit: cover; object-position: top; }
+  .name { padding: 10px 12px; font-size: 13px; font-family: ui-monospace, monospace; color: #cfcfcf; border-top: 1px solid #333; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>Screens</h1>
+  <select id="lang"></select>
+  <a id="changes" class="btn right" href="changes.html">Changes (<span id="ccount">0</span>)</a>
+</header>
+<div class="grid">
+__CARDS__
+</div>
+<script src="i18n_store.js"></script>
+<script>
+(function () {
+  const LANGS = __LANGS__;
+  const NAMES = __LANG_NAMES__;
+  const sel = document.getElementById('lang');
+  const targets = LANGS.filter(l => l !== 'en');
+  LANGS.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = NAMES[l] || l; sel.appendChild(o); });
+  const urlLang = new URLSearchParams(location.search).get('lang');
+  sel.value = (urlLang && LANGS.includes(urlLang)) ? urlLang : (targets[0] || 'en');
+  document.getElementById('ccount').textContent = I18N.count();
+  // Carry the chosen language onto every screen link, the Changes link, and this page's own URL.
+  function apply() {
+    const q = '?lang=' + encodeURIComponent(sel.value);
+    document.querySelectorAll('a.card').forEach(a => { a.href = a.dataset.base + q; });
+    document.getElementById('changes').href = 'changes.html' + q;
+    history.replaceState(null, '', q);
+  }
+  sel.addEventListener('change', apply);
+  apply();
+})();
+</script>
+</body>
+</html>

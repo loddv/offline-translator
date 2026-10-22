@@ -17,15 +17,24 @@
 
 package dev.davidv.translator
 
+import androidx.annotation.StringRes
+
 object Constants {
   const val DEFAULT_CATALOG_INDEX_URL = "https://offline-translator.davidv.dev/index_v5.json"
 }
 
 enum class AssistantAction(
-  val displayName: String,
+  @StringRes val labelRes: Int,
 ) {
-  STILL_IMAGE("Translate once"),
-  LIVE_SCREEN("Start live translation"),
+  STILL_IMAGE(R.string.assistant_action_still_image),
+  LIVE_SCREEN(R.string.assistant_action_live_screen),
+}
+
+enum class HttpServerBindMode(
+  @StringRes val labelRes: Int,
+) {
+  LOCALHOST(R.string.settings_http_server_bind_localhost),
+  ALL_INTERFACES(R.string.settings_http_server_bind_all),
 }
 
 data class AppSettings(
@@ -36,6 +45,7 @@ data class AppSettings(
   val minConfidence: Int = 75,
   val maxImageSize: Int = 1400,
   val disableCLD: Boolean = false,
+  val experimentalScreenTranslate: Boolean = false,
   val enableOutputTransliteration: Boolean = true,
   val useExternalStorage: Boolean = false,
   val fontFactor: Float = 1.0f,
@@ -47,10 +57,15 @@ data class AppSettings(
   val ttsPlaybackSpeed: Float = 1.0f,
   val ttsPlaybackSpeedOverrides: Map<String, Float> = emptyMap(),
   val ttsVoiceOverrides: Map<String, String> = emptyMap(),
+  val ttsReadUrlsAndHashtags: Boolean = false,
   val tapToTranslateEnabled: Boolean = false,
   val clearWebTranslatorDataOnClose: Boolean = true,
   val translatePdfImages: Boolean = true,
   val liveCameraOverlayEnabled: Boolean = true,
   val registerAsBrowser: Boolean = true,
   val assistantAction: AssistantAction = AssistantAction.STILL_IMAGE,
+  val multiTargetEnabled: Boolean = false,
+  val httpServerEnabled: Boolean = false,
+  val httpServerPort: Int = 5000,
+  val httpServerBindMode: HttpServerBindMode = HttpServerBindMode.LOCALHOST,
 )

@@ -75,7 +75,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -94,6 +96,8 @@ import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.SettingsManager
 import dev.davidv.translator.encodeVoiceOverride
+import dev.davidv.translator.languageNameComparator
+import dev.davidv.translator.localizedName
 import dev.davidv.translator.parseVoiceOverride
 import dev.davidv.translator.ui.components.SamplePlaybackState
 import dev.davidv.translator.ui.components.SamplePlayer
@@ -216,6 +220,7 @@ private fun VoicePickerDialog(
 
   BasicAlertDialog(onDismissRequest = onDismiss) {
     Surface(
+      modifier = Modifier.testTag("export-section:Voice picker"),
       shape = RoundedCornerShape(28.dp),
       color = MaterialTheme.colorScheme.surfaceContainerHigh,
       tonalElevation = 6.dp,
@@ -226,13 +231,13 @@ private fun VoicePickerDialog(
         Row(verticalAlignment = Alignment.Top) {
           Column(modifier = Modifier.weight(1f)) {
             Text(
-              text = language.displayName.uppercase(),
+              text = language.localizedName().uppercase(),
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.primary,
               fontWeight = FontWeight.SemiBold,
             )
             Text(
-              text = "Voices",
+              text = stringResource(R.string.langmgr_voices),
               style = MaterialTheme.typography.headlineSmall,
               fontWeight = FontWeight.SemiBold,
             )
@@ -247,7 +252,7 @@ private fun VoicePickerDialog(
           ) {
             Icon(
               painter = painterResource(id = R.drawable.cancel),
-              contentDescription = "Close",
+              contentDescription = stringResource(R.string.a11y_close),
               modifier = Modifier.size(18.dp),
             )
           }
@@ -262,7 +267,7 @@ private fun VoicePickerDialog(
         ) {
           val dimAvailable = orderedDownloaded.isNotEmpty()
           if (orderedDownloaded.isNotEmpty()) {
-            VoiceSectionHeader("DOWNLOADED")
+            VoiceSectionHeader(stringResource(R.string.voice_section_downloaded))
             orderedDownloaded.forEach { entry ->
               VoiceRow(
                 voice = entry,
@@ -298,7 +303,7 @@ private fun VoicePickerDialog(
                 modifier = Modifier.padding(vertical = 4.dp),
               )
             }
-            VoiceSectionHeader("AVAILABLE")
+            VoiceSectionHeader(stringResource(R.string.voice_section_available))
             orderedAvailable.forEach { entry ->
               val isPackActive = activeTtsPackId == entry.pack.packId
               val isPackQueued = entry.pack.packId in queuedTtsPackIds
@@ -413,7 +418,7 @@ private fun VoiceRow(
     ) {
       if (isDefault) {
         Text(
-          text = "DEFAULT",
+          text = stringResource(R.string.langmgr_default),
           style = MaterialTheme.typography.labelSmall,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
           fontWeight = FontWeight.SemiBold,
@@ -553,7 +558,7 @@ private fun FavoriteButton(
   ) {
     Icon(
       painter = painterResource(id = if (isFavorite) R.drawable.star_filled else R.drawable.star),
-      contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+      contentDescription = if (isFavorite) stringResource(R.string.a11y_favorite_remove) else stringResource(R.string.a11y_favorite_add),
       tint = if (isFavorite) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
       modifier = Modifier.size(18.dp),
     )
@@ -561,7 +566,7 @@ private fun FavoriteButton(
 }
 
 private data class LanguageFeatureRow(
-  val label: String,
+  @androidx.annotation.StringRes val labelRes: Int,
   val secondaryLabel: String? = null,
   val installed: Boolean,
   val downloadState: DownloadState?,
@@ -570,6 +575,7 @@ private data class LanguageFeatureRow(
   val onCancel: () -> Unit,
   @androidx.annotation.DrawableRes val installedIconRes: Int = R.drawable.delete,
   val installedDescription: String = "Delete",
+  val actionTag: String? = null,
 )
 
 @Immutable
@@ -607,6 +613,7 @@ fun LanguageAssetManagerScreen(
   ttsDownloadStates: Map<Language, DownloadState>,
   activeTtsPackIds: Map<Language, String> = emptyMap(),
   queuedTtsPackIds: Map<Language, List<String>> = emptyMap(),
+  repairDownloadState: DownloadState = DownloadState(),
 ) {
   val languageMetadata by languageMetadataManager.metadata.collectAsState()
   val expandedLanguages = remember { mutableStateMapOf<String, Boolean>() }
@@ -620,13 +627,21 @@ fun LanguageAssetManagerScreen(
     isRefreshing = false
   }
 
+  // Re-check the filesystem on entry: install state can drift without a
+  // download event (files lost to storage issues, a newly fetched catalog
+  // orphaning an on-disk variant), and this screen is where that surfaces
+  // as the repair banner.
+  LaunchedEffect(Unit) {
+    languageStateManager.refreshLanguageAvailability()
+  }
+
   val normalizedFilter = filterQuery.trim().lowercase()
   val rows =
     remember(catalog, languageAvailabilityState.availableLanguages, normalizedFilter) {
       catalog
         ?.let { loadedCatalog ->
           languageAvailabilityState.availableLanguages
-            .sortedBy { it.language.displayName }
+            .sortedWith(compareBy(languageNameComparator()) { it.language.localizedName() })
             .mapNotNull { entry ->
               val language = entry.language
               val availability = entry.availability
@@ -654,7 +669,7 @@ fun LanguageAssetManagerScreen(
               } else {
                 val language = row.language
                 val haystack =
-                  listOf(language.displayName, language.shortDisplayName, language.code)
+                  listOf(language.localizedName(), language.displayName, language.shortDisplayName, language.code)
                     .joinToString(" ")
                     .lowercase()
                 normalizedFilter in haystack
@@ -663,6 +678,14 @@ fun LanguageAssetManagerScreen(
         }
         ?: emptyList()
     }
+  // Packs with files on disk but missing required ones (partial download, or a
+  // catalog change that orphaned the installed variant): without a repair these
+  // read as not-installed and their feature silently stops working (issue #246).
+  val repairPlanSize =
+    remember(catalog, catalogRefreshToken, repairDownloadState.isCompleted) {
+      catalog?.planRepair()?.takeIf { it.tasks.isNotEmpty() }?.totalSize?.toLong() ?: 0L
+    }
+
   val ppocrModelUpgrade =
     remember(catalog, rows, catalogRefreshToken) {
       if (catalog == null) {
@@ -723,12 +746,20 @@ fun LanguageAssetManagerScreen(
             .fillMaxWidth()
             .padding(top = 2.dp, bottom = 6.dp),
         singleLine = true,
-        label = { Text("Filter languages") },
+        label = { Text(stringResource(R.string.langmgr_filter)) },
       )
+
+      if (repairPlanSize > 0L) {
+        RepairCard(
+          totalBytes = repairPlanSize,
+          isDownloading = repairDownloadState.isDownloading,
+          onRepair = { DownloadService.startRepairDownload(context) },
+        )
+      }
 
       if (ppocrModelUpgrade.languages.isNotEmpty()) {
         OcrUpgradeCard(
-          text = "An improved text detection model is available.",
+          text = stringResource(R.string.langmgr_ocr_upgrade_available),
           totalBytes = ppocrModelUpgrade.totalBytes,
           onDownload = {
             DownloadService.startOcrEngineUpgrades(context, ppocrModelUpgrade.languages, "ppocr")
@@ -855,10 +886,10 @@ fun LanguageAssetManagerScreen(
     val sharedNames = pendingDelete.sharedWith.joinToString(", ") { it.displayName }
     AlertDialog(
       onDismissRequest = { pendingSharedDictionaryDelete = null },
-      title = { Text("Delete shared dictionary?") },
+      title = { Text(stringResource(R.string.langmgr_delete_shared_title)) },
       text = {
         Text(
-          "This dictionary is shared with $sharedNames.\nDeleting it will remove the dictionary for all of them.",
+          stringResource(R.string.langmgr_delete_shared_body, sharedNames),
         )
       },
       confirmButton = {
@@ -874,14 +905,14 @@ fun LanguageAssetManagerScreen(
             pendingSharedDictionaryDelete = null
           },
         ) {
-          Text("OK")
+          Text(stringResource(R.string.common_ok))
         }
       },
       dismissButton = {
         TextButton(
           onClick = { pendingSharedDictionaryDelete = null },
         ) {
-          Text("Cancel")
+          Text(stringResource(R.string.common_cancel))
         }
       },
     )
@@ -971,7 +1002,7 @@ private fun LanguageAssetCard(
       ) {
         Icon(
           painter = painterResource(id = if (expanded) R.drawable.expandless else R.drawable.expandmore),
-          contentDescription = if (expanded) "Collapse" else "Expand",
+          contentDescription = if (expanded) stringResource(R.string.a11y_collapse) else stringResource(R.string.a11y_expand),
           modifier = Modifier.size(18.dp),
         )
       }
@@ -981,7 +1012,7 @@ private fun LanguageAssetCard(
         verticalArrangement = Arrangement.spacedBy(0.dp),
       ) {
         Text(
-          text = row.language.displayName,
+          text = row.language.localizedName(),
           style = MaterialTheme.typography.bodyLarge,
           fontWeight = FontWeight.SemiBold,
         )
@@ -1082,7 +1113,7 @@ private fun buildFeatureRows(
   if (row.translationVisible) {
     featureRows +=
       LanguageFeatureRow(
-        label = "Translation",
+        labelRes = R.string.feature_translation,
         secondaryLabel = formatSize(row.translationSizeBytes),
         installed = row.translationInstalled,
         downloadState = translationDownloadState,
@@ -1095,7 +1126,7 @@ private fun buildFeatureRows(
   if (row.dictionaryVisible) {
     featureRows +=
       LanguageFeatureRow(
-        label = "Dictionary",
+        labelRes = R.string.feature_dictionary,
         secondaryLabel =
           buildDictionarySecondaryLabel(
             sizeBytes = row.dictionaryInfo?.size ?: 0L,
@@ -1112,7 +1143,7 @@ private fun buildFeatureRows(
   if (row.ttsVisible) {
     featureRows +=
       LanguageFeatureRow(
-        label = "Text-to-speech",
+        labelRes = R.string.feature_tts,
         secondaryLabel = formatSize(row.ttsSizeBytes),
         installed = row.ttsInstalled,
         downloadState = ttsDownloadState,
@@ -1121,6 +1152,7 @@ private fun buildFeatureRows(
         onCancel = onCancelTts,
         installedIconRes = R.drawable.settings,
         installedDescription = "Manage voices",
+        actionTag = "export-trigger:voice",
       )
   }
 
@@ -1142,7 +1174,7 @@ private fun FeatureRow(featureRow: LanguageFeatureRow) {
       horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
       Text(
-        text = featureRow.label,
+        text = stringResource(featureRow.labelRes),
         style = MaterialTheme.typography.bodyMedium,
       )
       featureRow.secondaryLabel?.let { secondaryLabel ->
@@ -1161,9 +1193,13 @@ private fun FeatureRow(featureRow: LanguageFeatureRow) {
       onCancel = featureRow.onCancel,
       installedIconRes = featureRow.installedIconRes,
       installedDescription = featureRow.installedDescription,
+      actionTag = featureRow.actionTag,
     )
   }
 }
+
+// Non-translatable single-letter glyph marking the translation feature.
+private const val TRANSLATION_FEATURE_BADGE = "T"
 
 @Composable
 private fun FeaturePresenceIndicators(row: LanguageAssetRow) {
@@ -1176,7 +1212,7 @@ private fun FeaturePresenceIndicators(row: LanguageAssetRow) {
   ) {
     if (row.translationVisible) {
       Text(
-        text = "T",
+        text = TRANSLATION_FEATURE_BADGE,
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.Bold,
         color =
@@ -1191,7 +1227,7 @@ private fun FeaturePresenceIndicators(row: LanguageAssetRow) {
     if (row.dictionaryVisible) {
       Icon(
         painter = painterResource(id = R.drawable.dictionary),
-        contentDescription = "Dictionary Status",
+        contentDescription = stringResource(R.string.a11y_dictionary_status),
         tint =
           if (row.dictionaryInstalled) {
             installedTint
@@ -1205,7 +1241,7 @@ private fun FeaturePresenceIndicators(row: LanguageAssetRow) {
     if (row.ttsVisible) {
       Icon(
         painter = painterResource(id = R.drawable.volume_up),
-        contentDescription = "Text-to-speech Status",
+        contentDescription = stringResource(R.string.a11y_tts_status),
         tint =
           if (row.ttsInstalled) {
             installedTint
@@ -1233,7 +1269,7 @@ private fun AggregateActionButton(
     ProgressIconButton(
       downloadState = downloadState,
       onClick = onCancel,
-      contentDescription = "Cancel Download",
+      contentDescription = stringResource(R.string.a11y_cancel_download),
     )
     return
   }
@@ -1254,9 +1290,9 @@ private fun AggregateActionButton(
         ),
       contentDescription =
         when {
-          isInstalled -> "Delete"
-          downloadState?.isCancelled == true || downloadState?.error != null -> "Retry Download"
-          else -> "Download"
+          isInstalled -> stringResource(R.string.a11y_delete)
+          downloadState?.isCancelled == true || downloadState?.error != null -> stringResource(R.string.a11y_retry_download)
+          else -> stringResource(R.string.a11y_download)
         },
       modifier = Modifier.size(18.dp),
     )
@@ -1272,19 +1308,23 @@ private fun FeatureActionButton(
   onCancel: () -> Unit,
   @androidx.annotation.DrawableRes installedIconRes: Int,
   installedDescription: String,
+  actionTag: String? = null,
 ) {
   if (downloadState?.isDownloading == true) {
     ProgressIconButton(
       downloadState = downloadState,
       onClick = onCancel,
-      contentDescription = "Cancel Download",
+      contentDescription = stringResource(R.string.a11y_cancel_download),
     )
     return
   }
 
   IconButton(
     onClick = if (isInstalled) onInstalledAction else onDownload,
-    modifier = Modifier.size(32.dp),
+    modifier =
+      Modifier
+        .size(32.dp)
+        .then(if (actionTag != null) Modifier.testTag(actionTag) else Modifier),
   ) {
     Icon(
       painter =
@@ -1299,8 +1339,8 @@ private fun FeatureActionButton(
       contentDescription =
         when {
           isInstalled -> installedDescription
-          downloadState?.isCancelled == true || downloadState?.error != null -> "Retry Download"
-          else -> "Download Feature"
+          downloadState?.isCancelled == true || downloadState?.error != null -> stringResource(R.string.a11y_retry_download)
+          else -> stringResource(R.string.a11y_download_feature)
         },
       modifier = Modifier.size(18.dp),
     )
@@ -1348,6 +1388,41 @@ private fun ProgressIconButton(
 }
 
 @Composable
+private fun RepairCard(
+  totalBytes: Long,
+  isDownloading: Boolean,
+  onRepair: () -> Unit,
+) {
+  Surface(
+    color = MaterialTheme.colorScheme.errorContainer,
+    shape = RoundedCornerShape(12.dp),
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .padding(bottom = 6.dp),
+  ) {
+    Row(
+      modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Text(
+        text = stringResource(R.string.langmgr_repair_needed),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.weight(1f),
+      )
+      if (isDownloading) {
+        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+      } else {
+        TextButton(onClick = onRepair) {
+          Text(stringResource(R.string.langmgr_repair_size, formatSize(totalBytes)))
+        }
+      }
+    }
+  }
+}
+
+@Composable
 private fun OcrUpgradeCard(
   text: String,
   totalBytes: Long,
@@ -1371,7 +1446,7 @@ private fun OcrUpgradeCard(
         modifier = Modifier.weight(1f),
       )
       TextButton(onClick = onDownload) {
-        Text("Download ${formatSize(totalBytes)}")
+        Text(stringResource(R.string.langmgr_download_size, formatSize(totalBytes)))
       }
     }
   }

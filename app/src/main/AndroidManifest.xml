@@ -199,6 +199,16 @@
                 android:value="document_translation" />
         </service>
 
+        <service
+            android:name=".TranslationApiService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="translation_api_server" />
+        </service>
+
         <receiver
             android:name=".TapToTranslateDismissReceiver"
             android:exported="false" />
@@ -257,6 +267,7 @@
 
         <service
             android:name=".accessibilityOverlay.TranslatorAccessibilityService"
+            android:enabled="@bool/accessibility_service_enabled"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
@@ -289,14 +300,7 @@
             android:name=".assistantOverlay.TranslatorRecognitionService"
             android:exported="true"
             android:directBootAware="true"
-            android:permission="android.permission.BIND_SPEECH_RECOGNITION_SERVICE">
-            <intent-filter>
-                <action android:name="android.speech.RecognitionService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.speech"
-                android:resource="@xml/recognition_service" />
-        </service>
+            android:permission="android.permission.BIND_SPEECH_RECOGNITION_SERVICE" />
 
     </application>
 

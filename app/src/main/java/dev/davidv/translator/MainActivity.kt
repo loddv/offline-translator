@@ -45,6 +45,12 @@ class MainActivity : ComponentActivity() {
     const val EXTRA_OPEN_LANGUAGE_MANAGER = "dev.davidv.translator.OPEN_LANGUAGE_MANAGER"
   }
 
+  // Identity in production; only the UI-export test flips UiExportRecorder.active to record which
+  // R.string each rendered label resolved from.
+  override fun attachBaseContext(newBase: Context) {
+    super.attachBaseContext(UiExportRecorder.wrap(newBase))
+  }
+
   private var textToTranslate: String = ""
   private var launchMode: LaunchMode = LaunchMode.Normal
   private var sharedImageUri: Uri? = null
@@ -168,7 +174,7 @@ class MainActivity : ComponentActivity() {
           val trimmed = text.trim()
           if (isWebUrl(trimmed)) {
             if (isSupportedDocumentUrl(trimmed)) {
-              Toast.makeText(this, SUPPORTED_DOCUMENT_URL_TOAST, Toast.LENGTH_LONG).show()
+              Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
             } else {
               openUrl(trimmed)
               return
@@ -192,7 +198,7 @@ class MainActivity : ComponentActivity() {
         val url = intent.data?.toString()
         if (!url.isNullOrBlank() && isWebUrl(url)) {
           if (isSupportedDocumentUrl(url)) {
-            Toast.makeText(this, SUPPORTED_DOCUMENT_URL_TOAST, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.doc_url_unsupported), Toast.LENGTH_LONG).show()
           } else {
             openUrl(url)
             return
@@ -217,8 +223,6 @@ internal fun isWebUrl(text: String): Boolean {
   if (trimmed.contains(Regex("\\s"))) return false
   return trimmed.startsWith("http://") || trimmed.startsWith("https://")
 }
-
-internal const val SUPPORTED_DOCUMENT_URL_TOAST = "Download the document and open it with the app instead"
 
 private val SUPPORTED_DOCUMENT_URL_EXTENSIONS =
   setOf(

@@ -17,22 +17,12 @@
 
 package dev.davidv.translator.ui.screens
 
-import android.app.Activity
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.speech.RecognizerIntent
 import android.util.Log
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,39 +31,40 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.davidv.translator.AppSettings
@@ -87,31 +78,39 @@ import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.LaunchMode
 import dev.davidv.translator.R
 import dev.davidv.translator.ReadingOrder
-import dev.davidv.translator.SUPPORTED_DOCUMENT_URL_TOAST
 import dev.davidv.translator.TranslatedText
 import dev.davidv.translator.TranslatorMessage
 import dev.davidv.translator.WordWithTaggedEntries
-import dev.davidv.translator.browser.BrowserActivity
-import dev.davidv.translator.isSupportedDocumentUrl
-import dev.davidv.translator.isWebUrl
+import dev.davidv.translator.localizedName
+import dev.davidv.translator.ui.components.ActionPillButton
+import dev.davidv.translator.ui.components.AlternativesDrawer
+import dev.davidv.translator.ui.components.AlternativesTarget
+import dev.davidv.translator.ui.components.ClearInput
 import dev.davidv.translator.ui.components.DetectedLanguageSection
 import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.DictionaryBottomSheet
-import dev.davidv.translator.ui.components.ImageCaptureHandler
 import dev.davidv.translator.ui.components.ImageDisplaySection
 import dev.davidv.translator.ui.components.ImageWordSelection
+import dev.davidv.translator.ui.components.InputSection
+import dev.davidv.translator.ui.components.JapaneseOcrModeToggle
 import dev.davidv.translator.ui.components.LanguageEvent
 import dev.davidv.translator.ui.components.LanguageSelectionRow
-import dev.davidv.translator.ui.components.SpeechPlaybackButton
-import dev.davidv.translator.ui.components.StyledTextField
+import dev.davidv.translator.ui.components.OutputTapMode
+import dev.davidv.translator.ui.components.ShareImage
+import dev.davidv.translator.ui.components.SplitHandle
 import dev.davidv.translator.ui.components.StyledTextFieldFocusController
+import dev.davidv.translator.ui.components.TargetTabsHeader
 import dev.davidv.translator.ui.components.TranslationField
 import dev.davidv.translator.ui.components.ZoomableImageViewer
+import dev.davidv.translator.ui.components.rememberImageSourceActions
+import dev.davidv.translator.ui.components.wordAt
+import dev.davidv.translator.ui.components.wordRangeAt
 import dev.davidv.translator.ui.theme.TranslatorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.roundToInt
 
 @Composable
 fun MainScreen(
@@ -124,6 +123,7 @@ fun MainScreen(
   output: TranslatedText?,
   from: Language,
   to: Language,
+  targetTabs: List<Language> = listOf(to),
   detectedLanguage: Language?,
   displayImage: Bitmap?,
   originalImage: Bitmap?,
@@ -143,6 +143,7 @@ fun MainScreen(
   isOutputAudioLoading: Boolean = false,
   // Action requests
   onMessage: (TranslatorMessage) -> Unit,
+  onSteerPreview: suspend (String) -> String? = { null },
   canSwapLanguages: Boolean = true,
   onStopAudio: () -> Unit = {},
   // System integration
@@ -167,17 +168,48 @@ fun MainScreen(
   isAutoSource: Boolean = false,
 ) {
   var showFullScreenImage by remember { mutableStateOf(false) }
-  var showImageSourceSheet by remember { mutableStateOf(false) }
+  var alternativesTarget by remember { mutableStateOf<AlternativesTarget?>(null) }
+  var outputTapMode by remember { mutableStateOf(OutputTapMode.None) }
+  var inputDictMode by remember { mutableStateOf(false) }
+  val hasAnyAlternatives = output?.alternatives?.isNotEmpty() == true
+  val hasSourceDictionary = languageState.availabilityFor(from)?.dictionaryFiles == true
+  val hasTargetDictionary = languageState.availabilityFor(to)?.dictionaryFiles == true
+  val canInputDict = hasSourceDictionary && input.isNotBlank()
+  // A mode whose toggle is no longer offered would strand as an invisible tap
+  // handler, so drop it when its backing data goes away.
+  LaunchedEffect(hasAnyAlternatives) {
+    if (!hasAnyAlternatives && outputTapMode == OutputTapMode.Alternatives) {
+      outputTapMode = OutputTapMode.None
+      alternativesTarget = null
+    }
+  }
+  LaunchedEffect(hasTargetDictionary) {
+    if (!hasTargetDictionary && outputTapMode == OutputTapMode.Dictionary) {
+      outputTapMode = OutputTapMode.None
+    }
+  }
+  LaunchedEffect(canInputDict) {
+    if (!canInputDict) inputDictMode = false
+  }
   // Flip the main image between the translation and the original (resets on a new image).
   var showOriginal by remember(displayImage) { mutableStateOf(false) }
   val isImageProcessing = isOcrInProgress.collectAsState().value || isTranslating.collectAsState().value
   val inputFocusController = remember { StyledTextFieldFocusController() }
+  val sourceActions =
+    rememberImageSourceActions(
+      onMessage = onMessage,
+      from = from,
+      to = to,
+      isAutoSource = isAutoSource,
+      pendingSharedImage = pendingSharedImage,
+    )
   val extraTopPadding = if (launchMode == LaunchMode.Normal) 0.dp else 8.dp
   val context = LocalContext.current
   val showOnlyOutputInReadonlyModal =
     launchMode == LaunchMode.ReadonlyModal && settings.onlyShowOutputOnReadonlyModal
   val detectedInstalled =
     detectedLanguage?.takeIf { languageState.availabilityFor(it)?.translatorFiles == true }
+  val mainScreenDescription = stringResource(R.string.a11y_main_screen)
 
   // Handle back button when dictionary is open
   BackHandler(enabled = dictionaryWord != null) {
@@ -185,20 +217,11 @@ fun MainScreen(
   }
 
   Scaffold(
-    modifier = Modifier.semantics { contentDescription = "Main screen" },
+    modifier = Modifier.semantics { contentDescription = mainScreenDescription },
+    containerColor = MaterialTheme.colorScheme.surfaceContainer,
     floatingActionButton = {
       when (launchMode) {
         LaunchMode.Normal -> {
-          FloatingActionButton(
-            onClick = {
-              showImageSourceSheet = true
-            },
-          ) {
-            Icon(
-              painterResource(id = R.drawable.attach_file_add),
-              contentDescription = "Translate image or file",
-            )
-          }
         }
 
         LaunchMode.ReadonlyModal -> {
@@ -215,7 +238,7 @@ fun MainScreen(
             ) {
               Icon(
                 painterResource(id = R.drawable.check),
-                contentDescription = "Replace text",
+                contentDescription = stringResource(R.string.a11y_replace_text),
                 modifier = Modifier.size(20.dp),
               )
             }
@@ -229,41 +252,43 @@ fun MainScreen(
         Modifier
           .fillMaxSize()
           .navigationBarsPadding()
-          .imePadding()
           .padding(top = paddingValues.calculateTopPadding() + extraTopPadding, bottom = 8.dp),
     ) {
       Column(
         modifier =
           Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
-        LanguageSelectionRow(
-          from = from,
-          to = to,
-          canSwap = canSwapLanguages,
-          languageState = languageState,
-          languageMetadata = languageMetadata,
-          onMessage = onMessage,
-          isAutoSource = isAutoSource,
-          detectedInstalled = detectedInstalled,
-          showAutoOption = !settings.disableCLD,
-          drawable =
-            if (launchMode == LaunchMode.Normal) {
-              Pair("Settings", R.drawable.settings)
-            } else {
-              Pair(
-                "Expand",
-                R.drawable.open_in_full,
-              )
-            },
-          onSettings =
-            if (launchMode == LaunchMode.Normal) {
-              onSettings
-            } else {
-              { onMessage(TranslatorMessage.ChangeLaunchMode(LaunchMode.Normal)) }
-            },
-        )
+        Box(modifier = Modifier.testTag("export-section:Language selection")) {
+          LanguageSelectionRow(
+            from = from,
+            to = to,
+            canSwap = canSwapLanguages,
+            languageState = languageState,
+            languageMetadata = languageMetadata,
+            onMessage = onMessage,
+            isAutoSource = isAutoSource,
+            detectedInstalled = detectedInstalled,
+            showAutoOption = !settings.disableCLD,
+            drawable =
+              if (launchMode == LaunchMode.Normal) {
+                Pair("Settings", R.drawable.settings)
+              } else {
+                Pair(
+                  "Expand",
+                  R.drawable.open_in_full,
+                )
+              },
+            onSettings =
+              if (launchMode == LaunchMode.Normal) {
+                onSettings
+              } else {
+                { onMessage(TranslatorMessage.ChangeLaunchMode(LaunchMode.Normal)) }
+              },
+          )
+        }
 
         BoxWithConstraints(
           modifier =
@@ -272,10 +297,37 @@ fun MainScreen(
               .weight(1f),
         ) {
           val parentHeight = maxHeight
+          val parentHeightPx = with(LocalDensity.current) { parentHeight.toPx() }
+          // Only ever read from measure/drag lambdas: reading it during composition
+          // would recompose both cards (and the interop EditText) on every drag frame.
+          val splitFraction = rememberSaveable { mutableFloatStateOf(0.5f) }
 
           Column(
             modifier = Modifier.fillMaxWidth(),
           ) {
+            // The detected-language prompt is an input modifier, so it lives at
+            // the bottom of the input card; in image mode (no input card) it
+            // sits directly under the image instead.
+            val detectedLanguageSection: @Composable () -> Unit = {
+              Box(modifier = Modifier.testTag("export-section:Detected language")) {
+                DetectedLanguageSection(
+                  detectedLanguage = detectedLanguage,
+                  from = from,
+                  languageState = languageState,
+                  onMessage = onMessage,
+                  downloadStates = downloadStates,
+                  isAutoSource = isAutoSource,
+                  onEvent = { event ->
+                    when (event) {
+                      is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
+                      is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
+                      else -> Log.e("MainScreen", "Got unexpected event: $event")
+                    }
+                  },
+                )
+              }
+            }
+
             if (displayImage != null) {
               Box(modifier = Modifier.fillMaxWidth()) {
                 ImageDisplaySection(
@@ -286,7 +338,7 @@ fun MainScreen(
                   detectedRegions = detectedRegions,
                   wordSelection = imageWordSelection,
                   maxHeight = parentHeight * 0.85f,
-                  modifier = Modifier.fillMaxWidth(),
+                  modifier = Modifier.fillMaxWidth().testTag("export-section:Image"),
                 )
                 Row(
                   modifier =
@@ -304,7 +356,14 @@ fun MainScreen(
                   if (originalImage != null) {
                     ActionPillButton(
                       iconRes = R.drawable.flip,
-                      contentDescription = if (showOriginal) "Show translated image" else "Show original image",
+                      contentDescription =
+                        if (showOriginal) {
+                          stringResource(
+                            R.string.a11y_show_translated_image,
+                          )
+                        } else {
+                          stringResource(R.string.a11y_show_original_image)
+                        },
                       showBackdrop = true,
                       onClick = { showOriginal = !showOriginal },
                     )
@@ -316,150 +375,60 @@ fun MainScreen(
                   )
                 }
               }
+              detectedLanguageSection()
             }
 
             if (!showOnlyOutputInReadonlyModal && displayImage == null) {
-              val showTranslit = settings.showTransliterationOnInput && inputTransliteration != null
-              Column(
+              val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isInputAudioPlaying && !isInputAudioLoading
+              val canSpeakInput =
+                input.isNotBlank() && languageState.availabilityFor(from)?.ttsFiles == true && !isOtherAudioActive
+              InputSection(
+                input = input,
+                inputTransliteration = inputTransliteration,
+                from = from,
+                onMessage = onMessage,
+                focusController = inputFocusController,
+                fontFactor = settings.fontFactor,
+                showTransliteration = settings.showTransliterationOnInput,
+                canInputDict = canInputDict,
+                inputDictMode = inputDictMode,
+                onToggleInputDict = { inputDictMode = !inputDictMode },
+                canSpeakInput = canSpeakInput,
+                isInputAudioPlaying = isInputAudioPlaying,
+                isInputAudioLoading = isInputAudioLoading,
+                sourceTtsPlaybackSpeed = sourceTtsPlaybackSpeed,
+                selectedSourceTtsVoiceName = selectedSourceTtsVoiceName,
+                availableSourceTtsVoices = availableSourceTtsVoices,
+                onSourceTtsPlaybackSpeedChange = onSourceTtsPlaybackSpeedChange,
+                onSourceTtsVoiceSelected = onSourceTtsVoiceSelected,
+                onSpeakInput = onSpeakInput,
+                onStopAudio = onStopAudio,
+                showSourceRow = launchMode == LaunchMode.Normal,
+                sourceActions = sourceActions,
+                onCameraClick = onLiveCamera,
+                screenTranslateEnabled = settings.experimentalScreenTranslate,
+                isAutoSource = isAutoSource,
+                detectedSection = detectedLanguageSection,
                 modifier =
                   Modifier
                     .fillMaxWidth()
-                    .let { m ->
-                      if (displayImage == null) m.weight(1f, fill = true) else m.height(parentHeight * 0.5f)
-                    },
-              ) {
-                Box(
-                  modifier =
-                    Modifier
-                      .fillMaxWidth()
-                      .weight(3f, fill = true)
-                      .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                      ) { inputFocusController.focus() },
-                ) {
-                  StyledTextField(
-                    text = input,
-                    onValueChange = { newInput ->
-                      onMessage(TranslatorMessage.TextInput(newInput))
-                    },
-                    onDictionaryLookup = { word ->
-                      onMessage(TranslatorMessage.DictionaryLookup(word, from))
-                    },
-                    placeholder = if (displayImage == null) "Enter text" else null,
-                    modifier =
-                      Modifier
-                        .fillMaxWidth()
-                        .padding(end = if (displayImage == null) 24.dp else 0.dp),
-                    textStyle =
-                      MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
-                        lineHeight = (MaterialTheme.typography.bodyLarge.lineHeight * settings.fontFactor),
-                      ),
-                    focusController = inputFocusController,
-                  )
-                  if (displayImage == null) {
-                    Column(
-                      modifier = Modifier.align(Alignment.TopEnd),
-                      horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                      if (input.isNotEmpty()) {
-                        ClearInput(onMessage)
-                      } else {
-                        PasteButton(onMessage)
-                      }
-                      SpeechInputButton(input, from, onMessage, modifier = Modifier.padding(top = 6.dp))
-                      val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isInputAudioPlaying && !isInputAudioLoading
-                      if (input.isNotBlank() && languageState.availabilityFor(from)?.ttsFiles == true && !isOtherAudioActive) {
-                        SpeechPlaybackButton(
-                          isAudioPlaying = isInputAudioPlaying,
-                          isAudioLoading = isInputAudioLoading,
-                          speechPlaybackSpeed = sourceTtsPlaybackSpeed,
-                          selectedVoiceName = selectedSourceTtsVoiceName,
-                          availableVoices = availableSourceTtsVoices,
-                          onSpeak = {
-                            if (isInputAudioPlaying || isInputAudioLoading) {
-                              onStopAudio()
-                            } else {
-                              onSpeakInput(input, from)
-                            }
-                          },
-                          onSpeechPlaybackSpeedChange = onSourceTtsPlaybackSpeedChange,
-                          onVoiceSelected = onSourceTtsVoiceSelected,
-                          contentDescription = if (isInputAudioPlaying) "Stop audio" else "Speak input",
-                          modifier = Modifier.padding(top = 6.dp),
+                    .layout { measurable, constraints ->
+                      val height =
+                        (constraints.maxHeight * splitFraction.floatValue).roundToInt()
+                      val placeable =
+                        measurable.measure(
+                          constraints.copy(minHeight = height, maxHeight = height),
                         )
-                      }
+                      layout(placeable.width, placeable.height) { placeable.place(0, 0) }
                     }
-                  }
-                }
-                if (showTranslit) {
-                  val textStyle = MaterialTheme.typography.bodyLarge
-                  val fontSize = textStyle.fontSize.value
-                  val smallerFontSize = fontSize * 0.7f
-                  val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
-                  Box(
-                    modifier =
-                      Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = true)
-                        .clickable { inputFocusController.focus() },
-                  ) {
-                    AndroidView(
-                      factory = { context ->
-                        TextView(context).apply {
-                          this.text = inputTransliteration
-                          this.textSize = smallerFontSize
-                          this.setTextColor(textColor)
-                          this.movementMethod =
-                            android.text.method.ScrollingMovementMethod
-                              .getInstance()
-                          this.isClickable = false
-                          this.isLongClickable = false
-                          this.isFocusable = false
-                        }
-                      },
-                      update = { textView ->
-                        textView.text = inputTransliteration
-                        textView.textSize = smallerFontSize
-                      },
-                      modifier = Modifier.fillMaxWidth(),
-                    )
-                  }
-                }
-              }
-            }
-
-            DetectedLanguageSection(
-              detectedLanguage = detectedLanguage,
-              from = from,
-              languageState = languageState,
-              onMessage = onMessage,
-              downloadStates = downloadStates,
-              isAutoSource = isAutoSource,
-              onEvent = { event ->
-                when (event) {
-                  is LanguageEvent.Download -> DownloadService.startDownload(context, event.language)
-                  is LanguageEvent.Cancel -> DownloadService.cancelDownload(context, event.language)
-                  else -> Log.e("MainScreen", "Got unexpected event: $event")
-                }
-              },
-            )
-
-            if (!showOnlyOutputInReadonlyModal && displayImage == null) {
-              Box(
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                contentAlignment = Alignment.Center,
-              ) {
-                HorizontalDivider(
-                  modifier = Modifier.fillMaxWidth(0.5f),
-                  thickness = 1.dp,
-                  color = MaterialTheme.colorScheme.outlineVariant,
-                )
-              }
+                    .testTag("export-section:Input"),
+              )
+              SplitHandle(
+                onDrag = { delta ->
+                  splitFraction.floatValue =
+                    (splitFraction.floatValue + delta / parentHeightPx).coerceIn(0.25f, 0.75f)
+                },
+              )
             }
 
             // With an image the translation is shown in the image itself, so hide the output text
@@ -469,13 +438,39 @@ fun MainScreen(
                 modifier =
                   Modifier
                     .fillMaxWidth()
+                    .testTag("export-section:Output")
                     .let { m ->
-                      if (displayImage == null) m.weight(1f, fill = true) else m.height(parentHeight * 0.5f)
+                      if (displayImage == null) {
+                        m.weight(1f, fill = true)
+                      } else {
+                        m.height(parentHeight * 0.5f)
+                      }
                     },
               ) {
-                val isOtherAudioActive = (isAudioPlaying || isAudioLoading) && !isOutputAudioPlaying && !isOutputAudioLoading
                 TranslationField(
                   text = output,
+                  modifier = Modifier.fillMaxSize(),
+                  label = to.localizedName(),
+                  header =
+                    if (settings.multiTargetEnabled) {
+                      {
+                        TargetTabsHeader(
+                          tabs = targetTabs,
+                          active = to,
+                          candidates =
+                            languageState.allLanguages().filter { x ->
+                              x != from && x !in targetTabs &&
+                                (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
+                            },
+                          showAdd = true,
+                          onSwitch = { onMessage(TranslatorMessage.ToLang(it)) },
+                          onAdd = { onMessage(TranslatorMessage.AddTab(it)) },
+                          onRemove = { onMessage(TranslatorMessage.RemoveTab(it)) },
+                        )
+                      }
+                    } else {
+                      null
+                    },
                   textStyle =
                     MaterialTheme.typography.bodyLarge.copy(
                       fontSize = (MaterialTheme.typography.bodyLarge.fontSize * settings.fontFactor),
@@ -484,7 +479,94 @@ fun MainScreen(
                   onDictionaryLookup = {
                     onMessage(TranslatorMessage.DictionaryLookup(it, to))
                   },
-                  canSpeak = languageState.availabilityFor(to)?.ttsFiles == true && !isOtherAudioActive,
+                  onAlternatives =
+                    if (output?.alternatives?.isNotEmpty() == true) {
+                      { start, end ->
+                        val wa =
+                          output?.alternatives?.firstOrNull {
+                            start < it.tgtEnd.toInt() && end > it.tgtBegin.toInt()
+                          }
+                        alternativesTarget =
+                          wa?.let { AlternativesTarget(it.tgtBegin.toInt(), it.tgtEnd.toInt(), it.options) }
+                      }
+                    } else {
+                      null
+                    },
+                  hasAlternatives =
+                    if (output?.alternatives?.isNotEmpty() == true) {
+                      { start, end ->
+                        output?.alternatives?.any {
+                          start < it.tgtEnd.toInt() && end > it.tgtBegin.toInt()
+                        } == true
+                      }
+                    } else {
+                      null
+                    },
+                  highlightRange =
+                    alternativesTarget?.let { it.wordBegin until it.wordEnd },
+                  tapMode = outputTapMode,
+                  onToggleAlternativesMode = {
+                    outputTapMode =
+                      if (outputTapMode == OutputTapMode.Alternatives) {
+                        OutputTapMode.None
+                      } else {
+                        OutputTapMode.Alternatives
+                      }
+                    alternativesTarget = null
+                  },
+                  onToggleDictionaryMode = {
+                    outputTapMode =
+                      if (outputTapMode == OutputTapMode.Dictionary) {
+                        OutputTapMode.None
+                      } else {
+                        OutputTapMode.Dictionary
+                      }
+                    alternativesTarget = null
+                  },
+                  dictionaryAvailable = hasTargetDictionary,
+                  onDictionaryUnavailable = {
+                    Toast
+                      .makeText(context, context.getString(R.string.feature_unavailable_dictionary), Toast.LENGTH_SHORT)
+                      .show()
+                  },
+                  speakerAvailable = languageState.availabilityFor(to)?.ttsFiles == true,
+                  onSpeakerUnavailable = {
+                    Toast
+                      .makeText(context, context.getString(R.string.feature_unavailable_tts), Toast.LENGTH_SHORT)
+                      .show()
+                  },
+                  onWordTap = { offset ->
+                    when (outputTapMode) {
+                      OutputTapMode.Alternatives -> {
+                        val text = output?.translated
+                        val wa =
+                          output?.alternatives?.firstOrNull {
+                            offset >= it.tgtBegin.toInt() && offset < it.tgtEnd.toInt()
+                          }
+                        alternativesTarget =
+                          when {
+                            wa != null ->
+                              AlternativesTarget(wa.tgtBegin.toInt(), wa.tgtEnd.toInt(), wa.options)
+
+                            text != null ->
+                              wordRangeAt(text, offset)?.let {
+                                AlternativesTarget(it.first, it.last + 1, emptyList())
+                              }
+
+                            else -> null
+                          }
+                      }
+
+                      OutputTapMode.Dictionary -> {
+                        val word = output?.translated?.let { wordAt(it, offset) }
+                        if (!word.isNullOrBlank()) {
+                          onMessage(TranslatorMessage.DictionaryLookup(word, to))
+                        }
+                      }
+
+                      OutputTapMode.None -> {}
+                    }
+                  },
                   isAudioPlaying = isOutputAudioPlaying,
                   isAudioLoading = isOutputAudioLoading,
                   speechPlaybackSpeed = targetTtsPlaybackSpeed,
@@ -510,18 +592,6 @@ fun MainScreen(
     }
   }
 
-  // Image capture handling
-  ImageCaptureHandler(
-    onMessage = onMessage,
-    showImageSourceSheet = showImageSourceSheet,
-    onDismissImageSourceSheet = { showImageSourceSheet = false },
-    onCameraClick = onLiveCamera,
-    from = from,
-    to = to,
-    isAutoSource = isAutoSource,
-    pendingSharedImage = pendingSharedImage,
-  )
-
   // Full screen image viewer
   if (showFullScreenImage && displayImage != null && originalImage != null) {
     ZoomableImageViewer(
@@ -532,6 +602,19 @@ fun MainScreen(
       onShare = {
         onMessage(TranslatorMessage.ShareTranslatedImage)
       },
+    )
+  }
+
+  alternativesTarget?.let { target ->
+    AlternativesDrawer(
+      target = target,
+      fullText = output?.translated.orEmpty(),
+      steerPreview = onSteerPreview,
+      onCommit = { prefix ->
+        onMessage(TranslatorMessage.Steer(prefix))
+        alternativesTarget = null
+      },
+      onDismiss = { alternativesTarget = null },
     )
   }
 
@@ -550,168 +633,6 @@ fun MainScreen(
         onMessage(TranslatorMessage.PopDictionary)
       },
     )
-  }
-}
-
-@Composable
-fun ShareImage(onMessage: (TranslatorMessage) -> Unit) {
-  ActionPillButton(
-    iconRes = R.drawable.share,
-    contentDescription = "Share image",
-    showBackdrop = true,
-    onClick = { onMessage(TranslatorMessage.ShareTranslatedImage) },
-  )
-}
-
-@Composable
-fun JapaneseOcrModeToggle(
-  readingOrder: ReadingOrder?,
-  onMessage: (TranslatorMessage) -> Unit,
-) {
-  val (iconRes, description) =
-    when (readingOrder) {
-      null -> R.drawable.text_rotation_auto to "Japanese OCR auto mode"
-      ReadingOrder.TOP_TO_BOTTOM_RIGHT_TO_LEFT -> R.drawable.text_rotate_vertical to "Japanese OCR vertical mode"
-      ReadingOrder.LEFT_TO_RIGHT -> R.drawable.text_rotation_none to "Japanese OCR horizontal mode"
-    }
-  ActionPillButton(
-    iconRes = iconRes,
-    contentDescription = description,
-    showBackdrop = true,
-    onClick = { onMessage(TranslatorMessage.ToggleJapaneseOcrMode) },
-  )
-}
-
-@Composable
-fun ClearInput(
-  onMessage: (TranslatorMessage) -> Unit,
-  showBackdrop: Boolean = false,
-) {
-  ActionPillButton(
-    iconRes = R.drawable.cancel,
-    contentDescription = "Clear input",
-    showBackdrop = showBackdrop,
-    onClick = { onMessage(TranslatorMessage.ClearInput) },
-  )
-}
-
-@Composable
-fun PasteButton(
-  onMessage: (TranslatorMessage) -> Unit,
-  showBackdrop: Boolean = false,
-) {
-  val context = LocalContext.current
-
-  ActionPillButton(
-    iconRes = R.drawable.paste,
-    contentDescription = "Paste",
-    showBackdrop = showBackdrop,
-    onClick = {
-      val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-      val clipData = clipboardManager.primaryClip
-      if (clipData != null && clipData.itemCount > 0) {
-        val text = clipData.getItemAt(0).text?.toString() ?: ""
-        val trimmed = text.trim()
-        if (isWebUrl(trimmed)) {
-          if (isSupportedDocumentUrl(trimmed)) {
-            Toast.makeText(context, SUPPORTED_DOCUMENT_URL_TOAST, Toast.LENGTH_LONG).show()
-          } else {
-            val browserIntent =
-              Intent(context, BrowserActivity::class.java).apply {
-                putExtra(BrowserActivity.EXTRA_URL, trimmed)
-              }
-            context.startActivity(browserIntent)
-          }
-        } else {
-          onMessage(TranslatorMessage.TextInput(text))
-        }
-      }
-    },
-  )
-}
-
-@Composable
-fun SpeechInputButton(
-  input: String,
-  from: Language,
-  onMessage: (TranslatorMessage) -> Unit,
-  modifier: Modifier = Modifier,
-) {
-  val context = LocalContext.current
-  val isAvailable =
-    remember {
-      Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).resolveActivity(context.packageManager) != null
-    }
-  if (!isAvailable) {
-    return
-  }
-
-  val launcher =
-    rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-      if (result.resultCode != Activity.RESULT_OK) {
-        return@rememberLauncherForActivityResult
-      }
-      val spoken =
-        result.data
-          ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-          ?.firstOrNull()
-      if (!spoken.isNullOrBlank()) {
-        val appended = if (input.isBlank()) spoken else "${input.trimEnd()} $spoken"
-        onMessage(TranslatorMessage.TextInput(appended))
-      }
-    }
-
-  ActionPillButton(
-    iconRes = R.drawable.mic,
-    contentDescription = "Voice input",
-    modifier = modifier,
-    onClick = {
-      val intent =
-        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-          putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-          putExtra(RecognizerIntent.EXTRA_LANGUAGE, from.code)
-        }
-      launcher.launch(intent)
-    },
-  )
-}
-
-@Composable
-private fun ActionPillButton(
-  iconRes: Int,
-  contentDescription: String,
-  showBackdrop: Boolean = false,
-  modifier: Modifier = Modifier,
-  onClick: () -> Unit,
-) {
-  if (showBackdrop) {
-    Surface(
-      modifier = modifier,
-      shape = CircleShape,
-      color = Color(0xCC303030),
-    ) {
-      IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(36.dp),
-      ) {
-        Icon(
-          painterResource(id = iconRes),
-          contentDescription = contentDescription,
-          tint = Color.White,
-        )
-      }
-    }
-  } else {
-    IconButton(
-      onClick = onClick,
-      modifier = modifier.size(36.dp),
-    ) {
-      Icon(
-        painterResource(id = iconRes),
-        contentDescription = contentDescription,
-        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-      )
-    }
   }
 }
 

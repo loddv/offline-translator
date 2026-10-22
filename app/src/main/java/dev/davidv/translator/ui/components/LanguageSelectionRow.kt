@@ -23,14 +23,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
@@ -54,9 +59,15 @@ fun LanguageSelectionRow(
   detectedInstalled: Language? = null,
   showAutoOption: Boolean = false,
 ) {
+  val titleStyle =
+    MaterialTheme.typography.titleMedium.copy(
+      fontWeight = FontWeight.SemiBold,
+      fontSize = 18.sp,
+    )
+
   Row(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    horizontalArrangement = Arrangement.spacedBy(2.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
     val fromLanguages =
@@ -65,7 +76,7 @@ fun LanguageSelectionRow(
       }
     val toLanguages =
       languageState.allLanguages().filter { x ->
-        x != from && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
+        (isAutoSource || x != from) && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
       }
 
     LanguageSelector(
@@ -75,11 +86,13 @@ fun LanguageSelectionRow(
       onLanguageSelected = { language ->
         onMessage(TranslatorMessage.FromLang(language))
       },
-      modifier = Modifier.weight(1f),
+      modifier = Modifier.widthIn(max = 150.dp),
       isAutoSource = isAutoSource,
       detectedInstalled = detectedInstalled,
       showAutoOption = showAutoOption,
       onAutoSelected = { onMessage(TranslatorMessage.EnableAutoSource) },
+      centered = false,
+      textStyle = titleStyle,
     )
     LanguageSwapButton(
       onClick = { onMessage(TranslatorMessage.SwapLanguages) },
@@ -93,11 +106,15 @@ fun LanguageSelectionRow(
       onLanguageSelected = { language ->
         onMessage(TranslatorMessage.ToLang(language))
       },
-      modifier = Modifier.weight(1f),
+      modifier = Modifier.widthIn(max = 150.dp),
+      centered = false,
+      textStyle = titleStyle,
     )
 
+    Spacer(modifier = Modifier.weight(1f))
+
     if (onSettings != null) {
-      IconButton(onClick = onSettings) {
+      IconButton(onClick = onSettings, modifier = Modifier.size(36.dp)) {
         Icon(
           painterResource(id = drawable.second),
           contentDescription = drawable.first,
@@ -114,10 +131,16 @@ fun LanguageSwapButton(
   onClick: () -> Unit,
   enabled: Boolean = true,
 ) {
-  IconButton(onClick = onClick, enabled = enabled) {
+  IconButton(
+    onClick = onClick,
+    enabled = enabled,
+    modifier = Modifier.size(36.dp),
+  ) {
     Icon(
       painterResource(id = R.drawable.compare),
-      contentDescription = "Reverse translation direction",
+      contentDescription = stringResource(R.string.a11y_reverse_translation_direction),
+      tint = MaterialTheme.colorScheme.primary,
+      modifier = Modifier.size(20.dp),
     )
   }
 }

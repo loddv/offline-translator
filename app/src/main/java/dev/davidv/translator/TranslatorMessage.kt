@@ -19,6 +19,11 @@ package dev.davidv.translator
 
 import android.net.Uri
 
+enum class FromLangChange {
+  KeepTarget,
+  MovePreviousToTarget,
+}
+
 sealed class TranslatorMessage {
   data class TextInput(
     val text: String,
@@ -26,9 +31,18 @@ sealed class TranslatorMessage {
 
   data class FromLang(
     val language: Language,
+    val change: FromLangChange = FromLangChange.KeepTarget,
   ) : TranslatorMessage()
 
   data class ToLang(
+    val language: Language,
+  ) : TranslatorMessage()
+
+  data class AddTab(
+    val language: Language,
+  ) : TranslatorMessage()
+
+  data class RemoveTab(
     val language: Language,
   ) : TranslatorMessage()
 
@@ -71,6 +85,15 @@ sealed class TranslatorMessage {
   data class SpeakTranslatedText(
     val text: String,
     val language: Language,
+  ) : TranslatorMessage()
+
+  /**
+   * Re-translate the current output forcing [forcedPrefix] as the start of the
+   * translation — used when the user picks a word alternative. The source and
+   * languages come from current state.
+   */
+  data class Steer(
+    val forcedPrefix: String,
   ) : TranslatorMessage()
 
   data object PopDictionary : TranslatorMessage()

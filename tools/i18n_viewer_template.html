@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>i18n viewer — __NAME__</title>
+<link rel="stylesheet" href="i18n.css">
+<style>
+  body { height: 100vh; display: flex; flex-direction: column; }
+  #stat { display: none; }
+  #stage { flex: 1 1 auto; min-height: 0; overflow: auto; background: #2a2a2a; display: flex; justify-content: center; align-items: flex-start; padding: 8px; box-sizing: border-box; }
+  /* Width-capped so phones fill the screen but desktop stops at phone width; height scrolls. */
+  #stage svg { width: min(100%, 480px); height: auto; display: block; }
+  /* Non-editable text gets a faint backing rect (added in JS — SVG text has no CSS background); editable
+     stays plain. Fills, not thin underlines, which scale sub-pixel at the ~1/3 display size. */
+  foreignObject div.edited { background: rgba(74,140,255,0.32); border-radius: 3px; }
+  foreignObject div.untranslated { opacity: 0.55; }
+  foreignObject div:focus { background: rgba(106,124,255,0.34); border-radius: 3px; }
+  /* Source text isn't editable, so no I-beam (only the editable divs set cursor:text). */
+  #stage svg text { cursor: default; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a id="back" class="btn" href="index.html" title="Index">←</a>
+  <select id="lang"></select>
+  <label class="check"><input type="checkbox" id="showEn"> Show English</label>
+  <a id="changes" class="btn right" href="changes.html">Changes (<span id="ccount">0</span>)</a>
+  <span id="stat"></span>
+  <span id="error" class="error" style="display:none"></span>
+</div>
+<div id="stage"></div>
+<script src="i18n_store.js"></script>
+<script>
+(async function () {
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const NAME = "__NAME__";
+  const KEYS = "__KEYS__";
+  const WEBLATE = "__WEBLATE__";
+  const LANGS = __LANGS__;
+  const NAMES = __LANG_NAMES__;
+  const FALLBACKS = __FALLBACKS__;
+  const stage = document.getElementById('stage');
+  const errEl = document.getElementById('error');
+
+  function fail(msg) {
+    errEl.style.display = 'block';
+    errEl.textContent = msg + (location.protocol === 'file:'
+      ? ' — fetch is blocked on file://; serve the folder over HTTP.' : '');
+  }
+
+  let svg, keys, strings;
+  try {
+    // no-cache => revalidate each load, so a regenerated svg/strings.json shows up without a hard refresh.
+    const nc = { cache: 'no-cache' };
+    const [svgRes, keysRes, strRes] = await Promise.all([fetch(NAME, nc), fetch(KEYS, nc), fetch('strings.json', nc)]);
+    for (const [r, n] of [[svgRes, NAME], [keysRes, KEYS], [strRes, 'strings.json']]) {
+      if (!r.ok) throw new Error(`${n}: ${r.status} ${r.statusText}`);
+    }
+    const doc = new DOMParser().parseFromString(await svgRes.text(), 'image/svg+xml');
+    if (doc.querySelector('parsererror')) throw new Error('SVG parse error');
+    svg = document.importNode(doc.documentElement, true);
+    stage.appendChild(svg);
+    keys = await keysRes.json();
+    strings = await strRes.json();
+  } catch (e) {
+    return fail('Could not load: ' + e.message);
+  }
+
+  // Stamp each label with its resolved R.string key and remember the original English.
+  const texts = [...svg.querySelectorAll('text[data-key]')];
+  const english = new Map();
+  texts.forEach(t => {
+    const key = keys[t.getAttribute('data-key')];
+    english.set(t, t.textContent);
+    if (key) t.setAttribute('data-i18n', key);
+  });
+
+  // Edit store. effective() = your local edit ?? the Weblate value ?? the fallback seed. resolved()
+  // walks the Android resolution chain (e.g. pt_PT -> pt -> en) so a string not translated in this
+  // exact locale shows what a device on that locale actually renders — its base language — not English.
+  let curLang = 'en';
+  function resolved(key, lang) {
+    for (const l of (FALLBACKS[lang] || [lang, 'en'])) {
+      const v = strings[key] && strings[key][l];
+      if (v != null) return v;
+    }
+    return '';
+  }
+  function effective(key, lang) {
+    const e = I18N.get(lang, key);
+    if (e != null) return { text: e, edited: true, has: true };
+    const v = strings[key] && strings[key][lang];
+    if (v != null) return { text: v, edited: false, has: true };
+    return { text: resolved(key, lang), edited: false, has: false };
+  }
+  function paint(g, lang) {
+    const edited = I18N.get(lang, g.key) != null;
+    const has = edited || (strings[g.key] && strings[g.key][lang] != null);
+    g.div.classList.toggle('edited', edited);
+    g.div.classList.toggle('untranslated', !has);
+  }
+  function updateCount() { document.getElementById('ccount').textContent = I18N.count(); }
+  // Commit an in-place edit; clear it if it equals the Weblate value (or, for an untranslated string,
+  // the untouched fallback seed) so leaving a label alone never records a change.
+  function commit(g) {
+    if (curLang === 'en') return;
+    const val = g.div.textContent;
+    const weblate = strings[g.key] && strings[g.key][curLang];
+    const seed = resolved(g.key, curLang);
+    if (val === weblate || (weblate == null && val === seed)) I18N.remove(curLang, g.key);
+    else I18N.set(curLang, g.key, val);
+    paint(g, curLang);
+    updateCount();
+  }
+
+  // Group the consecutive same-key, same-style, vertically-stacked lines that a wrapped paragraph
+  // was drawn as, so its translation can be rendered as one block instead of duplicated onto each
+  // line. Multi-line groups hand wrapping to a <foreignObject>; single-line labels stay <text>.
+  const VB_W = svg.viewBox.baseVal.width;
+  const leftX = t => {
+    const m = (t.getAttribute('transform') || '').match(/matrix\(([^)]+)\)/);
+    const tx = m ? parseFloat(m[1].trim().split(/[\s,]+/)[4]) : 0;
+    return tx + parseFloat(t.getAttribute('x') || 0);
+  };
+  const sameStyle = (a, b) =>
+    a.getAttribute('transform') === b.getAttribute('transform') &&
+    a.getAttribute('font-size') === b.getAttribute('font-size') &&
+    a.getAttribute('data-i18n') === b.getAttribute('data-i18n');
+  const groups = [];
+  for (const t of texts) {
+    if (!t.getAttribute('data-i18n')) continue;
+    const last = groups[groups.length - 1];
+    const prev = last && last.lines[last.lines.length - 1];
+    if (last && prev && sameStyle(prev, t) &&
+        parseFloat(t.getAttribute('y')) > parseFloat(prev.getAttribute('y'))) {
+      last.lines.push(t);
+    } else {
+      groups.push({ key: t.getAttribute('data-i18n'), lines: [t] });
+    }
+  }
+  // Non-text controls (the toggle pills, flag icons, chevrons …) that sit to the right of a label must
+  // clip its wrap width, or a longer translation runs under the switch. Capture each drawable's absolute
+  // box once (own transform translate + local getBBox); a single-line label is then capped to the nearest
+  // control on its row instead of running to the mirrored right margin. Containers (page/card/dropdown
+  // backgrounds) start at or left of the label, so the `left > label left` test drops them.
+  const translateXY = el => {
+    const m = (el.getAttribute('transform') || '').match(/matrix\(([^)]+)\)/);
+    if (!m) return [0, 0];
+    const p = m[1].trim().split(/[\s,]+/).map(parseFloat);
+    return [p[4] || 0, p[5] || 0];
+  };
+  const obstacles = [...svg.querySelectorAll('rect,image,circle,ellipse,path,line,polygon,polyline')].map(el => {
+    const [tx, ty] = translateXY(el);
+    const b = el.getBBox();
+    return { left: tx + b.x, top: ty + b.y, right: tx + b.x + b.width, bottom: ty + b.y + b.height };
+  });
+  const XHTML = 'http://www.w3.org/1999/xhtml';
+  // Every keyed label — single line or wrapped paragraph — becomes a <foreignObject> holding a
+  // dir="auto" <div>, so the browser wraps the translation natively (a longer language grows down
+  // a line instead of shrinking). We toggle it against the original <text> lines, which stay the
+  // source of truth for English. Box width = the app's own column: a multi-line paragraph's widest
+  // English line, or for a single line the content width (symmetric-padding guess), clamped to never
+  // fall below the label's own width — the guess goes negative for right-half labels (e.g. a row of
+  // tabs), which would make the box vanish. text-anchor is honored for box origin + alignment, so an
+  // end/middle-anchored label stays put. Overflow stays visible, so a much longer translation spills
+  // below — inherent to a static, non-reflowing capture.
+  groups.forEach(g => {
+    const f = g.lines[0];
+    g.size0 = parseFloat(f.getAttribute('font-size'));
+    const y1 = parseFloat(f.getAttribute('y'));
+    const yN = parseFloat(g.lines[g.lines.length - 1].getAttribute('y'));
+    g.lineH = g.lines.length > 1 ? (yN - y1) / (g.lines.length - 1) : g.size0 * 1.35;
+    const ownW = f.getComputedTextLength();
+    const anchor = f.getAttribute('text-anchor') || 'start';
+    const ax = parseFloat(f.getAttribute('x') || 0);
+    // leftX is the SVG x in absolute coords: left edge for start, centre for middle, right edge for end.
+    const axAbs = leftX(f);
+    let colW;
+    if (g.lines.length > 1) {
+      colW = Math.max(...g.lines.map(l => l.getComputedTextLength())) + 4;
+    } else if (anchor === 'middle') {
+      // centred: the full symmetric room to the nearest screen edge, so a longer translation that
+      // still fits the screen stays on one line instead of wrapping to the English width.
+      colW = Math.max(2 * Math.min(axAbs, VB_W - axAbs), ownW + g.size0);
+    } else if (anchor === 'end') {
+      // right-aligned: room from the left screen edge up to the anchor.
+      colW = Math.max(axAbs, ownW + g.size0);
+    } else {
+      // left-aligned: mirror the left margin on the right (symmetric-padding guess).
+      colW = Math.max(VB_W - 2 * axAbs, ownW + g.size0);
+    }
+    // Cap a left-aligned label's box at the nearest control to its right on the same row, so a longer
+    // translation wraps down instead of running under a toggle/icon. Right/centre-anchored labels are the
+    // right-half cases the symmetric guess already clamps, so leave them alone.
+    if (anchor === 'start') {
+      const [, fty] = translateXY(f);
+      const rowTop = fty + y1 - g.size0;
+      const rowBot = fty + yN + g.size0 * 0.3;
+      const startLeft = leftX(f);
+      let capRight = Infinity;
+      for (const o of obstacles) {
+        if (o.left > startLeft + 1 && o.bottom > rowTop && o.top < rowBot) capRight = Math.min(capRight, o.left);
+      }
+      if (capRight < Infinity) colW = Math.min(colW, capRight - startLeft - g.size0 * 0.5);
+    }
+    const fo = document.createElementNS(SVGNS, 'foreignObject');
+    if (f.getAttribute('transform')) fo.setAttribute('transform', f.getAttribute('transform'));
+    fo.setAttribute('x', anchor === 'end' ? ax - colW : anchor === 'middle' ? ax - colW / 2 : ax);
+    // Place the box so the div's first-line baseline lands on the original <text> baseline (y1):
+    // in the CSS line box, the baseline sits ~lineH/2 + 0.3·fontSize below the box top.
+    fo.setAttribute('y', y1 - g.lineH / 2 - g.size0 * 0.3);
+    fo.setAttribute('width', colW);
+    fo.setAttribute('height', (yN - y1) + g.lineH);
+    fo.setAttribute('display', 'none');
+    fo.style.overflow = 'visible';
+    const div = document.createElementNS(XHTML, 'div');
+    div.setAttribute('dir', 'auto');
+    div.style.cssText =
+      `margin:0;font-family:sans-serif;font-size:${g.size0}px;line-height:${g.lineH}px;` +
+      `font-weight:${f.getAttribute('font-weight') || 'normal'};font-style:${f.getAttribute('font-style') || 'normal'};` +
+      `color:${f.getAttribute('fill') || '#000'};overflow-wrap:break-word;cursor:text;` +
+      `white-space:${g.lines.length > 1 ? 'normal' : 'nowrap'};` +
+      `text-align:${anchor === 'end' ? 'right' : anchor === 'middle' ? 'center' : 'left'};`;
+    // Enter = done editing (commit via blur), not a newline; Shift+Enter still inserts one.
+    div.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); div.blur(); } });
+    div.addEventListener('blur', () => commit(g));
+    div.addEventListener('input', () => { fit(g); reflow(g, div.textContent); });
+    fo.appendChild(div);
+    f.parentNode.insertBefore(fo, f);
+    g.anchor = anchor; g.ax = ax; g.fo = fo; g.div = div;
+  });
+
+  // The dictionary "Also as:" is the one place the app reflows horizontally: a wider translation must
+  // push the fixed redirect words right, not overrun them. meas is off-canvas because a display:none
+  // node reports 0 width.
+  const meas = document.createElementNS(SVGNS, 'text');
+  meas.setAttribute('visibility', 'hidden');
+  svg.appendChild(meas);
+  function measure(str, g) {
+    const f = g.lines[0];
+    meas.setAttribute('font-size', g.size0);
+    meas.setAttribute('font-weight', f.getAttribute('font-weight') || 'normal');
+    meas.setAttribute('font-style', f.getAttribute('font-style') || 'normal');
+    meas.textContent = str;
+    return meas.getComputedTextLength();
+  }
+  const staticTexts = [...svg.querySelectorAll('text')].filter(t => t !== meas && !t.getAttribute('data-i18n'));
+  groups.forEach(g => {
+    g.followers = [];
+    const f = g.lines[0];
+    if (g.lines.length !== 1 || (f.getAttribute('text-anchor') || 'start') !== 'start') return;
+    g.englishW = measure(english.get(f), g);
+    const fy = translateXY(f)[1] + parseFloat(f.getAttribute('y'));
+    const englishRight = leftX(f) + g.englishW;
+    const row = staticTexts
+      .map(t => ({ el: t, left: leftX(t), y: translateXY(t)[1] + parseFloat(t.getAttribute('y')) }))
+      .filter(a => Math.abs(a.y - fy) < g.size0 * 0.6 && a.left > leftX(f))
+      .sort((a, b) => a.left - b.left);
+    // Only reflow when the run abuts the label; a far, right-aligned value is a separate column.
+    if (!row.length || row[0].left - englishRight > g.size0 * 1.5) return;
+    g.followers = row.map(a => ({ el: a.el, base: a.el.getAttribute('transform') || '' }));
+  });
+  // Skip reflow followers: their transform shifts per language but a backing rect wouldn't follow.
+  const followerEls = new Set(groups.flatMap(g => g.followers.map(fo => fo.el)));
+  staticTexts.forEach(t => {
+    if (followerEls.has(t)) return;
+    const b = t.getBBox();
+    if (!b.width || !b.height) return;
+    const r = document.createElementNS(SVGNS, 'rect');
+    if (t.getAttribute('transform')) r.setAttribute('transform', t.getAttribute('transform'));
+    r.setAttribute('x', b.x - 6);
+    r.setAttribute('y', b.y - 3);
+    r.setAttribute('width', b.width + 12);
+    r.setAttribute('height', b.height + 6);
+    r.setAttribute('rx', 5);
+    r.setAttribute('fill', 'rgba(150,150,165,0.13)');
+    t.parentNode.insertBefore(r, t);
+  });
+  function reflow(g, text) {
+    if (!g.followers || !g.followers.length) return;
+    const delta = Math.max(0, measure(text, g) - g.englishW);
+    g.followers.forEach(fo => fo.el.setAttribute('transform', `translate(${delta} 0) ${fo.base}`.trim()));
+  }
+  // Size a single-line box to its content so its hit area doesn't cover (and swallow the clicks of)
+  // adjacent labels — the image-source column row. Multi-line keeps its wrap width.
+  function fit(g) {
+    if (g.lines.length !== 1) return;
+    const w = measure(g.div.textContent, g) + g.size0 * 0.5;
+    g.fo.setAttribute('width', w);
+    g.fo.setAttribute('x', g.anchor === 'end' ? g.ax - w : g.anchor === 'middle' ? g.ax - w / 2 : g.ax);
+  }
+
+  // Target language: show the editable foreignObject (your edit ?? Weblate ?? English seed). English:
+  // show the original <text> lines, read-only. Don't clobber a div the user is mid-edit in.
+  function showEdit(g, lang) {
+    if (g.div !== document.activeElement) g.div.textContent = effective(g.key, lang).text;
+    g.div.contentEditable = 'true';
+    g.fo.setAttribute('display', '');
+    g.lines.forEach(l => l.setAttribute('display', 'none'));
+    fit(g);
+    reflow(g, g.div.textContent);
+    paint(g, lang);
+  }
+  function showSource(g) {
+    g.fo.setAttribute('display', 'none');
+    g.div.contentEditable = 'false';
+    g.lines.forEach(l => { l.setAttribute('display', ''); l.textContent = english.get(l); });
+    reflow(g, english.get(g.lines[0]));
+  }
+  function applyLang(lang) {
+    curLang = lang;
+    for (const g of groups) (lang === 'en') ? showSource(g) : showEdit(g, lang);
+    updateCount();
+  }
+
+  const sel = document.getElementById('lang');
+  const showEn = document.getElementById('showEn');
+  // Dropdown picks the target language; the checkbox flips to English without touching the dropdown.
+  const targets = LANGS.filter(l => l !== 'en');
+  LANGS.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = NAMES[l] || l; sel.appendChild(o); });
+  // ?lang=<code> (e.g. linked from index.html) picks the initial language; default to the first target.
+  const urlLang = new URLSearchParams(location.search).get('lang');
+  sel.value = (urlLang && LANGS.includes(urlLang)) ? urlLang : (targets[0] || 'en');
+  const back = document.getElementById('back');
+  const changesLink = document.getElementById('changes');
+  const refresh = () => {
+    applyLang(showEn.checked ? 'en' : sel.value);
+    // Carry the current language through Index, Changes, and this page's own URL (so reload/share keeps it).
+    const q = '?lang=' + encodeURIComponent(sel.value);
+    back.href = 'index.html' + q;
+    changesLink.href = 'changes.html' + q;
+    history.replaceState(null, '', q);
+  };
+  sel.addEventListener('change', () => { showEn.checked = false; refresh(); });
+  showEn.addEventListener('change', refresh);
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -44,12 +44,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageMetadata
 import dev.davidv.translator.R
+import dev.davidv.translator.languageNameComparator
+import dev.davidv.translator.localizedName
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
@@ -65,20 +69,22 @@ fun LanguageSelector(
   onAutoSelected: (() -> Unit)? = null,
   textColor: androidx.compose.ui.graphics.Color? = null,
   marquee: Boolean = true,
+  centered: Boolean = true,
+  textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
 ) {
   var expanded by remember { mutableStateOf(false) }
   val interactionSource = remember { MutableInteractionSource() }
 
   val displayText =
     when {
-      isAutoSource && detectedInstalled != null -> "✨ ${detectedInstalled.displayName}"
-      isAutoSource -> "✨ Auto"
-      else -> selectedLanguage.displayName
+      isAutoSource && detectedInstalled != null -> "✨ ${detectedInstalled.localizedName()}"
+      isAutoSource -> stringResource(R.string.langsel_auto)
+      else -> selectedLanguage.localizedName()
     }
 
   Box(
     modifier = modifier,
-    contentAlignment = Alignment.Center,
+    contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart,
   ) {
     Text(
       modifier =
@@ -91,13 +97,13 @@ fun LanguageSelector(
           ) {
             expanded = true
           }
-          .fillMaxWidth()
+          .then(if (centered) Modifier.fillMaxWidth() else Modifier)
           .padding(vertical = 8.dp, horizontal = 4.dp),
       text = displayText,
-      textAlign = TextAlign.Center,
+      textAlign = if (centered) TextAlign.Center else TextAlign.Start,
       maxLines = 1,
       overflow = if (marquee) androidx.compose.ui.text.style.TextOverflow.Clip else androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-      style = MaterialTheme.typography.bodyMedium,
+      style = textStyle,
       color = textColor ?: MaterialTheme.colorScheme.onSurface,
     )
 
@@ -109,7 +115,7 @@ fun LanguageSelector(
         DropdownMenuItem(
           text = {
             Text(
-              text = "✨ Auto",
+              text = stringResource(R.string.langsel_auto),
               color =
                 if (isAutoSource) {
                   MaterialTheme.colorScheme.primary
@@ -128,7 +134,7 @@ fun LanguageSelector(
       availableLanguages
         .sortedWith(
           compareByDescending<Language> { languageMetadata[it]?.favorite ?: false }
-            .thenBy { it.displayName },
+            .thenBy(languageNameComparator()) { it.localizedName() },
         ).forEach { language ->
           val isFavorite = languageMetadata[language]?.favorite ?: false
           DropdownMenuItem(
@@ -138,7 +144,7 @@ fun LanguageSelector(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth(),
               ) {
-                Text(language.displayName)
+                Text(language.localizedName())
                 if (isFavorite) {
                   Icon(
                     painter = painterResource(id = R.drawable.star_filled),

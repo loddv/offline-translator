@@ -165,7 +165,8 @@ class TranslatorTtsService : TextToSpeechService() {
     callback: SynthesisCallback,
   ) {
     val catalog = applicationServices().filePathManager.loadCatalog() ?: error("Catalog unavailable")
-    val chunks = catalog.planSpeechChunks(voice.languageCode, text, voice.packId)
+    val readUrlsAndHashtags = applicationServices().settingsManager.settings.value.ttsReadUrlsAndHashtags
+    val chunks = catalog.planSpeechChunks(voice.languageCode, text, voice.packId, readUrlsAndHashtags)
     if (chunks.isEmpty()) {
       error("No speech chunks planned")
     }
@@ -276,7 +277,7 @@ class TranslatorTtsDataActivity : Activity() {
     val iso3Lang = intent?.getStringExtra("language").orEmpty()
     val sample =
       TranslatorTtsEngine.sampleText(this, iso3Lang)
-        ?: "This is a text-to-speech sample from Offline Translator."
+        ?: getString(R.string.tts_sample_fallback)
     val data = Intent().putExtra(TextToSpeech.Engine.EXTRA_SAMPLE_TEXT, sample)
     setResult(TextToSpeech.LANG_AVAILABLE, data)
     finish()

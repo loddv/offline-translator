@@ -68,6 +68,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -231,7 +232,7 @@ private fun DocAlignScreen(
         runCatching { decodeOrientedBitmap(context, inputUri) }.getOrNull()
       }
     if (loaded == null) {
-      errorMessage = "Unable to decode image."
+      errorMessage = context.getString(R.string.docalign_decode_failed)
       detecting = false
       return@LaunchedEffect
     }
@@ -289,13 +290,13 @@ private fun DocAlignScreen(
         verticalAlignment = Alignment.CenterVertically,
       ) {
         BarTextButton(
-          label = "Cancel",
+          label = stringResource(R.string.common_cancel),
           enabled = true,
           onClick = onCancel,
           modifier = Modifier.weight(1f),
         )
         BarTextButton(
-          label = "OK",
+          label = stringResource(R.string.common_ok),
           enabled = !detecting && corners.size == 4 && bitmap != null,
           onClick = {
             val bmp = bitmap
@@ -311,7 +312,7 @@ private fun DocAlignScreen(
       IconButton(onClick = { helpVisible = true }) {
         Icon(
           painter = painterResource(id = R.drawable.help_outline),
-          contentDescription = "Help",
+          contentDescription = stringResource(R.string.a11y_help),
           tint = Color.White,
         )
       }
@@ -329,11 +330,7 @@ private fun DocAlignScreen(
                 .padding(16.dp),
           ) {
             Text(
-              text =
-                "A precise perimeter around the document improves recognition quality. " +
-                  "It is important that the lines are parallel to the text.\n\n" +
-                  "Zooming or panning usually makes the algorithm automatically pick up the document, " +
-                  "but you can still manually adjust if it's not found.",
+              text = stringResource(R.string.docalign_help),
               color = Color.White,
               style = MaterialTheme.typography.bodyMedium,
               modifier = Modifier.widthIn(max = 300.dp),
@@ -350,14 +347,14 @@ private fun DocAlignScreen(
       IconButton(onClick = { rotate90Clockwise() }) {
         Icon(
           painter = painterResource(id = R.drawable.rotate_right),
-          contentDescription = "Rotate 90 degrees",
+          contentDescription = stringResource(R.string.a11y_rotate_90),
           tint = Color.White,
         )
       }
       IconButton(onClick = onSwitchToRect) {
         Icon(
           painter = painterResource(id = R.drawable.activity_zone),
-          contentDescription = "Switch to rectangular crop",
+          contentDescription = stringResource(R.string.a11y_switch_rectangular_crop),
           tint = Color.White,
         )
       }
@@ -374,7 +371,7 @@ private fun DocAlignScreen(
             .padding(horizontal = 12.dp, vertical = 6.dp),
       ) {
         Text(
-          text = if (detecting) "Detecting corners…" else "Re-detecting…",
+          text = if (detecting) stringResource(R.string.docalign_detecting) else stringResource(R.string.docalign_redetecting),
           style = MaterialTheme.typography.labelMedium,
         )
       }

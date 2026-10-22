@@ -1,5 +1,7 @@
 <h1><center>Translator</center></h1>
 
+[![Translation status](https://hosted.weblate.org/widget/offline-translator/offline-translator/language-badge.svg?threshold=0)](https://hosted.weblate.org/engage/offline-translator/)
+
 An Android translator app that performs text, PDF/ODT documents and image translation completely offline using on-device models.
 
 Supports automatic language detection and transliteration for non-latin scripts. There's also a built-in word dictionary.
@@ -76,13 +78,16 @@ https://github.com/user-attachments/assets/bf774a4f-3d58-49b7-b4e2-cb30eb395b39
 - Slovak
 - Slovenian
 - Spanish
+- Swahili
 - Swedish
+- Tagalog
 - Tamil
 - Telugu
 - Thai
 - Turkish
 - Ukrainian
 - Urdu
+- Uyghur
 - Vietnamese
 
 ## Tech

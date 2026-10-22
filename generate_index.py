@@ -39,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to the upstream GCS models.json snapshot for --mode internal.",
     )
     parser.add_argument(
+        "--custom-models",
+        default=str(SCRIPT_DIR / "data_sources/custom_models.json"),
+        help="Path to home-trained model pairs merged onto the upstream snapshot in --mode internal.",
+    )
+    parser.add_argument(
         "--dictionary-index",
         default=str(SCRIPT_DIR / "data_sources/dictionary_index.json"),
         help="Path to the dictionary index snapshot for --mode internal.",
@@ -132,6 +137,11 @@ def is_deprecated_kokoro_onnx_pack(pack: dict) -> bool:
 
 def build_internal_catalog(args: argparse.Namespace) -> dict:
     models_manifest = catalog_base.load_json(Path(args.gcs_models))
+    custom_models = catalog_base.load_json(Path(args.custom_models))["models"]
+    collisions = set(custom_models) & set(models_manifest["models"])
+    if collisions:
+        raise SystemExit(f"custom models collide with upstream snapshot: {', '.join(sorted(collisions))}")
+    models_manifest["models"].update(custom_models)
     dictionary_index = catalog_base.load_json(Path(args.dictionary_index))
     voices = catalog_tts.load_json(args.voices)
 
@@ -154,13 +164,31 @@ def build_internal_catalog(args: argparse.Namespace) -> dict:
     )
 
 
+# Mirror of `sanitize_filename` in translator-rs `bucket_samples`: the sample
+# files are written with each component sanitized (non-alphanumerics collapsed to
+# `_`), so the lookup path must sanitize the same way or a voice like
+# "Mandarin (Traditional)" never resolves to its `Mandarin_Traditional` file.
+def sanitize_sample_component(value: str) -> str:
+    out = []
+    last_was_sep = False
+    for ch in value:
+        if ch.isalnum() or ch in "_-.":
+            out.append(ch)
+            last_was_sep = False
+        elif not last_was_sep:
+            out.append("_")
+            last_was_sep = True
+    return "".join(out).strip("_")
+
+
 def tts_sample_mirror_path(pack: dict) -> str | None:
     voice = pack.get("voice")
     language = pack.get("language")
     quality = pack.get("quality")
     if not voice or not language:
         return None
-    stem = f"{voice}_{quality}" if quality else voice
+    voice = sanitize_sample_component(voice)
+    stem = f"{voice}_{sanitize_sample_component(quality)}" if quality else voice
     return f"samples_ogg/{language}/{stem}.opus"
 
 

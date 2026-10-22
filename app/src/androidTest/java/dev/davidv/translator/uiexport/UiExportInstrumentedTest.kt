@@ -17,10 +17,7 @@
 
 package dev.davidv.translator.uiexport
 
-import android.graphics.Bitmap
 import android.util.Log
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -33,12 +30,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import dev.davidv.translator.MainActivity
+import dev.davidv.translator.R
 import dev.davidv.translator.TestUtils
+import dev.davidv.translator.UiExportRecorder
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -54,7 +52,10 @@ class UiExportInstrumentedTest {
 
   // The ViewModel's LanguageStateManager scans for languages at first launch and survives Activity
   // recreation, so the files must exist before the compose rule launches the activity. This outer
-  // rule installs them first, then removes them after, so a normally-launched app keeps no test state.
+  // rule installs them first. It does NOT remove them afterward: applicationId has no debug suffix,
+  // so the data dir is the real app's storage, and a recursive cleanup would wipe the user's other
+  // downloaded models. The seeded es<->en models are the catalog's current build, so leaving them is
+  // harmless (setup just overwrites es/en on the next run).
   @get:Rule
   val ruleChain: RuleChain =
     RuleChain
@@ -66,11 +67,28 @@ class UiExportInstrumentedTest {
           ): Statement =
             object : Statement() {
               override fun evaluate() {
+                // Screenshots are the English source for Weblate, and the texts.json must match the
+                // English string values for exact key association, so force the app's per-app locale
+                // to en regardless of the device language. Restored afterward.
+                val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+                val localeManager =
+                  if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    ctx.getSystemService(android.app.LocaleManager::class.java)
+                  } else {
+                    null
+                  }
+                val previousLocales = localeManager?.applicationLocales
+                localeManager?.applicationLocales = android.os.LocaleList.forLanguageTags("en-US")
                 TestUtils.setupLanguagesForApp()
+                // Record R.string lookups before MainActivity is created (its attachBaseContext reads
+                // this), so every label can be stamped with the exact string id it resolved from.
+                UiExportRecorder.reset()
+                UiExportRecorder.active = true
                 try {
                   base.evaluate()
                 } finally {
-                  TestUtils.cleanupLanguagesForApp()
+                  UiExportRecorder.active = false
+                  if (previousLocales != null) localeManager.applicationLocales = previousLocales
                 }
               }
             }
@@ -78,28 +96,56 @@ class UiExportInstrumentedTest {
       )
       .around(composeTestRule)
 
+  private val capture by lazy {
+    UiExportCapture(composeTestRule, composeTestRule.activity, File(outputDir(), "ui-export"))
+  }
+
   @Test
   fun exportScreens() {
     awaitAnyContentDescription("Main screen", "Settings")
-    captureRoute("main")
+
+    // FAB image-source sheet: a Material3 ModalBottomSheet (separate window) captured via the
+    // all-windows draw + draw-time overlay labeling. Best-effort: never break the rest of the export.
+    runCatching {
+      composeTestRule.onAllNodesWithContentDescription("Translate image or file").onFirst().performClick()
+      composeTestRule.waitForIdle()
+      capture.captureRoute("image_source", allowScroll = false, overlaySection = "Image source")
+      dismissOverlay()
+    }.onFailure { Log.w("UiExport", "image_source capture failed", it) }
 
     composeTestRule.onAllNodesWithContentDescription("Settings").onFirst().performClick()
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithText("Advanced Settings").performScrollTo().performClick()
+    composeTestRule.onNodeWithText(str(R.string.settings_advanced)).performScrollTo().performClick()
     composeTestRule.waitForIdle()
-    captureRoute("settings")
+    capture.captureRoute("settings")
     captureDropdownOptions("settings")
 
-    composeTestRule.onAllNodesWithText("Manage").onFirst().performScrollTo().performClick()
+    composeTestRule.onAllNodesWithText(str(R.string.common_manage)).onFirst().performScrollTo().performClick()
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithText("Bulgarian").performScrollTo().performClick()
+    // Albanian is near the top of the list (so no long scroll) and ships two voices, so the picker
+    // shows more than one row.
+    composeTestRule.onNodeWithText("Albanian").performScrollTo().performClick()
     composeTestRule.waitForIdle()
-    captureRoute("language_manager")
+
+    // Voice-download dialog: a BasicAlertDialog (separate window) — drawing all root views captures
+    // it too. Captured while the just-expanded Albanian row (and its tagged trigger) is still
+    // composed. Best-effort; trigger is tagged export-trigger:voice on the TTS feature-row action.
+    runCatching {
+      composeTestRule
+        .onAllNodes(SemanticsMatcher("voice trigger") { textTag(it).startsWith("export-trigger:voice") })
+        .onFirst()
+        .performScrollTo()
+        .performClick()
+      composeTestRule.waitForIdle()
+      capture.captureRoute("voice_picker", allowScroll = false, overlaySection = "Voice picker")
+      dismissOverlay()
+    }.onFailure { Log.w("UiExport", "voice_picker capture failed", it) }
+
     goBack()
 
-    composeTestRule.onNodeWithText("How to use").performScrollTo().performClick()
+    composeTestRule.onNodeWithText(str(R.string.howto_title)).performScrollTo().performClick()
     composeTestRule.waitForIdle()
-    captureRoute("how_to_use")
+    capture.captureRoute("how_to_use")
     goBack()
   }
 
@@ -124,59 +170,17 @@ class UiExportInstrumentedTest {
     composeTestRule.waitForIdle()
   }
 
-  private data class Frame(val ops: List<DrawOp>, val width: Int)
-
-  private fun drawOnce(): Frame {
-    val activity = composeTestRule.activity
-    var ops: List<DrawOp> = emptyList()
-    var width = 0
-    composeTestRule.runOnUiThread {
-      val view = activity.window.decorView
-      val w = view.width
-      val h = view.height
-      check(w > 0 && h > 0) { "decorView not laid out (${w}x$h)" }
-      val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-      val canvas = RecordingCanvas(bmp)
-      view.draw(canvas)
-      ops = canvas.ops.toList()
-      width = w
-    }
-    return Frame(ops, width)
-  }
-
-  private fun captureRoute(route: String) {
+  /**
+   * Dismiss a separate-window overlay (ModalBottomSheet / Dialog) with a real BACK key, which the
+   * window manager routes to the focused overlay window. The activity's onBackPressedDispatcher
+   * doesn't see the overlay's back handler (different window), so goBack() would finish the activity.
+   */
+  private fun dismissOverlay() {
+    UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressBack()
     composeTestRule.waitForIdle()
-    val frames = mutableListOf<CaptureFrame>()
-    var width = 0
-    val scrollId = scrollNode()?.id
-    if (scrollId != null) scrollToTop()
-    waitForStable()
-
-    var prevSignature: String? = null
-    var guard = 0
-    while (guard++ < 60) {
-      val frame = drawOnce()
-      width = frame.width
-      val signature = textSignature(frame.ops)
-      if (signature == prevSignature) break
-      frames += CaptureFrame(attachImageDescriptions(frame.ops))
-      prevSignature = signature
-      if (scrollId == null) break
-      swipeUp(scrollId)
-      composeTestRule.waitForIdle()
-    }
-
-    val stitched = ScreenStitcher.stitch(frames)
-    val svg = SvgEmitter.emit(route, stitched.ops, width, stitched.height)
-    val outDir = File(outputDir(), "ui-export")
-    outDir.mkdirs()
-    File(outDir, "$route.svg").writeText(svg)
-    val texts = stitched.ops.count { it is DrawOp.TextRun }
-    Log.i("UiExport", "wrote $route.svg (${frames.size} frames, ${stitched.ops.size} ops, $texts text runs)")
   }
 
-  private fun textSignature(ops: List<DrawOp>): String =
-    ops.filterIsInstance<DrawOp.TextRun>().joinToString("|") { "${it.text}@${it.baselineY.toInt()}" }
+  private fun str(id: Int): String = composeTestRule.activity.getString(id)
 
   /**
    * For each dropdown opted in with `Modifier.testTag("export-options:<Name>")`, open it, read its
@@ -192,7 +196,18 @@ class UiExportInstrumentedTest {
         .distinct()
 
     for (tag in tags) {
-      val name = tag.substringAfter("export-options:")
+      // The tag suffix is the dropdown label's R.string name, so the synthesized panel title is the
+      // real (translatable) label and carries its exact id; the slug drops the settings_ prefix to
+      // keep the per-dropdown filename (e.g. settings.background_mode.svg) stable.
+      val resName = tag.substringAfter("export-options:")
+      val resId =
+        composeTestRule.activity.resources.getIdentifier(
+          resName,
+          "string",
+          composeTestRule.activity.packageName,
+        )
+      val title = if (resId != 0) str(resId) else resName
+      val titleId = if (resId != 0) resName else null
       composeTestRule.onNodeWithTag(tag).performScrollTo()
       composeTestRule.waitForIdle()
 
@@ -213,18 +228,12 @@ class UiExportInstrumentedTest {
       composeTestRule.onNodeWithTag(tag).performClick()
       composeTestRule.waitForIdle()
 
-      val slug = name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
-      val svg = SvgEmitter.emitOptionsPanel(name, "$route:$slug", options)
+      val slug = resName.removePrefix("settings_").lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+      val svg = SvgEmitter.emitOptionsPanel(title, titleId, "$route:$slug", options)
       File(File(outputDir(), "ui-export"), "$route.$slug.svg").writeText(svg)
       Log.i("UiExport", "wrote $route.$slug.svg (${options.size} options: $options)")
     }
   }
-
-  private fun textTag(node: SemanticsNode): String = node.config.getOrNull(SemanticsProperties.TestTag) ?: ""
-
-  private fun nodeText(node: SemanticsNode): String? =
-    node.config.getOrNull(SemanticsProperties.EditableText)?.text
-      ?: node.config.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }
 
   private fun visibleTexts(): Set<String> =
     composeTestRule
@@ -232,101 +241,6 @@ class UiExportInstrumentedTest {
       .fetchSemanticsNodes()
       .mapNotNull { nodeText(it) }
       .toSet()
-
-  /**
-   * Block until the rendered draw ops stop changing between samples, so transient animations
-   * (pull-to-refresh indicator, spinners, settling overscroll) aren't captured mid-flight.
-   */
-  private fun waitForStable() {
-    var prev = ""
-    var guard = 0
-    while (guard++ < 12) {
-      val signature = drawSignature(drawOnce().ops)
-      if (signature == prev) return
-      prev = signature
-      composeTestRule.waitForIdle()
-      Thread.sleep(120)
-    }
-  }
-
-  private fun drawSignature(ops: List<DrawOp>): String {
-    val sb = StringBuilder()
-    for (op in ops) {
-      when (op) {
-        is DrawOp.TextRun -> sb.append("T").append(op.matrix[5].toInt())
-        is DrawOp.Rect -> sb.append("R").append(op.matrix[2].toInt()).append(',').append(op.matrix[5].toInt())
-        is DrawOp.Line -> sb.append("L").append(op.matrix[5].toInt())
-        is DrawOp.Path -> sb.append("P").append(op.pathData.hashCode())
-        is DrawOp.Image -> sb.append("I").append(op.matrix[5].toInt())
-      }
-    }
-    return sb.toString()
-  }
-
-  /** Tag each captured image with the contentDescription of the smallest semantics node covering it. */
-  private fun attachImageDescriptions(ops: List<DrawOp>): List<DrawOp> {
-    val described =
-      composeTestRule
-        .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ContentDescription))
-        .fetchSemanticsNodes()
-        .mapNotNull { node ->
-          val desc = node.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
-          if (desc.isNullOrEmpty()) null else node.boundsInRoot to desc
-        }
-    if (described.isEmpty()) return ops
-    return ops.map { op ->
-      if (op !is DrawOp.Image) {
-        op
-      } else {
-        val cx = op.matrix[2] + (op.left + op.right) / 2f
-        val cy = op.matrix[5] + (op.top + op.bottom) / 2f
-        val match =
-          described
-            .filter { (b, _) -> cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom }
-            .minByOrNull { (b, _) -> b.width * b.height }
-        if (match != null) op.copy(description = match.second) else op
-      }
-    }
-  }
-
-  /**
-   * Reset a scrollable to the top, landing exactly at offset 0. Avoids both swiping and over-scrolling
-   * (a large negative ScrollBy is consumed by PullToRefreshBox as a pull, showing its spinner).
-   */
-  private fun scrollToTop() {
-    val node = scrollNode() ?: return
-    node.config.getOrNull(SemanticsActions.ScrollToIndex)?.action?.let { action ->
-      composeTestRule.runOnUiThread { action.invoke(0) }
-      composeTestRule.waitForIdle()
-      return
-    }
-    val scrollBy = node.config.getOrNull(SemanticsActions.ScrollBy)?.action ?: return
-    repeat(5) {
-      val value = currentScroll() ?: 0f
-      if (value <= 1f) return
-      composeTestRule.runOnUiThread { scrollBy.invoke(0f, -value) }
-      composeTestRule.waitForIdle()
-    }
-  }
-
-  private fun currentScroll(): Float? = scrollNode()?.config?.getOrNull(SemanticsProperties.VerticalScrollAxisRange)?.value?.invoke()
-
-  private fun scrollNode(): SemanticsNode? =
-    composeTestRule
-      .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollBy))
-      .fetchSemanticsNodes()
-      .filter { it.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) != null }
-      .maxByOrNull { it.boundsInRoot.height }
-
-  private fun swipeUp(nodeId: Int) {
-    composeTestRule
-      .onNode(SemanticsMatcher("scroll node $nodeId") { it.id == nodeId })
-      .performTouchInput {
-        // Small, slow swipe: keeps fling negligible so consecutive frames overlap enough for the
-        // stitcher to recover the scroll offset by matching shared labels.
-        swipeUp(startY = height * 0.72f, endY = height * 0.40f, durationMillis = 600)
-      }
-  }
 
   /**
    * AGP copies anything under the runner's additionalTestOutputDir into

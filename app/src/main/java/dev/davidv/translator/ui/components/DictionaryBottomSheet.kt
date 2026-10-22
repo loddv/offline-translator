@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -75,6 +76,7 @@ import dev.davidv.translator.Sense
 import dev.davidv.translator.WordEntryComplete
 import dev.davidv.translator.WordTag
 import dev.davidv.translator.WordWithTaggedEntries
+import dev.davidv.translator.ui.theme.TranslatorTheme
 import dev.davidv.translator.wordTag
 
 @Composable
@@ -185,6 +187,9 @@ fun DictionaryBottomSheet(
   }
 }
 
+// The dictionary target is always English; this is a language code, not translatable text.
+private const val ENGLISH_LANGUAGE_CODE = "en"
+
 @Composable
 fun DictionaryEntry(
   dictionaryWord: WordWithTaggedEntries,
@@ -195,13 +200,14 @@ fun DictionaryEntry(
   onDictionaryLookup: (String) -> Unit = {},
   onBackPressed: () -> Unit = {},
 ) {
+  val dictionaryEntryDescription = stringResource(R.string.a11y_dictionary_entry)
   Column(
     modifier =
       Modifier
         .fillMaxWidth()
         .padding(vertical = 16.dp, horizontal = 8.dp)
         .verticalScroll(rememberScrollState())
-        .semantics { contentDescription = "Dictionary Entry" }
+        .semantics { contentDescription = dictionaryEntryDescription }
         .testTag("DictionaryEntry"),
   ) {
     Box(
@@ -219,7 +225,7 @@ fun DictionaryEntry(
         ) {
           Icon(
             painterResource(id = R.drawable.arrow_back),
-            contentDescription = "Back",
+            contentDescription = stringResource(R.string.a11y_back),
             tint = MaterialTheme.colorScheme.onSurface,
           )
         }
@@ -257,7 +263,7 @@ fun DictionaryEntry(
               modifier = Modifier.padding(4.dp),
             )
             Text(
-              "en",
+              ENGLISH_LANGUAGE_CODE,
               style =
                 MaterialTheme.typography.titleMedium.copy(
                   fontWeight = if (selectedEntryIndex == 1) FontWeight.Bold else FontWeight.Normal,
@@ -302,7 +308,7 @@ fun DictionaryEntry(
     if (dictionaryWord.redirects.isNotEmpty()) {
       Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(
-          text = "Also as:",
+          text = stringResource(R.string.dict_also_as),
           style = MaterialTheme.typography.bodyMedium,
           modifier = Modifier.padding(end = 4.dp),
         )
@@ -439,7 +445,7 @@ fun DictionaryBottomSheetPreview() {
       redirects = listOf("book", "libro"),
     )
 
-  MaterialTheme {
+  TranslatorTheme {
     Surface {
       DictionaryEntry(
         dictionaryWord = sampleWord,

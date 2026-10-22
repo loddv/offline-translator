@@ -42,10 +42,13 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageStateManager
 import dev.davidv.translator.R
 import dev.davidv.translator.TranslatorApplication
+import dev.davidv.translator.languageNameComparator
+import dev.davidv.translator.localizedName
 import dev.davidv.translator.overlayChrome.FloatingBubble
 import dev.davidv.translator.overlayChrome.NormalizedRegion
 import dev.davidv.translator.overlayChrome.OverlayChromeFactory
@@ -160,6 +163,14 @@ class ScreenTranslateService : Service() {
     val catalog = app.languageCatalog
     if (catalog == null) {
       Log.e(TAG, "No language catalog; stopping")
+      stopEverything()
+      return START_NOT_STICKY
+    }
+    if (!catalog.ocrEngineReady()) {
+      // Without the detector pack every frame fails OCR and the overlay just
+      // sits there empty — refuse to start and say why (issue #246).
+      Log.e(TAG, "OCR detector pack not installed; stopping")
+      Toast.makeText(this, getString(R.string.ocr_models_missing), Toast.LENGTH_LONG).show()
       stopEverything()
       return START_NOT_STICKY
     }
@@ -507,7 +518,7 @@ class ScreenTranslateService : Service() {
       val langs =
         lsm.languageState.value
           .translatorLanguages(requireOcr = isSource)
-          .sortedBy { it.displayName }
+          .sortedWith(compareBy(languageNameComparator()) { it.localizedName() })
       // Live screen translate never runs in auto-source mode, so no Auto option.
       mm.showLanguagePicker(isSource, langs, allowAuto = false) { lang ->
         if (isSource) {
@@ -603,7 +614,7 @@ class ScreenTranslateService : Service() {
     val notification: Notification =
       androidx.core.app.NotificationCompat.Builder(this, channelId)
         .setContentTitle(getString(R.string.app_name))
-        .setContentText("Translating screen")
+        .setContentText(getString(R.string.screen_translating_notification))
         .setSmallIcon(R.drawable.ic_translate_button)
         .setOngoing(true)
         .addAction(R.drawable.cancel, "Stop", stopPending)

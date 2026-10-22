@@ -31,8 +31,8 @@ android {
     applicationId = "dev.davidv.translator"
     minSdk = 23
     targetSdk = 34
-    versionCode = 23
-    versionName = "0.7.1"
+    versionCode = 27
+    versionName = "0.8.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -83,6 +83,16 @@ android {
     aidl = true
     compose = true
     buildConfig = true
+  }
+
+  androidResources {
+    generateLocaleConfig = true
+  }
+
+  lint {
+    // Translations are managed in Weblate and land incrementally, so partial
+    // locales are expected; completeness is tracked there, not by the build.
+    disable += "MissingTranslation"
   }
 
   applicationVariants.all {
@@ -382,7 +392,6 @@ val generateUniffiBindings =
     commandLine(
       bindgenHostBinary.absolutePath,
       "generate",
-      "--library",
       bindgenSourceLib.absolutePath,
       "--language",
       "kotlin",
@@ -429,10 +438,12 @@ dependencies {
   implementation(libs.kotlinx.serialization.json.v162)
   implementation("com.github.yalantis:ucrop:2.2.11")
   implementation("net.java.dev.jna:jna:5.14.0@aar")
+  implementation("org.nanohttpd:nanohttpd:2.3.1")
   implementation(libs.androidx.camera.core)
   implementation(libs.androidx.camera.camera2)
   implementation(libs.androidx.camera.lifecycle)
   implementation(libs.androidx.camera.view)
+  detektPlugins(project(":detekt-rules"))
 }
 
 ktlint {
@@ -454,8 +465,24 @@ detekt {
   allRules = false
 }
 
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektHardcodedStrings") {
+  description = "Fails the build on any hardcoded user-facing string (NoHardcodedUiString)."
+  group = "verification"
+  buildUponDefaultConfig = false
+  config.setFrom(file("$projectDir/detekt-hardcoded-strings.yml"))
+  setSource(files("src/main/java"))
+  include("**/*.kt")
+  reports {
+    html.required.set(false)
+    xml.required.set(false)
+    txt.required.set(false)
+    sarif.required.set(false)
+    md.required.set(false)
+  }
+}
+
 tasks.register("lintAll") {
-  dependsOn("ktlintCheck", "detekt")
+  dependsOn("ktlintCheck", "detekt", "detektHardcodedStrings")
   description = "Run all lint checks (ktlint and detekt)"
   group = "verification"
 }

@@ -71,6 +71,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.startActivity
 import androidx.core.content.FileProvider
@@ -224,14 +225,19 @@ private fun DocumentTranslationDialog(
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Text(
-          text = if (document.isTranslating) "Translating file" else "Translated file",
+          text =
+            if (document.isTranslating) {
+              stringResource(R.string.doc_notif_translating)
+            } else {
+              stringResource(R.string.doc_notif_translated)
+            },
           modifier = Modifier.weight(1f),
         )
         if (document.isTranslating) {
           IconButton(onClick = onDismiss) {
             Icon(
               painter = painterResource(R.drawable.cancel),
-              contentDescription = "Close",
+              contentDescription = stringResource(R.string.a11y_close),
             )
           }
         }
@@ -261,34 +267,34 @@ private fun DocumentTranslationDialog(
                 progress = { progressFraction },
                 modifier = Modifier.fillMaxWidth(),
               )
-              Text("${(progressFraction * 100).toInt()}%")
+              Text(stringResource(R.string.translator_percent, (progressFraction * 100).toInt()))
             } else {
-              Text(document.progressLabel)
+              Text(stringResource(document.progressLabelRes))
             }
           }
         }
         if (document.errorMessage != null) {
           Text(document.errorMessage)
         } else if (outputPath != null) {
-          Text("Translated file: $outputFileName")
+          Text(stringResource(R.string.translator_translated_file, outputFileName ?: ""))
         }
       }
     },
     confirmButton = {
       if (outputPath != null && outputMimeType != null) {
         TextButton(onClick = { onOpen(outputPath, outputMimeType) }) {
-          Text("Open")
+          Text(stringResource(R.string.common_open))
         }
       } else if (document.errorMessage != null) {
         TextButton(onClick = onDismiss) {
-          Text("Close")
+          Text(stringResource(R.string.common_close))
         }
       }
     },
     dismissButton = {
       if (outputPath != null && outputMimeType != null) {
         TextButton(onClick = { onSave(outputPath, outputMimeType, outputFileName) }) {
-          Text("Save")
+          Text(stringResource(R.string.common_save))
         }
       }
     },
@@ -361,10 +367,10 @@ fun TranslatorApp(
         scope.launch {
           try {
             saveDocumentPathToUri(pending.path, uri, context)
-            Toast.makeText(context, "Document saved", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.translator_document_saved), Toast.LENGTH_SHORT).show()
           } catch (e: Exception) {
             Log.e("DocumentSave", "Failed to save translated document", e)
-            Toast.makeText(context, "Failed to save document", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.translator_document_save_failed), Toast.LENGTH_SHORT).show()
           }
         }
       }
@@ -388,6 +394,7 @@ fun TranslatorApp(
   val output by viewModel.output.collectAsState()
   val from by viewModel.from.collectAsState()
   val to by viewModel.to.collectAsState()
+  val targetTabs by viewModel.targets.collectAsState()
   val displayImage by viewModel.displayImage.collectAsState()
   val originalImage by viewModel.originalImage.collectAsState()
   val imageWordSelection by viewModel.imageWordSelection.collectAsState()
@@ -464,7 +471,7 @@ fun TranslatorApp(
           pcmAudioPlayer.play(event.audioChunks) { message ->
             isAudioLoading = false
             activeSpeechTarget = null
-            Toast.makeText(context, "Audio playback failed: $message", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.translator_audio_playback_failed, message), Toast.LENGTH_SHORT).show()
           }
         }
       }
@@ -530,7 +537,7 @@ fun TranslatorApp(
         try {
           openDocumentPath(path, mimeType, context)
         } catch (e: Exception) {
-          Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.translator_no_app_to_open), Toast.LENGTH_SHORT).show()
         }
       },
     )
@@ -741,6 +748,7 @@ fun TranslatorApp(
                 output = output,
                 from = currentFrom,
                 to = currentTo,
+                targetTabs = targetTabs?.tabs ?: listOf(currentTo),
                 detectedLanguage = currentDetectedLanguage,
                 displayImage = displayImage,
                 originalImage = originalImage,
@@ -759,6 +767,7 @@ fun TranslatorApp(
                 isOutputAudioPlaying = activeSpeechTarget == SpeechTarget.OUTPUT && isAudioPlaying,
                 isOutputAudioLoading = activeSpeechTarget == SpeechTarget.OUTPUT && isAudioLoading,
                 onMessage = viewModel::handleMessage,
+                onSteerPreview = viewModel::steerPreview,
                 canSwapLanguages = viewModel.languageStateManager.canSwapLanguages(currentFrom, currentTo),
                 onStopAudio = {
                   isAudioLoading = false
@@ -845,6 +854,7 @@ fun TranslatorApp(
               val ttsDownloadStates by curDownloadService.ttsDownloadStates.collectAsState()
               val activeTtsPackIds by curDownloadService.activeTtsPackIds.collectAsState()
               val queuedTtsPackIds by curDownloadService.queuedTtsPackIds.collectAsState()
+              val repairDownloadState by curDownloadService.repairDownloadState.collectAsState()
               Scaffold(
                 modifier =
                   Modifier
@@ -865,6 +875,7 @@ fun TranslatorApp(
                     ttsDownloadStates = ttsDownloadStates,
                     activeTtsPackIds = activeTtsPackIds,
                     queuedTtsPackIds = queuedTtsPackIds,
+                    repairDownloadState = repairDownloadState,
                   )
                 }
               }

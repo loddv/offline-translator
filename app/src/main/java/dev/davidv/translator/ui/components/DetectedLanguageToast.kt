@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +46,8 @@ import dev.davidv.translator.LangAvailability
 import dev.davidv.translator.Language
 import dev.davidv.translator.LanguageAvailabilityEntry
 import dev.davidv.translator.LanguageAvailabilityState
+import dev.davidv.translator.R
+import dev.davidv.translator.localizedName
 import dev.davidv.translator.ui.theme.TranslatorTheme
 
 @Composable
@@ -57,6 +60,15 @@ fun DetectedLanguageToast(
   downloadStates: Map<Language, DownloadState> = emptyMap(),
 ) {
   val isLanguageAvailable = languageState.availabilityFor(detectedLanguage)?.translatorFiles == true
+  val isDownloading = downloadStates[detectedLanguage]?.isDownloading == true
+  val toastDescription = stringResource(R.string.a11y_detected_language_toast)
+
+  val onToastClick: () -> Unit =
+    when {
+      isLanguageAvailable -> onSwitchClick
+      isDownloading -> ({ onEvent(LanguageEvent.Cancel(detectedLanguage)) })
+      else -> ({ onEvent(LanguageEvent.Download(detectedLanguage)) })
+    }
 
   Row(
     modifier =
@@ -64,8 +76,9 @@ fun DetectedLanguageToast(
         .fillMaxWidth()
         .clip(RoundedCornerShape(12.dp))
         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        .clickable(onClick = onToastClick)
         .padding(horizontal = 16.dp, vertical = 12.dp)
-        .semantics { contentDescription = "Detected language toast" },
+        .semantics { contentDescription = toastDescription },
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {
@@ -73,13 +86,18 @@ fun DetectedLanguageToast(
       modifier = Modifier.weight(1f),
     ) {
       Text(
-        text = if (isLanguageAvailable) "Translate from" else "Missing language",
+        text =
+          if (isLanguageAvailable) {
+            stringResource(R.string.detected_translate_from)
+          } else {
+            stringResource(R.string.detected_missing_language)
+          },
         fontSize = 12.sp,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         style = MaterialTheme.typography.bodySmall,
       )
       Text(
-        text = detectedLanguage.displayName,
+        text = detectedLanguage.localizedName(),
         fontSize = 16.sp,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurface,
@@ -90,12 +108,9 @@ fun DetectedLanguageToast(
     if (isLanguageAvailable) {
       Icon(
         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-        contentDescription = "Switch to detected language",
+        contentDescription = stringResource(R.string.a11y_switch_detected_language),
         tint = MaterialTheme.colorScheme.onSurface,
-        modifier =
-          Modifier
-            .clickable { onSwitchClick() }
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
       )
     } else {
       LanguageDownloadButton(

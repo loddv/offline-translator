@@ -227,6 +227,35 @@ EXTRA_TTS_VOICES = {
         },
         "aliases": [],
     },
+    # External MMS model metadata source:
+    # https://huggingface.co/willwade/mms-tts-multilingual-models-onnx/tree/main/tgl
+    "tl_PH-standard-mms": {
+        "engine": "mms",
+        "key": "tl_PH-standard-mms",
+        "name": "standard",
+        "language": {
+            "code": "tl_PH",
+            "family": "tl",
+            "region": "PH",
+            "name_native": "Tagalog",
+            "name_english": "Tagalog",
+            "country_english": "Philippines",
+        },
+        "quality": "medium",
+        "num_speakers": 1,
+        "speaker_id_map": {},
+        "files": {
+            "tgl/model.onnx": {
+                "size_bytes": 114020792,
+                "url": f"{MMS_BASE_URL}/tgl/model.onnx",
+            },
+            "tgl/tokens.txt": {
+                "size_bytes": 337,
+                "url": f"{MMS_BASE_URL}/tgl/tokens.txt",
+            },
+        },
+        "aliases": [],
+    },
     # HiTZ sabela Galician VITS voice. Its cotovia g2p is baked offline into a
     # shared per-language word->id lexicon (see scripts/gl_sabela_lexicon in
     # translator-rs); the voice depends on the tts-cotovia-lexicon-gl pack.
@@ -802,6 +831,37 @@ EXTRA_TTS_VOICES = {
             "tha/tokens.txt": {
                 "size_bytes": 473,
                 "url": f"{MMS_BASE_URL}/tha/tokens.txt",
+            },
+        },
+        "aliases": [],
+    },
+    # Self-hosted: willwade has no uig export, so this is exported from the
+    # facebook/mms-tts-uig-script_arabic torch checkpoint by
+    # translator-rs/scripts/export_mms_onnx.py and converted to int8 MNN. The
+    # runtime is MNN-only, so no .onnx is published and no migration applies.
+    "ug_CN-standard-mms": {
+        "engine": "mms",
+        "key": "ug_CN-standard-mms",
+        "name": "standard",
+        "language": {
+            "code": "ug_CN",
+            "family": "ug",
+            "region": "CN",
+            "name_native": "ئۇيغۇرچە",
+            "name_english": "Uyghur",
+            "country_english": "China",
+        },
+        "quality": "medium",
+        "num_speakers": 1,
+        "speaker_id_map": {},
+        "files": {
+            "ug/model.mnn": {
+                "size_bytes": 29736804,
+                "url": f"{TTS_BASE_URL}/1/ug/ug_CN/standard/medium/model.mnn",
+            },
+            "ug/tokens.txt": {
+                "size_bytes": 227,
+                "url": f"{TTS_BASE_URL}/1/ug/ug_CN/standard/medium/tokens.txt",
             },
         },
         "aliases": [],

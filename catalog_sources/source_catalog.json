@@ -1,14 +1,14 @@
 {
   "formatVersion": 4,
-  "generatedAt": 1782467056,
+  "generatedAt": 1784538672,
   "translationModelsBaseUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data",
   "dictionaryBaseUrl": "https://offline-translator.davidv.dev/dictionaries",
   "dictionaryVersion": 1,
   "sources": {
     "languageIndexVersion": 1,
-    "languageIndexUpdatedAt": 1782467056,
+    "languageIndexUpdatedAt": 1784538672,
     "dictionaryIndexVersion": 1,
-    "dictionaryIndexUpdatedAt": 1781816467,
+    "dictionaryIndexUpdatedAt": 1784028791,
     "gcsModelsUrl": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json",
     "gcsModelsGenerated": "2026-06-18T01:48:57Z",
     "piperVoiceCount": 158
@@ -403,10 +403,13 @@
           "translate-en-sq",
           "translate-en-sr",
           "translate-en-sv",
+          "translate-en-sw",
           "translate-en-ta",
           "translate-en-te",
           "translate-en-th",
+          "translate-en-tl",
           "translate-en-tr",
+          "translate-en-ug",
           "translate-en-uk",
           "translate-en-vi",
           "translate-en-zh",
@@ -447,10 +450,13 @@
           "translate-sq-en",
           "translate-sr-en",
           "translate-sv-en",
+          "translate-sw-en",
           "translate-ta-en",
           "translate-te-en",
           "translate-th-en",
+          "translate-tl-en",
           "translate-tr-en",
+          "translate-ug-en",
           "translate-uk-en",
           "translate-ur-en",
           "translate-vi-en",
@@ -1635,6 +1641,36 @@
         "sampleText": "En regnbåge är ett meteorologiskt fenomen som orsakas av ljusets reflektion, brytning och spridning i vattendroppar, vilket gör att ett spektrum av ljus syns på himlen."
       }
     },
+    "sw": {
+      "meta": {
+        "code": "sw",
+        "name": "Swahili",
+        "shortName": "Swahili",
+        "script": "Latn"
+      },
+      "assets": {
+        "translate": [
+          "translate-en-sw",
+          "translate-sw-en"
+        ],
+        "dictionary": "dict-sw",
+        "ocr": {
+          "ppocr": "ocr-ppocr-latin"
+        }
+      },
+      "tts": {
+        "defaultRegion": "CD",
+        "regions": {
+          "CD": {
+            "displayName": "Democratic Republic of the Congo",
+            "voices": [
+              "tts-piper-sw-cd-lanfrica-medium"
+            ]
+          }
+        },
+        "sampleText": "Upinde wa mvua ni tukio la hali ya hewa ambalo husababishwa na uakisi, kuvunjika na kuenea kwa mwanga katika matone ya maji na kusababisha wigo wa mwanga unaoonekana angani."
+      }
+    },
     "ta": {
       "meta": {
         "code": "ta",
@@ -1727,6 +1763,36 @@
         "sampleText": "รุ้งกินน้ำเป็นปรากฏการณ์ทางอุตุนิยมวิทยาที่เกิดจากการสะท้อน การหักเห และการกระจายตัวของแสงในหยดน้ำ ทำให้เกิดสเปกตรัมของแสงปรากฏบนท้องฟ้า"
       }
     },
+    "tl": {
+      "meta": {
+        "code": "tl",
+        "name": "Tagalog",
+        "shortName": "Tagalog",
+        "script": "Latn"
+      },
+      "assets": {
+        "translate": [
+          "translate-en-tl",
+          "translate-tl-en"
+        ],
+        "dictionary": "dict-tl",
+        "ocr": {
+          "ppocr": "ocr-ppocr-latin"
+        }
+      },
+      "tts": {
+        "defaultRegion": "PH",
+        "regions": {
+          "PH": {
+            "displayName": "Philippines",
+            "voices": [
+              "tts-mms-tl-ph-standard-mms"
+            ]
+          }
+        },
+        "sampleText": "Ang bahaghari ay isang penomenong meteorolohiko na dulot ng pagsalamin, pagbaluktot, at pagkalat ng liwanag sa mga patak ng tubig, na nagreresulta sa isang spektrum ng liwanag na lumilitaw sa langit."
+      }
+    },
     "tr": {
       "meta": {
         "code": "tr",
@@ -1755,6 +1821,35 @@
           }
         },
         "sampleText": "Gökkuşağı, ışığın su damlacıklarında yansıması, kırılması ve dağılması sonucu oluşan meteorolojik bir olaydır ve bunun sonucunda gökyüzünde bir ışık tayfı görünür."
+      }
+    },
+    "ug": {
+      "meta": {
+        "code": "ug",
+        "name": "Uyghur",
+        "shortName": "Uyghur",
+        "script": "Arab"
+      },
+      "assets": {
+        "translate": [
+          "translate-en-ug",
+          "translate-ug-en"
+        ],
+        "ocr": {
+          "ppocr": "ocr-ppocr-arabic"
+        }
+      },
+      "tts": {
+        "defaultRegion": "CN",
+        "regions": {
+          "CN": {
+            "displayName": "China",
+            "voices": [
+              "tts-mms-ug-cn-standard-mms"
+            ]
+          }
+        },
+        "sampleText": "ھەسەن-ھۈسەن سۇ تامچىلىرىدا نۇرنىڭ قايتىشى، سۇنۇشى ۋە تارقىلىشى نەتىجىسىدە ھاسىل بولىدىغان مېتېئورولوگىيىلىك ھادىسە بولۇپ، ئۇنىڭ تەسىرىدە ئاسماندا نۇر سپېكتىرى پەيدا بولىدۇ."
       }
     },
     "uk": {
@@ -2978,6 +3073,29 @@
         "wordCount": 286313
       }
     },
+    "dict-sw": {
+      "feature": "dictionary",
+      "dictionaryCode": "sw",
+      "languages": [
+        "sw"
+      ],
+      "files": [
+        {
+          "name": "sw.dict",
+          "sizeBytes": 257620,
+          "installPath": "dictionaries/sw.dict",
+          "url": "https://offline-translator.davidv.dev/dictionaries/1/sw.dict",
+          "sourcePath": "1/sw.dict",
+          "mirrorPath": "dictionaries/1/sw.dict"
+        }
+      ],
+      "dependsOn": [],
+      "metadata": {
+        "date": 1784028791,
+        "type": "english",
+        "wordCount": 15954
+      }
+    },
     "dict-ta": {
       "feature": "dictionary",
       "dictionaryCode": "ta",
@@ -3045,6 +3163,29 @@
         "date": 1774864382,
         "type": "bilingual",
         "wordCount": 34786
+      }
+    },
+    "dict-tl": {
+      "feature": "dictionary",
+      "dictionaryCode": "tl",
+      "languages": [
+        "tl"
+      ],
+      "files": [
+        {
+          "name": "tl.dict",
+          "sizeBytes": 944566,
+          "installPath": "dictionaries/tl.dict",
+          "url": "https://offline-translator.davidv.dev/dictionaries/1/tl.dict",
+          "sourcePath": "1/tl.dict",
+          "mirrorPath": "dictionaries/1/tl.dict"
+        }
+      ],
+      "dependsOn": [],
+      "metadata": {
+        "date": 1784028791,
+        "type": "english",
+        "wordCount": 26137
       }
     },
     "dict-tr": {
@@ -5010,6 +5151,39 @@
       ],
       "dependsOn": []
     },
+    "translate-en-sw": {
+      "feature": "translation",
+      "from": "en",
+      "to": "sw",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.ensw.intgemm.alphas.bin",
+          "sizeBytes": 25744545,
+          "installPath": "bin/model.ensw.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-sw/nllb_distill_20260714/exported/model.ensw.intgemm.alphas.bin.gz",
+          "sourcePath": "models/en-sw/nllb_distill_20260714/exported/model.ensw.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-sw/nllb_distill_20260714/exported/model.ensw.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "vocab.ensw.spm",
+          "sizeBytes": 391114,
+          "installPath": "bin/vocab.ensw.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-sw/nllb_distill_20260714/exported/vocab.ensw.spm.gz",
+          "sourcePath": "models/en-sw/nllb_distill_20260714/exported/vocab.ensw.spm.gz",
+          "mirrorPath": "translation/1/models/en-sw/nllb_distill_20260714/exported/vocab.ensw.spm.gz"
+        },
+        {
+          "name": "lex.50.50.ensw.s2t.bin",
+          "sizeBytes": 1034657,
+          "installPath": "bin/lex.50.50.ensw.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-sw/nllb_distill_20260714/exported/lex.50.50.ensw.s2t.bin.gz",
+          "sourcePath": "models/en-sw/nllb_distill_20260714/exported/lex.50.50.ensw.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-sw/nllb_distill_20260714/exported/lex.50.50.ensw.s2t.bin.gz"
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-en-ta": {
       "feature": "translation",
       "from": "en",
@@ -5109,6 +5283,39 @@
       ],
       "dependsOn": []
     },
+    "translate-en-tl": {
+      "feature": "translation",
+      "from": "en",
+      "to": "tl",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.entl.intgemm.alphas.bin",
+          "sizeBytes": 25170505,
+          "installPath": "bin/model.entl.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-tl/opusmt_distill_20260712/exported/model.entl.intgemm.alphas.bin.gz",
+          "sourcePath": "models/en-tl/opusmt_distill_20260712/exported/model.entl.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-tl/opusmt_distill_20260712/exported/model.entl.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "vocab.entl.spm",
+          "sizeBytes": 387511,
+          "installPath": "bin/vocab.entl.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-tl/opusmt_distill_20260712/exported/vocab.entl.spm.gz",
+          "sourcePath": "models/en-tl/opusmt_distill_20260712/exported/vocab.entl.spm.gz",
+          "mirrorPath": "translation/1/models/en-tl/opusmt_distill_20260712/exported/vocab.entl.spm.gz"
+        },
+        {
+          "name": "lex.50.50.entl.s2t.bin",
+          "sizeBytes": 1003287,
+          "installPath": "bin/lex.50.50.entl.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-tl/opusmt_distill_20260712/exported/lex.50.50.entl.s2t.bin.gz",
+          "sourcePath": "models/en-tl/opusmt_distill_20260712/exported/lex.50.50.entl.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-tl/opusmt_distill_20260712/exported/lex.50.50.entl.s2t.bin.gz"
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-en-tr": {
       "feature": "translation",
       "from": "en",
@@ -5138,6 +5345,39 @@
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-tr/spring-2024_LiFGeNrEQpKdNlziG2qP_A/exported/lex.50.50.entr.s2t.bin.gz",
           "sourcePath": "models/en-tr/spring-2024_LiFGeNrEQpKdNlziG2qP_A/exported/lex.50.50.entr.s2t.bin.gz",
           "mirrorPath": "translation/1/models/en-tr/spring-2024_LiFGeNrEQpKdNlziG2qP_A/exported/lex.50.50.entr.s2t.bin.gz"
+        }
+      ],
+      "dependsOn": []
+    },
+    "translate-en-ug": {
+      "feature": "translation",
+      "from": "en",
+      "to": "ug",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.enug.intgemm.alphas.bin",
+          "sizeBytes": 24223157,
+          "installPath": "bin/model.enug.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ug/hymt2_distill_20260719/exported/model.enug.intgemm.alphas.bin.gz",
+          "sourcePath": "models/en-ug/hymt2_distill_20260719/exported/model.enug.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/en-ug/hymt2_distill_20260719/exported/model.enug.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "vocab.enug.spm",
+          "sizeBytes": 406290,
+          "installPath": "bin/vocab.enug.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ug/hymt2_distill_20260719/exported/vocab.enug.spm.gz",
+          "sourcePath": "models/en-ug/hymt2_distill_20260719/exported/vocab.enug.spm.gz",
+          "mirrorPath": "translation/1/models/en-ug/hymt2_distill_20260719/exported/vocab.enug.spm.gz"
+        },
+        {
+          "name": "lex.50.50.enug.s2t.bin",
+          "sizeBytes": 990376,
+          "installPath": "bin/lex.50.50.enug.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-ug/hymt2_distill_20260719/exported/lex.50.50.enug.s2t.bin.gz",
+          "sourcePath": "models/en-ug/hymt2_distill_20260719/exported/lex.50.50.enug.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/en-ug/hymt2_distill_20260719/exported/lex.50.50.enug.s2t.bin.gz"
         }
       ],
       "dependsOn": []
@@ -6478,6 +6718,39 @@
       ],
       "dependsOn": []
     },
+    "translate-sw-en": {
+      "feature": "translation",
+      "from": "sw",
+      "to": "en",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.swen.intgemm.alphas.bin",
+          "sizeBytes": 24613843,
+          "installPath": "bin/model.swen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/sw-en/nllb_distill_20260714/exported/model.swen.intgemm.alphas.bin.gz",
+          "sourcePath": "models/sw-en/nllb_distill_20260714/exported/model.swen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/sw-en/nllb_distill_20260714/exported/model.swen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "vocab.swen.spm",
+          "sizeBytes": 391114,
+          "installPath": "bin/vocab.swen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/sw-en/nllb_distill_20260714/exported/vocab.swen.spm.gz",
+          "sourcePath": "models/sw-en/nllb_distill_20260714/exported/vocab.swen.spm.gz",
+          "mirrorPath": "translation/1/models/sw-en/nllb_distill_20260714/exported/vocab.swen.spm.gz"
+        },
+        {
+          "name": "lex.50.50.swen.s2t.bin",
+          "sizeBytes": 1217351,
+          "installPath": "bin/lex.50.50.swen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/sw-en/nllb_distill_20260714/exported/lex.50.50.swen.s2t.bin.gz",
+          "sourcePath": "models/sw-en/nllb_distill_20260714/exported/lex.50.50.swen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/sw-en/nllb_distill_20260714/exported/lex.50.50.swen.s2t.bin.gz"
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-ta-en": {
       "feature": "translation",
       "from": "ta",
@@ -6577,6 +6850,39 @@
       ],
       "dependsOn": []
     },
+    "translate-tl-en": {
+      "feature": "translation",
+      "from": "tl",
+      "to": "en",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.tlen.intgemm.alphas.bin",
+          "sizeBytes": 24582686,
+          "installPath": "bin/model.tlen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/tl-en/opusmt_distill_20260713/exported/model.tlen.intgemm.alphas.bin.gz",
+          "sourcePath": "models/tl-en/opusmt_distill_20260713/exported/model.tlen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/tl-en/opusmt_distill_20260713/exported/model.tlen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "vocab.tlen.spm",
+          "sizeBytes": 387511,
+          "installPath": "bin/vocab.tlen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/tl-en/opusmt_distill_20260713/exported/vocab.tlen.spm.gz",
+          "sourcePath": "models/tl-en/opusmt_distill_20260713/exported/vocab.tlen.spm.gz",
+          "mirrorPath": "translation/1/models/tl-en/opusmt_distill_20260713/exported/vocab.tlen.spm.gz"
+        },
+        {
+          "name": "lex.50.50.tlen.s2t.bin",
+          "sizeBytes": 1281937,
+          "installPath": "bin/lex.50.50.tlen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/tl-en/opusmt_distill_20260713/exported/lex.50.50.tlen.s2t.bin.gz",
+          "sourcePath": "models/tl-en/opusmt_distill_20260713/exported/lex.50.50.tlen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/tl-en/opusmt_distill_20260713/exported/lex.50.50.tlen.s2t.bin.gz"
+        }
+      ],
+      "dependsOn": []
+    },
     "translate-tr-en": {
       "feature": "translation",
       "from": "tr",
@@ -6606,6 +6912,39 @@
           "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/tr-en/statmt_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.tren.s2t.bin.gz",
           "sourcePath": "models/tr-en/statmt_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.tren.s2t.bin.gz",
           "mirrorPath": "translation/1/models/tr-en/statmt_xxxxxxxxRxSxxxxxxxxxxA/exported/lex.50.50.tren.s2t.bin.gz"
+        }
+      ],
+      "dependsOn": []
+    },
+    "translate-ug-en": {
+      "feature": "translation",
+      "from": "ug",
+      "to": "en",
+      "experimental": false,
+      "files": [
+        {
+          "name": "model.ugen.intgemm.alphas.bin",
+          "sizeBytes": 23536190,
+          "installPath": "bin/model.ugen.intgemm.alphas.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ug-en/hymt2_distill_20260718/exported/model.ugen.intgemm.alphas.bin.gz",
+          "sourcePath": "models/ug-en/hymt2_distill_20260718/exported/model.ugen.intgemm.alphas.bin.gz",
+          "mirrorPath": "translation/1/models/ug-en/hymt2_distill_20260718/exported/model.ugen.intgemm.alphas.bin.gz"
+        },
+        {
+          "name": "vocab.ugen.spm",
+          "sizeBytes": 406295,
+          "installPath": "bin/vocab.ugen.spm",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ug-en/hymt2_distill_20260718/exported/vocab.ugen.spm.gz",
+          "sourcePath": "models/ug-en/hymt2_distill_20260718/exported/vocab.ugen.spm.gz",
+          "mirrorPath": "translation/1/models/ug-en/hymt2_distill_20260718/exported/vocab.ugen.spm.gz"
+        },
+        {
+          "name": "lex.50.50.ugen.s2t.bin",
+          "sizeBytes": 1702175,
+          "installPath": "bin/lex.50.50.ugen.s2t.bin",
+          "url": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/ug-en/hymt2_distill_20260718/exported/lex.50.50.ugen.s2t.bin.gz",
+          "sourcePath": "models/ug-en/hymt2_distill_20260718/exported/lex.50.50.ugen.s2t.bin.gz",
+          "mirrorPath": "translation/1/models/ug-en/hymt2_distill_20260718/exported/lex.50.50.ugen.s2t.bin.gz"
         }
       ],
       "dependsOn": []
@@ -7340,6 +7679,22 @@
           "installPath": "bin/espeak-ng-data/sv_dict",
           "url": "https://offline-translator.davidv.dev/tts/1/espeak-ng-data/sv_dict",
           "mirrorPath": "tts/1/espeak-ng-data/sv_dict"
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-core-v1"
+      ]
+    },
+    "tts-espeak-dict-sw": {
+      "feature": "support",
+      "kind": "tts-espeak-dict",
+      "files": [
+        {
+          "name": "sw_dict",
+          "sizeBytes": 47804,
+          "installPath": "bin/espeak-ng-data/sw_dict",
+          "url": "https://offline-translator.davidv.dev/tts/1/espeak-ng-data/sw_dict",
+          "mirrorPath": "tts/1/espeak-ng-data/sw_dict"
         }
       ],
       "dependsOn": [
@@ -10722,6 +11077,36 @@
         "tts-espeak-dict-sv"
       ]
     },
+    "tts-piper-sw-cd-lanfrica-medium": {
+      "feature": "tts",
+      "engine": "piper",
+      "language": "sw",
+      "locale": "sw_CD",
+      "region": "CD",
+      "voice": "lanfrica",
+      "quality": "medium",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [
+        {
+          "name": "sw_CD-lanfrica-medium.onnx",
+          "sizeBytes": 63201294,
+          "installPath": "bin/piper/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx",
+          "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx",
+          "mirrorPath": "tts/1/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx"
+        },
+        {
+          "name": "sw_CD-lanfrica-medium.onnx.json",
+          "sizeBytes": 4905,
+          "installPath": "bin/piper/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx.json",
+          "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx.json",
+          "mirrorPath": "tts/1/sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx.json"
+        }
+      ],
+      "dependsOn": [
+        "tts-espeak-dict-sw"
+      ]
+    },
     "tts-mms-ta-in-standard-mms": {
       "feature": "tts",
       "engine": "mms",
@@ -10868,6 +11253,34 @@
       ],
       "dependsOn": []
     },
+    "tts-mms-tl-ph-standard-mms": {
+      "feature": "tts",
+      "engine": "mms",
+      "language": "tl",
+      "locale": "tl_PH",
+      "region": "PH",
+      "voice": "standard",
+      "quality": "medium",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [
+        {
+          "name": "model.onnx",
+          "sizeBytes": 114020792,
+          "installPath": "bin/mms/tl/tl_PH/standard/medium/model.onnx",
+          "url": "https://huggingface.co/willwade/mms-tts-multilingual-models-onnx/resolve/main/tgl/model.onnx",
+          "mirrorPath": "tts/1/tl/tl_PH/standard/medium/model.onnx"
+        },
+        {
+          "name": "tokens.txt",
+          "sizeBytes": 337,
+          "installPath": "bin/mms/tl/tl_PH/standard/medium/tokens.txt",
+          "url": "https://huggingface.co/willwade/mms-tts-multilingual-models-onnx/resolve/main/tgl/tokens.txt",
+          "mirrorPath": "tts/1/tl/tl_PH/standard/medium/tokens.txt"
+        }
+      ],
+      "dependsOn": []
+    },
     "tts-piper-tr-tr-dfki-medium": {
       "feature": "tts",
       "engine": "piper",
@@ -10897,6 +11310,34 @@
       "dependsOn": [
         "tts-espeak-dict-tr"
       ]
+    },
+    "tts-mms-ug-cn-standard-mms": {
+      "feature": "tts",
+      "engine": "mms",
+      "language": "ug",
+      "locale": "ug_CN",
+      "region": "CN",
+      "voice": "standard",
+      "quality": "medium",
+      "numSpeakers": 1,
+      "aliases": [],
+      "files": [
+        {
+          "name": "model.mnn",
+          "sizeBytes": 29736804,
+          "installPath": "bin/mms/ug/ug_CN/standard/medium/model.mnn",
+          "url": "https://offline-translator.davidv.dev/tts/1/ug/ug_CN/standard/medium/model.mnn",
+          "mirrorPath": "tts/1/ug/ug_CN/standard/medium/model.mnn"
+        },
+        {
+          "name": "tokens.txt",
+          "sizeBytes": 227,
+          "installPath": "bin/mms/ug/ug_CN/standard/medium/tokens.txt",
+          "url": "https://offline-translator.davidv.dev/tts/1/ug/ug_CN/standard/medium/tokens.txt",
+          "mirrorPath": "tts/1/ug/ug_CN/standard/medium/tokens.txt"
+        }
+      ],
+      "dependsOn": []
     },
     "tts-piper-uk-ua-ukrainian-tts-medium": {
       "feature": "tts",
@@ -11350,13 +11791,22 @@
       "role": "detector",
       "files": [
         {
+          "name": "PP-OCRv5_mobile_det_int8.mnn",
+          "sizeBytes": 1324660,
+          "installPath": "ppocr/PP-OCRv5/PP-OCRv5_mobile_det_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv5/PP-OCRv5_mobile_det_int8.mnn",
+          "mirrorPath": "ocr/1/PP-OCRv5/PP-OCRv5_mobile_det_int8.mnn",
+          "role": "detector",
+          "priority": 0
+        },
+        {
           "name": "PP-OCRv6_tiny_det_half_int8.mnn",
           "sizeBytes": 543128,
           "installPath": "ppocr/PP-OCRv6/PP-OCRv6_tiny_det_half_int8.mnn",
           "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv6/PP-OCRv6_tiny_det_half_int8.mnn",
           "mirrorPath": "ocr/1/PP-OCRv6/PP-OCRv6_tiny_det_half_int8.mnn",
           "role": "detector",
-          "priority": 0
+          "priority": 1
         },
         {
           "name": "PP-OCRv6_tiny_det_int8.mnn",
@@ -11365,7 +11815,7 @@
           "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv6/PP-OCRv6_tiny_det_int8.mnn",
           "mirrorPath": "ocr/1/PP-OCRv6/PP-OCRv6_tiny_det_int8.mnn",
           "role": "detector",
-          "priority": 1
+          "priority": 2
         },
         {
           "name": "PULC_int8.mnn",
@@ -11403,6 +11853,16 @@
           "mirrorPath": "ocr/1/PP-OCRv6/ink_bold_line_int8.mnn",
           "role": "ink",
           "priority": 1,
+          "optional": true
+        },
+        {
+          "name": "ink_color_int8.mnn",
+          "sizeBytes": 1980972,
+          "installPath": "ppocr/PP-OCRv6/ink_color_int8.mnn",
+          "url": "https://offline-translator.davidv.dev/ocr/1/PP-OCRv6/ink_color_int8.mnn",
+          "mirrorPath": "ocr/1/PP-OCRv6/ink_color_int8.mnn",
+          "role": "ink",
+          "priority": 2,
           "optional": true
         }
       ],

@@ -37,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,12 +69,12 @@ fun NoLanguagesScreen(
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text("Language Setup") },
+        title = { Text(stringResource(R.string.nolang_title)) },
         actions = {
           IconButton(onClick = onSettings) {
             Icon(
               painterResource(id = R.drawable.settings),
-              contentDescription = "Settings",
+              contentDescription = stringResource(R.string.a11y_settings),
             )
           }
         },
@@ -89,7 +90,7 @@ fun NoLanguagesScreen(
             .padding(8.dp)
             .navigationBarsPadding(),
       ) {
-        Text("Done")
+        Text(stringResource(R.string.common_done))
       }
     },
   ) { paddingValues ->
@@ -101,7 +102,7 @@ fun NoLanguagesScreen(
           .padding(horizontal = 16.dp),
     ) {
       Text(
-        text = "Download language packs to start translating",
+        text = stringResource(R.string.nolang_prompt),
         style = MaterialTheme.typography.bodyLarge,
         textAlign = TextAlign.Center,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -114,6 +115,7 @@ fun NoLanguagesScreen(
       val ttsDownloadStates by downloadService.ttsDownloadStates.collectAsState()
       val activeTtsPackIds by downloadService.activeTtsPackIds.collectAsState()
       val queuedTtsPackIds by downloadService.queuedTtsPackIds.collectAsState()
+      val repairDownloadState by downloadService.repairDownloadState.collectAsState()
 
       LanguageAssetManagerScreen(
         context = context,
@@ -127,6 +129,7 @@ fun NoLanguagesScreen(
         ttsDownloadStates = ttsDownloadStates,
         activeTtsPackIds = activeTtsPackIds,
         queuedTtsPackIds = queuedTtsPackIds,
+        repairDownloadState = repairDownloadState,
       )
     }
   }

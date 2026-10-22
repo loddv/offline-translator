@@ -19,6 +19,8 @@ package dev.davidv.translator.ui.screens
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -59,9 +61,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -81,6 +84,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -93,6 +97,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -186,6 +191,14 @@ fun LiveCameraScreen(
 
   BackHandler { onClose() }
 
+  DisposableEffect(Unit) {
+    val activity = context as? Activity
+    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    onDispose {
+      activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
+  }
+
   Box(
     modifier =
       Modifier
@@ -230,13 +243,13 @@ private fun PermissionPrompt(
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     Text(
-      text = "Camera permission is needed for live translate.",
+      text = stringResource(R.string.camera_permission_rationale),
       color = Color.White,
     )
     Spacer(modifier = Modifier.size(16.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
       Text(
-        text = "Grant",
+        text = stringResource(R.string.common_grant),
         color = Color.White,
         modifier =
           Modifier
@@ -246,7 +259,7 @@ private fun PermissionPrompt(
             .padding(horizontal = 16.dp, vertical = 8.dp),
       )
       Text(
-        text = "Cancel",
+        text = stringResource(R.string.common_cancel),
         color = Color.White,
         modifier =
           Modifier
@@ -669,18 +682,7 @@ private fun CameraSurface(
         // external texture + overlay into the EGL surface. One camera
         // consumer; no `ImageAnalysis` stream, no per-frame CPU bytes.
         preview.setSurfaceProvider(cameraSurfaceExecutor) { request ->
-          val resolution = request.resolution
-          Log.i(TAG, "Preview SurfaceRequest resolution=${resolution.width}x${resolution.height}")
-          liveSurfaceView.setCameraBufferSize(resolution.width, resolution.height)
-          val surface = liveSurfaceView.awaitCameraSurface()
-          if (surface == null) {
-            request.willNotProvideSurface()
-            return@setSurfaceProvider
-          }
-          request.provideSurface(surface, cameraSurfaceExecutor) {
-            // The Surface is released when the GL thread tears down
-            // (surfaceDestroyed); CameraX's release callback is a no-op.
-          }
+          liveSurfaceView.provideSurfaceRequest(request, cameraSurfaceExecutor)
         }
         val boundCamera =
           provider.bindToLifecycle(
@@ -743,7 +745,12 @@ private fun CameraSurface(
       Box(
         modifier =
           Modifier
-            .offset {
+            // pt comes from a raw MotionEvent (origin at the physical
+            // left edge), so its placement must ignore layout direction —
+            // absoluteOffset + AbsoluteAlignment.TopLeft, or the ring
+            // mirrors horizontally under RTL locales.
+            .align(AbsoluteAlignment.TopLeft)
+            .absoluteOffset {
               IntOffset(
                 (pt.x - indicatorRadiusPx).toInt(),
                 (pt.y - indicatorRadiusPx).toInt(),
@@ -782,7 +789,7 @@ private fun CameraSurface(
           Toast
             .makeText(
               context,
-              "You need to download the OCR models for this language",
+              context.getString(R.string.camera_need_ocr_models),
               Toast.LENGTH_SHORT,
             )
             .show()
@@ -846,7 +853,7 @@ private fun TopLanguagePills(
     }
   val toLanguages =
     languageState.allLanguages().filter { x ->
-      x != from && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
+      (isAutoSource || x != from) && x != to && (languageState.availabilityFor(x)?.hasFromEnglish == true || x.isEnglish)
     }
   val pillShape = RoundedCornerShape(50)
   val pillBackground = Color.Black.copy(alpha = 0.5f)
@@ -884,7 +891,7 @@ private fun TopLanguagePills(
       ) {
         Icon(
           painter = painterResource(id = R.drawable.compare),
-          contentDescription = "Reverse translation direction",
+          contentDescription = stringResource(R.string.a11y_reverse_translation_direction),
         )
       }
     }
@@ -922,6 +929,7 @@ private fun BottomControls(
   Row(
     modifier =
       modifier
+        .navigationBarsPadding()
         .padding(horizontal = 24.dp, vertical = 24.dp),
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
@@ -932,7 +940,7 @@ private fun BottomControls(
     ) {
       Icon(
         painter = painterResource(if (torchOn) R.drawable.flash_on else R.drawable.flash_off),
-        contentDescription = if (torchOn) "Torch on" else "Torch off",
+        contentDescription = if (torchOn) stringResource(R.string.a11y_torch_on) else stringResource(R.string.a11y_torch_off),
         tint = if (hasFlashUnit) Color.White else Color.White.copy(alpha = 0.3f),
       )
     }
@@ -952,7 +960,14 @@ private fun BottomControls(
     IconButton(onClick = onLiveOverlayToggle) {
       Icon(
         painter = painterResource(R.drawable.auto_awesome),
-        contentDescription = if (liveOverlayOn) "Live overlay on" else "Live overlay off",
+        contentDescription =
+          if (liveOverlayOn) {
+            stringResource(
+              R.string.a11y_live_overlay_on,
+            )
+          } else {
+            stringResource(R.string.a11y_live_overlay_off)
+          },
         tint =
           when {
             !liveOverlayAvailable -> Color.White.copy(alpha = 0.25f)
